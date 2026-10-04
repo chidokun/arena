@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
 import { getGame, roomHref } from "@/lib/games/registry";
 import { cleanName, randomId } from "@/lib/identity";
 import type { RoomAd } from "@/lib/net/lobby";
@@ -100,10 +101,16 @@ export function GameLobby({ slug }: { slug: string }) {
 }
 
 function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
-  const full = room.members >= room.cap;
+  const loto = room.game === "loto";
+  const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
-  const status = playing ? { label: "Đang đấu", color: "var(--coral)" } : room.status === "ended" ? { label: "Vừa xong ván", color: "var(--grape)" } : { label: "Đang chờ", color: "var(--lime)" };
-  const size = Number(room.opts?.size) || 15;
+  // Lô tô: hết tờ thì chỉ vào xem được.
+  const noSheets = loto && (room.sheets ?? 0) >= room.seats;
+  const status = playing
+    ? { label: loto ? "Đang kêu số" : "Đang đấu", color: "var(--coral)" }
+    : room.status === "ended"
+      ? { label: "Vừa xong ván", color: "var(--grape)" }
+      : { label: "Đang chờ", color: "var(--lime)" };
   return (
     <article className="card flex h-full flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -117,18 +124,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           {status.label}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 text-[13px] font-bold">
-        <span className="rounded-lg bg-sunken px-2.5 py-1">
-          🪑 {room.players}/{room.seats} ghế
-        </span>
-        <span className="rounded-lg bg-sunken px-2.5 py-1">
-          👥 {room.members}/{room.cap} người
-        </span>
-        <span className="rounded-lg bg-sunken px-2.5 py-1">
-          ▦ {size}×{size}
-        </span>
-        {Boolean(room.opts?.blockTwoEnds) && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
-      </div>
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : <CaroChips room={room} />}</div>
       <div className="mt-auto flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-ink-3">#{room.id}</span>
         {full ? (
@@ -136,12 +132,45 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
             Phòng đầy
           </span>
         ) : (
-          <Link href={roomHref(slug, room.id)} className={`btn btn-sm no-underline ${playing ? "btn-sun" : "btn-pen"}`}>
-            {playing ? "Vào xem" : "Vào phòng"}
+          <Link href={roomHref(slug, room.id)} className={`btn btn-sm no-underline ${playing || noSheets ? "btn-sun" : "btn-pen"}`}>
+            {playing || noSheets ? "Vào xem" : "Vào phòng"}
           </Link>
         )}
       </div>
     </article>
+  );
+}
+
+function CaroChips({ room }: { room: RoomAd }) {
+  const size = Number(room.opts?.size) || 15;
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        ▦ {size}×{size}
+      </span>
+      {Boolean(room.opts?.blockTwoEnds) && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
+    </>
+  );
+}
+
+function LotoChips({ room }: { room: RoomAd }) {
+  const sheets = room.sheets ?? 0;
+  const pace = Number(room.opts?.interval) || DEFAULT_PACE;
+  return (
+    <>
+      <span className={`rounded-lg px-2.5 py-1 ${sheets >= room.seats ? "bg-coral-soft" : "bg-sunken"}`}>
+        🎫 {sheets >= room.seats ? "Hết tờ" : `${sheets}/${room.seats} tờ`}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ {pace / 1000}s/số</span>
+    </>
   );
 }
 
@@ -176,6 +205,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [cap, setCap] = useState(game.capacity.default);
   const [size, setSize] = useState(15);
   const [blockTwoEnds, setBlock] = useState(true);
+  const [pace, setPace] = useState(DEFAULT_PACE);
+  const loto = slug === "loto";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -186,7 +217,11 @@ function CreateForm({ slug }: { slug: string }) {
         e.preventDefault();
         if (!clean) return;
         const id = randomId(6);
-        stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
+        if (loto) {
+          // Bộ tờ của phòng sinh từ seed này; không giới hạn người vào xem, số người chơi giới hạn bởi số tờ.
+          const seed = crypto.getRandomValues(new Uint32Array(1))[0];
+          stashCreate(id, { name: clean, cap: 0, seats: SHEET_COUNT, opts: { seed, interval: pace } });
+        } else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
     >
@@ -196,41 +231,62 @@ function CreateForm({ slug }: { slug: string }) {
         </label>
         <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
       </div>
-      <div>
-        <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
-          <span>Số người tối đa trong phòng</span>
-          <span className="text-pen tabular-nums">{cap} người</span>
-        </label>
-        <input
-          id="cr-cap"
-          type="range"
-          min={Math.max(game.capacity.min, seats)}
-          max={game.capacity.max}
-          value={cap}
-          onChange={(e) => setCap(Number(e.target.value))}
-          className="w-full accent-[var(--pen)]"
-        />
-        <p className="mt-1 text-[13px] text-ink-3">
-          Gồm {seats} người chơi và {cap - seats} người xem.
-        </p>
-      </div>
-      <fieldset>
-        <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {[15, 19].map((s) => (
-            <button key={s} type="button" onClick={() => setSize(s)} aria-pressed={size === s} className={`btn ${size === s ? "btn-sun" : ""}`}>
-              {s}×{s}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend className="mb-2 text-sm font-bold">Luật chặn hai đầu</legend>
-        <div className="grid gap-2">
-          <Choice on={blockTwoEnds} onClick={() => setBlock(true)} title="Bật — chặn 2 đầu không thắng" text="Dãy 5 quân bị quân đối phương chặn ở cả hai đầu thì không được tính thắng." />
-          <Choice on={!blockTwoEnds} onClick={() => setBlock(false)} title="Tắt — cứ 5 quân là thắng" text="Chỉ cần 5 quân liên tiếp, bị chặn hay không đều thắng." />
-        </div>
-      </fieldset>
+      {loto ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Nhịp kêu số</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {PACES.map((p) => (
+                <button key={p} type="button" onClick={() => setPace(p)} aria-pressed={pace === p} className={`btn !px-2 ${pace === p ? "btn-sun" : ""}`}>
+                  {PACE_NAMES[p]} · {p / 1000}s
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">Máy chủ phòng tự kêu một số sau mỗi {pace / 1000} giây; đổi được ngay trong phòng.</p>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            🧧 Bộ 10 màu × 2 tờ = {SHEET_COUNT} tờ. Ai vào phòng cũng xem được; mỗi người chơi giữ 1–2 tờ, hết tờ thì không vào chơi được nữa. Chủ phòng cũng chọn tờ như mọi người.
+          </p>
+        </>
+      ) : (
+        <>
+          <div>
+            <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
+              <span>Số người tối đa trong phòng</span>
+              <span className="text-pen tabular-nums">{cap} người</span>
+            </label>
+            <input
+              id="cr-cap"
+              type="range"
+              min={Math.max(game.capacity.min, seats)}
+              max={game.capacity.max}
+              value={cap}
+              onChange={(e) => setCap(Number(e.target.value))}
+              className="w-full accent-[var(--pen)]"
+            />
+            <p className="mt-1 text-[13px] text-ink-3">
+              Gồm {seats} người chơi và {cap - seats} người xem.
+            </p>
+          </div>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {[15, 19].map((s) => (
+                <button key={s} type="button" onClick={() => setSize(s)} aria-pressed={size === s} className={`btn ${size === s ? "btn-sun" : ""}`}>
+                  {s}×{s}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Luật chặn hai đầu</legend>
+            <div className="grid gap-2">
+              <Choice on={blockTwoEnds} onClick={() => setBlock(true)} title="Bật — chặn 2 đầu không thắng" text="Dãy 5 quân bị quân đối phương chặn ở cả hai đầu thì không được tính thắng." />
+              <Choice on={!blockTwoEnds} onClick={() => setBlock(false)} title="Tắt — cứ 5 quân là thắng" text="Chỉ cần 5 quân liên tiếp, bị chặn hay không đều thắng." />
+            </div>
+          </fieldset>
+        </>
+      )}
       <button type="submit" className="btn btn-pen h-12 text-base" disabled={!clean}>
         Tạo phòng & vào ngay
       </button>

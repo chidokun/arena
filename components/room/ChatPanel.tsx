@@ -50,6 +50,8 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
                   <span className="inline-block text-[44px] leading-none" role="img" aria-label={STICKERS.find((s) => s.id === m.sticker)?.label}>
                     {stickerEmoji(m.sticker)}
                   </span>
+                ) : m.shout ? (
+                  <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">{m.text}</p>
                 ) : (
                   <p
                     className={`inline-block rounded-2xl border-2 border-edge px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere] ${

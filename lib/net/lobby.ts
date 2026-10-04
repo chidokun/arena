@@ -22,6 +22,8 @@ export type RoomAd = {
   seats: number;
   members: number;
   players: number;
+  /** Lô tô: số tờ đã có người chọn. */
+  sheets?: number;
   status: "waiting" | "playing" | "ended";
   opts: Record<string, unknown>;
   hb: number;

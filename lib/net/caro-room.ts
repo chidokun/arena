@@ -1,0 +1,108 @@
+/**
+ * Phòng cờ caro: hai ghế, hai người chơi lần lượt nối nước đi vào nhật ký `g:<ván>`; ai cũng tự dựng lại ván
+ * bằng `replay` nên không cần ai "phán" thắng thua. Người chơi mất kết nối quá lâu giữa ván bị xử thua.
+ */
+import { replay, type CaroOptions, type CaroState, type Move } from "../games/caro";
+import { RoomSession, type Meta, type Result, type SeatView } from "./room";
+
+const FORFEIT_MS = 30000;
+
+export type CaroMatch = {
+  round: number;
+  state: CaroState;
+  lineup: SeatView[];
+  myMark: 0 | 1 | 2;
+  myTurn: boolean;
+  result?: Result;
+};
+
+export type CaroView = {
+  opts: CaroOptions;
+  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
+  match?: CaroMatch;
+};
+
+export class CaroRoom extends RoomSession<CaroView> {
+  readonly game = "caro";
+
+  private gameOf(m: Meta) {
+    const moves = this.gossip.get<{ moves: Move[] }>(`g:${m.round}`)?.moves ?? [];
+    const state = replay(moves, m.opts as CaroOptions);
+    let result: Result | undefined;
+    if (state.winner) result = { round: m.round, winner: m.lineup[state.winner - 1] ?? null, loser: m.lineup[2 - state.winner], reason: "line" };
+    else if (state.draw) result = { round: m.round, winner: null, reason: "draw" };
+    else {
+      const quitter = m.lineup.find((u) => this.gossip.get(`x:${m.round}:${u}`));
+      if (quitter) result = { round: m.round, winner: m.lineup.find((u) => u !== quitter) ?? null, loser: quitter, reason: "resign" };
+      else if (m.result?.round === m.round) result = m.result;
+    }
+    return { state, moves, result };
+  }
+
+  protected begin(m: Meta) {
+    if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
+    // Luân phiên người đi trước giữa các ván.
+    m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
+    return true;
+  }
+
+  protected outcome(m: Meta) {
+    return this.gameOf(m).result;
+  }
+
+  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
+  protected hostPlay(m: Meta) {
+    const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
+    if (!gone) return;
+    m.status = "ended";
+    m.result = { round: m.round, winner: m.lineup.find((u) => u !== gone) ?? null, loser: gone, reason: "leave" };
+  }
+
+  protected onKick(m: Meta, uid: string) {
+    if (m.status === "playing" && m.lineup.includes(uid)) {
+      m.status = "ended";
+      m.result = { round: m.round, winner: m.lineup.find((u) => u !== uid) ?? null, loser: uid, reason: "kick" };
+    }
+  }
+
+  protected gameView(m: Meta, seatOf: (uid: string) => SeatView): CaroView {
+    const opts = m.opts as CaroOptions;
+    if (!(m.round > 0 && m.lineup.length === 2)) return { opts };
+    const g = this.gameOf(m);
+    const myMark = (m.lineup.indexOf(this.me) + 1) as 0 | 1 | 2;
+    return {
+      opts,
+      match: {
+        round: m.round,
+        state: g.state,
+        lineup: m.lineup.map(seatOf),
+        myMark,
+        myTurn: m.status === "playing" && !g.result && myMark > 0 && g.state.turn === myMark,
+        result: g.result,
+      },
+    };
+  }
+
+  protected resultText(r: Result, name: (uid: string) => string) {
+    if (!r.winner) return `Ván ${r.round} hoà`;
+    const why = r.reason === "resign" ? " (đối thủ xin thua)" : r.reason === "leave" ? " (đối thủ rời trận)" : r.reason === "kick" ? " (đối thủ bị mời ra)" : "";
+    return `${name(r.winner)} thắng ván ${r.round}${why}`;
+  }
+
+  move(x: number, y: number) {
+    const m = this.meta();
+    if (!m || !this.store.get().game?.match?.myTurn) return;
+    const moves = this.gossip.get<{ moves: Move[] }>(`g:${m.round}`)?.moves ?? [];
+    const next: Move[] = [...moves, [x, y]];
+    if (replay(next, m.opts as CaroOptions).count !== next.length) return;
+    this.gossip.set(`g:${m.round}`, { moves: next });
+    this.react();
+  }
+
+  resign() {
+    const m = this.meta();
+    if (!m || m.status !== "playing" || !m.lineup.includes(this.me)) return;
+    this.gossip.set(`x:${m.round}:${this.me}`, { resign: true });
+    this.react();
+  }
+}

@@ -7,7 +7,7 @@ export type GameDef = {
   description: string;
   /** Số ghế chơi (người thi đấu) mà chủ phòng có thể chọn. */
   seats: { min: number; max: number };
-  /** Số người tối đa trong phòng (người chơi + người xem) mà chủ phòng có thể đặt. */
+  /** Số người tối đa trong phòng (người chơi + người xem) mà chủ phòng có thể đặt; 0 là không giới hạn. */
   capacity: { min: number; max: number; default: number };
   available: boolean;
   /** Màu chủ đạo của thẻ game. */
@@ -27,6 +27,18 @@ export const GAMES: GameDef[] = [
     available: true,
     hue: "coral",
     emoji: "⭕",
+  },
+  {
+    slug: "loto",
+    name: "Lô Tô",
+    tagline: "Kêu số rộn ràng, đủ năm số một hàng là Kinh!",
+    description:
+      "Bộ 10 màu, mỗi màu 2 tờ bù trừ nhau đủ 90 số. Mỗi người chọn 1–2 tờ; chủ phòng tự động kêu số ngẫu nhiên từ 1 đến 90, tờ của bạn tự đánh dấu. Bốn số cùng hàng thì Hò — đủ năm số một hàng là Kinh!",
+    seats: { min: 1, max: 20 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "sun",
+    emoji: "🧧",
   },
   {
     slug: "connect-four",

@@ -11,7 +11,7 @@ import { stickerEmoji } from "./stickers";
 export function Balloon({ msg }: { msg?: ChatMsg }) {
   if (!msg) return null;
   return (
-    <span key={msg.id} className={`balloon ${msg.sticker ? "is-sticker" : ""}`} role="presentation">
+    <span key={msg.id} className={`balloon ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
       {msg.sticker ? stickerEmoji(msg.sticker) : msg.text}
     </span>
   );
@@ -88,17 +88,26 @@ export function SeatCard({
   );
 }
 
-/** Danh sách người trong phòng; chủ phòng có thêm nút thêm vào ghế / mời ra ghế / kick / nhường chủ phòng. */
+/**
+ * Danh sách người trong phòng; chủ phòng có thêm nút thêm vào ghế / mời ra ghế / kick / nhường chủ phòng.
+ * Game tuỳ biến được dòng mô tả từng người (`detail`), có cho kéo người xem vào ghế không (`canSeat`) và nhãn nút mời ra ghế.
+ */
 export function PeoplePanel({
   view,
   session,
   balloons,
   roomId,
+  detail,
+  canSeat = true,
+  unseatLabel = "Rời ghế",
 }: {
   view: RoomView;
   session: RoomSession;
   balloons: Record<string, ChatMsg>;
   roomId: string;
+  detail?: (p: Member, seated: boolean) => React.ReactNode;
+  canSeat?: boolean;
+  unseatLabel?: string;
 }) {
   const m = view.meta!;
   const [inviting, setInviting] = useState(false);
@@ -116,18 +125,18 @@ export function PeoplePanel({
           {p.uid === view.me && <span className="ml-1 text-xs text-pen">(bạn)</span>}
           {p.uid === m.host && <span title="Chủ phòng"> 👑</span>}
         </p>
-        <p className="text-xs text-ink-3">{seated ? (playing && m.lineup.includes(p.uid) ? "Đang thi đấu" : "Đã vào ghế") : "Đang xem"}</p>
+        <p className="text-xs text-ink-3">{detail ? detail(p, seated) : seated ? (playing && m.lineup.includes(p.uid) ? "Đang thi đấu" : "Đã vào ghế") : "Đang xem"}</p>
       </div>
       {view.isHost && p.uid !== view.me && (
         <div className="flex flex-none gap-1">
-          {!seated && !playing && seatFree && (
+          {canSeat && !seated && !playing && seatFree && (
             <button type="button" className="btn btn-sm btn-lime !px-2" onClick={() => session.seat(p.uid)} title="Thêm vào ghế chơi">
               + Ghế
             </button>
           )}
           {seated && !playing && (
             <button type="button" className="btn btn-sm !px-2" onClick={() => session.unseat(p.uid)} title="Mời ra khỏi ghế (vẫn ở lại xem)">
-              Rời ghế
+              {unseatLabel}
             </button>
           )}
           <HostMenu onKick={() => session.kick(p.uid)} onMakeHost={() => session.makeHost(p.uid)} name={p.name} />
@@ -141,9 +150,7 @@ export function PeoplePanel({
       <div className="flex items-center justify-between gap-2">
         <h2 id="people-h" className="font-display text-lg font-extrabold">
           👥 Trong phòng{" "}
-          <span className="text-ink-3">
-            ({view.online.size}/{m.cap})
-          </span>
+          <span className="text-ink-3">({m.cap > 0 ? `${view.online.size}/${m.cap}` : view.online.size})</span>
         </h2>
         {view.isHost && (
           <button type="button" className="btn btn-sm" onClick={() => setInviting(true)}>

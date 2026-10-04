@@ -371,6 +371,17 @@
     font-size: 34px;
     padding: 4px 10px;
   }
+  /* Câu rao lô tô: "Hò!", "Kinh!" */
+  .balloon.is-shout {
+    background: var(--sun);
+    color: #2b1d00;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .balloon.is-shout::after {
+    background: var(--sun);
+  }
 
   .fly {
     position: absolute;
@@ -394,6 +405,346 @@
   }
   .shake {
     animation: shake 420ms ease;
+  }
+
+  /* ---------- Lô tô ---------- */
+  .loto-caller {
+    background:
+      radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--coral) 13%, transparent), transparent 46%),
+      radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--sun) 16%, transparent), transparent 40%), var(--surface);
+  }
+
+  /* Quả bóng số: bi đỏ, mặt trắng như bi lô tô; vòng vàng quanh bi đếm tới số kế tiếp. */
+  .loto-ball-wrap {
+    position: relative;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 104px;
+    height: 104px;
+  }
+  .loto-ball {
+    display: grid;
+    place-items: center;
+    width: 86px;
+    height: 86px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: radial-gradient(circle at 32% 28%, #ff9b9b 0 7%, #e5383b 45%, #a4161a);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 -5px 0 rgba(0, 0, 0, 0.18);
+  }
+  .loto-ball > span {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 999px;
+    background: #fffdf7;
+    color: #a4161a;
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .loto-ball.is-new {
+    animation: ball-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+  }
+  .loto-ball.is-mini {
+    width: 58px;
+    height: 58px;
+  }
+  .loto-ball.is-mini > span {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+  }
+  .loto-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .loto-ring circle {
+    fill: none;
+    stroke: var(--sun);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation-name: ring-fill;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+
+  .loto-chip {
+    display: inline-grid;
+    place-items: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .loto-chip.is-win {
+    background: var(--win);
+    color: var(--ink);
+  }
+  .loto-chip.is-last {
+    background: var(--coral);
+    color: #fff;
+  }
+
+  /* Bảng dò 1–90 */
+  .loto-board {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .loto-board li {
+    display: grid;
+    place-items: center;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--sunken);
+    color: var(--ink-3);
+    font-size: 12.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .loto-board li.is-on {
+    background: var(--sun);
+    color: #2b1d00;
+  }
+  .loto-board li.is-last {
+    background: var(--coral);
+    color: #fff;
+    animation: stamp 320ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+
+  /* Tờ lô tô: giấy trắng in số, ô trống tô màu của tờ — trông như tờ thật ở cả hai chế độ sáng/tối. */
+  .loto-sheet {
+    container-type: inline-size;
+    margin: 0;
+    padding: 8px;
+    border: 2px solid var(--edge);
+    border-radius: 16px;
+    background: var(--sheet);
+    box-shadow: var(--shadow);
+  }
+  .loto-sheet.is-pending {
+    border-style: dashed;
+    opacity: 0.75;
+  }
+  .loto-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 4px 6px;
+    color: var(--sheet-ink);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 800;
+  }
+  .loto-grid {
+    display: grid;
+    gap: 3px;
+  }
+  .loto-row {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 3px;
+    border-radius: 8px;
+  }
+  .loto-row:nth-child(3n):not(:last-child) {
+    margin-bottom: 6px;
+  }
+  .loto-row.is-wait {
+    outline: 3px dashed var(--sun);
+    outline-offset: 1px;
+  }
+  .loto-row.is-win {
+    outline: 3px solid var(--win);
+    outline-offset: 1px;
+    animation: need-pulse 0.9s ease-in-out infinite alternate;
+  }
+  .loto-cell {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background: #fffdf7;
+    color: #1d1648;
+    font-family: var(--font-display);
+    font-size: clamp(13px, 4.6cqi, 22px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    user-select: none;
+  }
+  .loto-cell.is-blank {
+    background: color-mix(in srgb, var(--sheet) 70%, #fff);
+  }
+  /* "Nắp" đỏ đè lên số đã kêu */
+  .loto-cell.is-hit {
+    color: #fff;
+  }
+  .loto-cell.is-hit::before {
+    content: "";
+    position: absolute;
+    inset: 7%;
+    z-index: -1;
+    border-radius: 999px;
+    background: radial-gradient(circle at 34% 30%, #ff8585, #d62828 58%, #9d0208);
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  }
+  .loto-cell.is-last::before {
+    box-shadow:
+      0 0 0 3px var(--sun),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+    animation: stamp 320ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+  .loto-row.is-win .loto-cell.is-hit {
+    color: #2b1d00;
+  }
+  .loto-row.is-win .loto-cell.is-hit::before {
+    background: radial-gradient(circle at 34% 30%, #fff3b0, #ffc23d 58%, #c98b00);
+  }
+  .loto-cell.is-need {
+    animation: need-pulse 0.9s ease-in-out infinite alternate;
+  }
+
+  /* Ô chọn tờ */
+  .loto-tile {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    transition:
+      transform 80ms ease,
+      box-shadow 80ms ease;
+  }
+  .loto-tile:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 var(--edge);
+  }
+  .loto-tile:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: none;
+  }
+  .loto-tile:disabled {
+    opacity: 0.6;
+    box-shadow: none;
+  }
+  .loto-tile-band {
+    padding: 4px 2px;
+    border-bottom: 2px solid var(--edge);
+    background: var(--sheet);
+    color: var(--sheet-ink);
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .loto-tile-body {
+    display: grid;
+    place-items: center;
+    min-height: 34px;
+    padding: 4px;
+    color: var(--ink-3);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .loto-tile.is-mine {
+    outline: 3px solid var(--pen);
+    outline-offset: 2px;
+  }
+  .loto-tile.is-mine .loto-tile-body {
+    background: var(--pen-soft);
+    color: var(--pen);
+  }
+  .loto-tile.is-pending {
+    outline-style: dashed;
+  }
+
+  /* Huy hiệu dưới avatar người chơi: "đợi" trong ván, "sẵn sàng" / "chưa" ngoài ván */
+  .loto-badge {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    padding: 0 6px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1.45;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+  .loto-badge.is-wait {
+    background: var(--sun);
+    color: #2b1d00;
+    animation: need-pulse 0.9s ease-in-out infinite alternate;
+  }
+  .loto-badge.is-ready {
+    background: var(--lime);
+    color: #08261b;
+  }
+  .loto-badge.is-idle {
+    background: var(--sunken);
+    color: var(--ink-3);
+  }
+
+  .loto-result {
+    background: linear-gradient(135deg, var(--sun-soft), var(--coral-soft));
+  }
+
+  /* Số đang kêu nổi dưới thanh đầu trang khi đã cuộn qua bảng kêu số */
+  .loto-float {
+    position: fixed;
+    top: 76px;
+    right: 14px;
+    z-index: 35;
+    pointer-events: none;
+  }
+  .loto-float-tag {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    font-size: 18px;
+  }
+
+  /* Pháo giấy khi kinh */
+  .loto-party {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .loto-party span {
+    position: absolute;
+    top: -48px;
+    font-size: 32px;
+    animation-name: confetti;
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1);
+    animation-fill-mode: both;
   }
 }
 
@@ -527,6 +878,43 @@
   }
   80% {
     transform: translate(2px, 0);
+  }
+}
+@keyframes ball-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.6) rotate(-90deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(4px) scale(1.06) rotate(8deg);
+  }
+}
+@keyframes ring-fill {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes need-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--sun) 70%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sun) 70%, transparent);
+  }
+}
+@keyframes confetti {
+  0% {
+    opacity: 0;
+    transform: translateY(0) rotate(0deg);
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(calc(100vh + 80px)) rotate(var(--rot, 180deg));
   }
 }
 @keyframes bob {

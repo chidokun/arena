@@ -2,20 +2,25 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Profile } from "@/lib/identity";
+import { CaroRoom } from "@/lib/net/caro-room";
 import type { Lobby } from "@/lib/net/lobby";
-import { RoomSession, type ChatMsg, type RoomView } from "@/lib/net/room";
+import { LotoRoom } from "@/lib/net/loto-room";
+import type { ChatMsg, RoomSession, RoomView, StickerId } from "@/lib/net/room";
+
+export type GameRoom = CaroRoom | LotoRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
  * component liên tục, nếu huỷ ngay thì chủ phòng sẽ "rời phòng" rồi vào lại.
  */
-const cache = new Map<string, { promise: Promise<RoomSession>; refs: number; timer: ReturnType<typeof setTimeout> | null }>();
+const cache = new Map<string, { promise: Promise<GameRoom>; refs: number; timer: ReturnType<typeof setTimeout> | null }>();
 
-function acquire(id: string, uid: string, profile: Profile, lobby: Lobby) {
-  const key = `${id}:${uid}`;
+function acquire(game: string, id: string, uid: string, profile: Profile, lobby: Lobby) {
+  const key = `${game}:${id}:${uid}`;
   let c = cache.get(key);
   if (!c) {
-    c = { promise: RoomSession.open(id, uid, profile, lobby), refs: 0, timer: null };
+    const promise: Promise<GameRoom> = game === "loto" ? LotoRoom.open(id, uid, profile, lobby) : CaroRoom.open(id, uid, profile, lobby);
+    c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }
   c.refs++;
@@ -35,13 +40,13 @@ function acquire(id: string, uid: string, profile: Profile, lobby: Lobby) {
   };
 }
 
-export function useRoomSession(id: string, uid: string, profile: Profile | null, lobby: Lobby | null) {
-  const [session, setSession] = useState<RoomSession | null>(null);
+export function useRoomSession(game: string, id: string, uid: string, profile: Profile | null, lobby: Lobby | null) {
+  const [session, setSession] = useState<GameRoom | null>(null);
   const ready = !!(id && uid && profile && lobby);
   useEffect(() => {
     if (!ready) return;
     let alive = true;
-    const h = acquire(id, uid, profile!, lobby!);
+    const h = acquire(game, id, uid, profile!, lobby!);
     void h.promise.then((s) => {
       if (alive) setSession(s);
     });
@@ -52,7 +57,7 @@ export function useRoomSession(id: string, uid: string, profile: Profile | null,
     };
     // Hồ sơ đổi thì cập nhật qua setProfile, không mở lại phiên.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, uid, lobby, ready]);
+  }, [game, id, uid, lobby, ready]);
 
   useEffect(() => {
     if (session && profile) session.setProfile(profile);
@@ -63,7 +68,7 @@ export function useRoomSession(id: string, uid: string, profile: Profile | null,
 
 const noopSub = () => () => {};
 
-export function useRoomView(session: RoomSession | null): RoomView | null {
+export function useRoomView<G>(session: RoomSession<G> | null): RoomView<G> | null {
   return useSyncExternalStore(
     session?.store.subscribe ?? noopSub,
     session ? session.store.get : () => null,
@@ -90,4 +95,30 @@ export function useBalloons(session: RoomSession | null) {
     });
   }, [session]);
   return balloons;
+}
+
+export type Flyer = { key: string; sticker: StickerId; left: number; top: number };
+
+/** Lớp sticker bay ngang bàn chơi; cục gạch làm rung bàn. */
+export function useFlyers(session: RoomSession, boardRef: React.RefObject<HTMLDivElement | null>) {
+  const [flyers, setFlyers] = useState<Flyer[]>([]);
+  useEffect(
+    () =>
+      session.onChat((m) => {
+        if (!m.sticker || Date.now() - m.at > 8000) return;
+        const f: Flyer = { key: m.id, sticker: m.sticker, left: 20 + Math.random() * 55, top: 25 + Math.random() * 40 };
+        setFlyers((x) => [...x.slice(-8), f]);
+        setTimeout(() => setFlyers((x) => x.filter((y) => y.key !== f.key)), 2600);
+        if (m.sticker === "brick" && boardRef.current) {
+          const el = boardRef.current;
+          setTimeout(() => {
+            el.classList.remove("shake");
+            void el.offsetWidth;
+            el.classList.add("shake");
+          }, 650);
+        }
+      }),
+    [session, boardRef],
+  );
+  return flyers;
 }

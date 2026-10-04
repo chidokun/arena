@@ -2,19 +2,22 @@
  * Phiên phòng chơi. Toàn bộ trạng thái phòng là một gossip store nhân bản giữa những người trong phòng:
  *
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
- *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế) kèm số thứ tự.
- *   g:<round>       — nhật ký nước đi của ván; hai người chơi lần lượt nối thêm (luôn ghi sau khi đã thấy nước trước).
+ *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
+ *   g:<round>       — nhật ký của ván: caro là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
+ *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
- * cuối cùng thấy cùng một `meta`. Kết quả ván suy ra tất định từ nhật ký nước đi nên ai cũng tự tính được.
+ * cuối cùng thấy cùng một `meta`. Kết quả ván suy ra tất định từ nhật ký nên ai cũng tự tính được.
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
+ *
+ * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
+ * (CaroRoom, LotoRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
-import { replay, type CaroOptions, type CaroState, type Move } from "../games/caro";
 import type { Profile } from "../identity";
 import { Gossip, Liveness, type Rumor } from "./gossip";
-import type { Lobby } from "./lobby";
+import type { Lobby, RoomAd } from "./lobby";
 import { ViewStore } from "./view-store";
 import { openChannel, Redialer, type Channel } from "./wire";
 
@@ -22,23 +25,37 @@ export type Status = "waiting" | "playing" | "ended";
 
 export type Result = {
   round: number;
+  /** Người thắng; null nếu hoà hoặc không ai thắng (lô tô kinh trùng xem `winners`). */
   winner: string | null;
   loser?: string;
-  reason: "line" | "draw" | "resign" | "leave" | "kick";
+  /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
+  winners?: string[];
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop";
 };
 
 export type Meta = {
   game: string;
   name: string;
   host: string;
+  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ). */
   seats: number;
+  /** Số người tối đa trong phòng, tính cả người xem; 0 là không giới hạn. */
   cap: number;
-  opts: CaroOptions;
+  /** Tuỳ chọn riêng của game (CaroOptions, LotoOptions). */
+  opts: Record<string, unknown>;
   status: Status;
   round: number;
   players: string[];
-  /** Thứ tự đi của ván hiện tại: lineup[0] cầm X (đi trước), lineup[1] cầm O. */
+  /** Đội hình của ván hiện tại, chốt lúc bắt đầu (caro: lineup[0] cầm X đi trước, lineup[1] cầm O). */
   lineup: string[];
+  /** Lô tô: các tờ mỗi người đang giữ (đổi được giữa các ván). */
+  claims?: Record<string, number[]>;
+  /** Lô tô: các tờ đã chia cho ván hiện tại, chốt lúc bắt đầu. */
+  dealt?: Record<string, number[]>;
+  /** Lô tô: những người đã bấm sẵn sàng cho ván tới; xoá khi ván bắt đầu (mỗi ván sẵn sàng lại). */
+  ready?: string[];
+  /** Lô tô: chủ phòng tạm dừng kêu số. */
+  paused?: boolean;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
@@ -51,6 +68,10 @@ export type Member = Profile & {
   hb: number;
   joined: number;
   want: "play" | "watch" | null;
+  /** Lựa chọn đi kèm ý định (lô tô: các tờ muốn giữ). */
+  pick?: number[];
+  /** Ý định "sẵn sàng chơi" đi kèm (lô tô: bấm sau khi chọn tờ). */
+  ready?: boolean;
   seq: number;
   left?: boolean;
 };
@@ -67,13 +88,15 @@ export type ChatMsg = {
   text?: string;
   sticker?: StickerId;
   system?: boolean;
+  /** Câu rao tự động thay người chơi (lô tô: "Hò!", "Kinh!"). */
+  shout?: boolean;
 };
 
-export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "left";
+export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "left" | "elsewhere";
 
 export type SeatView = { uid: string; member?: Member; online: boolean };
 
-export type RoomView = {
+export type RoomView<G = unknown> = {
   phase: Phase;
   me: string;
   meta?: Meta;
@@ -85,30 +108,28 @@ export type RoomView = {
   spectators: Member[];
   mySeat: number;
   pending: "play" | "watch" | null;
-  game?: {
-    round: number;
-    state: CaroState;
-    lineup: SeatView[];
-    myMark: 0 | 1 | 2;
-    myTurn: boolean;
-    result?: Result;
-  };
+  /** Phần riêng của game (bàn cờ, tờ lô tô…); có khi đã có meta. */
+  game?: G;
   chat: ChatMsg[];
 };
 
-export type CreateRoom = { name: string; cap: number; seats: number; opts: CaroOptions };
+export type CreateRoom = { name: string; cap: number; seats: number; opts: Record<string, unknown> };
 
 const HEARTBEAT_MS = 2000;
 const MEMBER_TIMEOUT_MS = 9000;
 // Đủ dài để chủ phòng tải lại trang (kết nối lại qua relay mất vài giây) mà không bị tiếp quản.
 const HOST_TAKEOVER_MS = 20000;
+// Snapshot chỉ để tải lại trang. Cũ hơn ngưỡng tiếp quản thì chủ phòng có thể đã đổi: khôi phục lại sẽ ghi đè
+// trạng thái mới hơn của cả phòng (đồng hồ Lamport bị đẩy lên khi trao đổi digest nên bản cũ vẫn "thắng").
+const SNAPSHOT_TTL_MS = HOST_TAKEOVER_MS;
 const SETTLE_MS = 2500;
 const NOT_FOUND_MS = 20000;
 // Sảnh vẫn thấy quảng bá của phòng (chủ phòng còn sống) thì kiên nhẫn chờ bắt tay lâu hơn.
 const NOT_FOUND_ADVERTISED_MS = 60000;
 const DROP_SEAT_MS = 15000;
-const FORFEIT_MS = 30000;
 const CHAT_LIMIT = 120;
+// Chặn vòng lặp react() tự gọi lại vô hạn nếu một hook cứ ghi mãi.
+const MAX_REACT_PASSES = 8;
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
@@ -129,9 +150,13 @@ function takeCreate(id: string): CreateRoom | null {
   }
 }
 
-export class RoomSession {
+type RoomCtor<T> = new (id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) => T;
+
+export abstract class RoomSession<G = unknown> {
   readonly id: string;
   readonly me: string;
+  /** Slug của game; phòng của game khác thì không vào. */
+  abstract readonly game: string;
   private profile: Profile;
   private lobby: Lobby;
   private channel: Channel;
@@ -150,15 +175,22 @@ export class RoomSession {
   private seq = 0;
   private joined = Date.now();
   private want: Member["want"] = null;
+  private choice: number[] | undefined;
+  private ready = false;
   private redialer: Redialer;
-  readonly store: ViewStore<RoomView>;
+  private reacting = false;
+  private reactAgain = false;
+  readonly store: ViewStore<RoomView<G>>;
 
-  static async open(id: string, me: string, profile: Profile, lobby: Lobby) {
+  /** Mở phiên phòng của một game cụ thể, vd. `LotoRoom.open(...)`. */
+  static async open<T extends RoomSession>(this: RoomCtor<T>, id: string, me: string, profile: Profile, lobby: Lobby): Promise<T> {
     const channel = await openChannel(`room:${id}`);
-    return new RoomSession(id, me, profile, lobby, channel);
+    const session = new this(id, me, profile, lobby, channel);
+    session.boot();
+    return session;
   }
 
-  private constructor(id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) {
+  constructor(id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) {
     this.id = id;
     this.me = me;
     this.profile = profile;
@@ -179,40 +211,46 @@ export class RoomSession {
       const ad = lobby.roomAd(id);
       return (!!ad && ad.host !== me) || lobby.store.get().users.some((u) => u.room === id && u.uid !== me);
     });
+  }
 
-    // Khôi phục khi tải lại trang: giữ được đồng hồ Lamport, nước đi, và quyền chủ phòng.
+  /** Khởi động phiên. Tách khỏi constructor để hook của lớp con chạy khi lớp con đã khởi tạo xong. */
+  private boot() {
+    // Khôi phục khi tải lại trang: giữ được đồng hồ Lamport, nhật ký ván, và quyền chủ phòng.
     try {
-      const raw = sessionStorage.getItem(snapKey(id));
-      if (raw) {
-        const snap = JSON.parse(raw);
+      const raw = sessionStorage.getItem(snapKey(this.id));
+      const snap = raw ? JSON.parse(raw) : null;
+      if (snap && Date.now() - Number(snap.at) < SNAPSHOT_TTL_MS) {
         this.gossip.restore(snap);
         if (Array.isArray(snap.chat)) this.chat = snap.chat;
-        const mine = this.gossip.get<Member>(`p:${me}`);
+        const mine = this.gossip.get<Member>(`p:${this.me}`);
         if (mine) {
           this.seq = mine.seq;
           this.joined = mine.joined;
           this.want = mine.want;
+          this.choice = mine.pick;
+          this.ready = !!mine.ready;
         }
       }
     } catch {}
 
-    const create = takeCreate(id);
+    const create = takeCreate(this.id);
     if (create && !this.meta()) {
       const meta: Meta = {
-        game: "caro",
+        game: this.game,
         name: create.name,
-        host: me,
+        host: this.me,
         seats: create.seats,
         cap: create.cap,
         opts: create.opts,
         status: "waiting",
         round: 0,
-        players: [me],
+        players: [this.me],
         lineup: [],
         ack: {},
         kicked: [],
         created: Date.now(),
       };
+      this.tidy?.(meta);
       this.gossip.set("meta", meta);
     }
 
@@ -228,7 +266,7 @@ export class RoomSession {
       this.react();
     });
     this.gossip.onRumor((r) => this.onRumor(r));
-    channel.onPeerJoin((peer) => {
+    this.channel.onPeerJoin((peer) => {
       // Gửi lịch sử chat cho người mới; họ tự khử trùng lặp theo id.
       const hist = this.chat.filter((m) => !m.system).slice(-60);
       this.gossip.replay(
@@ -237,7 +275,7 @@ export class RoomSession {
       );
       this.store.invalidate();
     });
-    channel.onPeerLeave(() => this.store.invalidate());
+    this.channel.onPeerLeave(() => this.store.invalidate());
 
     for (const e of this.gossip.scan<Member>("p:")) this.live.observe(e.k.slice(2), e.v.hb, !!e.v.left);
     if (this.meta()) this.onMeta();
@@ -247,28 +285,81 @@ export class RoomSession {
     this.timers.push(setInterval(() => this.react(), 1000));
   }
 
+  // ---------- luật riêng của từng game ----------
+
+  /** Ghi nhận ý định của một người lúc ngoài ván. Mặc định: vào ghế nếu còn chỗ / rời ghế. */
+  protected applyIntent(m: Meta, p: Member) {
+    const i = m.players.indexOf(p.uid);
+    if (p.want === "play" && i < 0 && m.players.length < m.seats) m.players.push(p.uid);
+    if (p.want === "watch" && i >= 0) m.players.splice(i, 1);
+  }
+
+  /** Chuẩn bị ván mới (đã tăng `round`): chốt đội hình… Trả về false nếu chưa đủ điều kiện bắt đầu. */
+  protected abstract begin(m: Meta): boolean;
+
+  /** Kết quả ván đang chơi suy ra từ nhật ký — tất định, máy nào cũng tính ra như nhau; undefined nếu chưa xong. */
+  protected abstract outcome(m: Meta): Result | undefined;
+
+  /** Chủ phòng, trong ván chưa có kết quả: việc riêng của game (xử thua người rớt mạng, kêu số…). Được sửa `m`. */
+  protected hostPlay?(m: Meta): void;
+
+  /** Giữ dữ liệu riêng của game khớp với danh sách ghế sau mỗi lần chủ phòng sửa `meta`. */
+  protected tidy?(m: Meta): void;
+
+  /** Một người bị kick (đã bị gỡ khỏi ghế); caro thì kết thúc ván nếu người đó đang đấu. */
+  protected onKick?(m: Meta, uid: string): void;
+
+  /** Mỗi nhịp, ở mọi máy: theo dõi diễn biến để rao, nhắn hệ thống… */
+  protected watch?(m: Meta): void;
+
+  /** Đóng phiên: dọn hẹn giờ riêng. */
+  protected stopped?(): void;
+
+  /** Thông tin thêm khi quảng bá phòng ra sảnh. */
+  protected adExtra?(m: Meta): Partial<RoomAd>;
+
+  protected abstract gameView(m: Meta, seatOf: (uid: string) => SeatView): G;
+
+  /** Câu nhắn hệ thống khi ván kết thúc. */
+  protected abstract resultText(r: Result, name: (uid: string) => string): string;
+
   // ---------- trạng thái ----------
 
   meta() {
     return this.gossip.get<Meta>("meta");
   }
 
-  private members(): Member[] {
+  protected members(): Member[] {
     return this.gossip.scan<Member>("p:").map((e) => e.v);
   }
 
-  private isOnline(uid: string) {
+  protected isOnline(uid: string) {
     return uid === this.me ? this.phase === "ready" || this.phase === "connecting" : this.live.alive(uid);
   }
 
+  protected silentFor(uid: string) {
+    return this.live.silentFor(uid);
+  }
+
+  protected nameOf(uid: string) {
+    return this.gossip.get<Member>(`p:${uid}`)?.name ?? "Ai đó";
+  }
+
+  /** Ý định gần nhất của mình và chủ phòng đã ghi nhận chưa. */
+  protected myIntent(m: Meta) {
+    return { want: this.want, pick: this.choice, ready: this.ready, pending: this.seq > (m.ack[this.me] ?? 0) };
+  }
+
   private beat(eager: boolean) {
-    if (this.phase === "kicked" || this.phase === "left" || this.phase === "full" || this.phase === "notfound") return;
+    if (this.phase !== "connecting" && this.phase !== "ready") return;
     const me: Member = {
       uid: this.me,
       peer: this.channel.selfId,
       hb: Date.now(),
       joined: this.joined,
       want: this.want,
+      ...(this.choice ? { pick: this.choice } : {}),
+      ...(this.ready ? { ready: true } : {}),
       seq: this.seq,
       ...this.profile,
     };
@@ -290,21 +381,42 @@ export class RoomSession {
     }
   }
 
-  /** Vòng lặp chính: chuyển pha, bầu lại chủ phòng, chủ phòng xử lý ý định, nhắn hệ thống. */
-  private react() {
+  /** Chạy lại vòng lặp chính; lời gọi lồng nhau (ghi gossip ngay trong vòng lặp) được dồn thành lượt kế tiếp. */
+  protected react() {
+    if (this.reacting) {
+      this.reactAgain = true;
+      return;
+    }
+    this.reacting = true;
+    try {
+      for (let pass = 0; pass < MAX_REACT_PASSES; pass++) {
+        this.reactAgain = false;
+        this.step();
+        if (!this.reactAgain) break;
+      }
+    } finally {
+      this.reacting = false;
+    }
+  }
+
+  /** Một lượt của vòng lặp chính: chuyển pha, bầu lại chủ phòng, chủ phòng xử lý ý định, nhắn hệ thống. */
+  private step() {
     const now = Date.now();
     if (this.phase === "connecting" || this.phase === "ready") this.redialer.check(now);
     const m = this.meta();
     if (this.phase === "connecting") {
       // Chờ một nhịp để biết đủ ai đang trong phòng (kiểm tra sức chứa); chủ phòng thì vào ngay.
       if (m && (m.host === this.me || now - this.metaSeenAt >= SETTLE_MS)) {
-        if (m.kicked.includes(this.me)) {
+        if (m.game !== this.game) {
+          this.phase = "elsewhere";
+          this.shutdown(true);
+        } else if (m.kicked.includes(this.me)) {
           this.phase = "kicked";
           this.shutdown(false);
         } else {
           const others = this.members().filter((p) => p.uid !== this.me && this.live.alive(p.uid) && !m.kicked.includes(p.uid)).length;
           const seated = m.players.includes(this.me) || m.host === this.me;
-          if (!seated && others >= m.cap) {
+          if (!seated && m.cap > 0 && others >= m.cap) {
             this.phase = "full";
             this.shutdown(true);
           } else {
@@ -321,6 +433,7 @@ export class RoomSession {
       this.announceChanges(m);
       this.maybeTakeOver(m);
       if (this.meta()?.host === this.me) this.hostLoop();
+      this.watch?.(this.meta()!);
     }
     this.store.invalidate();
   }
@@ -332,21 +445,13 @@ export class RoomSession {
 
   private announceChanges(m: Meta) {
     const online = this.onlineSet();
-    const name = (uid: string) => this.gossip.get<Member>(`p:${uid}`)?.name ?? "Ai đó";
-    for (const uid of online) if (!this.prevOnline.has(uid)) this.system(`${name(uid)} đã vào phòng`);
-    for (const uid of this.prevOnline) if (!online.has(uid)) this.system(`${name(uid)} đã rời phòng`);
+    for (const uid of online) if (!this.prevOnline.has(uid)) this.system(`${this.nameOf(uid)} đã vào phòng`);
+    for (const uid of this.prevOnline) if (!online.has(uid)) this.system(`${this.nameOf(uid)} đã rời phòng`);
     this.prevOnline = online;
     const status = `${m.status}:${m.round}`;
     if (this.lastStatus && status !== this.lastStatus) {
       if (m.status === "playing") this.system(`Ván ${m.round} bắt đầu!`);
-      if (m.status === "ended" && m.result) {
-        const r = m.result;
-        this.system(
-          r.winner
-            ? `${name(r.winner)} thắng ván ${r.round}${r.reason === "resign" ? " (đối thủ xin thua)" : r.reason === "leave" ? " (đối thủ rời trận)" : r.reason === "kick" ? " (đối thủ bị mời ra)" : ""}`
-            : `Ván ${r.round} hoà`,
-        );
-      }
+      if (m.status === "ended" && m.result) this.system(this.resultText(m.result, (uid) => this.nameOf(uid)));
     }
     this.lastStatus = status;
   }
@@ -369,40 +474,27 @@ export class RoomSession {
     this.system("Chủ phòng mất kết nối — bạn trở thành chủ phòng mới");
   }
 
-  /** Chủ phòng: xử lý ý định vào/rời ghế, loại người rớt mạng, chốt kết quả ván, quảng bá phòng ra sảnh. */
+  /** Chủ phòng: xử lý ý định, loại người rớt mạng, chốt kết quả ván, việc riêng của game, quảng bá phòng ra sảnh. */
   private hostLoop() {
     const cur = this.meta()!;
     const m: Meta = structuredClone(cur);
-    let dirty = false;
-    const members = this.members();
 
     if (m.status !== "playing") {
-      for (const p of members.sort((a, b) => a.hb - b.hb)) {
+      for (const p of this.members().sort((a, b) => a.hb - b.hb)) {
         if (p.seq <= (m.ack[p.uid] ?? 0) || !this.isOnline(p.uid) || m.kicked.includes(p.uid)) continue;
         m.ack[p.uid] = p.seq;
-        dirty = true;
-        const i = m.players.indexOf(p.uid);
-        if (p.want === "play" && i < 0 && m.players.length < m.seats) m.players.push(p.uid);
-        if (p.want === "watch" && i >= 0) m.players.splice(i, 1);
+        this.applyIntent(m, p);
       }
-      const before = m.players.length;
       m.players = m.players.filter((u) => u === this.me || this.live.silentFor(u) < DROP_SEAT_MS);
-      if (m.players.length !== before) dirty = true;
     } else {
-      const g = this.gameOf(m);
-      if (g.result) {
+      const result = this.outcome(m);
+      if (result) {
         m.status = "ended";
-        m.result = g.result;
-        dirty = true;
-      } else {
-        const gone = m.lineup.find((u) => u !== this.me && this.live.silentFor(u) >= FORFEIT_MS);
-        if (gone) {
-          m.status = "ended";
-          m.result = { round: m.round, winner: m.lineup.find((u) => u !== gone) ?? null, loser: gone, reason: "leave" };
-          dirty = true;
-        }
-      }
+        m.result = result;
+      } else this.hostPlay?.(m);
     }
+    this.tidy?.(m);
+    const dirty = JSON.stringify(m) !== JSON.stringify(cur);
     if (dirty) this.gossip.set("meta", m);
 
     const now = Date.now();
@@ -423,33 +515,20 @@ export class RoomSession {
           players: m.players.length,
           status: m.status,
           opts: m.opts,
+          ...this.adExtra?.(m),
         },
         dirty,
       );
     }
   }
 
-  private gameOf(m: Meta) {
-    const moves = this.gossip.get<{ moves: Move[] }>(`g:${m.round}`)?.moves ?? [];
-    const state = replay(moves, m.opts);
-    let result: Result | undefined;
-    if (state.winner) result = { round: m.round, winner: m.lineup[state.winner - 1] ?? null, loser: m.lineup[2 - state.winner], reason: "line" };
-    else if (state.draw) result = { round: m.round, winner: null, reason: "draw" };
-    else {
-      const quitter = m.lineup.find((u) => this.gossip.get(`x:${m.round}:${u}`));
-      if (quitter) result = { round: m.round, winner: m.lineup.find((u) => u !== quitter) ?? null, loser: quitter, reason: "resign" };
-      else if (m.result?.round === m.round) result = m.result;
-    }
-    return { state, moves, result };
-  }
-
-  private compute(): RoomView {
+  private compute(): RoomView<G> {
     const m = this.meta();
     const members = this.members();
     const byUid = new Map(members.map((p) => [p.uid, p]));
     const online = new Set(members.filter((p) => this.isOnline(p.uid) && !m?.kicked.includes(p.uid)).map((p) => p.uid));
     const seatOf = (uid: string): SeatView => ({ uid, member: byUid.get(uid), online: online.has(uid) });
-    const base: RoomView = {
+    const base: RoomView<G> = {
       phase: this.phase,
       me: this.me,
       meta: m,
@@ -463,25 +542,14 @@ export class RoomSession {
       pending: null,
       chat: this.chat,
     };
-    if (!m) return base;
+    if (!m || m.game !== this.game) return base;
     base.seats = m.players.map(seatOf);
     base.mySeat = m.players.indexOf(this.me);
     base.spectators = members
       .filter((p) => online.has(p.uid) && !m.players.includes(p.uid) && !m.kicked.includes(p.uid))
       .sort((a, b) => a.joined - b.joined);
-    if (this.seq > (m.ack[this.me] ?? 0)) base.pending = this.want;
-    if (m.round > 0 && m.lineup.length === 2) {
-      const g = this.gameOf(m);
-      const myMark = (m.lineup.indexOf(this.me) + 1) as 0 | 1 | 2;
-      base.game = {
-        round: m.round,
-        state: g.state,
-        lineup: m.lineup.map(seatOf),
-        myMark,
-        myTurn: m.status === "playing" && !g.result && myMark > 0 && g.state.turn === myMark,
-        result: g.result,
-      };
-    }
+    if (this.myIntent(m).pending) base.pending = this.want;
+    base.game = this.gameView(m, seatOf);
     return base;
   }
 
@@ -494,7 +562,7 @@ export class RoomSession {
     this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300) });
   }
 
-  private pushChat(msg: ChatMsg) {
+  protected pushChat(msg: ChatMsg) {
     if (this.chat.some((c) => c.id === msg.id)) return;
     this.chat = [...this.chat, msg].sort((a, b) => a.at - b.at).slice(-CHAT_LIMIT);
     for (const fn of this.chatFns) fn(msg);
@@ -502,7 +570,7 @@ export class RoomSession {
     this.store.invalidate();
   }
 
-  private system(text: string) {
+  protected system(text: string) {
     this.pushChat({ id: `sys:${Date.now()}:${Math.random()}`, uid: "", name: "", avatar: "", color: "", at: Date.now(), text, system: true });
   }
 
@@ -528,9 +596,13 @@ export class RoomSession {
 
   // ---------- hành động người chơi ----------
 
-  private intend(want: "play" | "watch") {
+  protected intend(want: "play" | "watch", pick?: number[], ready = false) {
     this.want = want;
-    this.seq++;
+    this.choice = pick;
+    this.ready = ready;
+    // Vào lại phòng sau khi rời (không còn snapshot) thì số thứ tự phải vượt mức chủ phòng đã ghi nhận, nếu không
+    // ý định mới bị coi là cũ và bỏ qua.
+    this.seq = Math.max(this.seq, this.meta()?.ack[this.me] ?? 0) + 1;
     this.beat(true);
     this.react();
   }
@@ -548,43 +620,24 @@ export class RoomSession {
     this.beat(true);
   }
 
-  move(x: number, y: number) {
-    const m = this.meta();
-    const v = this.store.get();
-    if (!m || !v.game?.myTurn) return;
-    const moves = this.gossip.get<{ moves: Move[] }>(`g:${m.round}`)?.moves ?? [];
-    const next: Move[] = [...moves, [x, y]];
-    if (replay(next, m.opts).count !== next.length) return;
-    this.gossip.set(`g:${m.round}`, { moves: next });
-    this.react();
-  }
-
-  resign() {
-    const m = this.meta();
-    if (!m || m.status !== "playing" || !m.lineup.includes(this.me)) return;
-    this.gossip.set(`x:${m.round}:${this.me}`, { resign: true });
-    this.react();
-  }
-
   // ---------- hành động chủ phòng ----------
 
-  private hostEdit(fn: (m: Meta) => boolean | void) {
+  protected hostEdit(fn: (m: Meta) => boolean | void) {
     const cur = this.meta();
     if (!cur || cur.host !== this.me) return;
     const m = structuredClone(cur);
     if (fn(m) === false) return;
+    this.tidy?.(m);
     this.gossip.set("meta", m);
     this.react();
   }
 
   start() {
     this.hostEdit((m) => {
-      if (m.status === "playing" || m.players.length !== m.seats) return false;
-      if (m.players.some((u) => !this.isOnline(u))) return false;
+      if (m.status === "playing") return false;
       m.round += 1;
+      if (!this.begin(m)) return false;
       m.status = "playing";
-      // Luân phiên người đi trước giữa các ván.
-      m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
       delete m.result;
     });
   }
@@ -595,10 +648,7 @@ export class RoomSession {
       if (m.kicked.includes(uid)) return false;
       m.kicked.push(uid);
       m.players = m.players.filter((u) => u !== uid);
-      if (m.status === "playing" && m.lineup.includes(uid)) {
-        m.status = "ended";
-        m.result = { round: m.round, winner: m.lineup.find((u) => u !== uid) ?? null, loser: uid, reason: "kick" };
-      }
+      this.onKick?.(m, uid);
     });
   }
 
@@ -633,7 +683,7 @@ export class RoomSession {
       this.persistTimer = null;
       if (this.phase !== "ready" && this.phase !== "connecting") return;
       try {
-        sessionStorage.setItem(snapKey(this.id), JSON.stringify({ ...this.gossip.snapshot(), chat: this.chat.slice(-60) }));
+        sessionStorage.setItem(snapKey(this.id), JSON.stringify({ ...this.gossip.snapshot(), chat: this.chat.slice(-60), at: Date.now() }));
       } catch {}
     }, 800);
   }
@@ -644,8 +694,13 @@ export class RoomSession {
       const m = this.meta();
       if (m && m.host === this.me) {
         const next = this.successor(m, this.me);
-        if (next) this.gossip.set<Meta>("meta", { ...m, host: next, players: m.status === "playing" ? m.players : m.players.filter((u) => u !== this.me) });
-        else this.lobby.closeRoom(this.id);
+        if (next) {
+          const handover = structuredClone(m);
+          handover.host = next;
+          if (handover.status !== "playing") handover.players = handover.players.filter((u) => u !== this.me);
+          this.tidy?.(handover);
+          this.gossip.set("meta", handover);
+        } else this.lobby.closeRoom(this.id);
       }
     }
     this.phase = this.phase === "ready" || this.phase === "connecting" ? "left" : this.phase;
@@ -662,6 +717,7 @@ export class RoomSession {
     } catch {}
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    this.stopped?.();
     this.gossip.stop();
     this.channel.release();
     this.store.invalidate();
