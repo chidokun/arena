@@ -16,7 +16,7 @@ import type { Profile } from "../identity";
 import { Gossip, Liveness, type Rumor } from "./gossip";
 import type { Lobby } from "./lobby";
 import { ViewStore } from "./view-store";
-import { openChannel, type Channel } from "./wire";
+import { openChannel, Redialer, type Channel } from "./wire";
 
 export type Status = "waiting" | "playing" | "ended";
 
@@ -150,6 +150,7 @@ export class RoomSession {
   private seq = 0;
   private joined = Date.now();
   private want: Member["want"] = null;
+  private redialer: Redialer;
   readonly store: ViewStore<RoomView>;
 
   static async open(id: string, me: string, profile: Profile, lobby: Lobby) {
@@ -173,6 +174,11 @@ export class RoomSession {
       },
     });
     this.store = new ViewStore(() => this.compute());
+    // Sảnh cho biết còn ai khác đang ở phòng này: nếu kênh phòng vẫn trống thì lần bắt tay trước đã hỏng → vào lại.
+    this.redialer = new Redialer(channel, () => {
+      const ad = lobby.roomAd(id);
+      return (!!ad && ad.host !== me) || lobby.store.get().users.some((u) => u.room === id && u.uid !== me);
+    });
 
     // Khôi phục khi tải lại trang: giữ được đồng hồ Lamport, nước đi, và quyền chủ phòng.
     try {
@@ -287,6 +293,7 @@ export class RoomSession {
   /** Vòng lặp chính: chuyển pha, bầu lại chủ phòng, chủ phòng xử lý ý định, nhắn hệ thống. */
   private react() {
     const now = Date.now();
+    if (this.phase === "connecting" || this.phase === "ready") this.redialer.check(now);
     const m = this.meta();
     if (this.phase === "connecting") {
       // Chờ một nhịp để biết đủ ai đang trong phòng (kiểm tra sức chứa); chủ phòng thì vào ngay.

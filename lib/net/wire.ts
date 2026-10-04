@@ -23,26 +23,55 @@ class Hub {
   leaves = new Set<PeerFn>();
   peers = new Set<string>();
   senders = new Map<WireKind, Send>();
+  room!: TrysteroRoom;
+  private rejoining: Promise<void> | null = null;
 
   constructor(
     readonly name: string,
-    readonly room: TrysteroRoom,
+    private join: () => TrysteroRoom,
   ) {
+    this.bind();
+  }
+
+  private bind() {
+    const room = this.join();
+    this.room = room;
     for (const kind of KINDS) {
       const action = room.makeAction(kind);
       this.senders.set(kind, action.send as unknown as Send);
       action.onMessage = (data, ctx) => {
+        if (this.room !== room) return;
         for (const fn of this.handlers.get(kind) ?? []) fn(data, ctx.peerId);
       };
     }
     room.onPeerJoin = (peer) => {
+      if (this.room !== room) return;
       this.peers.add(peer);
       for (const fn of this.joins) fn(peer);
     };
     room.onPeerLeave = (peer) => {
-      this.peers.delete(peer);
+      if (this.room !== room || !this.peers.delete(peer)) return;
       for (const fn of this.leaves) fn(peer);
     };
+  }
+
+  /**
+   * Rời room Trystero rồi vào lại: phát lại lời chào lên relay và bắt tay từ đầu. Dùng khi lần bắt tay trước
+   * thất bại (vd. đầu kia đang bận, tín hiệu bị rơi) — Trystero không tự thử lại với peer đã từng thất bại.
+   */
+  rejoin() {
+    this.rejoining ??= (async () => {
+      const old = this.room;
+      for (const p of [...this.peers]) {
+        this.peers.delete(p);
+        for (const fn of this.leaves) fn(p);
+      }
+      await old.leave().catch(() => {});
+      this.bind();
+    })().finally(() => {
+      this.rejoining = null;
+    });
+    return this.rejoining;
   }
 
   send(kind: WireKind, data: unknown, to?: string | string[]) {
@@ -62,18 +91,26 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") (win
 export type Channel = Wire & {
   selfId: string;
   onPeerLeave(fn: PeerFn): void;
+  /** Vào lại room để bắt tay lại từ đầu (khi kênh trống bất thường). */
+  rejoin(): Promise<void>;
   release(): void;
 };
 
 /** Mở (hoặc dùng lại) một kênh P2P. Gọi `release()` khi không dùng nữa. */
 export async function openChannel(name: string): Promise<Channel> {
-  const { joinRoom, selfId } = await import("trystero");
+  const mod = await import("trystero");
+  const { joinRoom, selfId } = mod;
+  if (process.env.NODE_ENV !== "production") (window as unknown as { __trystero: typeof mod }).__trystero = mod;
   let hub = hubs.get(name);
   if (!hub) {
     // Relay công khai đôi khi chết; nối nhiều hơn mặc định để hai bên chắc chắn gặp nhau ở ít nhất một relay.
     // Mỗi kênh một appId riêng: Trystero dùng chung kết nối WebRTC giữa các room cùng appId, và cơ chế đó
     // không ổn định khi vào phòng mới lúc đã nối sẵn ở sảnh. Tách ra thì mỗi kênh tự bắt tay độc lập.
-    hub = new Hub(name, joinRoom({ appId: `${APP_ID}/${name}`, relayConfig: { redundancy: 7, warnOnRelayFailure: false } }, name));
+    hub = new Hub(name, () =>
+      joinRoom({ appId: `${APP_ID}/${name}`, relayConfig: { redundancy: 7, warnOnRelayFailure: false } }, name, {
+        onJoinError: (d) => console.warn(`[arena] kênh ${name}: không nối được peer ${d.peerId}`, d.error),
+      }),
+    );
     hubs.set(name, hub);
   }
   const h = hub;
@@ -105,6 +142,7 @@ export async function openChannel(name: string): Promise<Channel> {
     onPeerLeave(fn) {
       add(h.leaves, fn);
     },
+    rejoin: () => (released ? Promise.resolve() : h.rejoin()),
     release() {
       if (released) return;
       released = true;
@@ -117,4 +155,39 @@ export async function openChannel(name: string): Promise<Channel> {
       }, LEAVE_DELAY_MS);
     },
   };
+}
+
+/**
+ * Gọi lại khi kênh trống bất thường: kênh không có peer nào liên tục quá `wait` ms trong khi `expectPeers()`
+ * cho biết lẽ ra phải có người (vd. sảnh thấy chủ phòng đang ở phòng này) thì vào lại room, giãn dần giữa các lần.
+ */
+export class Redialer {
+  private emptySince = 0;
+  private lastTry = 0;
+  private wait: number;
+  private channel: Channel;
+  private expectPeers: () => boolean;
+  private base: number;
+  private max: number;
+
+  constructor(channel: Channel, expectPeers: () => boolean, base = 8000, max = 30000) {
+    this.channel = channel;
+    this.expectPeers = expectPeers;
+    this.base = base;
+    this.max = max;
+    this.wait = base;
+  }
+
+  check(now = Date.now()) {
+    if (this.channel.peers().length > 0) {
+      this.emptySince = 0;
+      this.wait = this.base;
+      return;
+    }
+    if (!this.emptySince) this.emptySince = now;
+    if (now - this.emptySince < this.wait || now - this.lastTry < this.wait || !this.expectPeers()) return;
+    this.lastTry = now;
+    this.wait = Math.min(this.wait * 2, this.max);
+    void this.channel.rejoin();
+  }
 }

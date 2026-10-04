@@ -5,7 +5,7 @@
 import type { Profile } from "../identity";
 import { Gossip, Liveness } from "./gossip";
 import { ViewStore } from "./view-store";
-import { openChannel, type Channel } from "./wire";
+import { openChannel, Redialer, type Channel } from "./wire";
 
 export type Where = { game?: string; room?: string };
 
@@ -58,6 +58,7 @@ export class Lobby {
   private ads = new Liveness(AD_TIMEOUT_MS);
   private timers: ReturnType<typeof setInterval>[] = [];
   private inviteFns = new Set<(i: Invite) => void>();
+  private redialer: Redialer;
   readonly store: ViewStore<LobbyView>;
 
   static async open(uid: string, profile: Profile) {
@@ -76,6 +77,8 @@ export class Lobby {
       accept: (e) => !e.k.startsWith("u:") || e.k === `u:${e.w}`,
     });
     this.store = new ViewStore(() => this.compute());
+    // Ở sảnh không biết trước có ai khác không, nên cứ thử lại thưa dần (15s → 60s) khi đang một mình.
+    this.redialer = new Redialer(channel, () => true, 15000, 60000);
     this.gossip.onChange((keys) => {
       for (const k of keys) this.observe(k);
       this.store.invalidate();
@@ -91,7 +94,10 @@ export class Lobby {
     this.gossip.start();
     this.timers.push(
       setInterval(() => this.beat(false), HEARTBEAT_MS),
-      setInterval(() => this.store.invalidate(), 2000),
+      setInterval(() => {
+        this.redialer.check();
+        this.store.invalidate();
+      }, 2000),
       setInterval(() => this.prune(), 10000),
     );
   }
