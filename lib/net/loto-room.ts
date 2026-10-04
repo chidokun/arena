@@ -55,7 +55,15 @@ export type LotoView = {
 };
 
 /** Lần kêu số mới thấy được khi đang ở trong phòng (không tính các số đã kêu trước lúc vào). */
-export type LotoCall = { round: number; n: number; count: number; kinh: string[] };
+export type LotoCall = {
+  round: number;
+  n: number;
+  count: number;
+  /** Tên những người vừa có hàng 4/5 số nhờ lần kêu này. */
+  waiting: string[];
+  /** Tên những người kinh — từ hai người trở lên là kinh trùng. */
+  kinh: string[];
+};
 
 export class LotoRoom extends RoomSession<LotoView> {
   readonly game = "loto";
@@ -178,13 +186,21 @@ export class LotoRoom extends RoomSession<LotoView> {
     const from = this.heard.count;
     if (s.draws.length <= from) return;
     this.heard.count = s.draws.length;
+    const waiting = new Set<string>();
     for (let k = from; k < s.draws.length; k++) {
       const final = k === s.draws.length - 1 && s.winners.length > 0;
       for (const uid of final ? s.winners : s.waits[k]) {
         this.shout(uid, final ? (s.winners.length > 1 ? "Kinh trùng!" : "Kinh!") : shoutFor(uid, m.round, k), `${m.round}:${k}`);
+        if (!final) waiting.add(uid);
       }
     }
-    const call: LotoCall = { round: m.round, n: s.draws[s.draws.length - 1], count: s.draws.length, kinh: s.winners };
+    const call: LotoCall = {
+      round: m.round,
+      n: s.draws[s.draws.length - 1],
+      count: s.draws.length,
+      waiting: [...waiting].map((uid) => this.nameOf(uid)),
+      kinh: s.winners.map((uid) => this.nameOf(uid)),
+    };
     for (const fn of this.callFns) fn(call);
   }
 

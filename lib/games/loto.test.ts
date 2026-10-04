@@ -5,6 +5,8 @@ import {
   columnOf,
   docSo,
   grantSheets,
+  joinNames,
+  kinhLine,
   makeSheets,
   MAX_NUMBER,
   nextNumber,
@@ -15,6 +17,7 @@ import {
   SHEET_COUNT,
   shoutFor,
   SHOUTS,
+  waitingLine,
   waitingRows,
   type Sheet,
 } from "./loto.ts";
@@ -152,4 +155,14 @@ test("sẵn sàng: chủ phòng không cần bấm, ai giữ tờ mà chưa bấ
   assert.deepEqual(notReady(["chu", "an"], "chu", ["an"]), []);
   assert.deepEqual(notReady(["chu"], "chu", []), [], "chủ phòng chơi một mình vẫn bắt đầu được");
   assert.deepEqual(notReady(["an"], "chu", []), ["an"], "chủ phòng không giữ tờ thì vẫn phải chờ người chơi");
+});
+
+test("câu đọc khi đợi và khi kinh", () => {
+  assert.equal(joinNames(["An"]), "An");
+  assert.equal(joinNames(["An", "Bình"]), "An và Bình");
+  assert.equal(joinNames(["An", "Bình", "Chi"]), "An, Bình và Chi");
+  assert.equal(waitingLine(["Cáo Lém Lỉnh"]), "Cáo Lém Lỉnh đang đợi rồi á nha!");
+  assert.equal(waitingLine(["An", "Bình"]), "An và Bình đang đợi rồi á nha!");
+  assert.equal(kinhLine(["Cáo Lém Lỉnh"]), "Chúc mừng Cáo Lém Lỉnh đã kinh!");
+  assert.equal(kinhLine(["An", "Bình"]), "Chúc mừng An và Bình đã kinh trùng!");
 });

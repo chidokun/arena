@@ -47,8 +47,9 @@ sẵn sàng); mỗi ván sẵn sàng lại. Bắt đầu ván, các tờ đượ
 là người kêu số: cứ mỗi nhịp (3/5/8 giây) rút một số chưa kêu và nối vào `g:<ván>`; mọi máy tự dựng lại ván từ dãy số
 đó, tự đánh dấu, tự rao "Hò! / Hẹn! / Đợi!" khi một hàng có 4/5 số và "Kinh!" khi đủ 5 (nhiều người cùng một số là
 "Kinh trùng!"). Câu rao chọn tất định theo người + ván + lần kêu nên máy nào cũng hiện giống nhau. Số được đọc to
-bằng giọng tiếng Việt của máy (Web Speech API, chỉ nhận giọng `vi`, ưu tiên giọng tự nhiên); máy không có giọng Việt
-thì không đọc và hiện hướng dẫn cài.
+bằng giọng tiếng Việt của máy (Web Speech API, chỉ nhận giọng `vi`, ưu tiên giọng tự nhiên); sau số, có người vừa đợi
+thì đọc "{tên} đang đợi rồi á nha!", có người kinh thì đọc "Chúc mừng {tên} đã kinh!" (nhiều người: "… đã kinh trùng!").
+Máy không có giọng Việt thì không đọc và hiện hướng dẫn cài.
 
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { docSo } from "@/lib/games/loto";
+import { docSo, kinhLine, waitingLine } from "@/lib/games/loto";
 import type { LotoRoom } from "@/lib/net/loto-room";
 
 const VOICE_KEY = "arena:loto-voice";
@@ -54,9 +54,8 @@ function readVoicePref(): boolean | null {
   }
 }
 
-/** Đọc bằng đúng giọng tiếng Việt đã chọn — không để trình duyệt tự lấy giọng của ngôn ngữ khác. */
+/** Đọc bằng đúng giọng tiếng Việt đã chọn — không để trình duyệt tự lấy giọng của ngôn ngữ khác. `flush`: bỏ mọi câu đang đọc. */
 function say(voice: SpeechSynthesisVoice, text: string, flush = false) {
-  // Số mới thì bỏ câu cũ còn xếp hàng (tab chạy nền dồn lại) để giọng đọc luôn khớp với số trên màn hình.
   if (flush) speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.voice = voice;
@@ -77,8 +76,12 @@ export function useVoice(session: LotoRoom, isHost: boolean) {
   useEffect(() => {
     if (!on || !voice) return;
     return session.onCall((c) => {
-      say(voice, docSo(c.n), true);
-      if (c.kinh.length) say(voice, c.kinh.length > 1 ? "Kinh trùng!" : "Kinh!");
+      // Còn câu xếp hàng chưa đọc (tab chạy nền dồn lại) thì bỏ để giọng không trễ xa số trên màn hình; câu đang đọc
+      // dở (vd. "… đang đợi rồi á nha!") thì cho đọc nốt rồi mới tới số mới.
+      if (speechSynthesis.pending) speechSynthesis.cancel();
+      say(voice, docSo(c.n));
+      if (c.kinh.length) say(voice, kinhLine(c.kinh));
+      else if (c.waiting.length) say(voice, waitingLine(c.waiting));
     });
   }, [session, on, voice]);
   const toggle = () => {

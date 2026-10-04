@@ -267,6 +267,17 @@ function hash(s: string) {
   return h >>> 0;
 }
 
+/** Nối tên kiểu tiếng Việt: "An", "An và Bình", "An, Bình và Chi". */
+export function joinNames(names: readonly string[]) {
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} và ${names[names.length - 1]}` : (names[0] ?? "");
+}
+
+/** Câu đọc to khi có người vừa đợi (hàng 4/5 số). */
+export const waitingLine = (names: readonly string[]) => `${joinNames(names)} đang đợi rồi á nha!`;
+
+/** Câu đọc to khi kinh; nhiều người cùng một số là kinh trùng. */
+export const kinhLine = (names: readonly string[]) => `Chúc mừng ${joinNames(names)} đã kinh${names.length > 1 ? " trùng" : ""}!`;
+
 /** Câu rao khi đợi, chọn tất định theo người + ván + lần kêu để máy nào cũng hiện cùng một câu. */
 export const shoutFor = (uid: string, round: number, k: number) => SHOUTS[hash(`${uid}:${round}:${k}`) % SHOUTS.length];
 
