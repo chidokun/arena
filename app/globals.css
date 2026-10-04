@@ -1,0 +1,568 @@
+@import "tailwindcss";
+
+/* ---------- Bảng màu: sân chơi tươi sáng, viền mực đậm, bóng đổ kiểu nút bấm game ---------- */
+:root {
+  --paper: #f5f2ff;
+  --paper-dot: #ddd5ff;
+  --surface: #ffffff;
+  --sunken: #ece8fb;
+  --ink: #1d1648;
+  --ink-2: #4b4478;
+  --ink-3: #8a84ad;
+  --rule: #d9d3f2;
+  --edge: #1d1648;
+  --pen: #6c47ff;
+  --pen-soft: #e8e1ff;
+  --on-pen: #ffffff;
+
+  --coral: #ff5a5f;
+  --coral-soft: #ffe1e2;
+  --sky: #2f7bff;
+  --sky-soft: #dde9ff;
+  --lime: #12b981;
+  --lime-soft: #d3f6e8;
+  --sun: #ffc23d;
+  --sun-soft: #fff1cc;
+  --grape: #9b5cf6;
+  --grape-soft: #efe4ff;
+
+  --board: #fffaf0;
+  --board-line: #e6dcc6;
+  --board-star: #c9b892;
+  --board-hover: rgba(108, 71, 255, 0.12);
+  --win: #ffd84d;
+
+  --shadow: 0 4px 0 var(--edge);
+  --shadow-sm: 0 3px 0 var(--edge);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --paper: #110d26;
+  --paper-dot: #231c4a;
+  --surface: #1b1638;
+  --sunken: #241e48;
+  --ink: #f1eeff;
+  --ink-2: #bdb6e4;
+  --ink-3: #8079ad;
+  --rule: #322a61;
+  --edge: #050312;
+  --pen: #9d85ff;
+  --pen-soft: #2c2463;
+  --on-pen: #110d26;
+
+  --coral: #ff7a7e;
+  --coral-soft: #4a1d2b;
+  --sky: #6ea3ff;
+  --sky-soft: #1b2c5c;
+  --lime: #3fe0a5;
+  --lime-soft: #10392f;
+  --sun: #ffd166;
+  --sun-soft: #3d3112;
+  --grape: #be97ff;
+  --grape-soft: #33215e;
+
+  --board: #1f1a3f;
+  --board-line: #3a3270;
+  --board-star: #5d53a3;
+  --board-hover: rgba(157, 133, 255, 0.16);
+  --win: #7a6416;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #110d26;
+    --paper-dot: #231c4a;
+    --surface: #1b1638;
+    --sunken: #241e48;
+    --ink: #f1eeff;
+    --ink-2: #bdb6e4;
+    --ink-3: #8079ad;
+    --rule: #322a61;
+    --edge: #050312;
+    --pen: #9d85ff;
+    --pen-soft: #2c2463;
+    --on-pen: #110d26;
+    --coral: #ff7a7e;
+    --coral-soft: #4a1d2b;
+    --sky: #6ea3ff;
+    --sky-soft: #1b2c5c;
+    --lime: #3fe0a5;
+    --lime-soft: #10392f;
+    --sun: #ffd166;
+    --sun-soft: #3d3112;
+    --grape: #be97ff;
+    --grape-soft: #33215e;
+    --board: #1f1a3f;
+    --board-line: #3a3270;
+    --board-star: #5d53a3;
+    --board-hover: rgba(157, 133, 255, 0.16);
+    --win: #7a6416;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-edge: var(--edge);
+  --color-pen: var(--pen);
+  --color-pen-soft: var(--pen-soft);
+  --color-on-pen: var(--on-pen);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-lime: var(--lime);
+  --color-lime-soft: var(--lime-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-grape: var(--grape);
+  --color-grape-soft: var(--grape-soft);
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-body), sans-serif;
+}
+
+@layer base {
+  html {
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--paper);
+    background-image: radial-gradient(var(--paper-dot) 1.4px, transparent 1.4px);
+    background-size: 22px 22px;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--sun);
+    color: #1d1648;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--pen);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Thẻ viền đậm có bóng đổ kiểu sticker */
+  .card {
+    background: var(--surface);
+    border: 2px solid var(--edge);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Nút bấm "nảy" như nút trong game */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1;
+    white-space: nowrap;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform 80ms ease,
+      box-shadow 80ms ease,
+      background-color 120ms ease;
+  }
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 var(--edge);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 var(--edge);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    box-shadow: none;
+    transform: translateY(3px);
+  }
+  .btn-sm {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 13.5px;
+    border-radius: 10px;
+  }
+  .btn-pen {
+    background: var(--pen);
+    color: var(--on-pen);
+  }
+  .btn-coral {
+    background: var(--coral);
+    color: #fff;
+  }
+  .btn-lime {
+    background: var(--lime);
+    color: #08261b;
+  }
+  .btn-sun {
+    background: var(--sun);
+    color: #2b1d00;
+  }
+  .btn-ghost {
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--sunken);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: 1.5px solid currentColor;
+    line-height: 1.6;
+  }
+
+  .field {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 15px;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--pen);
+    box-shadow: 0 0 0 3px var(--pen-soft);
+  }
+
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    border-radius: 999px;
+    border: 2px solid var(--edge);
+    line-height: 1;
+  }
+
+  /* Hộp thoại native */
+  dialog.sheet {
+    margin: auto;
+    width: min(460px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    color: var(--ink);
+    background: var(--surface);
+    border: 2px solid var(--edge);
+    border-radius: 22px;
+    box-shadow: 0 6px 0 var(--edge);
+  }
+  dialog.sheet::backdrop {
+    background: rgba(17, 13, 38, 0.55);
+    backdrop-filter: blur(3px);
+  }
+  dialog.sheet[open] {
+    animation: pop-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  }
+
+  /* ---------- Bàn cờ caro ---------- */
+  .caro {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .caro .cell {
+    fill: transparent;
+  }
+  .caro.can-play .cell:hover {
+    fill: var(--board-hover);
+    cursor: pointer;
+  }
+  .caro .mark-new {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: stamp 320ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+  .caro .win-cell {
+    fill: var(--win);
+    animation: glow 1.1s ease-in-out infinite alternate;
+  }
+
+  /* ---------- Bóng thoại & sticker ---------- */
+  .balloon {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    z-index: 20;
+    max-width: 220px;
+    width: max-content;
+    padding: 6px 12px;
+    border: 2px solid var(--edge);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    box-shadow: var(--shadow-sm);
+    transform: translateX(-50%);
+    animation: balloon 3.6s ease forwards;
+    pointer-events: none;
+    overflow-wrap: anywhere;
+  }
+  .balloon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    margin-top: -6px;
+    background: var(--surface);
+    border-right: 2px solid var(--edge);
+    border-bottom: 2px solid var(--edge);
+    transform: rotate(45deg);
+  }
+  .balloon.is-sticker {
+    font-size: 34px;
+    padding: 4px 10px;
+  }
+
+  .fly {
+    position: absolute;
+    z-index: 30;
+    font-size: 64px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.2));
+  }
+  .fly-heart {
+    animation: fly-heart 2.2s ease-out forwards;
+  }
+  .fly-brick {
+    animation: fly-brick 1.6s cubic-bezier(0.3, 0, 0.7, 1) forwards;
+  }
+  .fly-cow {
+    animation: fly-cow 2.4s ease-in-out forwards;
+  }
+  .fly-clap {
+    animation: fly-clap 2s ease-out forwards;
+  }
+  .shake {
+    animation: shake 420ms ease;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+}
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+@keyframes glow {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes balloon {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.85);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.95);
+  }
+}
+@keyframes fly-heart {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-160px) scale(0.9) rotate(-12deg);
+  }
+}
+@keyframes fly-brick {
+  0% {
+    opacity: 0;
+    transform: translate(-140px, 80px) rotate(-200deg) scale(0.6);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(0, -40px) rotate(-40deg) scale(1.1);
+  }
+  70% {
+    transform: translate(10px, 0) rotate(0deg) scale(1);
+  }
+  80% {
+    transform: translate(10px, -10px) rotate(8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(14px, 30px) rotate(20deg);
+  }
+}
+@keyframes fly-cow {
+  0% {
+    opacity: 0;
+    transform: translateX(-120px) translateY(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(-60px) translateY(-30px);
+  }
+  50% {
+    transform: translateX(0) translateY(0) rotate(6deg);
+  }
+  75% {
+    transform: translateX(60px) translateY(-30px) rotate(-6deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120px) translateY(0);
+  }
+}
+@keyframes fly-clap {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  15%,
+  45%,
+  75% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  30%,
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4) translateY(-30px);
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translate(-6px, 2px) rotate(-0.6deg);
+  }
+  40% {
+    transform: translate(5px, -2px) rotate(0.5deg);
+  }
+  60% {
+    transform: translate(-3px, 1px);
+  }
+  80% {
+    transform: translate(2px, 0);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r, 0deg));
+  }
+  50% {
+    transform: translateY(-8px) rotate(var(--r, 0deg));
+  }
+}
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lime) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+.bob {
+  animation: bob 3.2s ease-in-out infinite;
+}
+.live-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--lime);
+  animation: pulse-dot 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

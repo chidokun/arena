@@ -1,0 +1,258 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { getGame, roomHref } from "@/lib/games/registry";
+import { cleanName, randomId } from "@/lib/identity";
+import type { RoomAd } from "@/lib/net/lobby";
+import { stashCreate } from "@/lib/net/room";
+import { Avatar } from "../Avatar";
+import { Dialog } from "../Dialog";
+import { HUE } from "../home/hue";
+import { useLobbyView, useNet, useWhere } from "../NetProvider";
+
+export function GameLobby({ slug }: { slug: string }) {
+  const game = getGame(slug)!;
+  useWhere({ game: slug });
+  const view = useLobbyView();
+  const rooms = view.rooms.filter((r) => r.game === slug);
+  const here = view.users.filter((u) => u.game === slug);
+  const [creating, setCreating] = useState(false);
+  const hue = HUE[game.hue];
+
+  return (
+    <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 sm:py-10">
+      <nav aria-label="Vị trí" className="mb-5 text-sm font-semibold text-ink-3">
+        <Link href="/" className="no-underline hover:text-ink">
+          Trang chủ
+        </Link>{" "}
+        / <span className="text-ink">{game.name}</span>
+      </nav>
+
+      <header className="card flex flex-col gap-5 overflow-hidden p-6 sm:flex-row sm:items-center sm:p-8" style={{ background: hue.soft }}>
+        <span className="grid h-24 w-24 flex-none place-items-center rounded-3xl border-2 border-edge bg-surface text-6xl" style={{ boxShadow: "var(--shadow-sm)" }} aria-hidden="true">
+          {game.emoji}
+        </span>
+        <div className="flex-1">
+          <h1 className="font-display text-4xl font-extrabold tracking-tight">{game.name}</h1>
+          <p className="mt-2 max-w-[70ch] text-[15.5px] text-ink-2">{game.description}</p>
+        </div>
+        <div className="flex w-full flex-none flex-col gap-2.5 sm:w-60">
+          <button type="button" className="btn btn-pen h-12 w-full px-6 text-base" onClick={() => setCreating(true)}>
+            + Tạo phòng
+          </button>
+          <JoinByCode slug={slug} />
+        </div>
+      </header>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_300px]">
+        <section aria-labelledby="rooms-h">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 id="rooms-h" className="font-display text-2xl font-extrabold">
+              Phòng đang mở <span className="text-ink-3">({rooms.length})</span>
+            </h2>
+            {!view.connected && <span className="text-sm text-ink-3">Đang dò tìm phòng qua mạng P2P…</span>}
+          </div>
+          {rooms.length === 0 ? (
+            <div className="card grid place-items-center gap-3 px-6 py-14 text-center" style={{ borderStyle: "dashed", boxShadow: "none" }}>
+              <span className="text-5xl" aria-hidden="true">
+                🏟️
+              </span>
+              <p className="font-display text-xl font-extrabold">Chưa có phòng nào</p>
+              <p className="max-w-[46ch] text-[15px] text-ink-2">Tạo phòng rồi gửi link cho bạn bè — hoặc chờ một chút, phòng của người khác sẽ hiện ra ở đây.</p>
+              <button type="button" className="btn btn-pen mt-2" onClick={() => setCreating(true)}>
+                Tạo phòng đầu tiên
+              </button>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,290px),1fr))] gap-4">
+              {rooms.map((r) => (
+                <li key={r.id}>
+                  <RoomCard room={r} slug={slug} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <aside aria-labelledby="here-h" className="card h-max p-5">
+          <h2 id="here-h" className="flex items-center gap-2 font-display text-lg font-extrabold">
+            <span className="live-dot" aria-hidden="true" /> Đang ở {game.name} ({here.length})
+          </h2>
+          <ul className="mt-3 grid gap-2.5">
+            {here.slice(0, 30).map((u) => (
+              <li key={u.uid} className="flex items-center gap-2.5">
+                <Avatar p={u} size={30} />
+                <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold">{u.name}</span>
+                <span className="text-xs text-ink-3">{u.room ? "trong phòng" : "ở sảnh"}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      </div>
+
+      <Dialog open={creating} onClose={() => setCreating(false)} title="Tạo phòng mới">
+        {creating && <CreateForm slug={slug} />}
+      </Dialog>
+    </div>
+  );
+}
+
+function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
+  const full = room.members >= room.cap;
+  const playing = room.status === "playing";
+  const status = playing ? { label: "Đang đấu", color: "var(--coral)" } : room.status === "ended" ? { label: "Vừa xong ván", color: "var(--grape)" } : { label: "Đang chờ", color: "var(--lime)" };
+  const size = Number(room.opts?.size) || 15;
+  return (
+    <article className="card flex h-full flex-col gap-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate font-display text-xl font-extrabold">{room.name}</h3>
+          <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-2" title="Chủ phòng">
+            <Avatar p={{ avatar: room.hostAvatar, color: "var(--sunken)" }} size={22} /> 👑 <b className="truncate">{room.hostName}</b>
+          </p>
+        </div>
+        <span className="chip flex-none" style={{ color: status.color }}>
+          {status.label}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">
+        <span className="rounded-lg bg-sunken px-2.5 py-1">
+          🪑 {room.players}/{room.seats} ghế
+        </span>
+        <span className="rounded-lg bg-sunken px-2.5 py-1">
+          👥 {room.members}/{room.cap} người
+        </span>
+        <span className="rounded-lg bg-sunken px-2.5 py-1">
+          ▦ {size}×{size}
+        </span>
+        {Boolean(room.opts?.blockTwoEnds) && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-3">
+        <span className="font-mono text-xs text-ink-3">#{room.id}</span>
+        {full ? (
+          <span className="btn btn-sm" aria-disabled="true" style={{ opacity: 0.5 }}>
+            Phòng đầy
+          </span>
+        ) : (
+          <Link href={roomHref(slug, room.id)} className={`btn btn-sm no-underline ${playing ? "btn-sun" : "btn-pen"}`}>
+            {playing ? "Vào xem" : "Vào phòng"}
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function JoinByCode({ slug }: { slug: string }) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const id = code.trim().replace(/^#/, "").toLowerCase();
+  return (
+    <form
+      className="flex w-full gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (id) router.push(roomHref(slug, id));
+      }}
+    >
+      <label htmlFor="room-code" className="sr-only">
+        Mã phòng
+      </label>
+      <input id="room-code" className="field !min-h-[38px] min-w-0 flex-1 !py-1 text-sm" placeholder="Mã phòng" value={code} onChange={(e) => setCode(e.target.value)} />
+      <button type="submit" className="btn btn-sm" disabled={!id}>
+        Vào
+      </button>
+    </form>
+  );
+}
+
+function CreateForm({ slug }: { slug: string }) {
+  const game = getGame(slug)!;
+  const router = useRouter();
+  const { profile } = useNet();
+  const [name, setName] = useState(`Phòng của ${profile?.name ?? "tôi"}`);
+  const [cap, setCap] = useState(game.capacity.default);
+  const [size, setSize] = useState(15);
+  const [blockTwoEnds, setBlock] = useState(true);
+  const seats = game.seats.min;
+  const clean = cleanName(name);
+
+  return (
+    <form
+      className="grid gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!clean) return;
+        const id = randomId(6);
+        stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
+        router.push(roomHref(slug, id));
+      }}
+    >
+      <div>
+        <label htmlFor="cr-name" className="mb-1.5 block text-sm font-bold">
+          Tên phòng
+        </label>
+        <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div>
+        <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
+          <span>Số người tối đa trong phòng</span>
+          <span className="text-pen tabular-nums">{cap} người</span>
+        </label>
+        <input
+          id="cr-cap"
+          type="range"
+          min={Math.max(game.capacity.min, seats)}
+          max={game.capacity.max}
+          value={cap}
+          onChange={(e) => setCap(Number(e.target.value))}
+          className="w-full accent-[var(--pen)]"
+        />
+        <p className="mt-1 text-[13px] text-ink-3">
+          Gồm {seats} người chơi và {cap - seats} người xem.
+        </p>
+      </div>
+      <fieldset>
+        <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {[15, 19].map((s) => (
+            <button key={s} type="button" onClick={() => setSize(s)} aria-pressed={size === s} className={`btn ${size === s ? "btn-sun" : ""}`}>
+              {s}×{s}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="mb-2 text-sm font-bold">Luật chặn hai đầu</legend>
+        <div className="grid gap-2">
+          <Choice on={blockTwoEnds} onClick={() => setBlock(true)} title="Bật — chặn 2 đầu không thắng" text="Dãy 5 quân bị quân đối phương chặn ở cả hai đầu thì không được tính thắng." />
+          <Choice on={!blockTwoEnds} onClick={() => setBlock(false)} title="Tắt — cứ 5 quân là thắng" text="Chỉ cần 5 quân liên tiếp, bị chặn hay không đều thắng." />
+        </div>
+      </fieldset>
+      <button type="submit" className="btn btn-pen h-12 text-base" disabled={!clean}>
+        Tạo phòng & vào ngay
+      </button>
+    </form>
+  );
+}
+
+function Choice({ on, onClick, title, text }: { on: boolean; onClick: () => void; title: string; text: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`rounded-xl border-2 p-3 text-left transition-colors ${on ? "border-pen bg-pen-soft" : "border-rule hover:border-ink-3"}`}
+    >
+      <span className="flex items-center gap-2 font-bold">
+        <span className={`grid h-5 w-5 place-items-center rounded-full border-2 ${on ? "border-pen" : "border-ink-3"}`} aria-hidden="true">
+          {on && <span className="h-2.5 w-2.5 rounded-full bg-pen" />}
+        </span>
+        {title}
+      </span>
+      <span className="mt-1 block pl-7 text-[13.5px] text-ink-2">{text}</span>
+    </button>
+  );
+}
