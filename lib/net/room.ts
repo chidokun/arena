@@ -60,6 +60,12 @@ export type Meta = {
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
+  /** Caro: số ván thắng của từng người trong phòng, cộng dồn qua các ván. */
+  wins?: Record<string, number>;
+  /** Caro: số ván hoà. */
+  draws?: number;
+  /** Caro: ván gần nhất đã cộng vào `wins`/`draws` — để mỗi kết quả chỉ được tính một lần. */
+  scored?: number;
   created: number;
 };
 

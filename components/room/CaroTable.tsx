@@ -14,7 +14,7 @@ import { useBalloons, useFlyers, useRoomView } from "./useRoom";
 export function CaroTable({ id, slug, session }: { id: string; slug: string; session: CaroRoom }) {
   const view = useRoomView(session)!;
   const m = view.meta!;
-  const { opts, match: g } = view.game!;
+  const { opts, match: g, wins, draws } = view.game!;
   const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
@@ -59,9 +59,7 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
           balloon={slots[0] ? balloons[slots[0].uid] : undefined}
           me={view.me}
         />
-        <span className="self-center font-display text-xl font-extrabold text-ink-3 sm:text-2xl" aria-hidden="true">
-          VS
-        </span>
+        <Score left={slots[0]?.uid} right={slots[1]?.uid} wins={wins} draws={draws} played={m.scored ?? 0} />
         <SeatCard
           seat={slots[1]}
           mark={showGame ? 2 : undefined}
@@ -90,6 +88,35 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
       </div>
       {!seated && !inLineup && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
     </RoomLayout>
+  );
+}
+
+/** Giữa hai thẻ người chơi: "VS" khi chưa xong ván nào, sau đó là tỉ số thắng cộng dồn trong phòng. */
+function Score({ left, right, wins, draws, played }: { left?: string; right?: string; wins: Record<string, number>; draws: number; played: number }) {
+  if (!played)
+    return (
+      <span className="self-center font-display text-xl font-extrabold text-ink-3 sm:text-2xl" aria-hidden="true">
+        VS
+      </span>
+    );
+  const a = left ? (wins[left] ?? 0) : 0;
+  const b = right ? (wins[right] ?? 0) : 0;
+  return (
+    <div className="flex flex-none flex-col items-center justify-center gap-1 self-center" aria-label={`Tỉ số ${a} – ${b}${draws ? `, hoà ${draws}` : ""}`}>
+      <span className="text-[11px] font-bold tracking-wide text-ink-3 uppercase" aria-hidden="true">
+        🏆 Thắng
+      </span>
+      <span className="font-display text-2xl leading-none font-extrabold tabular-nums sm:text-3xl" aria-hidden="true">
+        <span style={{ color: a > b ? "var(--coral)" : undefined }}>{a}</span>
+        <span className="mx-1 text-ink-3">–</span>
+        <span style={{ color: b > a ? "var(--sky)" : undefined }}>{b}</span>
+      </span>
+      {draws > 0 && (
+        <span className="text-[11.5px] font-semibold text-ink-3" aria-hidden="true">
+          Hoà {draws}
+        </span>
+      )}
+    </div>
   );
 }
 

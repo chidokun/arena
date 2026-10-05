@@ -20,6 +20,9 @@ export type CaroView = {
   opts: CaroOptions;
   /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: CaroMatch;
+  /** Số ván thắng của từng người, cộng dồn trong phòng. */
+  wins: Record<string, number>;
+  draws: number;
 };
 
 export class CaroRoom extends RoomSession<CaroView> {
@@ -46,6 +49,14 @@ export class CaroRoom extends RoomSession<CaroView> {
     return true;
   }
 
+  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  protected tidy(m: Meta) {
+    if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
+    m.scored = m.result.round;
+    if (m.result.winner) m.wins = { ...m.wins, [m.result.winner]: (m.wins?.[m.result.winner] ?? 0) + 1 };
+    else m.draws = (m.draws ?? 0) + 1;
+  }
+
   protected outcome(m: Meta) {
     return this.gameOf(m).result;
   }
@@ -67,11 +78,13 @@ export class CaroRoom extends RoomSession<CaroView> {
 
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): CaroView {
     const opts = m.opts as CaroOptions;
-    if (!(m.round > 0 && m.lineup.length === 2)) return { opts };
+    const tally = { wins: m.wins ?? {}, draws: m.draws ?? 0 };
+    if (!(m.round > 0 && m.lineup.length === 2)) return { opts, ...tally };
     const g = this.gameOf(m);
     const myMark = (m.lineup.indexOf(this.me) + 1) as 0 | 1 | 2;
     return {
       opts,
+      ...tally,
       match: {
         round: m.round,
         state: g.state,
