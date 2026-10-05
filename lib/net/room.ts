@@ -16,6 +16,7 @@
  * (CaroRoom, LotoRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { Profile } from "../identity";
+import { isStickerId, type StickerId } from "../stickers";
 import { Gossip, Liveness, type Rumor } from "./gossip";
 import type { Lobby, RoomAd } from "./lobby";
 import { ViewStore } from "./view-store";
@@ -76,7 +77,7 @@ export type Member = Profile & {
   left?: boolean;
 };
 
-export type StickerId = "heart" | "brick" | "cow" | "clap";
+export type { StickerId };
 
 export type ChatMsg = {
   id: string;
@@ -559,6 +560,8 @@ export abstract class RoomSession<G = unknown> {
     if (r.t !== "chat") return;
     const msg = r.p as ChatMsg;
     if (!msg || typeof msg.uid !== "string" || (!msg.text && !msg.sticker)) return;
+    // Id lạ (bản cũ/mới hơn, hoặc bị chế) thì bỏ: id sticker được dùng để dựng đường dẫn ảnh.
+    if (msg.sticker !== undefined && !isStickerId(msg.sticker)) return;
     this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300) });
   }
 

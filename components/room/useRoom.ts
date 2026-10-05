@@ -6,6 +6,7 @@ import { CaroRoom } from "@/lib/net/caro-room";
 import type { Lobby } from "@/lib/net/lobby";
 import { LotoRoom } from "@/lib/net/loto-room";
 import type { ChatMsg, RoomSession, RoomView, StickerId } from "@/lib/net/room";
+import { getSticker } from "@/lib/stickers";
 
 export type GameRoom = CaroRoom | LotoRoom;
 
@@ -97,7 +98,10 @@ export function useBalloons(session: RoomSession | null) {
   return balloons;
 }
 
-export type Flyer = { key: string; sticker: StickerId; left: number; top: number };
+export type Flyer = { key: string; sticker: StickerId; left: number; top: number; delay?: number; size?: number; rot?: number; dx?: number };
+
+/** Sticker KaiXin gửi một cái thì bay cả đàn. */
+const KX_SWARM = 7;
 
 /** Lớp sticker bay ngang bàn chơi; cục gạch làm rung bàn. */
 export function useFlyers(session: RoomSession, boardRef: React.RefObject<HTMLDivElement | null>) {
@@ -106,6 +110,21 @@ export function useFlyers(session: RoomSession, boardRef: React.RefObject<HTMLDi
     () =>
       session.onChat((m) => {
         if (!m.sticker || Date.now() - m.at > 8000) return;
+        if (getSticker(m.sticker)?.src) {
+          const swarm: Flyer[] = Array.from({ length: KX_SWARM }, (_, i) => ({
+            key: `${m.id}:${i}`,
+            sticker: m.sticker!,
+            left: 2 + Math.random() * 78,
+            top: 5 + Math.random() * 65,
+            delay: i === 0 ? 0 : Math.round(150 + Math.random() * 1100),
+            size: i === 0 ? 150 : Math.round(80 + Math.random() * 50),
+            rot: Math.round(Math.random() * 30 - 15),
+            dx: Math.round(Math.random() * 60 - 30),
+          }));
+          setFlyers((x) => [...x.slice(-(4 * KX_SWARM)), ...swarm]);
+          setTimeout(() => setFlyers((x) => x.filter((y) => !swarm.includes(y))), 4400);
+          return;
+        }
         const f: Flyer = { key: m.id, sticker: m.sticker, left: 20 + Math.random() * 55, top: 25 + Math.random() * 40 };
         setFlyers((x) => [...x.slice(-8), f]);
         setTimeout(() => setFlyers((x) => x.filter((y) => y.key !== f.key)), 2600);

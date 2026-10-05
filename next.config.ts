@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   basePath,
   images: { unoptimized: true },
+  // <img> thường không tự thêm basePath; lộ ra cho mã client tự ghép đường dẫn file tĩnh trong public/.
+  env: { BASE_PATH: basePath },
 };
 
 export default nextConfig;

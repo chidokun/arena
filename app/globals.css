@@ -371,6 +371,9 @@
     font-size: 34px;
     padding: 4px 10px;
   }
+  .balloon.is-sticker img {
+    display: block;
+  }
   /* Câu rao lô tô: "Hò!", "Kinh!" */
   .balloon.is-shout {
     background: var(--sun);
@@ -402,6 +405,16 @@
   }
   .fly-clap {
     animation: fly-clap 2s ease-out forwards;
+  }
+  /* KaiXin: cả đàn nảy lên rồi trôi lắc lư, mỗi con lệch nhịp nhờ animation-delay */
+  .fly-kx {
+    animation: fly-kx 3s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  .fly-kx img {
+    display: block;
+  }
+  .pop-in {
+    animation: pop-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
   }
   .shake {
     animation: shake 420ms ease;
@@ -860,6 +873,34 @@
   100% {
     opacity: 0;
     transform: scale(1.4) translateY(-30px);
+  }
+}
+@keyframes fly-kx {
+  0% {
+    opacity: 0;
+    transform: translateY(70px) scale(0.2) rotate(calc(var(--rot) * -1));
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12) rotate(var(--rot));
+  }
+  28% {
+    transform: translateY(-8px) scale(1) rotate(calc(var(--rot) * -0.5));
+  }
+  55% {
+    transform: translate(var(--dx), -50px) rotate(var(--rot));
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx) * 2), -150px) scale(0.85) rotate(calc(var(--rot) * -1));
+  }
+}
+@keyframes pop-in {
+  from {
+    transform: scale(0.4);
   }
 }
 @keyframes shake {

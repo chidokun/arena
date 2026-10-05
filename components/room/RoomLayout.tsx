@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { gameHref, getGame } from "@/lib/games/registry";
-import { stickerEmoji } from "./stickers";
+import { getSticker } from "@/lib/stickers";
+import { StickerArt } from "./Sticker";
 import type { Flyer } from "./useRoom";
 
 export function Notice({ emoji, title, children, spin }: { emoji: string; title: string; children?: React.ReactNode; spin?: boolean }) {
@@ -84,9 +85,20 @@ export function StatusChip({ status, round, playing = "đang đấu" }: { status
 
 /** Sticker bay ngang bàn chơi (đặt trong khối `relative`). */
 export function Flyers({ flyers }: { flyers: Flyer[] }) {
-  return flyers.map((f) => (
-    <span key={f.key} className={`fly fly-${f.sticker}`} style={{ left: `${f.left}%`, top: `${f.top}%` }} aria-hidden="true">
-      {stickerEmoji(f.sticker)}
-    </span>
-  ));
+  return flyers.map((f) =>
+    getSticker(f.sticker)?.src ? (
+      <span
+        key={f.key}
+        className="fly fly-kx"
+        style={{ left: `${f.left}%`, top: `${f.top}%`, animationDelay: `${f.delay ?? 0}ms`, ["--rot" as string]: `${f.rot ?? 0}deg`, ["--dx" as string]: `${f.dx ?? 0}px` }}
+        aria-hidden="true"
+      >
+        <StickerArt id={f.sticker} size={f.size ?? 110} />
+      </span>
+    ) : (
+      <span key={f.key} className={`fly fly-${f.sticker}`} style={{ left: `${f.left}%`, top: `${f.top}%` }} aria-hidden="true">
+        {getSticker(f.sticker)?.emoji}
+      </span>
+    ),
+  );
 }

@@ -6,13 +6,14 @@ import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
-import { stickerEmoji } from "./stickers";
+import { getSticker } from "@/lib/stickers";
+import { StickerArt } from "./Sticker";
 
 export function Balloon({ msg }: { msg?: ChatMsg }) {
   if (!msg) return null;
   return (
     <span key={msg.id} className={`balloon ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
-      {msg.sticker ? stickerEmoji(msg.sticker) : msg.text}
+      {msg.sticker ? getSticker(msg.sticker)?.src ? <StickerArt id={msg.sticker} size={72} /> : getSticker(msg.sticker)?.emoji : msg.text}
     </span>
   );
 }

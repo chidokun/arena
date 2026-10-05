@@ -1,14 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMsg, RoomSession } from "@/lib/net/room";
+import { EMOJI_STICKERS, getSticker, KAIXIN_PACK, KAIXIN_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
-import { STICKERS, stickerEmoji } from "./stickers";
+import { StickerArt } from "./Sticker";
 
 const time = (t: number) => new Date(t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
+const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|\u200D|\uFE0F|\s)+$/u;
+const PICTO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+
+/** Tin chỉ gồm sticker hoặc vài emoji gõ tay: hiện to, không bong bóng. */
+const isIcon = (m: ChatMsg) => !m.system && !m.shout && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
+
+type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
+
+/** Gộp các tin icon/sticker liên tiếp của cùng một người (cách nhau dưới 2 phút) vào một dòng. */
+function toRows(chat: ChatMsg[]): Row[] {
+  const rows: Row[] = [];
+  for (const m of chat) {
+    const last = rows.at(-1);
+    if (!isIcon(m)) rows.push({ kind: "msg", m });
+    else if (last?.kind === "icons" && last.m.uid === m.uid && m.at - last.items.at(-1)!.at < 120_000) last.items.push(m);
+    else rows.push({ kind: "icons", m, items: [m] });
+  }
+  return rows;
+}
+
+function Icon({ m }: { m: ChatMsg }) {
+  if (!m.sticker)
+    return (
+      <span className="text-[40px] leading-none" role="img" aria-label={m.text}>
+        {m.text}
+      </span>
+    );
+  return <StickerArt id={m.sticker} size={getSticker(m.sticker)?.src ? 120 : 56} className="pop-in" />;
+}
+
 export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: ChatMsg[]; me: string }) {
   const [text, setText] = useState("");
+  const [packOpen, setPackOpen] = useState(false);
+  const rows = useMemo(() => toRows(chat), [chat]);
   const listRef = useRef<HTMLOListElement>(null);
   const stick = useRef(true);
 
@@ -18,8 +51,13 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
     if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [chat.length]);
 
+  const sendSticker = (sticker: StickerId) => {
+    session.send({ sticker });
+    stick.current = true;
+  };
+
   return (
-    <section className="card flex min-h-[380px] flex-col overflow-hidden lg:h-[520px]" aria-label="Trò chuyện trong phòng">
+    <section className={`card flex min-h-[380px] flex-col overflow-hidden ${packOpen ? "lg:h-[700px]" : "lg:h-[520px]"}`} aria-label="Trò chuyện trong phòng">
       <h2 className="flex items-center justify-between border-b-2 border-edge px-4 py-3 font-display text-lg font-extrabold">
         💬 Trò chuyện
         <span className="text-xs font-semibold text-ink-3">{chat.filter((m) => !m.system).length} tin</span>
@@ -30,35 +68,42 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
           const el = e.currentTarget;
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
+        onLoadCapture={() => {
+          // Ảnh sticker tải xong làm danh sách cao thêm: giữ đáy nếu đang bám đáy.
+          const el = listRef.current;
+          if (el && stick.current) el.scrollTop = el.scrollHeight;
+        }}
         className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
         aria-live="polite"
       >
         {chat.length === 0 && <li className="py-8 text-center text-sm text-ink-3">Chưa có tin nhắn. Chào cả phòng một câu đi! 👋</li>}
-        {chat.map((m) =>
-          m.system ? (
-            <li key={m.id} className="text-center text-[12.5px] font-semibold text-ink-3">
-              — {m.text} —
+        {rows.map((r) =>
+          r.m.system ? (
+            <li key={r.m.id} className="text-center text-[12.5px] font-semibold text-ink-3">
+              — {r.m.text} —
             </li>
           ) : (
-            <li key={m.id} className={`flex items-end gap-2 ${m.uid === me ? "flex-row-reverse" : ""}`}>
-              <Avatar p={m} size={28} />
-              <div className={`max-w-[78%] ${m.uid === me ? "text-right" : ""}`}>
+            <li key={r.m.id} className={`flex items-end gap-2 ${r.m.uid === me ? "flex-row-reverse" : ""}`}>
+              <Avatar p={r.m} size={28} />
+              <div className={`${r.kind === "icons" ? "max-w-[86%]" : "max-w-[78%]"} ${r.m.uid === me ? "text-right" : ""}`}>
                 <p className="px-1 text-[11.5px] font-semibold text-ink-3">
-                  {m.uid === me ? "Bạn" : m.name} · {time(m.at)}
+                  {r.m.uid === me ? "Bạn" : r.m.name} · {time(r.m.at)}
                 </p>
-                {m.sticker ? (
-                  <span className="inline-block text-[44px] leading-none" role="img" aria-label={STICKERS.find((s) => s.id === m.sticker)?.label}>
-                    {stickerEmoji(m.sticker)}
-                  </span>
-                ) : m.shout ? (
-                  <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">{m.text}</p>
+                {r.kind === "icons" ? (
+                  <div className={`flex flex-wrap items-end gap-1.5 ${r.m.uid === me ? "justify-end" : ""}`}>
+                    {r.items.map((m) => (
+                      <Icon key={m.id} m={m} />
+                    ))}
+                  </div>
+                ) : r.m.shout ? (
+                  <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">{r.m.text}</p>
                 ) : (
                   <p
                     className={`inline-block rounded-2xl border-2 border-edge px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere] ${
-                      m.uid === me ? "rounded-br-md bg-pen text-on-pen" : "rounded-bl-md bg-sunken"
+                      r.m.uid === me ? "rounded-br-md bg-pen text-on-pen" : "rounded-bl-md bg-sunken"
                     }`}
                   >
-                    {m.text}
+                    {r.m.text}
                   </p>
                 )}
               </div>
@@ -67,19 +112,51 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
         )}
       </ol>
       <div className="border-t-2 border-edge p-3">
+        {packOpen && (
+          <div id="kaixin-pack" className="mb-2.5 rounded-xl border-2 border-edge bg-sunken p-2" role="group" aria-label={`Gửi ${KAIXIN_PACK}`}>
+            <p className="mb-1.5 px-1 text-[11.5px] font-bold tracking-wide text-ink-3 uppercase">{KAIXIN_PACK}</p>
+            <div className="grid max-h-[148px] grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1 overflow-y-auto">
+              {KAIXIN_STICKERS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  title={s.label}
+                  aria-label={`Gửi sticker ${s.label}`}
+                  onClick={() => sendSticker(s.id)}
+                  className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
+                >
+                  <StickerArt id={s.id} size={52} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mb-2.5 flex gap-1.5" role="group" aria-label="Gửi sticker">
-          {STICKERS.map((s) => (
+          {EMOJI_STICKERS.map((s) => (
             <button
               key={s.id}
               type="button"
               title={s.label}
               aria-label={`Gửi sticker ${s.label}`}
-              onClick={() => session.send({ sticker: s.id })}
+              onClick={() => sendSticker(s.id)}
               className="grid h-10 flex-1 place-items-center rounded-xl border-2 border-edge bg-surface text-[22px] transition-transform hover:-translate-y-0.5 hover:bg-sunken active:translate-y-0.5"
             >
               {s.emoji}
             </button>
           ))}
+          <button
+            type="button"
+            title={KAIXIN_PACK}
+            aria-label={`${packOpen ? "Đóng" : "Mở"} ${KAIXIN_PACK}`}
+            aria-expanded={packOpen}
+            aria-controls="kaixin-pack"
+            onClick={() => setPackOpen((o) => !o)}
+            className={`grid h-10 flex-1 place-items-center overflow-hidden rounded-xl border-2 border-edge transition-transform hover:-translate-y-0.5 active:translate-y-0.5 ${
+              packOpen ? "bg-sun" : "bg-surface hover:bg-sunken"
+            }`}
+          >
+            <StickerArt id={KAIXIN_STICKERS[0].id} size={34} />
+          </button>
         </div>
         <form
           className="flex gap-2"
