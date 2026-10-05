@@ -759,8 +759,487 @@
     animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1);
     animation-fill-mode: both;
   }
+
+  /* ---------- Ma sói ---------- */
+  .ww-stage {
+    position: relative;
+    overflow: hidden;
+    transition: background 600ms ease;
+  }
+  .ww-stage.is-idle {
+    background:
+      radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--grape) 16%, transparent), transparent 44%),
+      var(--surface);
+  }
+  .ww-stage.is-day {
+    background:
+      radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--sun) 34%, transparent), transparent 46%),
+      linear-gradient(180deg, var(--sun-soft), var(--surface));
+  }
+  .ww-stage.is-dusk {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--coral) 22%, var(--surface)), var(--grape-soft));
+  }
+  /* Ban đêm: trời sao, chữ sáng — đổi biến màu cục bộ để mọi thứ bên trong tự theo. */
+  .ww-stage.is-night {
+    --ink: #f1eeff;
+    --ink-2: #c9c2f0;
+    --ink-3: #9089c2;
+    --surface: #241e48;
+    --sunken: #2c2563;
+    color: var(--ink);
+    background:
+      radial-gradient(1.5px 1.5px at 12% 22%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 28% 70%, #fff 60%, transparent),
+      radial-gradient(1.5px 1.5px at 46% 18%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 63% 56%, #fff 60%, transparent),
+      radial-gradient(1.5px 1.5px at 78% 30%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 90% 78%, #fff 60%, transparent),
+      radial-gradient(circle at 88% 12%, rgba(255, 236, 170, 0.22), transparent 30%),
+      linear-gradient(165deg, #2a2266, #120e2e);
+  }
+  .ww-stage-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border: 2px solid var(--edge);
+    border-radius: 20px;
+    background: var(--surface);
+    font-size: 36px;
+    box-shadow: var(--shadow-sm);
+    animation: pop-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+  .ww-bar {
+    height: 8px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sunken);
+    overflow: hidden;
+  }
+  .ww-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--sun);
+    transition: width 500ms linear;
+  }
+  .ww-cast {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 8px;
+    border: 1.5px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 15px;
+  }
+  .ww-cast b {
+    font-size: 12px;
+  }
+
+  .ww-token {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 10px 4px 8px;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    text-align: center;
+    transition:
+      transform 100ms ease,
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+  .ww-token.is-me {
+    background: color-mix(in srgb, var(--pen) 8%, transparent);
+  }
+  .ww-token.can-pick {
+    border-color: var(--rule);
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .ww-token.can-pick:hover {
+    transform: translateY(-2px);
+    border-color: var(--pen);
+  }
+  button.ww-token:disabled {
+    opacity: 0.45;
+  }
+  .ww-token.is-chosen {
+    border-color: var(--coral);
+    background: var(--coral-soft);
+    box-shadow: 0 3px 0 var(--coral);
+    opacity: 1;
+  }
+  .ww-token.is-dead .avatar {
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
+  .ww-role-dot,
+  .ww-ready,
+  .ww-count {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    line-height: 1;
+  }
+  .ww-role-dot {
+    right: -8px;
+    bottom: -4px;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+  }
+  .ww-ready {
+    left: -8px;
+    bottom: -4px;
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    background: var(--lime-soft);
+  }
+  .ww-count {
+    top: -8px;
+    right: -10px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    background: var(--coral);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
+  }
+  .ww-dead {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+    animation: stamp 360ms ease-out;
+  }
+
+  .ww-role.is-wolf,
+  .ww-result.is-wolf {
+    background: linear-gradient(135deg, var(--coral-soft), var(--grape-soft));
+  }
+  .ww-role,
+  .ww-result {
+    background: linear-gradient(135deg, var(--grape-soft), var(--sky-soft));
+  }
+  .ww-role-art {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 72px;
+    height: 72px;
+    border: 2px solid var(--edge);
+    border-radius: 22px;
+    background: var(--surface);
+    font-size: 42px;
+    box-shadow: var(--shadow-sm);
+    animation: flip-in 520ms ease-out;
+  }
+  .ww-den {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--coral) 14%, var(--surface)), var(--surface));
+  }
+
+  /* Lớp phủ những khoảnh khắc của ván */
+  .ww-cine {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px 56px;
+    overflow-y: auto;
+    color: #f1eeff;
+    cursor: pointer;
+    animation: cine-in 360ms ease-out;
+  }
+  .ww-cine.is-night {
+    background:
+      radial-gradient(1.5px 1.5px at 12% 22%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 28% 70%, #fff 60%, transparent),
+      radial-gradient(1.5px 1.5px at 46% 14%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 63% 56%, #fff 60%, transparent),
+      radial-gradient(1.5px 1.5px at 78% 30%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 90% 82%, #fff 60%, transparent),
+      radial-gradient(1px 1px at 8% 88%, #fff 60%, transparent),
+      radial-gradient(circle at 50% 30%, rgba(255, 236, 170, 0.14), transparent 45%),
+      rgba(14, 11, 38, 0.96);
+  }
+  .ww-cine.is-dawn {
+    color: #2b1d00;
+    background: linear-gradient(180deg, #ffd9a0 0%, #ffeccc 45%, #fff8e6 100%);
+  }
+  .ww-cine.is-blood {
+    background: radial-gradient(circle at 50% 35%, #6b1424, #1a0710 70%);
+  }
+  .ww-cine-body {
+    width: min(760px, 100%);
+  }
+  .ww-cine-title {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    animation: rise-in 700ms ease-out both;
+  }
+  .ww-cine-skip {
+    position: fixed;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 700;
+    opacity: 0.55;
+  }
+  .ww-moon,
+  .ww-sun {
+    font-size: 84px;
+    line-height: 1;
+  }
+  .ww-moon {
+    animation: moon-in 900ms ease-out both;
+  }
+  .ww-sun {
+    animation: sun-rise 1400ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  .ww-late {
+    animation: rise-in 600ms ease-out 1300ms both;
+  }
+
+  /* Chia bài rồi lật bài vai */
+  .ww-deck {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 12px;
+    width: 100%;
+    perspective: 900px;
+  }
+  .ww-card {
+    height: 148px;
+    animation: deal-in 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .ww-card-inner {
+    position: relative;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 700ms cubic-bezier(0.3, 0.7, 0.3, 1);
+  }
+  .ww-card.is-flipped .ww-card-inner {
+    transform: rotateY(180deg);
+  }
+  .ww-card-face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border: 2px solid #050312;
+    border-radius: 16px;
+    backface-visibility: hidden;
+    box-shadow: 0 4px 0 #050312;
+  }
+  .ww-card-back {
+    background:
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 8px, transparent 8px 16px),
+      linear-gradient(160deg, #3a2f86, #1e1850);
+  }
+  .ww-card.is-me .ww-card-back {
+    outline: 3px solid var(--sun);
+    outline-offset: 2px;
+  }
+  .ww-card-front {
+    transform: rotateY(180deg);
+    color: #1d1648;
+    background: linear-gradient(160deg, #ffffff, #e8e1ff);
+  }
+  .ww-card-front.is-wolf {
+    color: #fff;
+    background: linear-gradient(160deg, #e5383b, #7a1325);
+  }
+  .ww-card-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .ww-count-big {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 160px;
+    font-weight: 800;
+    line-height: 1;
+    animation: count-pop 900ms ease-out both;
+  }
+
+  /* Người bị treo bay lên, rồi lật bài Sói / không phải Sói */
+  .ww-hang {
+    animation: float-up 1800ms ease-in-out both;
+  }
+  .ww-hang .avatar {
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
+  }
+  .ww-verdict {
+    width: 220px;
+    height: 120px;
+    perspective: 900px;
+  }
+  .ww-verdict-inner {
+    position: relative;
+    height: 100%;
+    transform-style: preserve-3d;
+    animation: verdict-flip 800ms cubic-bezier(0.3, 0.7, 0.3, 1) 2200ms both;
+  }
+  .ww-verdict-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    border: 2px solid #050312;
+    border-radius: 18px;
+    backface-visibility: hidden;
+    box-shadow: 0 4px 0 #050312;
+    font-size: 20px;
+  }
+  .ww-verdict-back {
+    font-size: 40px;
+    background: linear-gradient(160deg, #3a2f86, #1e1850);
+  }
+  .ww-verdict-front {
+    transform: rotateY(180deg);
+    color: #08261b;
+    background: linear-gradient(160deg, #d3f6e8, #3fe0a5);
+  }
+  .ww-verdict.is-wolf .ww-verdict-front {
+    color: #fff;
+    background: linear-gradient(160deg, #ff5a5f, #7a1325);
+  }
+
+  /* Bảng lật bài và diễn biến khi hết ván */
+  .ww-reveal {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 2px solid var(--edge);
+    border-radius: 14px;
+    background: var(--surface);
+    animation: deal-in 420ms ease-out both;
+  }
+  .ww-reveal.is-wolf {
+    background: color-mix(in srgb, var(--coral) 16%, var(--surface));
+  }
+  .ww-story {
+    display: grid;
+    gap: 10px;
+  }
+  .ww-story > li {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-left: 4px solid var(--grape);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 75%, transparent);
+  }
+  .ww-story ul {
+    display: grid;
+    gap: 3px;
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .ww-story-h {
+    font-weight: 800;
+    font-size: 14.5px;
+  }
 }
 
+@keyframes cine-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes moon-in {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.6) rotate(-30deg);
+  }
+}
+@keyframes sun-rise {
+  from {
+    opacity: 0;
+    transform: translateY(70px) scale(0.7);
+  }
+}
+@keyframes deal-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotate(-8deg) scale(0.8);
+  }
+}
+@keyframes count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(0.92);
+  }
+}
+@keyframes float-up {
+  0% {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px);
+  }
+}
+@keyframes verdict-flip {
+  from {
+    transform: rotateY(0);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+@keyframes flip-in {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: rotateY(0);
+  }
+}
 @keyframes pop-in {
   from {
     opacity: 0;

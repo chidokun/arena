@@ -6,6 +6,9 @@
  *   g:<round>       — nhật ký của ván: caro là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
+ *   v:<round>:<uid> — ma sói: phiếu bầu công khai của từng người.
+ *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
+ *   s:<round>:<uid> — ma sói: bí mật quản trò gửi riêng từng người (vai, kết quả soi…), niêm phong.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
@@ -15,6 +18,8 @@
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
+import type { Public as WolfPublic, Team } from "../games/werewolf";
+import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
 import { Gossip, Liveness, type Rumor } from "./gossip";
@@ -31,7 +36,9 @@ export type Result = {
   loser?: string;
   /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team";
+  /** Ma sói: phe thắng (`winners` là những người thuộc phe đó). */
+  team?: Team;
 };
 
 export type Meta = {
@@ -57,6 +64,8 @@ export type Meta = {
   ready?: string[];
   /** Lô tô: chủ phòng tạm dừng kêu số. */
   paused?: boolean;
+  /** Ma sói: phần công khai của ván gần nhất. */
+  ww?: WolfPublic;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
@@ -79,6 +88,8 @@ export type Member = Profile & {
   pick?: number[];
   /** Ý định "sẵn sàng chơi" đi kèm (lô tô: bấm sau khi chọn tờ). */
   ready?: boolean;
+  /** Khoá công khai ECDH để nhận / gửi bản ghi niêm phong (ma sói). */
+  key?: string;
   seq: number;
   left?: boolean;
 };
@@ -137,6 +148,11 @@ const DROP_SEAT_MS = 15000;
 const CHAT_LIMIT = 120;
 // Chặn vòng lặp react() tự gọi lại vô hạn nếu một hook cứ ghi mãi.
 const MAX_REACT_PASSES = 8;
+
+// Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:"];
+// Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
+const OWN_KEYS = ["x:", "v:", "a:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
@@ -208,7 +224,7 @@ export abstract class RoomSession<G = unknown> {
       intervalMs: 1000,
       accept: (e) => {
         if (e.k.startsWith("p:")) return e.k === `p:${e.w}`;
-        if (e.k.startsWith("x:")) return e.k.endsWith(`:${e.w}`);
+        if (OWN_KEYS.some((p) => e.k.startsWith(p))) return e.k.endsWith(`:${e.w}`);
         return true;
       },
     });
@@ -322,6 +338,9 @@ export abstract class RoomSession<G = unknown> {
   /** Đóng phiên: dọn hẹn giờ riêng. */
   protected stopped?(): void;
 
+  /** Trường thêm vào bản ghi hiện diện của mình (ma sói: khoá công khai). */
+  protected memberExtra?(): Partial<Member>;
+
   /** Thông tin thêm khi quảng bá phòng ra sảnh. */
   protected adExtra?(m: Meta): Partial<RoomAd>;
 
@@ -368,9 +387,15 @@ export abstract class RoomSession<G = unknown> {
       ...(this.choice ? { pick: this.choice } : {}),
       ...(this.ready ? { ready: true } : {}),
       seq: this.seq,
+      ...this.memberExtra?.(),
       ...this.profile,
     };
     this.gossip.set(`p:${this.me}`, me, eager);
+  }
+
+  /** Ghi lại bản ghi hiện diện ngay (vd. khi trường của `memberExtra` vừa có). */
+  protected refresh() {
+    this.beat(true);
   }
 
   private onMeta() {
@@ -378,7 +403,7 @@ export abstract class RoomSession<G = unknown> {
     if (!m) return;
     if (!this.metaSeenAt) this.metaSeenAt = Date.now();
     // Dọn nhật ký các ván cũ (ai cũng dọn như nhau nên không bị "sống lại" qua anti-entropy).
-    for (const e of [...this.gossip.scan("g:"), ...this.gossip.scan("x:")]) {
+    for (const e of ROUND_KEYS.flatMap((p) => this.gossip.scan(p))) {
       const r = Number(e.k.split(":")[1]);
       if (r < m.round) this.gossip.prune(e.k);
     }
@@ -478,7 +503,8 @@ export abstract class RoomSession<G = unknown> {
     if (this.live.silentFor(m.host) < HOST_TAKEOVER_MS) return;
     if (this.successor(m, m.host) !== this.me) return;
     this.gossip.set<Meta>("meta", { ...m, host: this.me });
-    this.system("Chủ phòng mất kết nối — bạn trở thành chủ phòng mới");
+    const title = hostTitle(this.game);
+    this.system(`${title} mất kết nối — bạn trở thành ${title.toLowerCase()} mới`);
   }
 
   /** Chủ phòng: xử lý ý định, loại người rớt mạng, chốt kết quả ván, việc riêng của game, quảng bá phòng ra sảnh. */

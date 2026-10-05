@@ -40,7 +40,8 @@ function Icon({ m }: { m: ChatMsg }) {
   return <StickerArt id={m.sticker} size={getSticker(m.sticker)?.src ? 120 : 56} className="pop-in" />;
 }
 
-export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: ChatMsg[]; me: string }) {
+/** `locked`: lý do tạm không cho gửi tin (ma sói: ban đêm, người đã chết) — vẫn đọc được. */
+export function ChatPanel({ session, chat, me, locked }: { session: RoomSession; chat: ChatMsg[]; me: string; locked?: string }) {
   const [text, setText] = useState("");
   const [packOpen, setPackOpen] = useState(false);
   const rows = useMemo(() => toRows(chat), [chat]);
@@ -158,25 +159,28 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
               ),
             )}
           </ol>
-          <div className="border-t-2 border-edge p-3">
-            {packOpen && (
-              <div id="kaixin-pack" className="mb-2.5 rounded-xl border-2 border-edge bg-sunken p-2" role="group" aria-label={`Gửi ${KAIXIN_PACK}`}>
-                <p className="mb-1.5 px-1 text-[11.5px] font-bold tracking-wide text-ink-3 uppercase">{KAIXIN_PACK}</p>
-                <div className="grid max-h-[148px] grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1 overflow-y-auto">
-                  {KAIXIN_STICKERS.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      title={s.label}
-                      aria-label={`Gửi sticker ${s.label}`}
-                      onClick={() => sendSticker(s.id)}
-                      className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
-                    >
-                      <StickerArt id={s.id} size={52} />
-                    </button>
-                  ))}
+          {locked ? (
+            <p className="border-t-2 border-edge bg-sunken px-4 py-3.5 text-center text-[13.5px] font-semibold text-ink-2">{locked}</p>
+          ) : (
+            <div className="border-t-2 border-edge p-3">
+              {packOpen && (
+                <div id="kaixin-pack" className="mb-2.5 rounded-xl border-2 border-edge bg-sunken p-2" role="group" aria-label={`Gửi ${KAIXIN_PACK}`}>
+                  <p className="mb-1.5 px-1 text-[11.5px] font-bold tracking-wide text-ink-3 uppercase">{KAIXIN_PACK}</p>
+                  <div className="grid max-h-[148px] grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1 overflow-y-auto">
+                    {KAIXIN_STICKERS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        title={s.label}
+                        aria-label={`Gửi sticker ${s.label}`}
+                        onClick={() => sendSticker(s.id)}
+                        className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
+                      >
+                        <StickerArt id={s.id} size={52} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
             )}
             <div className="mb-2.5 flex gap-1.5" role="group" aria-label="Gửi sticker">
               {EMOJI_STICKERS.map((s) => (
@@ -232,6 +236,7 @@ export function ChatPanel({ session, chat, me }: { session: RoomSession; chat: C
               </button>
             </form>
           </div>
+          )}
         </div>
       )}
     </section>

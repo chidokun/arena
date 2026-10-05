@@ -13,6 +13,8 @@ export type GameDef = {
   /** Màu chủ đạo của thẻ game. */
   hue: "coral" | "sky" | "lime" | "grape" | "sun";
   emoji: string;
+  /** Tên gọi người tạo phòng trong game này (mặc định "Chủ phòng"). */
+  host?: string;
 };
 
 export const GAMES: GameDef[] = [
@@ -39,6 +41,19 @@ export const GAMES: GameDef[] = [
     available: true,
     hue: "sun",
     emoji: "🧧",
+  },
+  {
+    slug: "werewolf",
+    name: "Ma Sói",
+    tagline: "Đêm Sói cắn, ngày cả làng treo cổ",
+    description:
+      "Người tạo phòng là Quản trò — không chơi, chỉ xem và điều khiển; máy của họ tự chia vai bí mật: Ma Sói, Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy. Đêm xuống Sói chọn người để cắn, các vai đặc biệt dùng năng lực; ngày lên cả làng tranh luận và bỏ phiếu treo cổ. Dân thắng khi hết Sói — Sói thắng khi đông bằng phần còn lại.",
+    seats: { min: 4, max: 16 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "grape",
+    emoji: "🐺",
+    host: "Quản trò",
   },
   {
     slug: "connect-four",
@@ -78,6 +93,9 @@ export const GAMES: GameDef[] = [
 export function getGame(slug: string) {
   return GAMES.find((g) => g.slug === slug && g.available);
 }
+
+/** Tên gọi người tạo phòng của một game: "Chủ phòng", hoặc "Quản trò" (ma sói). */
+export const hostTitle = (slug: string | undefined) => GAMES.find((g) => g.slug === slug)?.host ?? "Chủ phòng";
 
 export const gameHref = (slug: string) => `/games/${slug}/`;
 export const roomHref = (slug: string, id: string) => `/games/${slug}/room/?id=${encodeURIComponent(id)}`;

@@ -11,6 +11,21 @@ const KINDS: WireKind[] = ["dig", "dlt", "req", "rum"];
 const LEAVE_DELAY_MS = 1500;
 /** Peer bắt tay hỏng được tính là "không nối được" trong khoảng này (Trystero thử lại khi vào lại room). */
 const UNREACHABLE_TTL_MS = 90000;
+/**
+ * Relay Nostr cố định thay cho danh sách mặc định của Trystero (nhiều relay trong đó đã chết hoặc chặn event
+ * ephemeral). Ưu tiên relay lớn, lâu đời; tất cả đã thử nhận/phát event kiểu Trystero. Mọi máy phải dùng cùng
+ * danh sách — đổi ở đây thì bản cũ và bản mới có thể không gặp nhau cho tới khi mọi người tải lại trang.
+ */
+const RELAY_URLS = [
+  "wss://nos.lol",
+  "wss://relay.damus.io",
+  "wss://relay.primal.net",
+  "wss://nostr.mom",
+  "wss://purplerelay.com",
+  "wss://relay.snort.social",
+  "wss://nostr-pub.wellorder.net",
+  "wss://nostr-01.yakihonne.com",
+];
 
 type Handler = (data: unknown, from: string) => void;
 type PeerFn = (peer: string) => void;
@@ -122,14 +137,14 @@ export async function openChannel(name: string): Promise<Channel> {
   const relayOnly = forceRelay();
   let hub = hubs.get(name);
   if (!hub) {
-    // Relay công khai đôi khi chết; nối nhiều hơn mặc định để hai bên chắc chắn gặp nhau ở ít nhất một relay.
+    // Relay công khai đôi khi chết; nối nhiều relay để hai bên chắc chắn gặp nhau ở ít nhất một relay.
     // Mỗi kênh một appId riêng: Trystero dùng chung kết nối WebRTC giữa các room cùng appId, và cơ chế đó
     // không ổn định khi vào phòng mới lúc đã nối sẵn ở sảnh. Tách ra thì mỗi kênh tự bắt tay độc lập.
     hub = new Hub(name, (h) =>
       joinRoom(
         {
           appId: `${APP_ID}/${name}`,
-          relayConfig: { redundancy: 7, warnOnRelayFailure: false },
+          relayConfig: { urls: RELAY_URLS, warnOnRelayFailure: false },
           turnConfig: turn,
           rtcConfig: relayOnly ? { iceTransportPolicy: "relay" } : undefined,
         },

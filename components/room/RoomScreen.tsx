@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { gameHref, getGame, roomHref } from "@/lib/games/registry";
+import { gameHref, getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import { useNet, useWhere } from "../NetProvider";
 import { CaroTable } from "./CaroTable";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
+import { WerewolfTable } from "./WerewolfTable";
 import { useRoomSession, useRoomView } from "./useRoom";
 
 export function RoomScreen({ slug }: { slug: string }) {
@@ -59,7 +60,7 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (view.phase === "kicked")
     return (
       <Notice emoji="🚪" title="Bạn đã bị mời ra khỏi phòng">
-        Chủ phòng đã mời bạn ra khỏi “{view.meta?.name}”.
+        {hostTitle(view.meta?.game)} đã mời bạn ra khỏi “{view.meta?.name}”.
         {back}
       </Notice>
     );
@@ -85,5 +86,7 @@ export function RoomScreen({ slug }: { slug: string }) {
       </Notice>
     );
   // So theo slug thay vì instanceof: nạp lại nóng (HMR) tạo lớp mới khiến phiên cũ không còn là instanceof.
-  return session.game === "loto" ? <LotoTable id={id} slug={slug} session={session} /> : <CaroTable id={id} slug={slug} session={session} />;
+  if (session.game === "loto") return <LotoTable id={id} slug={slug} session={session} />;
+  if (session.game === "werewolf") return <WerewolfTable id={id} slug={slug} session={session} />;
+  return <CaroTable id={id} slug={slug} session={session} />;
 }

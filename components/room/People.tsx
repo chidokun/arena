@@ -6,6 +6,7 @@ import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
+import { hostTitle } from "@/lib/games/registry";
 import { getSticker } from "@/lib/stickers";
 import { StickerArt } from "./Sticker";
 
@@ -124,7 +125,7 @@ export function PeoplePanel({
         <p className="truncate text-[14.5px] font-bold">
           {p.name}
           {p.uid === view.me && <span className="ml-1 text-xs text-pen">(bạn)</span>}
-          {p.uid === m.host && <span title="Chủ phòng"> 👑</span>}
+          {p.uid === m.host && <span title={hostTitle(m.game)}> 👑</span>}
         </p>
         <p className="text-xs text-ink-3">{detail ? detail(p, seated) : seated ? (playing && m.lineup.includes(p.uid) ? "Đang thi đấu" : "Đã vào ghế") : "Đang xem"}</p>
       </div>
@@ -140,7 +141,7 @@ export function PeoplePanel({
               {unseatLabel}
             </button>
           )}
-          <HostMenu onKick={() => session.kick(p.uid)} onMakeHost={() => session.makeHost(p.uid)} name={p.name} />
+          <HostMenu onKick={() => session.kick(p.uid)} onMakeHost={() => session.makeHost(p.uid)} name={p.name} host={hostTitle(m.game)} />
         </div>
       )}
     </li>
@@ -170,7 +171,7 @@ export function PeoplePanel({
   );
 }
 
-function HostMenu({ onKick, onMakeHost, name }: { onKick: () => void; onMakeHost: () => void; name: string }) {
+function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMakeHost: () => void; name: string; host: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -188,7 +189,7 @@ function HostMenu({ onKick, onMakeHost, name }: { onKick: () => void; onMakeHost
               onMakeHost();
             }}
           >
-            👑 Nhường chủ phòng
+            👑 Nhường {host.toLowerCase()}
           </button>
           <ConfirmButton
             role="menuitem"

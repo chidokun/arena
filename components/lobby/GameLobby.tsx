@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
-import { getGame, roomHref } from "@/lib/games/registry";
+import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
+import { DEFAULT_OPTIONS, MAX_PLAYERS, MIN_PLAYERS, normOptions, ROLES, TALKS, talkName } from "@/lib/games/werewolf";
 import { cleanName, randomId } from "@/lib/identity";
 import type { RoomAd } from "@/lib/net/lobby";
 import { stashCreate } from "@/lib/net/room";
@@ -102,12 +103,13 @@ export function GameLobby({ slug }: { slug: string }) {
 
 function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const loto = room.game === "loto";
+  const wolf = room.game === "werewolf";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
   const status = playing
-    ? { label: loto ? "Đang kêu số" : "Đang đấu", color: "var(--coral)" }
+    ? { label: loto ? "Đang kêu số" : wolf ? "Đang chơi" : "Đang đấu", color: "var(--coral)" }
     : room.status === "ended"
       ? { label: "Vừa xong ván", color: "var(--grape)" }
       : { label: "Đang chờ", color: "var(--lime)" };
@@ -116,7 +118,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate font-display text-xl font-extrabold">{room.name}</h3>
-          <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-2" title="Chủ phòng">
+          <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-2" title={hostTitle(room.game)}>
             <Avatar p={{ avatar: room.hostAvatar, color: "var(--sunken)" }} size={22} /> 👑 <b className="truncate">{room.hostName}</b>
           </p>
         </div>
@@ -124,7 +126,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           {status.label}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : <CaroChips room={room} />}</div>
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : wolf ? <WolfChips room={room} /> : <CaroChips room={room} />}</div>
       <div className="mt-auto flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-ink-3">#{room.id}</span>
         {full ? (
@@ -174,6 +176,23 @@ function LotoChips({ room }: { room: RoomAd }) {
   );
 }
 
+function WolfChips({ room }: { room: RoomAd }) {
+  const opts = normOptions(room.opts);
+  const roles = (["seer", "guard", "witch"] as const).filter((r) => opts[r]);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} dân làng
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🗣️ {opts.talk ? `${opts.talk / 60} phút thảo luận` : "Quản trò điều khiển"}</span>
+      <span className="rounded-lg bg-grape-soft px-2.5 py-1" title={["wolf" as const, ...roles].map((r) => ROLES[r].name).join(", ")}>
+        🐺{opts.wolves ? `×${opts.wolves}` : ""} {roles.map((r) => ROLES[r].emoji).join(" ")}
+      </span>
+    </>
+  );
+}
+
 function JoinByCode({ slug }: { slug: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -206,7 +225,9 @@ function CreateForm({ slug }: { slug: string }) {
   const [size, setSize] = useState(15);
   const [blockTwoEnds, setBlock] = useState(true);
   const [pace, setPace] = useState(DEFAULT_PACE);
+  const [talk, setTalk] = useState(DEFAULT_OPTIONS.talk);
   const loto = slug === "loto";
+  const wolf = slug === "werewolf";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -221,6 +242,9 @@ function CreateForm({ slug }: { slug: string }) {
           // Bộ tờ của phòng sinh từ seed này; không giới hạn người vào xem, số người chơi giới hạn bởi số tờ.
           const seed = crypto.getRandomValues(new Uint32Array(1))[0];
           stashCreate(id, { name: clean, cap: 0, seats: SHEET_COUNT, opts: { seed, interval: pace } });
+        } else if (wolf) {
+          // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: MAX_PLAYERS, opts: { ...DEFAULT_OPTIONS, talk } });
         } else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
@@ -231,7 +255,24 @@ function CreateForm({ slug }: { slug: string }) {
         </label>
         <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
       </div>
-      {loto ? (
+      {wolf ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian thảo luận ban ngày</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {TALKS.map((t) => (
+                <button key={t} type="button" onClick={() => setTalk(t)} aria-pressed={talk === t} className={`btn !px-2 ${t ? "" : "col-span-4"} ${talk === t ? "btn-sun" : ""}`}>
+                  {talkName(t)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-grape-soft p-3 text-[13.5px] text-ink-2">
+            🐺 Từ {MIN_PLAYERS} đến {MAX_PLAYERS} người chơi, ai vào cũng xem được. Bạn là Quản trò — không chơi, chỉ xem và điều khiển ván; máy của bạn tự chia vai, gọi các vai dậy ban đêm, đếm
+            phiếu ban ngày. Số Sói, các vai đặc biệt và luật chi tiết chỉnh được trong phòng trước mỗi ván.
+          </p>
+        </>
+      ) : loto ? (
         <>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Nhịp kêu số</legend>
