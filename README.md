@@ -20,6 +20,7 @@ Mã phòng nằm ở query string vì site tĩnh không sinh trước được t
 
 ```
 lib/net/wire.ts    kênh P2P (một room Trystero, appId riêng mỗi kênh), đếm tham chiếu
+lib/net/ice.ts     máy chủ TURN (cấu hình lúc build) cho các cặp máy không nối thẳng được
 lib/net/gossip.ts  gossip store LWW + đồng hồ Lamport, anti-entropy push–pull, rumor, bộ phát hiện lỗi nhịp tim
 lib/net/lobby.ts      kênh "lobby": ai đang online / ở game nào, quảng bá phòng, lời mời
 lib/net/room.ts       kênh "room:<id>": phần chung của phòng — ghế, chat, quyền chủ phòng, vòng đời ván
@@ -60,6 +61,13 @@ phòng và quyền. Snapshot chỉ được dùng nếu mới hơn 20 giây (ng�
 vào như người mới, tránh trạng thái cũ ghi đè trạng thái hiện tại. Tab nhân bản được phát hiện qua `BroadcastChannel`
 và cấp uid mới.
 
+**TURN.** Trystero mặc định chỉ có STUN: hai máy cùng mạng LAN nối được, nhưng khác mạng — nhất là điện thoại
+4G/5G (NAT nhà mạng) — thường bắt tay xong vẫn không thông kênh, mỗi bên chỉ thấy mình online (huy hiệu mạng hiện
+"N máy bị chặn"). Khi đó lưu lượng phải đi qua máy chủ TURN, cấu hình bằng biến môi trường lúc build (GitHub Secrets
+`TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` hoặc `TURN_API`, xem `lib/net/ice.ts`). Giá trị được nhúng vào trang
+tĩnh nên ai cũng đọc được — dùng tài khoản TURN miễn phí riêng cho site này. Thử trên một máy: mở hai tab, một tab
+thêm `?relay` vào URL để ép đi qua TURN.
+
 Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa được ký số.
 
 ## Phát triển
@@ -67,6 +75,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 ```bash
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
+                # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
 npm test        # unit test gossip + luật caro + luật lô tô (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/

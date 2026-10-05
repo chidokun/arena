@@ -39,6 +39,12 @@ jobs:
           # Nếu quay lại dùng <user>.github.io/<repo>, đặt PAGES_BASE_PATH: /<repo>.
           PAGES_BASE_PATH: ""
           NEXT_TELEMETRY_DISABLED: 1
+          # Máy chủ TURN để hai máy khác mạng (4G/5G, wifi công ty) vẫn nối được — xem lib/net/ice.ts.
+          # Đặt ở Settings → Secrets and variables → Actions; bỏ trống thì chỉ có STUN.
+          NEXT_PUBLIC_TURN_URLS: ${{ secrets.TURN_URLS }}
+          NEXT_PUBLIC_TURN_USERNAME: ${{ secrets.TURN_USERNAME }}
+          NEXT_PUBLIC_TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL }}
+          NEXT_PUBLIC_TURN_API: ${{ secrets.TURN_API }}
 
       - uses: actions/upload-pages-artifact@v5
         with:

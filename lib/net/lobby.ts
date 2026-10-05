@@ -41,6 +41,8 @@ export type Invite = {
 export type LobbyView = {
   connected: boolean;
   peers: number;
+  /** Số máy thấy được qua relay nhưng không nối thông được (mạng chặn P2P, cần TURN). */
+  unreachable: number;
   users: LobbyUser[];
   rooms: RoomAd[];
 };
@@ -146,7 +148,8 @@ export class Lobby {
       .map((e) => e.v)
       .filter((a) => !a.closed && this.ads.alive(a.id))
       .sort((a, b) => Number(a.status === "playing") - Number(b.status === "playing") || b.members - a.members);
-    return { connected: this.channel.peers().length > 0, peers: this.channel.peers().length, users, rooms };
+    const peers = this.channel.peers().length;
+    return { connected: peers > 0, peers, unreachable: this.channel.unreachable(), users, rooms };
   }
 
   // ---------- API ----------

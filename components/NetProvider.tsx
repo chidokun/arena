@@ -14,7 +14,7 @@ type Net = {
 
 const NetContext = createContext<Net | null>(null);
 
-const EMPTY_VIEW: LobbyView = { connected: false, peers: 0, users: [], rooms: [] };
+const EMPTY_VIEW: LobbyView = { connected: false, peers: 0, unreachable: 0, users: [], rooms: [] };
 const noop = () => () => {};
 
 export function NetProvider({ children }: { children: React.ReactNode }) {

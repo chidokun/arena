@@ -4,10 +4,13 @@
  * hay việc chuyển trang nhanh không làm rời rồi vào lại room liên tục.
  */
 import type { Wire, WireKind } from "./gossip";
+import { forceRelay, turnServers } from "./ice";
 
 export const APP_ID = "arena.nguyentuan.dev/v1";
 const KINDS: WireKind[] = ["dig", "dlt", "req", "rum"];
 const LEAVE_DELAY_MS = 1500;
+/** Peer bắt tay hỏng được tính là "không nối được" trong khoảng này (Trystero thử lại khi vào lại room). */
+const UNREACHABLE_TTL_MS = 90000;
 
 type Handler = (data: unknown, from: string) => void;
 type PeerFn = (peer: string) => void;
@@ -22,19 +25,21 @@ class Hub {
   joins = new Set<PeerFn>();
   leaves = new Set<PeerFn>();
   peers = new Set<string>();
+  /** Peer đã trao đổi SDP nhưng không thông kênh (thường do NAT chặn, thiếu TURN) → lúc thất bại gần nhất. */
+  unreachable = new Map<string, number>();
   senders = new Map<WireKind, Send>();
   room!: TrysteroRoom;
   private rejoining: Promise<void> | null = null;
 
   constructor(
     readonly name: string,
-    private join: () => TrysteroRoom,
+    private join: (hub: Hub) => TrysteroRoom,
   ) {
     this.bind();
   }
 
   private bind() {
-    const room = this.join();
+    const room = this.join(this);
     this.room = room;
     for (const kind of KINDS) {
       const action = room.makeAction(kind);
@@ -47,6 +52,7 @@ class Hub {
     room.onPeerJoin = (peer) => {
       if (this.room !== room) return;
       this.peers.add(peer);
+      this.unreachable.delete(peer);
       for (const fn of this.joins) fn(peer);
     };
     room.onPeerLeave = (peer) => {
@@ -59,6 +65,15 @@ class Hub {
    * Rời room Trystero rồi vào lại: phát lại lời chào lên relay và bắt tay từ đầu. Dùng khi lần bắt tay trước
    * thất bại (vd. đầu kia đang bận, tín hiệu bị rơi) — Trystero không tự thử lại với peer đã từng thất bại.
    */
+  noteFailure(peer: string) {
+    if (!this.peers.has(peer)) this.unreachable.set(peer, Date.now());
+  }
+
+  unreachableCount(now = Date.now()) {
+    for (const [p, at] of this.unreachable) if (now - at > UNREACHABLE_TTL_MS) this.unreachable.delete(p);
+    return this.unreachable.size;
+  }
+
   rejoin() {
     this.rejoining ??= (async () => {
       const old = this.room;
@@ -91,6 +106,8 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") (win
 export type Channel = Wire & {
   selfId: string;
   onPeerLeave(fn: PeerFn): void;
+  /** Số peer gần đây bắt tay được nhưng không nối thông (mạng chặn P2P). */
+  unreachable(): number;
   /** Vào lại room để bắt tay lại từ đầu (khi kênh trống bất thường). */
   rejoin(): Promise<void>;
   release(): void;
@@ -101,15 +118,29 @@ export async function openChannel(name: string): Promise<Channel> {
   const mod = await import("trystero");
   const { joinRoom, selfId } = mod;
   if (process.env.NODE_ENV !== "production") (window as unknown as { __trystero: typeof mod }).__trystero = mod;
+  const turn = await turnServers();
+  const relayOnly = forceRelay();
   let hub = hubs.get(name);
   if (!hub) {
     // Relay công khai đôi khi chết; nối nhiều hơn mặc định để hai bên chắc chắn gặp nhau ở ít nhất một relay.
     // Mỗi kênh một appId riêng: Trystero dùng chung kết nối WebRTC giữa các room cùng appId, và cơ chế đó
     // không ổn định khi vào phòng mới lúc đã nối sẵn ở sảnh. Tách ra thì mỗi kênh tự bắt tay độc lập.
-    hub = new Hub(name, () =>
-      joinRoom({ appId: `${APP_ID}/${name}`, relayConfig: { redundancy: 7, warnOnRelayFailure: false } }, name, {
-        onJoinError: (d) => console.warn(`[arena] kênh ${name}: không nối được peer ${d.peerId}`, d.error),
-      }),
+    hub = new Hub(name, (h) =>
+      joinRoom(
+        {
+          appId: `${APP_ID}/${name}`,
+          relayConfig: { redundancy: 7, warnOnRelayFailure: false },
+          turnConfig: turn,
+          rtcConfig: relayOnly ? { iceTransportPolicy: "relay" } : undefined,
+        },
+        name,
+        {
+          onJoinError: (d) => {
+            h.noteFailure(d.peerId);
+            console.warn(`[arena] kênh ${name}: không nối được peer ${d.peerId}`, d.error);
+          },
+        },
+      ),
     );
     hubs.set(name, hub);
   }
@@ -128,6 +159,7 @@ export async function openChannel(name: string): Promise<Channel> {
   return {
     selfId,
     peers: () => [...h.peers],
+    unreachable: () => h.unreachableCount(),
     send: (kind, data, to) => {
       if (!released) h.send(kind, data, to);
     },
