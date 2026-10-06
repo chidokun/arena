@@ -842,6 +842,62 @@
     font-size: 12px;
   }
 
+  /* Balloon cách chơi của một vai (RoleTip): vẽ trong body, vị trí cố định do JS tính. */
+  .ww-tip {
+    cursor: help;
+  }
+  .ww-tip:focus-visible {
+    outline: 3px solid var(--pen);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  /* Thẻ vai bị khoá (người không phải quản trò): để chuột rơi xuống thẻ cha cho balloon hiện. */
+  .ww-pick button:disabled {
+    pointer-events: none;
+  }
+  .ww-tip-pop {
+    position: fixed;
+    z-index: 80;
+    transform: translate(-50%, -100%);
+    padding: 10px 12px;
+    border: 2px solid var(--edge);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: left;
+    pointer-events: none;
+    animation: ww-tip-in 0.12s ease-out;
+  }
+  .ww-tip-pop.is-below {
+    transform: translate(-50%, 0);
+  }
+  .ww-tip-pop.is-wolf {
+    border-color: var(--coral);
+  }
+  .ww-tip-team {
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--ink-2);
+  }
+  .ww-tip-pop.is-wolf .ww-tip-team {
+    color: var(--coral);
+  }
+  @keyframes ww-tip-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ww-tip-pop {
+      animation: none;
+    }
+  }
+
   /* Thứ tự gọi các vai ban đêm: vai đang thức sáng lên, vai đã xong mờ đi. */
   .ww-turns {
     display: flex;

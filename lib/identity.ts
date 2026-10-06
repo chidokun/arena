@@ -48,9 +48,8 @@ export function loadProfile(): { profile: Profile; fresh: boolean } {
       return { profile: { name: cleanName(p.name), avatar: p.avatar, color: p.color }, fresh: false };
     }
   }
-  const profile = randomProfile();
-  saveProfile(profile);
-  return { profile, fresh: true };
+  // Lần đầu ghé: hồ sơ tạm (để kết nối được ngay), chưa lưu — người chơi phải tự đặt tên rồi bấm lưu.
+  return { profile: randomProfile(), fresh: true };
 }
 
 export function saveProfile(p: Profile) {

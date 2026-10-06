@@ -27,6 +27,7 @@ import {
   normOptions,
   readyOf,
   secretFor,
+  shotOf,
   sideOf,
   skipNight,
   skipTalk,
@@ -86,6 +87,7 @@ export type Scene = { id: string } & (
   | { kind: "dusk"; day: number }
   | { kind: "sunrise"; day: number; dead: Death[] }
   | { kind: "hang"; death: Death }
+  | { kind: "shot"; death: Death }
   | { kind: "spared" }
   | { kind: "end"; team: Side }
 );
@@ -115,6 +117,8 @@ export type WolfView = {
   };
   /** Quản trò không ngồi chơi và người xem: thấy hết vai và hành động đêm nay. */
   seeAll?: WatchView;
+  /** Thợ Săn đang ngắm ai (null: không bắn; undefined: chưa chọn). */
+  aim?: string | null;
   /** Phiếu hợp lệ của lượt bỏ phiếu hiện tại. */
   ballots: Record<string, string | null>;
   /** Những người muốn bỏ phiếu sớm. */
@@ -406,7 +410,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.deathsHeard = pub?.deaths.length ?? 0;
     for (const d of fresh) if (d.how === "left") this.system(`🚪 ${this.who(d)} đã bỏ làng ra đi`);
     if (key === this.heard) {
-      this.grief(fresh);
+      this.aftermath(fresh);
       return;
     }
     const prev = this.heard;
@@ -418,11 +422,14 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       if (night.length || prev.endsWith(":dawn")) this.sunrise(pub, night);
       const hang = fresh.find((d) => d.how === "hang");
       if (hang) this.hanged(hang);
-      this.grief(fresh);
+      this.aftermath(fresh);
       if (m.result?.team) this.scene({ kind: "end", team: m.result.team as Side });
       return;
     }
     const d = pub.day;
+    // Vừa bắn xong: kể phát bắn trước khi sang ngày / đêm.
+    const shot = prev.endsWith(":hunt");
+    if (shot) this.aftermath(fresh);
     switch (pub.stage) {
       case "intro":
         this.system("🌙 Trời tối rồi, mọi người ngủ đi thôi… Lật bài xem vai của mình nhé!");
@@ -431,11 +438,22 @@ export class WerewolfRoom extends RoomSession<WolfView> {
         this.system(`🌙 Đêm thứ ${d} buông xuống — cả làng đi ngủ`);
         if (d > 1) this.scene({ kind: "dusk", day: d });
         break;
+      case "hunt": {
+        // Thợ Săn chết đêm qua: công bố trời sáng trước rồi mới tới phát bắn.
+        if (prev.endsWith(":dawn"))
+          this.sunrise(
+            pub,
+            pub.deaths.filter((x) => x.day === d && x.how === "night"),
+          );
+        if (pub.hunt) this.system(`🏹 ${this.nameOf(pub.hunt.uid)} là Thợ Săn — trước khi gục xuống được bắn kéo theo một người!`);
+        break;
+      }
       case "day":
-        this.sunrise(
-          pub,
-          pub.deaths.filter((x) => x.day === d && x.how === "night"),
-        );
+        if (!shot)
+          this.sunrise(
+            pub,
+            pub.deaths.filter((x) => x.day === d && x.how === "night"),
+          );
         break;
       case "vote":
         this.system("🗳️ Bỏ phiếu treo cổ!");
@@ -453,12 +471,21 @@ export class WerewolfRoom extends RoomSession<WolfView> {
         break;
       }
     }
-    this.grief(fresh);
+    if (!shot) this.aftermath(fresh);
   }
 
-  /** Ban ngày người yêu chết theo (ban đêm thì đã công bố chung với những người chết đêm qua). */
-  private grief(fresh: Death[]) {
-    for (const d of fresh) if (d.how === "love") this.system(`💔 ${this.who(d)} đau buồn chết theo người yêu`);
+  /**
+   * Thợ Săn bắn, người yêu chết theo ban ngày (ban đêm thì đã công bố chung với những người chết đêm qua).
+   * Thợ Săn không bắn thì không có ai chết — nhắc một câu.
+   */
+  private aftermath(fresh: Death[]) {
+    for (const d of fresh) {
+      if (d.how === "shot") {
+        this.system(`🎯 Thợ Săn ${d.by ? this.nameOf(d.by) : ""} bắn chết ${this.who(d)}`);
+        this.scene({ kind: "shot", death: d });
+      }
+      if (d.how === "love") this.system(`💔 ${this.who(d)} đau buồn chết theo người yêu`);
+    }
   }
 
   // ---------- giao diện ----------
@@ -497,6 +524,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
         vote: votes[this.me],
       },
       seeAll: inGame ? undefined : g && m.host === this.me ? watchView(g) : secret?.watch,
+      aim: pub ? shotOf(pub, votes) : undefined,
       ballots: pub ? ballotsOf(pub, votes) : {},
       ready: pub ? readyOf(pub, votes) : [],
       people: Object.fromEntries([...uids].map((uid) => [uid, seatOf(uid)])),
@@ -575,6 +603,15 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     const live = this.livePub();
     if (!live || (live.pub.stage !== "vote" && live.pub.stage !== "revote")) return;
     this.gossip.set<Vote>(`v:${live.m.round}:${this.me}`, { day: live.pub.day, stage: live.pub.stage, target });
+    this.react();
+  }
+
+  /** Thợ Săn vừa chết: bắn một người (null: không bắn). Ai cũng thấy phát bắn nên ghi công khai. */
+  shoot(target: string | null) {
+    const m = this.meta();
+    const pub = m?.ww;
+    if (!m || m.status !== "playing" || !pub || pub.round !== m.round || pub.stage !== "hunt" || pub.hunt?.uid !== this.me) return;
+    this.gossip.set<Vote>(`v:${m.round}:${this.me}`, { day: pub.day, stage: "hunt", target });
     this.react();
   }
 

@@ -9,12 +9,11 @@ import { useNet } from "./NetProvider";
 export function ProfileButton() {
   const { profile, fresh, setProfile } = useNet();
   const [opened, setOpened] = useState(false);
-  const [welcomed, setWelcomed] = useState(false);
-  // Lần đầu ghé: tự mời chọn tên & avatar (một lần).
-  const open = opened || (fresh && !welcomed);
+  // Lần đầu ghé: bắt buộc đặt tên trước khi chơi — hộp thoại không đóng được tới khi lưu.
+  const open = opened || fresh;
   const setOpen = (v: boolean) => {
+    if (!v && fresh) return;
     setOpened(v);
-    if (!v) setWelcomed(true);
   };
 
   if (!profile) return <span className="h-10 w-10 animate-pulse rounded-full bg-sunken" aria-hidden="true" />;
@@ -29,10 +28,12 @@ export function ProfileButton() {
         <Avatar p={profile} size={34} />
         <span className="hidden max-w-[140px] truncate text-[14.5px] font-bold sm:inline">{profile.name}</span>
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)} title={fresh ? "Chào mừng tới Arena!" : "Hồ sơ của bạn"}>
+      <Dialog open={open} onClose={() => setOpen(false)} title={fresh ? "Chào mừng tới Arena!" : "Hồ sơ của bạn"} dismissable={!fresh}>
         {open && (
           <ProfileForm
-            initial={profile}
+            // Lần đầu: để trống tên, tự gõ hoặc bấm "Ngẫu nhiên".
+            initial={fresh ? { ...profile, name: "" } : profile}
+            fresh={fresh}
             onSave={(p) => {
               setProfile(p);
               setOpen(false);
@@ -44,7 +45,7 @@ export function ProfileButton() {
   );
 }
 
-function ProfileForm({ initial, onSave }: { initial: Profile; onSave: (p: Profile) => void }) {
+function ProfileForm({ initial, fresh, onSave }: { initial: Profile; fresh: boolean; onSave: (p: Profile) => void }) {
   const [p, setP] = useState(initial);
   const name = cleanName(p.name);
   return (
@@ -62,7 +63,21 @@ function ProfileForm({ initial, onSave }: { initial: Profile; onSave: (p: Profil
           <label htmlFor="pf-name" className="mb-1.5 block text-sm font-bold">
             Tên hiển thị
           </label>
-          <input id="pf-name" className="field" value={p.name} maxLength={24} onChange={(e) => setP({ ...p, name: e.target.value })} autoComplete="nickname" />
+          <input
+            id="pf-name"
+            className="field"
+            value={p.name}
+            maxLength={24}
+            required
+            autoFocus={fresh}
+            placeholder="Nhập tên của bạn"
+            aria-describedby="pf-name-hint"
+            onChange={(e) => setP({ ...p, name: e.target.value })}
+            autoComplete="nickname"
+          />
+          <p id="pf-name-hint" className={`mt-1 text-[12.5px] font-semibold ${name ? "text-ink-3" : "text-coral"}`}>
+            {name ? "Tối đa 24 ký tự." : "Bắt buộc — gõ tên hoặc bấm “🎲 Ngẫu nhiên”."}
+          </p>
         </div>
       </div>
       <fieldset>

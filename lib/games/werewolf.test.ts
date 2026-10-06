@@ -14,6 +14,7 @@ import {
   nightTurns,
   normOptions,
   secretFor,
+  shotOf,
   sideOf,
   skipNight,
   skipTalk,
@@ -83,8 +84,8 @@ test("số Sói tự động và đội hình", () => {
   assert.deepEqual([4, 5, 6, 8, 9, 12, 15, 16].map(autoWolves), [1, 1, 2, 2, 3, 4, 5, 5]);
   const { cast, error } = castFor(8, DEFAULT_OPTIONS);
   assert.equal(error, undefined);
-  assert.deepEqual(cast, { wolf: 2, cursed: 0, seer: 1, guard: 1, witch: 1, cupid: 0, villager: 3 });
-  assert.deepEqual(castFor(8, { ...DEFAULT_OPTIONS, cupid: true, cursed: true }).cast, { wolf: 2, cursed: 1, seer: 1, guard: 1, witch: 1, cupid: 1, villager: 1 });
+  assert.deepEqual(cast, { wolf: 2, minion: 0, cursed: 0, seer: 1, guard: 1, witch: 1, hunter: 0, cupid: 0, villager: 3 });
+  assert.deepEqual(castFor(8, { ...DEFAULT_OPTIONS, cupid: true, cursed: true }).cast, { wolf: 2, minion: 0, cursed: 1, seer: 1, guard: 1, witch: 1, hunter: 0, cupid: 1, villager: 1 });
   assert.match(castFor(3, DEFAULT_OPTIONS).error!, /ít nhất/);
   assert.match(castFor(4, { ...DEFAULT_OPTIONS, wolves: 2 }).error!, /quá nhiều/);
   assert.equal(castFor(4, DEFAULT_OPTIONS).cast.villager, 0);
@@ -93,7 +94,7 @@ test("số Sói tự động và đội hình", () => {
 test("tắt Dân Làng thì số người phải vừa khít số vai", () => {
   const opts = { ...DEFAULT_OPTIONS, villager: false };
   assert.equal(castFor(4, opts).error, undefined);
-  assert.deepEqual(castFor(4, opts).cast, { wolf: 1, cursed: 0, seer: 1, guard: 1, witch: 1, cupid: 0, villager: 0 });
+  assert.deepEqual(castFor(4, opts).cast, { wolf: 1, minion: 0, cursed: 0, seer: 1, guard: 1, witch: 1, hunter: 0, cupid: 0, villager: 0 });
   assert.match(castFor(5, opts).error!, /cần đúng 4 người/);
   assert.equal(castFor(5, { ...opts, wolves: 2 }).error, undefined, "2 Sói + 3 vai đặc biệt = 5 người");
 });
@@ -383,6 +384,104 @@ test("Bán Sói hoá Sói có thể khiến Sói thắng ngay lúc trời sáng"
   assert.equal(g.pub.winner, "wolf");
   assert.deepEqual(g.pub.turned, ["b"]);
   assert.equal(g.pub.roles?.b, "wolf");
+});
+
+/** Ván 8 người như `fixed`, h là Thợ Săn. */
+function withHunter(opts: WolfOptions = { ...DEFAULT_OPTIONS, hunter: true }) {
+  const g = fixed(opts);
+  g.sec.roles.h = "hunter";
+  return g;
+}
+
+test("Thợ Săn chết đêm: trời sáng xong được bắn một người rồi mới thảo luận", () => {
+  let g = timeout(withHunter());
+  g = dawnNow(g, { a: { day: 1, wolf: "h" }, b: { day: 1, wolf: "h" } });
+  g = timeout(g);
+  assert.equal(g.pub.stage, "hunt");
+  assert.deepEqual(g.pub.hunt, { uid: "h", then: "day" });
+  assert.deepEqual(g.pub.deaths, [{ uid: "h", day: 1, how: "night", hunter: true }], "lộ vai Thợ Săn");
+  assert.equal(g.pub.until - g.pub.since, DURATION.hunt);
+  // Bắn người đã chết / chính mình thì không tính.
+  assert.equal(shotOf(g.pub, { h: { day: 1, stage: "hunt", target: "h" } }), undefined);
+  g = step(g, { now: g.pub.since + 1, votes: { h: { day: 1, stage: "hunt", target: "a" } } });
+  assert.equal(g.pub.stage, "day");
+  assert.equal(g.pub.hunt, undefined);
+  assert.deepEqual(g.pub.deaths.at(-1), { uid: "a", day: 1, how: "shot", by: "h" });
+  assert.deepEqual(g.sec.story[0].shot, { by: "h", target: "a" });
+});
+
+test("Thợ Săn hết giờ không bắn thì thôi; bỏ làng thì không được bắn", () => {
+  let g = timeout(withHunter());
+  g = night(g, { a: { day: 1, wolf: "h" }, b: { day: 1, wolf: "h" } });
+  assert.equal(g.pub.stage, "hunt");
+  g = step(g, { now: g.pub.until });
+  assert.equal(g.pub.stage, "day");
+  assert.deepEqual(g.sec.story[0].shot, { by: "h", target: null });
+  assert.equal(g.pub.deaths.length, 1);
+
+  let h = timeout(withHunter());
+  h = depart(h, "h");
+  assert.equal(h.sec.trigger, undefined);
+  h = night(h);
+  assert.equal(h.pub.stage, "day");
+});
+
+test("Thợ Săn bị treo: chờ bắn xong mới xét thắng thua, rồi sang đêm", () => {
+  const players = ["a", "b", "c", "d", "e"];
+  const opts = { ...DEFAULT_OPTIONS, seer: false, guard: false, witch: false, hunter: true, wolves: 2 };
+  let g = newGame(1, players, opts, 0, rng(3));
+  g.sec.roles = { a: "wolf", b: "wolf", c: "hunter", d: "villager", e: "villager" };
+  g = timeout(g, { opts });
+  g = night(g, {}, opts);
+  g = skipTalk(g, 0);
+  g = timeout(g, { opts, votes: { a: { day: 1, stage: "vote", target: "c" } } });
+  assert.equal(g.pub.hanged, "c");
+  assert.equal(g.pub.winner, undefined, "2 Sói / 2 dân nhưng Thợ Săn chưa bắn");
+  g = timeout(g, { opts });
+  assert.equal(g.pub.stage, "hunt");
+  assert.deepEqual(g.pub.hunt, { uid: "c", then: "night" });
+  g = step(g, { opts, now: g.pub.since + 1, votes: { c: { day: 1, stage: "hunt", target: "a" } } });
+  assert.equal(g.pub.winner, undefined);
+  assert.equal(g.pub.stage, "night");
+  assert.equal(g.pub.day, 2);
+  // Không bắn thì Sói thắng ngay.
+  let h = newGame(1, players, opts, 0, rng(3));
+  h.sec.roles = { a: "wolf", b: "wolf", c: "hunter", d: "villager", e: "villager" };
+  h = timeout(h, { opts });
+  h = night(h, {}, opts);
+  h = skipTalk(h, 0);
+  h = timeout(h, { opts, votes: { a: { day: 1, stage: "vote", target: "c" } } });
+  h = timeout(h, { opts });
+  h = step(h, { opts, now: h.pub.since + 1, votes: { c: { day: 1, stage: "hunt", target: null } } });
+  assert.equal(h.pub.winner, "wolf");
+});
+
+test("Dân đã thắng chắc thì Thợ Săn khỏi bắn", () => {
+  let g = timeout(withHunter());
+  g = depart(g, "b");
+  g = night(g, { a: { day: 1, wolf: "h" }, e: { day: 1, poison: "a", done: true } });
+  assert.equal(g.pub.winner, "village");
+  assert.equal(g.pub.hunt, undefined);
+});
+
+test("Minion biết bầy Sói, bầy không biết Minion; tính như dân khi đếm, thắng cùng Sói", () => {
+  const opts = { ...DEFAULT_OPTIONS, minion: true };
+  assert.equal(castFor(8, opts).cast.minion, 1);
+  let g = fixed(opts);
+  g.sec.roles.h = "minion";
+  g = timeout(g, { opts });
+  assert.deepEqual(secretFor(g, "h"), { role: "minion", pack: ["a", "b"] });
+  assert.deepEqual(secretFor(g, "a")!.pack, ["a", "b"]);
+  g = toTurn(g, "seer", {}, opts);
+  g = step(g, { opts, now: 1, actions: { c: { day: 1, seer: "h", done: true } } });
+  assert.deepEqual(secretFor(g, "c")!.seen, [{ day: 1, target: "h", wolf: false }]);
+
+  const roles: Record<string, Role> = { a: "wolf", m: "minion", v: "villager", w: "villager" };
+  assert.equal(winnerOf(["a", "m", "v"], roles), undefined, "Minion không tính vào bầy");
+  assert.equal(winnerOf(["a", "m"], roles), "wolf");
+  assert.equal(winnerOf(["m", "v"], roles), "village", "hết Sói thì Dân thắng dù Minion còn sống");
+  assert.equal(sideOf(roles, null, "m"), "wolf");
+  assert.equal(sideOf(roles, ["m", "v"], "m"), "lovers", "Minion yêu dân là cặp đôi khác phe");
 });
 
 test("bỏ phiếu: đủ phiếu thì kết thúc sớm, người nhiều phiếu nhất bị treo và lộ có phải Sói không", () => {

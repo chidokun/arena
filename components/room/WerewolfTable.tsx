@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   autoWolves,
   MAX_PLAYERS,
@@ -11,6 +12,7 @@ import {
   ROLE_ORDER,
   ROLES,
   sideOf,
+  teamOf,
   TALKS,
   talkName,
   type Chapter,
@@ -66,7 +68,8 @@ function knownRole(view: View, uid: string): Role | undefined {
     g.pub?.roles?.[uid] ??
     (uid === view.me ? g.me.role : undefined) ??
     (s?.pack?.includes(uid) ? "wolf" : undefined) ??
-    (s?.lover === uid ? s.loverRole : undefined)
+    (s?.lover === uid ? s.loverRole : undefined) ??
+    (deathOf(view, uid)?.hunter || g.pub?.hunt?.uid === uid ? "hunter" : undefined)
   );
 }
 
@@ -95,8 +98,12 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
   const g = view.game!;
   const pub = g.pub;
   const me = g.me;
-  if (!g.playing || !pub || !me.alive) return null;
+  if (!g.playing || !pub) return null;
   const alive = (u: string) => pub.alive.includes(u);
+  // Thợ Săn vừa chết chọn người bắn theo.
+  if (pub.stage === "hunt" && pub.hunt?.uid === view.me)
+    return { verb: "Bắn", can: alive, chosen: one(g.aim), onPick: (u) => session.shoot(u) };
+  if (!me.alive) return null;
   const s = me.secret;
   // Ban đêm chỉ vai đang được gọi mới chọn được.
   if (pub.stage === "night" && s && s.role === pub.turn && !isDone(g)) {
@@ -247,10 +254,18 @@ function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: bo
 }
 
 const deathText = (d: Death) =>
-  d.how === "hang" ? `treo ngày ${d.day}` : d.how === "left" ? "bỏ làng" : d.how === "love" ? `chết theo người yêu` : `chết đêm ${d.day}`;
+  d.how === "hang"
+    ? `treo ngày ${d.day}`
+    : d.how === "left"
+      ? "bỏ làng"
+      : d.how === "love"
+        ? `chết theo người yêu`
+        : d.how === "shot"
+          ? "bị Thợ Săn bắn"
+          : `chết đêm ${d.day}`;
 /** Tên vai; Bán Sói đã hoá Sói thì ghi rõ. */
 const roleName = (role: Role, turned: boolean) => (turned ? "Sói (vốn Bán Sói)" : ROLES[role].name);
-const deathIcon = (d: Death) => (d.how === "hang" ? "🪢" : d.how === "left" ? "🚪" : d.how === "love" ? "💔" : "💀");
+const deathIcon = (d: Death) => ({ hang: "🪢", left: "🚪", love: "💔", shot: "🎯", night: "💀" })[d.how];
 
 const SIDE_TITLE: Record<Side, string> = { wolf: "Phe Ma Sói thắng!", village: "Dân làng thắng!", lovers: "Cặp đôi thắng!" };
 const SIDE_ICON: Record<Side, string> = { wolf: "🐺", village: "👨‍🌾", lovers: "💘" };
@@ -295,6 +310,17 @@ function stageText(view: View): { icon: string; title: string; sub: string } {
     }
     case "dawn":
       return { icon: "🌅", title: "Trời sắp sáng…", sub: "Mọi người đã xong việc đêm nay." };
+    case "hunt": {
+      const h = pub.hunt;
+      const aim = g.aim;
+      return {
+        icon: "🏹",
+        title: `${h ? nameIn(view, h.uid) : "Thợ Săn"} là Thợ Săn!`,
+        sub: `Trước khi gục xuống, Thợ Săn được bắn một người. ${
+          aim ? `Đang ngắm ${nameMid(view, aim)}…` : aim === null ? "Thợ Săn hạ súng, không bắn ai." : "Đang chọn mục tiêu…"
+        }`,
+      };
+    }
     case "day": {
       const dead = pub.deaths.filter((x) => x.day === d && x.how === "night").map((x) => x.uid);
       return {
@@ -330,7 +356,7 @@ function StageCard({ view, session }: { view: View; session: WerewolfRoom }) {
   const now = useNow(g.playing);
   const total = pub ? pub.until - pub.since : 0;
   const left = !g.playing ? 0 : now ? Math.max(0, g.deadline - now) : total;
-  const tone = !g.playing ? "is-idle" : isNight(g) || pub?.stage === "intro" ? "is-night" : pub?.stage === "verdict" ? "is-dusk" : "is-day";
+  const tone = !g.playing ? "is-idle" : isNight(g) || pub?.stage === "intro" ? "is-night" : pub?.stage === "verdict" || pub?.stage === "hunt" ? "is-dusk" : "is-day";
 
   return (
     <section className={`card ww-stage ${tone} p-4 sm:p-5`} aria-label="Diễn biến ván">
@@ -456,7 +482,9 @@ function NightTurns({ pub }: { pub: NonNullable<WolfView["pub"]> }) {
     <ol className="ww-turns mt-3" aria-label="Thứ tự gọi các vai">
       {order.map((r, i) => (
         <li key={r} className={i < now ? "is-past" : i === now ? "is-now" : ""} aria-current={i === now ? "step" : undefined}>
-          {ROLES[r].emoji} {ROLES[r].name}
+          <RoleTip role={r} focusable>
+            {ROLES[r].emoji} {ROLES[r].name}
+          </RoleTip>
         </li>
       ))}
     </ol>
@@ -467,12 +495,113 @@ function CastChips({ cast }: { cast: Record<Role, number> }) {
   return (
     <span className="flex flex-wrap gap-1.5" aria-label="Đội hình">
       {ROLE_ORDER.filter((r) => cast[r] > 0).map((r) => (
-        <span key={r} className="ww-cast" title={ROLES[r].name}>
-          {ROLES[r].emoji}
-          {cast[r] > 1 && <b>×{cast[r]}</b>}
-        </span>
+        <RoleTip key={r} role={r} focusable>
+          <span className="ww-cast" aria-label={ROLES[r].name}>
+            {ROLES[r].emoji}
+            {cast[r] > 1 && <b>×{cast[r]}</b>}
+          </span>
+        </RoleTip>
       ))}
     </span>
+  );
+}
+
+const TEAM_GOAL: Record<"wolf" | "village", string> = {
+  wolf: "Phe Sói — thắng khi Sói đông bằng phần còn lại",
+  village: "Phe Dân — thắng khi không còn con Sói nào",
+};
+
+/** Vai này làm gì ban đêm. */
+function nightNote(role: Role) {
+  const order = NIGHT_ORDER.filter((r) => r !== "cupid")
+    .map((r) => ROLES[r].name)
+    .join(" → ");
+  switch (role) {
+    case "cupid":
+      return "🌙 Chỉ thức dậy đêm đầu tiên, trước mọi vai khác.";
+    case "cursed":
+      return "😴 Ban đêm ngủ — bị Sói cắn thì từ đêm sau thức dậy cùng bầy.";
+    case "minion":
+      return "😴 Ban đêm ngủ, không cắn cùng bầy — ban ngày âm thầm giúp Sói.";
+    case "hunter":
+      return "😴 Ban đêm ngủ — năng lực chỉ dùng lúc chết.";
+    case "villager":
+      return "😴 Ban đêm ngủ — sức mạnh nằm ở lá phiếu ban ngày.";
+    default:
+      return `🌙 Ban đêm được gọi dậy lần lượt: ${order}.`;
+  }
+}
+
+/**
+ * Balloon cách chơi của một vai khi rê chuột (hoặc focus) vào. Vẽ ra ngoài `body` với vị trí cố định, kẹp trong màn
+ * hình — không bị thẻ cha cắt mất, không làm trang cuộn ngang. `focusable` cho phần tử không tự nhận focus (chip, biểu tượng).
+ */
+function RoleTip({
+  role,
+  children,
+  className,
+  focusable,
+  block,
+}: {
+  role: Role;
+  children: React.ReactNode;
+  className?: string;
+  focusable?: boolean;
+  /** Bọc khối (thẻ vai trong Luật của làng) thì dùng div. */
+  block?: boolean;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const id = useId();
+  const [at, setAt] = useState<{ x: number; y: number; below: boolean } | null>(null);
+  const show = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = r.top < 200;
+    setAt({ x: r.left + r.width / 2, y: below ? r.bottom + 10 : r.top - 10, below });
+  };
+  const hide = () => setAt(null);
+  useEffect(() => {
+    if (!at) return;
+    // Vị trí cố định: cuộn trang thì ẩn đi thay vì lơ lửng sai chỗ (khung chat tự cuộn thì không tính).
+    window.addEventListener("scroll", hide);
+    return () => window.removeEventListener("scroll", hide);
+  }, [at]);
+  const info = ROLES[role];
+  const half = at ? Math.min(150, (window.innerWidth - 24) / 2) : 0;
+  const Tag = block ? "div" : "span";
+  return (
+    <Tag
+      ref={ref as React.Ref<HTMLDivElement & HTMLSpanElement>}
+      className={`ww-tip ${className ?? ""}`}
+      tabIndex={focusable ? 0 : undefined}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      aria-describedby={at ? id : undefined}
+    >
+      {children}
+      {at &&
+        createPortal(
+          <div
+            id={id}
+            role="tooltip"
+            className={`ww-tip-pop ${at.below ? "is-below" : ""} ${info.team === "wolf" ? "is-wolf" : ""}`}
+            style={{ left: Math.min(Math.max(at.x, half + 12), window.innerWidth - half - 12), top: at.y, width: half * 2 }}
+          >
+            <p className="flex items-center gap-2">
+              <span className="text-[22px] leading-none" aria-hidden="true">
+                {info.emoji}
+              </span>
+              <b className="font-display text-[16px]">{info.name}</b>
+            </p>
+            <p className="ww-tip-team">{TEAM_GOAL[info.team]}</p>
+            <p className="mt-1.5">{info.brief}</p>
+            <p className="mt-1.5 text-ink-3">{nightNote(role)}</p>
+          </div>,
+          document.body,
+        )}
+    </Tag>
   );
 }
 
@@ -517,6 +646,23 @@ function ActionCard({
     ) : (
       <>👀 Bạn đang xem ván này. Hết ván bấm “Sẵn sàng” để vào chơi.</>
     );
+  } else if (pub!.stage === "hunt") {
+    tone = "var(--coral-soft)";
+    const h = pub!.hunt;
+    if (h?.uid === view.me) {
+      message = chosen ? (
+        <>
+          🏹 Bạn là Thợ Săn và đã chết — bắn <b>{chosen}</b>! (đổi được tới khi hết giờ)
+        </>
+      ) : (
+        <>🏹 Bạn là Thợ Săn và đã chết — bấm vào một người trong làng để bắn theo, hoặc không bắn.</>
+      );
+      buttons = (
+        <button type="button" className="btn" onClick={() => session.shoot(null)} disabled={g.aim === null}>
+          🤐 Không bắn
+        </button>
+      );
+    } else message = <>🏹 {h ? nameIn(view, h.uid) : "Thợ Săn"} là Thợ Săn — đang chọn người bắn theo. Cầu trời đừng là bạn…</>;
   } else if (!me.alive) {
     tone = "var(--coral-soft)";
     message = <>💀 Bạn đã chết. Hãy im lặng theo dõi đến hết ván nhé.</>;
@@ -822,6 +968,7 @@ function Village({ view, pick, balloons }: { view: View; pick: Pick | null; ball
     if (target) (marks[target] ??= []).push(by);
   };
   if (g.playing && pub && (pub.stage === "vote" || pub.stage === "revote")) for (const [voter, t] of Object.entries(g.ballots)) add(t, voter);
+  else if (g.playing && pub?.stage === "hunt" && pub.hunt) add(g.aim, pub.hunt.uid);
   else if (pub?.stage === "night" && s?.role === "wolf")
     for (const [w, t] of Object.entries({ ...s.picks, ...(g.me.act.wolf ? { [view.me]: g.me.act.wolf } : {}) })) add(t, w);
   else if (isNight(g) && g.seeAll?.night) for (const [w, t] of Object.entries(g.seeAll.night.wolves)) add(t, w);
@@ -886,11 +1033,16 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
             👑
           </span>
         )}
-        {dot && (
-          <span className="ww-role-dot" title={dot.title}>
-            {dot.icon}
-          </span>
-        )}
+        {dot &&
+          (role ? (
+            <RoleTip role={role} className="ww-role-dot" focusable={!pick}>
+              <span aria-label={dot.title}>{dot.icon}</span>
+            </RoleTip>
+          ) : (
+            <span className="ww-role-dot" title={dot.title}>
+              {dot.icon}
+            </span>
+          ))}
         {death && (
           <span className="ww-dead" aria-hidden="true">
             {deathIcon(death)}
@@ -944,9 +1096,15 @@ function RoleCard({ view }: { view: View }) {
   return (
     <section className={`card ww-role p-4 sm:p-5 ${info.team === "wolf" ? "is-wolf" : ""}`} aria-label="Vai của bạn">
       <div className="flex items-center gap-4">
-        <span className={`ww-role-art ${hidden ? "is-hidden" : ""}`} aria-hidden="true">
-          {hidden ? "❔" : info.emoji}
-        </span>
+        {hidden ? (
+          <span className="ww-role-art is-hidden" aria-hidden="true">
+            ❔
+          </span>
+        ) : (
+          <RoleTip role={role} className="ww-role-art" focusable>
+            <span aria-label={info.name}>{info.emoji}</span>
+          </RoleTip>
+        )}
         <div className="min-w-0 flex-1">
           <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">Vai của bạn</p>
           <p className="font-display text-2xl font-extrabold">{hidden ? "••••••" : info.name}</p>
@@ -967,7 +1125,7 @@ function RoleCard({ view }: { view: View }) {
                 {s.loverRole ? ` (${ROLES[s.loverRole].emoji} ${ROLES[s.loverRole].name})` : ""}
               </b>
               . Một người chết thì người kia chết theo.{" "}
-              {s.loverRole && (s.loverRole === "wolf") !== (role === "wolf")
+              {s.loverRole && teamOf(s.loverRole) !== teamOf(role)
                 ? "Hai bạn khác phe — giờ là phe riêng, thắng khi chỉ còn hai bạn sống sót."
                 : "Hai bạn cùng phe."}
             </p>
@@ -981,6 +1139,11 @@ function RoleCard({ view }: { view: View }) {
               ) : (
                 "Đêm đầu tiên bạn sẽ ghép một cặp đôi."
               )}
+            </p>
+          )}
+          {role === "minion" && (
+            <p>
+              <b>Bầy Sói (không biết bạn):</b> {(s.pack ?? []).map((u) => nameIn(view, u)).join(", ")}
             </p>
           )}
           {role === "wolf" && (
@@ -1025,7 +1188,7 @@ function RoleCard({ view }: { view: View }) {
 
 // ---------- cảnh diễn ----------
 
-const SCENE_MS: Record<Scene["kind"], number> = { dusk: 3200, sunrise: 6000, hang: 7500, spared: 3200, end: 5000 };
+const SCENE_MS: Record<Scene["kind"], number> = { dusk: 3200, sunrise: 6000, hang: 7500, shot: 4500, spared: 3200, end: 5000 };
 
 /**
  * Lớp phủ toàn màn hình cho những khoảnh khắc của ván: trời tối rồi lật bài vai (giai đoạn nhận vai), đếm ngược
@@ -1203,6 +1366,21 @@ function SceneView({ view, scene }: { view: View; scene: Scene }) {
         </div>
       );
     }
+    case "shot": {
+      const d = scene.death;
+      return (
+        <div className="grid justify-items-center gap-4 text-center">
+          <p className="text-[15px] font-bold tracking-wide uppercase opacity-80">
+            🏹 Thợ Săn {d.by ? nameIn(view, d.by) : ""} nổ súng
+          </p>
+          <span className="relative">
+            <span className="inline-block opacity-60 grayscale">{avatar(d.uid, 88)}</span>
+            <span className="ww-dead">🎯</span>
+          </span>
+          <p className="ww-cine-title !text-[26px]">{nameIn(view, d.uid)} bị bắn chết</p>
+        </div>
+      );
+    }
     case "spared":
       return (
         <div className="grid justify-items-center gap-4 text-center">
@@ -1262,9 +1440,15 @@ function ResultCard({ view }: { view: View }) {
               const turned = !!pub.turned?.includes(uid);
               return (
                 <li key={uid} className={`ww-reveal ${role === "wolf" ? "is-wolf" : ""}`}>
-                  <span className="text-[30px] leading-none" aria-hidden="true">
-                    {role ? ROLES[role].emoji : "❔"}
-                  </span>
+                  {role ? (
+                    <RoleTip role={role} className="text-[30px] leading-none" focusable>
+                      <span aria-label={ROLES[role].name}>{ROLES[role].emoji}</span>
+                    </RoleTip>
+                  ) : (
+                    <span className="text-[30px] leading-none" aria-hidden="true">
+                      ❔
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       {p && <Avatar p={p} size={20} className={d ? "opacity-50 grayscale" : ""} />}
@@ -1339,6 +1523,14 @@ function Story({ view, story, roles, turned }: { view: View; story: Chapter[]; r
                   : "🕊️ Không ai bị treo cổ."}
               </b>,
             );
+          if (c.shot) {
+            const target = c.shot.target;
+            const line = `🏹 Thợ Săn ${name(c.shot.by)} ${target ? `bắn ${name(target)}${roles[target] ? ` (${ROLES[roles[target]].name})` : ""}.` : "không bắn ai."}`;
+            // Thợ Săn chết đêm thì bắn lúc sáng ra; bị treo (hoặc chết theo người bị treo) thì bắn sau tuyên án.
+            const how = deathOf(view, c.shot.by)?.how;
+            if (how === "hang" || how === "love") days.push(line);
+            else nights.push(line);
+          }
           if (c.left?.length) days.push(`🚪 ${c.left.map(name).join(", ")} bỏ làng ra đi.`);
           // Người yêu chết theo: ban đêm đã nằm trong danh sách chết đêm qua, kể thêm cho rõ.
           for (const u of c.love ?? []) {
@@ -1459,7 +1651,7 @@ function RolePick({ role, view, session }: { role: Role; view: View; session: We
   );
   if (role === "wolf")
     return (
-      <div className="ww-pick is-on">
+      <RoleTip role={role} className="ww-pick is-on" block>
         {head}
         <div className="mt-2 flex flex-wrap justify-center gap-1" role="group" aria-label="Số Sói">
           {[0, ...Array.from({ length: MAX_WOLVES }, (_, i) => i + 1)].map((v) => (
@@ -1476,17 +1668,17 @@ function RolePick({ role, view, session }: { role: Role; view: View; session: We
             </button>
           ))}
         </div>
-      </div>
+      </RoleTip>
     );
   return (
-    <div className={`ww-pick ${on ? "is-on" : ""}`}>
+    <RoleTip role={role} className={`ww-pick ${on ? "is-on" : ""}`} block>
       <button
         type="button"
         className="ww-pick-toggle"
         aria-pressed={on}
         disabled={!host}
         onClick={() => set({ [role]: !on })}
-        title={host ? (on ? `Bỏ ${info.name} khỏi ván` : `Thêm ${info.name} vào ván`) : info.brief}
+        title={host ? (on ? `Bỏ ${info.name} khỏi ván` : `Thêm ${info.name} vào ván`) : undefined}
       >
         <span className="ww-pick-check" aria-hidden="true">
           {on ? "✓" : ""}
@@ -1515,7 +1707,7 @@ function RolePick({ role, view, session }: { role: Role; view: View; session: We
           </button>
         </div>
       )}
-    </div>
+    </RoleTip>
   );
 }
 
@@ -1565,7 +1757,7 @@ function Rules({ opts }: { opts: WolfOptions }) {
       <p>
         <b className="text-ink">Hai phe.</b> Ma Sói muốn giết hết dân làng; Dân Làng (kể cả các vai đặc biệt) muốn tìm và treo cổ hết Sói. Sói thắng khi số Sói
         còn sống bằng hoặc nhiều hơn phần còn lại; Dân thắng khi không còn con Sói nào. Cặp đôi Cupid ghép mà khác phe (một Sói, một không) thành phe thứ ba:
-        thắng khi chỉ còn hai người họ sống sót.
+        thắng khi chỉ còn hai người họ sống sót. Minion thuộc phe Sói (thắng cùng bầy) nhưng khi đếm Sói thì tính như dân.
       </p>
       <p>
         <b className="text-ink">Vào chơi.</b> Người tạo phòng là Quản trò: tuỳ luật, chỉ xem hết vai và điều khiển ván, hoặc tham gia chơi như mọi người (khi đó
@@ -1591,7 +1783,7 @@ function Rules({ opts }: { opts: WolfOptions }) {
       <p>
         <b className="text-ink">☀️ Ban ngày.</b> Quản trò công bố ai chết đêm qua — vai của người chết giữ bí mật tới hết ván. Cả làng thảo luận{" "}
         {opts.talk ? `${opts.talk / 60} phút` : "tới khi quản trò cho dừng"} rồi bỏ phiếu treo một người — ai nhiều phiếu nhất bị treo và bị lật bài Sói hay
-        không phải Sói; hoà phiếu thì {opts.tie === "revote" ? "bỏ phiếu lại giữa những người hoà, hoà nữa thì không ai chết" : "không ai chết"}. Người chết
+        không phải Sói; Thợ Săn chết (ban đêm hay bị treo) thì được bắn kéo theo một người; hoà phiếu thì {opts.tie === "revote" ? "bỏ phiếu lại giữa những người hoà, hoà nữa thì không ai chết" : "không ai chết"}. Người chết
         không được nói nữa.
       </p>
       <p>

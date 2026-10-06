@@ -8,11 +8,14 @@ export function Dialog({
   onClose,
   title,
   children,
+  dismissable = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** false: bắt buộc làm xong mới đóng — không có nút đóng, Esc và bấm ra ngoài không đóng. */
+  dismissable?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -26,19 +29,28 @@ export function Dialog({
       ref={ref}
       className="sheet"
       aria-label={title}
-      onClose={onClose}
+      onCancel={(e) => {
+        if (!dismissable) e.preventDefault();
+      }}
+      onClose={() => {
+        // Trình duyệt vẫn có thể ép đóng (Esc lần hai): mở lại nếu chưa được phép đóng.
+        if (!dismissable && open) ref.current?.showModal();
+        else onClose();
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (dismissable && e.target === ref.current) onClose();
       }}
     >
       <div className="p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-extrabold tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 hover:bg-sunken" aria-label="Đóng">
-            <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-              <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
+          {dismissable && (
+            <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 hover:bg-sunken" aria-label="Đóng">
+              <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+                <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </div>
         {children}
       </div>
