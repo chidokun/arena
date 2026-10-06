@@ -7,6 +7,7 @@ import { useNet, useWhere } from "../NetProvider";
 import { CaroTable } from "./CaroTable";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
+import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { useRoomSession, useRoomView } from "./useRoom";
 
@@ -88,5 +89,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   // So theo slug thay vì instanceof: nạp lại nóng (HMR) tạo lớp mới khiến phiên cũ không còn là instanceof.
   if (session.game === "loto") return <LotoTable id={id} slug={slug} session={session} />;
   if (session.game === "werewolf") return <WerewolfTable id={id} slug={slug} session={session} />;
+  if (session.game === "undercover") return <UndercoverTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

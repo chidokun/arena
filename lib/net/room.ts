@@ -6,9 +6,10 @@
  *   g:<round>       — nhật ký của ván: caro là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
- *   v:<round>:<uid> — ma sói: phiếu bầu công khai của từng người.
+ *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người.
  *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
- *   s:<round>:<uid> — ma sói: bí mật quản trò gửi riêng từng người (vai, kết quả soi…), niêm phong.
+ *   s:<round>:<uid> — ma sói, undercover: bí mật quản trò gửi riêng từng người (vai, từ khoá…), niêm phong.
+ *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
@@ -16,8 +17,9 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
+import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Team } from "../games/werewolf";
 import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
@@ -37,8 +39,8 @@ export type Result = {
   /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
   reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team";
-  /** Ma sói: phe thắng (`winners` là những người thuộc phe đó). */
-  team?: Team;
+  /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
+  team?: Team | UcTeam;
 };
 
 export type Meta = {
@@ -66,6 +68,10 @@ export type Meta = {
   paused?: boolean;
   /** Ma sói: phần công khai của ván gần nhất. */
   ww?: WolfPublic;
+  /** Undercover: phần công khai của ván gần nhất. */
+  uc?: UcPublic;
+  /** Undercover: mã các cặp từ đã chơi trong phòng (ghi khi hết ván) — không bốc lại. */
+  ucUsed?: number[];
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
@@ -88,7 +94,7 @@ export type Member = Profile & {
   pick?: number[];
   /** Ý định "sẵn sàng chơi" đi kèm (lô tô: bấm sau khi chọn tờ). */
   ready?: boolean;
-  /** Khoá công khai ECDH để nhận / gửi bản ghi niêm phong (ma sói). */
+  /** Khoá công khai ECDH để nhận / gửi bản ghi niêm phong (ma sói, undercover). */
   key?: string;
   seq: number;
   left?: boolean;
@@ -150,9 +156,9 @@ const CHAT_LIMIT = 120;
 const MAX_REACT_PASSES = 8;
 
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
-const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:"];
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "w:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:"];
+const OWN_KEYS = ["x:", "v:", "a:", "w:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;

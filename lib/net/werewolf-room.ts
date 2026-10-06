@@ -414,7 +414,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       if (night.length || prev.endsWith(":dawn")) this.sunrise(pub, night);
       const hang = fresh.find((d) => d.how === "hang");
       if (hang) this.hanged(hang);
-      if (m.result?.team) this.scene({ kind: "end", team: m.result.team });
+      if (m.result?.team) this.scene({ kind: "end", team: m.result.team as Team });
       return;
     }
     const d = pub.day;

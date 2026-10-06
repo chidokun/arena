@@ -1245,6 +1245,114 @@
     font-weight: 800;
     font-size: 14.5px;
   }
+
+  /* ---------- Undercover (dùng chung khung giai đoạn, thẻ người chơi, lớp phủ với Ma sói) ---------- */
+  .uc-word {
+    background: linear-gradient(135deg, var(--sky-soft), var(--grape-soft));
+  }
+  .uc-word.is-white {
+    background: linear-gradient(135deg, var(--sunken), var(--surface));
+  }
+  .uc-word-text {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+    animation: flip-in 520ms ease-out;
+  }
+  /* Số thứ tự thảo luận trên thẻ người chơi và lá bài */
+  .uc-num {
+    position: absolute;
+    top: -8px;
+    left: -10px;
+    display: grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sky);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .uc-board > li {
+    border-left-color: var(--sky);
+  }
+  .uc-deck-word {
+    max-width: 100%;
+    font-size: 15px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .ww-card-front.uc-front-white {
+    color: #1d1648;
+    background: linear-gradient(160deg, #ffffff, #e6e3f2);
+  }
+  .ww-card.is-me button:not(:disabled) {
+    cursor: pointer;
+  }
+  .ww-cine.is-spy {
+    background:
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 14px, transparent 14px 28px),
+      radial-gradient(circle at 50% 30%, #1f3f86, #0a1230 72%);
+  }
+
+  /* Lá bài từ khoá / vai: úp rồi lật */
+  .uc-card {
+    width: 260px;
+    max-width: 100%;
+    height: 150px;
+    perspective: 900px;
+  }
+  .uc-card-inner {
+    position: relative;
+    height: 100%;
+    transform-style: preserve-3d;
+    animation: verdict-flip 800ms cubic-bezier(0.3, 0.7, 0.3, 1) var(--flip, 1000ms) both;
+  }
+  .uc-card-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: 2px solid #050312;
+    border-radius: 18px;
+    backface-visibility: hidden;
+    box-shadow: 0 4px 0 #050312;
+  }
+  .uc-card-back {
+    font-size: 44px;
+    background:
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 8px, transparent 8px 16px),
+      linear-gradient(160deg, #2f6fe0, #12306e);
+  }
+  .uc-card-front {
+    transform: rotateY(180deg);
+    color: #10204a;
+    background: linear-gradient(160deg, #ffffff, #dde9ff);
+  }
+  .uc-card-front.is-undercover {
+    color: #fff;
+    background: linear-gradient(160deg, #ff5a5f, #7a1325);
+  }
+  .uc-card-front.is-white {
+    color: #1d1648;
+    background: linear-gradient(160deg, #ffffff, #e6e3f2);
+  }
+  .uc-card-word {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 30px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
 }
 
 @keyframes cine-in {

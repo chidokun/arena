@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
+import {
+  DEFAULT_OPTIONS as UC_DEFAULTS,
+  MAX_PLAYERS as UC_MAX,
+  MIN_PLAYERS as UC_MIN,
+  normOptions as ucOptions,
+  ROLES as UC_ROLES,
+  talkName as ucTalkName,
+} from "@/lib/games/undercover";
 import { DEFAULT_OPTIONS, MAX_PLAYERS, MIN_PLAYERS, normOptions, ROLES, TALKS, talkName } from "@/lib/games/werewolf";
 import { cleanName, randomId } from "@/lib/identity";
 import type { RoomAd } from "@/lib/net/lobby";
@@ -104,12 +112,13 @@ export function GameLobby({ slug }: { slug: string }) {
 function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const loto = room.game === "loto";
   const wolf = room.game === "werewolf";
+  const spy = room.game === "undercover";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
   const status = playing
-    ? { label: loto ? "Đang kêu số" : wolf ? "Đang chơi" : "Đang đấu", color: "var(--coral)" }
+    ? { label: loto ? "Đang kêu số" : wolf || spy ? "Đang chơi" : "Đang đấu", color: "var(--coral)" }
     : room.status === "ended"
       ? { label: "Vừa xong ván", color: "var(--grape)" }
       : { label: "Đang chờ", color: "var(--lime)" };
@@ -126,7 +135,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           {status.label}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : wolf ? <WolfChips room={room} /> : <CaroChips room={room} />}</div>
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : wolf ? <WolfChips room={room} /> : spy ? <UcChips room={room} /> : <CaroChips room={room} />}</div>
       <div className="mt-auto flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-ink-3">#{room.id}</span>
         {full ? (
@@ -194,6 +203,24 @@ function WolfChips({ room }: { room: RoomAd }) {
   );
 }
 
+function UcChips({ room }: { room: RoomAd }) {
+  const opts = ucOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">💬 Thảo luận {ucTalkName(opts.talk).toLowerCase()}</span>
+      {!opts.hostPlays && <span className="rounded-lg bg-sunken px-2.5 py-1">🎩 Chủ phòng điều hành</span>}
+      <span className="rounded-lg bg-sky-soft px-2.5 py-1" title={["civilian", "undercover", ...(opts.white ? ["white"] : [])].map((r) => UC_ROLES[r as "white"].team).join(", ")}>
+        {UC_ROLES.civilian.emoji} {UC_ROLES.undercover.emoji}
+        {opts.undercovers ? `×${opts.undercovers}` : ""} {opts.white ? `${UC_ROLES.white.emoji}${opts.whites > 1 ? `×${opts.whites}` : ""}` : ""}
+      </span>
+    </>
+  );
+}
+
 function JoinByCode({ slug }: { slug: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -227,8 +254,10 @@ function CreateForm({ slug }: { slug: string }) {
   const [blockTwoEnds, setBlock] = useState(true);
   const [pace, setPace] = useState(DEFAULT_PACE);
   const [talk, setTalk] = useState(DEFAULT_OPTIONS.talk);
+  const [hostPlays, setHostPlays] = useState(UC_DEFAULTS.hostPlays);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
+  const spy = slug === "undercover";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -246,6 +275,9 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (wolf) {
           // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: MAX_PLAYERS, opts: { ...DEFAULT_OPTIONS, talk } });
+        } else if (spy) {
+          // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: UC_MAX, opts: { ...UC_DEFAULTS, hostPlays } });
         } else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
@@ -256,7 +288,21 @@ function CreateForm({ slug }: { slug: string }) {
         </label>
         <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
       </div>
-      {wolf ? (
+      {spy ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chủ phòng</legend>
+            <div className="grid gap-2">
+              <Choice on={hostPlays} onClick={() => setHostPlays(true)} title="Cùng chơi" text="Bạn nhận từ khoá như mọi người; máy bạn tự bốc từ và điều hành nhưng không cho bạn xem." />
+              <Choice on={!hostPlays} onClick={() => setHostPlays(false)} title="Chỉ điều hành" text="Bạn không chơi: thấy hết từ khoá và phe, tự đặt được cặp từ, chọn người bị loại khi hoà phiếu." />
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
+            🕵️ Từ {UC_MIN} đến {UC_MAX} người chơi, ai vào cũng xem được. Ba phe: Dân, Gián Điệp, Trắng — bộ 1000 cặp từ, phòng nhớ cặp đã chơi để không
+            bốc lại. Số Gián Điệp, có phe Trắng hay không, thời gian thảo luận chỉnh được trong phòng trước mỗi ván.
+          </p>
+        </>
+      ) : wolf ? (
         <>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Thời gian thảo luận ban ngày</legend>

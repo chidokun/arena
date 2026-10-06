@@ -56,6 +56,18 @@ export const GAMES: GameDef[] = [
     host: "Quản trò",
   },
   {
+    slug: "undercover",
+    name: "Truy tìm Gián Điệp",
+    tagline: "Cùng một chủ đề, khác một từ khoá — ai là gián điệp?",
+    description:
+      "Máy chủ phòng bốc một cặp từ na ná nhau trong bộ 1000 cặp và phát bí mật: phe Dân nhận từ chung, phe Gián Điệp nhận từ kia, phe Trắng không có từ nào. Lật bài xem từ, lần lượt mô tả trong khung chat theo thứ tự, ai cũng có thể gọi biểu quyết loại người đáng ngờ nhất — người bị loại lộ phe, phe Trắng bị loại còn được đoán từ khoá để lật ngược thế cờ.",
+    seats: { min: 3, max: 20 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "sky",
+    emoji: "🕵️",
+  },
+  {
     slug: "connect-four",
     name: "Thả Cờ 4",
     tagline: "Thả quân, nối bốn, hạ đối thủ",

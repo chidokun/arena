@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -27,10 +27,13 @@ lib/net/room.ts       kênh "room:<id>": phần chung của phòng — ghế, ch
 lib/net/caro-room.ts  phòng caro (lớp con của RoomSession): nước đi, xin thua, xử thua người rớt mạng
 lib/net/loto-room.ts  phòng lô tô: chọn tờ, chủ phòng kêu số, rao "Hò!" / "Kinh!"
 lib/net/werewolf-room.ts  phòng ma sói: máy chủ phòng làm quản trò, bí mật niêm phong giữa từng người và quản trò
+lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, từ khoá niêm phong giữa từng người và máy chủ phòng
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
 lib/games/werewolf.ts luật ma sói thuần (máy trạng thái đêm → ngày → bỏ phiếu, điều kiện thắng)
+lib/games/undercover.ts luật undercover thuần (phát từ → thảo luận → biểu quyết → phe Trắng đoán, điều kiện thắng)
+lib/games/undercover-words.ts bộ 1000 cặp từ khoá
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -80,6 +83,26 @@ thấy hết như người xem. Bí mật của
 quản trò chỉ nằm trên máy chủ phòng (sessionStorage — tải lại trang vẫn giữ) nên chủ phòng mất kết nối giữa ván thì
 người kế nhiệm dừng ván; đang chơi thì không nhường chủ phòng được.
 
+**Truy tìm Gián Điệp** (Undercover, slug `undercover`). 3–20 người chơi, phòng không giới hạn người xem. Ba phe: *Dân* nhận từ chung, *Gián Điệp* nhận từ kia
+của cặp, *Trắng* không có từ. Máy chủ phòng bốc ngẫu nhiên một cặp trong bộ 1000 cặp từ tiếng Việt
+(`undercover-words.ts`, mã cặp là số thứ tự dòng — chỉ thêm vào cuối); hết ván, khi cặp từ đã lộ, mã cặp được ghi vào
+`meta.ucUsed` nên phòng không bốc lại (chủ phòng làm mới được). Luật phòng chỉnh bằng thẻ phe như ma sói: số Gián Điệp
+(tự động hoặc 1–5), bật / tắt phe Trắng (1–2 người); thêm báo phe hay chỉ báo từ khoá, giới hạn thời gian thảo luận, cách
+phá hoà, chủ phòng cùng chơi (mặc định — giao diện chỉ hiện phần của mình) hay chỉ điều hành (xem hết, tự đặt cặp từ cho
+ván tới, chọn người bị loại khi hoà). Ván: *phát từ* — bộ bài xếp theo thứ tự thảo luận (chốt ngay lúc chia, xáo ngẫu
+nhiên, người nói đầu không thuộc phe Trắng, giữ nguyên cả ván), mỗi người bấm lá của mình để lật (`v:<ván>:<uid>`
+`ready`); ai cũng lật xong thì sang *thảo luận* — mọi người tự mô tả từ khoá rồi tranh luận trong khung chat theo thứ tự
+hiển thị, tin nhắn có từ khoá của chính mình bị chặn (so không dấu, nguyên từ); ai bấm *Biểu quyết ngay* (hoặc hết giờ
+nếu có giới hạn) thì cả bàn sang *biểu quyết* — chọn người rồi xác nhận (không đổi được), đa số bị loại và lộ phe; hoà
+thì bỏ phiếu phụ giữa những người hoà, vẫn hoà thì bốc thăm / không ai bị loại / chủ phòng chọn. Phe Trắng bị loại được
+nhập từ đoán một lần (`w:<ván>:<uid>`, so không dấu, không phân biệt hoa thường): đúng là thắng ngay, sai thì bị loại hẳn
+và ván tiếp tục. Phe Dân thắng khi hết Gián Điệp và phe Trắng; Gián Điệp thắng khi số Gián Điệp còn lại bằng số người phe
+Dân (phe Trắng còn sống thắng cùng); chỉ còn hai người mà phe đối lập vẫn còn thì phe đó thắng. Hết ván lật bài mọi người
+và kể diễn biến câu chuyện (phát từ, ai gọi biểu quyết, phiếu bầu, ai bị loại thuộc phe nào, phe Trắng đoán gì) — tất cả
+suy ra từ phần công khai `meta.uc`. Từ khoá và phe đi trong `s:<ván>:<uid>` niêm phong như ma sói (cả loạt cùng cỡ — độ
+dài hộp không lộ ai thuộc phe Trắng), người xem nhận bản thấy hết và bị khoá chat trong ván. Người chơi mất kết nối 60
+giây thì bị loại (lộ phe).
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -104,7 +127,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

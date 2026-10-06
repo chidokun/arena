@@ -57,6 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Ma Sói
                 </Link>
+                <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                  Truy tìm Gián Điệp
+                </Link>
               </nav>
               <div className="flex-1" />
               <NetBadge />
