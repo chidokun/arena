@@ -5,6 +5,8 @@ import {
   autoUndercovers,
   ballotsOf,
   castFor,
+  clueError,
+  cluesOf,
   decide,
   DEFAULT_OPTIONS,
   depart,
@@ -17,7 +19,9 @@ import {
   readyOf,
   sameWord,
   secretFor,
+  skipClue,
   skipTalk,
+  speakerOf,
   speakers,
   tally,
   winnerOf,
@@ -50,15 +54,25 @@ function fixed(opts: UcOptions = DEFAULT_OPTIONS, players = PLAYERS, roles: Role
   return g;
 }
 
-type Step = { votes?: Record<string, Vote>; guesses?: Record<string, Say>; now: number; opts?: UcOptions };
-const step = (g: Game, s: Step) => advance(g, { votes: s.votes ?? {}, guesses: s.guesses ?? {}, now: s.now, rand: rng(7), opts: s.opts ?? DEFAULT_OPTIONS });
+type Step = { clues?: Record<string, Say>; votes?: Record<string, Vote>; guesses?: Record<string, Say>; now: number; opts?: UcOptions };
+const step = (g: Game, s: Step) =>
+  advance(g, { clues: s.clues ?? {}, votes: s.votes ?? {}, guesses: s.guesses ?? {}, now: s.now, rand: rng(7), opts: s.opts ?? DEFAULT_OPTIONS });
 const timeout = (g: Game, s: Omit<Step, "now"> = {}) => step(g, { ...s, now: g.pub.until });
 const ready = (g: Game, uids: string[], at = 0): Record<string, Vote> =>
   Object.fromEntries(uids.map((u, i) => [u, { day: g.pub.day, stage: g.pub.stage, ready: true, at: at + i }]));
 
-/** Ai cũng lật bài, sang thảo luận. */
+/** Ai cũng lật bài, sang lượt mô tả. */
 function flipAll(g: Game, opts?: UcOptions) {
   g = step(g, { votes: ready(g, g.pub.alive), opts, now: g.pub.since + DURATION.introMin });
+  assert.equal(g.pub.stage, "clue");
+  return g;
+}
+
+/** Ai cũng mô tả (gửi cùng lúc, nhận theo thứ tự), sang thảo luận. */
+function describe(g: Game, opts?: UcOptions) {
+  const clues: Record<string, Say> = {};
+  for (const u of g.pub.alive) clues[u] = { day: g.pub.day, text: `mô tả của ${u}` };
+  g = step(g, { clues, opts, now: g.pub.since + 1 });
   assert.equal(g.pub.stage, "talk");
   return g;
 }
@@ -71,7 +85,7 @@ function vote(g: Game, ballots: Record<string, string>, opts?: UcOptions) {
 }
 
 /** Từ đầu ván tới lúc biểu quyết vòng đầu. */
-const toVote = (g: Game, opts?: UcOptions) => skipTalk(flipAll(g, opts), 1);
+const toVote = (g: Game, opts?: UcOptions) => skipTalk(describe(flipAll(g, opts), opts), 1);
 
 test("bộ từ: đúng 1000 cặp, không cặp nào trùng hay hai từ như nhau", () => {
   assert.equal(PAIRS.length, 1000);
@@ -96,11 +110,10 @@ test("bốc cặp từ: tránh mã đã dùng; dùng hết thì bốc lại từ
 
 test("tuỳ chọn lạ thì về mặc định; chủ phòng cũng chơi thì không được tự phá hoà", () => {
   assert.deepEqual(normOptions(null), DEFAULT_OPTIONS);
-  const o = normOptions({ undercovers: 9, whites: 7, talk: 33, tie: "host", hostPlays: true, white: "x" });
+  const o = normOptions({ undercovers: 9, whites: 7, tie: "host", hostPlays: true, white: "x" });
   assert.equal(o.undercovers, DEFAULT_OPTIONS.undercovers);
   assert.equal(o.whites, 1);
   assert.equal(o.white, true);
-  assert.equal(o.talk, DEFAULT_OPTIONS.talk);
   assert.equal(o.tie, "random");
   assert.equal(normOptions({ tie: "host", hostPlays: false }).tie, "host");
   assert.equal(normOptions({ white: false }).white, false);
@@ -127,6 +140,10 @@ test("so từ khoá không phân biệt dấu, hoa thường; nhận ra câu nó
   assert.ok(!sameWord("", "Cà phê"));
   assert.ok(mentions("uống cà phê sáng", "Cà phê"));
   assert.ok(!mentions("camera", "Cam"));
+  assert.equal(clueError("có mùi thơm", "Cà phê"), undefined);
+  assert.ok(clueError("  ", "Cà phê"));
+  assert.ok(clueError("Cà Phê sữa", "Cà phê"));
+  assert.equal(clueError("cà phê", null), undefined);
 });
 
 test("chia phe đúng đội hình; bí mật: từ khoá của phe mình, phe Trắng không có từ", () => {
@@ -152,27 +169,56 @@ test("thứ tự thảo luận chốt lúc phát từ: đủ mọi người, phe
   }
 });
 
-test("phát từ: mọi người lật bài (sau tối thiểu vài giây) hoặc hết giờ thì sang thảo luận", () => {
+test("phát từ: mọi người lật bài (sau tối thiểu vài giây) hoặc hết giờ thì sang lượt mô tả", () => {
   const g = fixed();
   assert.equal(step(g, { votes: ready(g, PLAYERS.slice(0, 5)), now: 5000 }).pub.stage, "intro");
   assert.equal(step(g, { votes: ready(g, PLAYERS), now: 1000 }).pub.stage, "intro");
-  assert.equal(step(g, { votes: ready(g, PLAYERS), now: DURATION.introMin }).pub.stage, "talk");
-  assert.equal(timeout(g).pub.stage, "talk");
+  assert.equal(step(g, { votes: ready(g, PLAYERS), now: DURATION.introMin }).pub.stage, "clue");
+  assert.equal(timeout(g).pub.stage, "clue");
   assert.deepEqual(readyOf(g.pub, ready(g, ["c", "a"])), ["c", "a"]);
 });
 
-test("thảo luận: ai bấm biểu quyết cũng được, ghi lại người gọi; không giới hạn thì chờ", () => {
+test("mô tả: bắt buộc lần lượt theo thứ tự, không đếm giờ", () => {
   let g = flipAll(fixed());
+  const [first, second, third] = g.pub.order;
+  assert.equal(speakerOf(g.pub), first);
+  assert.equal(g.pub.until, g.pub.since, "lượt mô tả không có hạn chót");
+  // Người sau nói trước lượt thì phải chờ; chờ bao lâu cũng không tự bỏ lượt.
+  g = step(g, { clues: { [second]: { day: 1, text: "ngon" } }, now: g.pub.since + 9999999 });
+  assert.equal(speakerOf(g.pub), first);
+  // Mô tả của vòng khác không tính.
+  g = step(g, { clues: { [first]: { day: 0, text: "cũ" } }, now: 5 });
+  assert.equal(speakerOf(g.pub), first);
+  g = step(g, { clues: { [first]: { day: 1, text: " thơm " }, [second]: { day: 1, text: "ngon" } }, now: 5 });
+  assert.equal(speakerOf(g.pub), third);
+  assert.deepEqual(cluesOf(g.pub), [
+    { uid: first, day: 1, text: "thơm" },
+    { uid: second, day: 1, text: "ngon" },
+  ]);
+});
+
+test("mô tả: chủ phòng bỏ qua lượt người treo máy; người đang mô tả rời ván thì sang người kế", () => {
+  let g = flipAll(fixed());
+  const [first, second, third] = g.pub.order;
+  g = skipClue(g, 10);
+  assert.deepEqual(g.pub.clues, [{ uid: first, day: 1, text: null }]);
+  assert.equal(speakerOf(g.pub), second);
+  g = depart(g, second);
+  assert.equal(speakerOf(g.pub), third);
+  g = describe(g);
+  assert.equal(g.pub.clues.length, PLAYERS.length - 1);
+});
+
+test("thảo luận: chỉ sau khi mô tả xong; ai bấm biểu quyết cũng được, ghi lại người gọi; không tự hết giờ", () => {
+  const c = flipAll(fixed());
+  assert.equal(step(c, { votes: ready({ ...c, pub: { ...c.pub, stage: "talk" } }, ["a"]), now: 1 }).pub.stage, "clue");
+  let g = describe(c);
   assert.equal(step(g, { now: g.pub.since + 999999 }).pub.stage, "talk");
   // Bản ghi lật bài (giai đoạn phát từ) không tính là bấm biểu quyết.
   assert.equal(step(g, { votes: { a: { day: 1, stage: "intro", ready: true } }, now: g.pub.since + 1 }).pub.stage, "talk");
   g = step(g, { votes: ready(g, ["d", "b"], 100), now: g.pub.since + 1 });
   assert.equal(g.pub.stage, "vote");
   assert.deepEqual(g.pub.calls, [{ day: 1, uid: "d" }]);
-  const timed = { ...DEFAULT_OPTIONS, talk: 120 };
-  const h = timeout(flipAll(fixed(timed), timed), { opts: timed });
-  assert.equal(h.pub.stage, "vote");
-  assert.deepEqual(h.pub.calls, [{ day: 1 }]);
 });
 
 test("phiếu: không loại chính mình, người đã bị loại không bầu và không bị bầu", () => {
@@ -209,16 +255,17 @@ test("loại Gián Điệp cuối cùng mà không còn phe Trắng: phe Dân th
   assert.equal(g.pub.words?.undercover, "Trà");
 });
 
-test("loại phe Dân: lật bài rồi sang vòng thảo luận mới, giữ nguyên thứ tự", () => {
+test("loại phe Dân: lật bài rồi sang vòng mô tả mới, giữ nguyên thứ tự", () => {
   let g = toVote(fixed());
   const order = g.pub.order;
   g = vote(g, { a: "b", c: "b", d: "b", e: "b", f: "a", b: "a" });
   assert.equal(g.pub.out, "b");
   assert.equal(g.pub.winner, undefined);
   g = timeout(g);
-  assert.equal(g.pub.stage, "talk");
+  assert.equal(g.pub.stage, "clue");
   assert.equal(g.pub.day, 2);
   assert.deepEqual(g.pub.order, order);
+  assert.equal(speakerOf(g.pub), order.find((u) => u !== "b"));
   assert.ok(!speakers(g.pub).includes("b"));
   assert.equal(g.pub.out, undefined);
 });
@@ -269,7 +316,7 @@ test("phe Trắng đoán sai (hoặc hết giờ): chết, ván tiếp tục; l�
   assert.equal(g.pub.guesses[0].right, false);
   assert.equal(g.pub.winner, undefined);
   g = timeout(g);
-  assert.equal(g.pub.stage, "talk");
+  assert.equal(g.pub.stage, "clue");
   assert.equal(g.pub.day, 2);
 
   let last = vote(toVote(fixed(DEFAULT_OPTIONS, ["a", "b", "c", "d"], ["civilian", "civilian", "civilian", "white"])), { a: "d", b: "d", c: "d", d: "a" });

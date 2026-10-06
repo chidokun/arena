@@ -44,20 +44,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <LogoMark />
                 <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
               </Link>
-              <nav aria-label="Điều hướng chính" className="ml-3 hidden md:block">
-                <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+              <nav aria-label="Điều hướng chính" className="ml-3 hidden lg:flex">
+                <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Trò chơi
                 </Link>
-                <Link href="/games/caro/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                <Link href="/games/caro/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Cờ Caro
                 </Link>
-                <Link href="/games/loto/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                <Link href="/games/loto/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Lô Tô
                 </Link>
-                <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Ma Sói
                 </Link>
-                <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                   Truy tìm Gián Điệp
                 </Link>
               </nav>

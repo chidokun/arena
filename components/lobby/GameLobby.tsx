@@ -11,7 +11,6 @@ import {
   MIN_PLAYERS as UC_MIN,
   normOptions as ucOptions,
   ROLES as UC_ROLES,
-  talkName as ucTalkName,
 } from "@/lib/games/undercover";
 import { DEFAULT_OPTIONS, MAX_PLAYERS, MIN_PLAYERS, normOptions, ROLES, TALKS, talkName } from "@/lib/games/werewolf";
 import { cleanName, randomId } from "@/lib/identity";
@@ -211,7 +210,6 @@ function UcChips({ room }: { room: RoomAd }) {
         🙋 {room.players}/{room.seats} người chơi
       </span>
       <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
-      <span className="rounded-lg bg-sunken px-2.5 py-1">💬 Thảo luận {ucTalkName(opts.talk).toLowerCase()}</span>
       {!opts.hostPlays && <span className="rounded-lg bg-sunken px-2.5 py-1">🎩 Chủ phòng điều hành</span>}
       <span className="rounded-lg bg-sky-soft px-2.5 py-1" title={["civilian", "undercover", ...(opts.white ? ["white"] : [])].map((r) => UC_ROLES[r as "white"].team).join(", ")}>
         {UC_ROLES.civilian.emoji} {UC_ROLES.undercover.emoji}

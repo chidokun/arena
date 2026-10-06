@@ -8,10 +8,13 @@
  *   s:<ván>:<uid>    — người điều hành gửi riêng từng người chơi: từ khoá (phe Trắng: không có), phe nếu luật cho báo.
  *                      Ghi cả loạt, độn cùng cỡ — độ dài hộp không tiết lộ ai thuộc phe Trắng hay từ nào dài hơn.
  *                      Người xem (không chơi) nhận bản thấy hết: phe của mọi người và cặp từ khoá.
+ *   c:<ván>:<uid>    — mô tả của mình trong vòng hiện tại, công khai (người điều hành chỉ nhận khi tới lượt).
  *   v:<ván>:<uid>    — công khai: đã lật bài (phát từ), bấm biểu quyết (thảo luận), phiếu đã xác nhận (biểu quyết).
  *   w:<ván>:<uid>    — phe Trắng vừa bị loại đoán từ khoá của phe Dân, công khai.
  *
- * Mô tả từ khoá và thảo luận đều diễn ra trong khung chat chung, theo thứ tự thảo luận chốt lúc phát từ.
+ * Mỗi vòng, từng người lần lượt điền mô tả vào khung riêng theo thứ tự thảo luận chốt lúc phát từ (bắt buộc, không đếm
+ * giờ; chủ phòng bỏ qua được lượt người treo máy). Mô tả được mọi máy tự chép vào khung chat (tô tím); mô tả xong mới
+ * được thảo luận tự do trong khung chat, rồi ai cũng có thể gọi biểu quyết.
  * Người chơi là những người đã bấm sẵn sàng (ghế trong `meta.players`); hết ván ai cũng về xem, ván sau sẵn sàng lại.
  * Mặc định chủ phòng cũng chơi — giao diện chỉ hiện phần của mình, máy vẫn giữ bí mật của ván để điều hành. Luật
  * "chủ phòng chỉ điều hành" cho chủ phòng xem hết, tự đặt cặp từ khoá và phá hoà. Bí mật chỉ nằm trên máy chủ phòng
@@ -22,6 +25,7 @@ import {
   advance,
   ballotsOf,
   castFor,
+  clueError,
   decide,
   depart,
   guessOf,
@@ -33,11 +37,14 @@ import {
   readyOf,
   ROLES,
   secretFor,
+  skipClue,
   skipTalk,
+  speakerOf,
   speakers,
   unveil,
   watchView,
   type Cast,
+  type Clue,
   type Game,
   type Guess,
   type Out,
@@ -114,6 +121,8 @@ export type UcView = {
     role?: Role;
     /** Phiếu mình đã xác nhận ở lượt bỏ phiếu hiện tại. */
     vote?: string;
+    /** Mô tả mình đã gửi trong vòng này. */
+    clue?: string;
     /** Lời đoán đã gửi (phe Trắng vừa bị loại). */
     guess?: string;
   };
@@ -147,6 +156,7 @@ export class UndercoverRoom extends RoomSession<UcView> {
   /** Giai đoạn đã rao gần nhất; null khi chưa nhìn thấy gì (vừa vào phòng thì không rao lại chuyện cũ). */
   private heard: string | null = null;
   private outsHeard = 0;
+  private cluesHeard = 0;
   private sceneSeq = 0;
   private sceneFns = new Set<(s: Scene) => void>();
 
@@ -315,13 +325,15 @@ export class UndercoverRoom extends RoomSession<UcView> {
       return;
     }
     for (const uid of g.pub.alive) if (uid !== this.me && this.silentFor(uid) >= LEFT_MS) g = depart(g, uid);
+    const clues: Record<string, Say | undefined> = {};
     const votes: Record<string, Vote | undefined> = {};
     const guesses: Record<string, Say | undefined> = {};
     for (const uid of m.lineup) {
+      clues[uid] = this.gossip.get<Say>(`c:${m.round}:${uid}`);
       votes[uid] = this.gossip.get<Vote>(`v:${m.round}:${uid}`);
       guesses[uid] = this.gossip.get<Say>(`w:${m.round}:${uid}`);
     }
-    this.commit(m, advance(g, { votes, guesses, now: Date.now(), rand: Math.random, opts: normOptions(m.opts) }));
+    this.commit(m, advance(g, { clues, votes, guesses, now: Date.now(), rand: Math.random, opts: normOptions(m.opts) }));
   }
 
   protected onKick(m: Meta, uid: string) {
@@ -367,6 +379,25 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.scene({ kind: "guess", guess: g });
   }
 
+  /** Chép mô tả vào khung chat như tin của chính người đó, tô tím; id cố định nên máy nào cũng chỉ có một bản. */
+  private clueSaid(c: Clue) {
+    if (c.text === null) {
+      this.system(`⏭ ${this.nameOf(c.uid)} bị bỏ qua lượt mô tả`);
+      return;
+    }
+    const p = this.gossip.get<Member>(`p:${c.uid}`);
+    this.pushChat({
+      id: `clue:${this.meta()?.round}:${c.day}:${c.uid}`,
+      uid: c.uid,
+      name: p?.name ?? "Ai đó",
+      avatar: p?.avatar ?? "",
+      color: p?.color ?? "",
+      at: Date.now(),
+      text: c.text,
+      clue: true,
+    });
+  }
+
   private orderText(pub: Public) {
     return speakers(pub)
       .map((u) => this.nameOf(u))
@@ -380,12 +411,18 @@ export class UndercoverRoom extends RoomSession<UcView> {
     if (this.heard === null) {
       this.heard = key;
       this.outsHeard = pub?.outs.length ?? 0;
+      this.cluesHeard = pub?.clues.length ?? 0;
       return;
     }
     if (pub && pub.outs.length < this.outsHeard) this.outsHeard = 0;
+    if (pub && pub.clues.length < this.cluesHeard) this.cluesHeard = 0;
     const fresh = pub ? pub.outs.slice(this.outsHeard) : [];
     this.outsHeard = pub?.outs.length ?? 0;
     for (const o of fresh) if (o.how === "left") this.system(`🚪 ${this.nameOf(o.uid)} đã rời ván — thuộc ${ROLES[o.role].team}`);
+    if (key !== this.heard && pub?.stage === "clue" && m.status === "playing")
+      this.system(`✍️ Vòng ${pub.day}: lần lượt điền mô tả theo thứ tự ${this.orderText(pub)}`);
+    for (const c of pub ? pub.clues.slice(this.cluesHeard) : []) this.clueSaid(c);
+    this.cluesHeard = pub?.clues.length ?? 0;
     if (key === this.heard) return;
     const prev = this.heard;
     this.heard = key;
@@ -404,11 +441,11 @@ export class UndercoverRoom extends RoomSession<UcView> {
         this.system(`🃏 Phát từ — bấm vào lá bài để lật xem từ của bạn. Thứ tự thảo luận: ${this.orderText(pub)}`);
         break;
       case "talk":
-        this.system(`💬 Vòng ${pub.day}: lần lượt mô tả từ khoá trong khung chat theo thứ tự ${this.orderText(pub)}`);
+        this.system("💬 Mọi người đã mô tả xong — thảo luận tự do, bàn xong thì bấm “Biểu quyết ngay”");
         break;
       case "vote": {
         const by = pub.calls.at(-1)?.uid;
-        this.system(`🗳️ ${by ? `${this.nameOf(by)} gọi biểu quyết` : "Hết giờ thảo luận"} — chọn người cần loại rồi bấm xác nhận!`);
+        this.system(`🗳️ ${by ? `${this.nameOf(by)} gọi biểu quyết` : "Biểu quyết"} — chọn người cần loại rồi bấm xác nhận!`);
         break;
       }
       case "revote":
@@ -458,7 +495,10 @@ export class UndercoverRoom extends RoomSession<UcView> {
     const uids = new Set([...m.players, ...(pub ? m.lineup : [])]);
     const g = this.gameOf(m);
     const ballots = pub ? ballotsOf(pub, votes) : {};
-    const guess = pub ? this.gossip.get<Say>(`w:${m.round}:${this.me}`) : undefined;
+    const said = (k: string) => {
+      const x = pub ? this.gossip.get<Say>(`${k}:${m.round}:${this.me}`) : undefined;
+      return x && x.day === pub?.day ? x.text : undefined;
+    };
     const ended = pub?.roles?.[this.me];
     return {
       opts,
@@ -473,7 +513,8 @@ export class UndercoverRoom extends RoomSession<UcView> {
         word: !inGame ? undefined : ended && pub?.words ? (ended === "white" ? null : pub.words[ended]) : secret?.word,
         role: inGame ? (ended ?? secret?.role ?? pub?.outs.find((o) => o.uid === this.me)?.role) : undefined,
         vote: ballots[this.me],
-        guess: guess && guess.day === pub?.day ? guess.text : undefined,
+        clue: said("c"),
+        guess: said("w"),
       },
       seeAll: inGame ? undefined : g && m.host === this.me ? watchView(g) : secret?.watch,
       ballots,
@@ -520,9 +561,20 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.react();
   }
 
-  /** Phát từ: đã lật bài xem từ của mình (mọi người lật xong thì vào thảo luận). */
+  /** Phát từ: đã lật bài xem từ của mình (mọi người lật xong thì vào lượt mô tả). */
   flip() {
     this.mark({ stage: "intro", ready: true });
+  }
+
+  /** Tới lượt mình: gửi mô tả. Trả về lý do nếu mô tả không hợp lệ. */
+  describe(text: string): string | undefined {
+    const live = this.livePub("clue");
+    if (!live || speakerOf(live.pub) !== this.me) return "Chưa tới lượt bạn";
+    const t = text.trim();
+    const err = clueError(t, this.mySecret(live.m)?.word);
+    if (err) return err;
+    this.gossip.set<Say>(`c:${live.m.round}:${this.me}`, { day: live.pub.day, text: t });
+    this.react();
   }
 
   /** Thảo luận: gọi biểu quyết ngay — ai bấm cũng được. Chủ phòng không chơi cũng gọi được. */
@@ -597,6 +649,15 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.hostEdit((m) => {
       if (!m.ucUsed?.length) return false;
       delete m.ucUsed;
+    });
+  }
+
+  /** Bỏ qua lượt mô tả của người đang treo máy. */
+  skipClue() {
+    this.hostEdit((m) => {
+      const g = m.status === "playing" ? this.gameOf(m) : null;
+      if (!g || g.pub.stage !== "clue") return false;
+      this.commit(m, skipClue(g, Date.now()));
     });
   }
 

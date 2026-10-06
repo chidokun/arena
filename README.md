@@ -87,18 +87,20 @@ người kế nhiệm dừng ván; đang chơi thì không nhường chủ phòn
 của cặp, *Trắng* không có từ. Máy chủ phòng bốc ngẫu nhiên một cặp trong bộ 1000 cặp từ tiếng Việt
 (`undercover-words.ts`, mã cặp là số thứ tự dòng — chỉ thêm vào cuối); hết ván, khi cặp từ đã lộ, mã cặp được ghi vào
 `meta.ucUsed` nên phòng không bốc lại (chủ phòng làm mới được). Luật phòng chỉnh bằng thẻ phe như ma sói: số Gián Điệp
-(tự động hoặc 1–5), bật / tắt phe Trắng (1–2 người); thêm báo phe hay chỉ báo từ khoá, giới hạn thời gian thảo luận, cách
+(tự động hoặc 1–5), bật / tắt phe Trắng (1–2 người); thêm báo phe hay chỉ báo từ khoá, cách
 phá hoà, chủ phòng cùng chơi (mặc định — giao diện chỉ hiện phần của mình) hay chỉ điều hành (xem hết, tự đặt cặp từ cho
 ván tới, chọn người bị loại khi hoà). Ván: *phát từ* — bộ bài xếp theo thứ tự thảo luận (chốt ngay lúc chia, xáo ngẫu
 nhiên, người nói đầu không thuộc phe Trắng, giữ nguyên cả ván), mỗi người bấm lá của mình để lật (`v:<ván>:<uid>`
-`ready`); ai cũng lật xong thì sang *thảo luận* — mọi người tự mô tả từ khoá rồi tranh luận trong khung chat theo thứ tự
-hiển thị, tin nhắn có từ khoá của chính mình bị chặn (so không dấu, nguyên từ); ai bấm *Biểu quyết ngay* (hoặc hết giờ
-nếu có giới hạn) thì cả bàn sang *biểu quyết* — chọn người rồi xác nhận (không đổi được), đa số bị loại và lộ phe; hoà
+`ready`); ai cũng lật xong thì sang *mô tả* — bắt buộc lần lượt theo thứ tự, không đếm giờ: tới lượt ai thì người đó
+điền một câu vào khung mô tả riêng (`c:<ván>:<uid>`, câu có từ khoá của chính mình bị chặn — so không dấu, nguyên từ),
+người treo máy thì chủ phòng bỏ qua lượt; mỗi máy tự chép mô tả vào khung chat như tin của người đó, tô tím (`clue`),
+khung chat khoá trong lúc mô tả. Mô tả xong thì *thảo luận* tự do trong khung chat (tin có từ khoá của mình bị chặn);
+ai bấm *Biểu quyết ngay* thì cả bàn sang *biểu quyết* — chọn người rồi xác nhận (không đổi được), đa số bị loại và lộ phe; hoà
 thì bỏ phiếu phụ giữa những người hoà, vẫn hoà thì bốc thăm / không ai bị loại / chủ phòng chọn. Phe Trắng bị loại được
 nhập từ đoán một lần (`w:<ván>:<uid>`, so không dấu, không phân biệt hoa thường): đúng là thắng ngay, sai thì bị loại hẳn
 và ván tiếp tục. Phe Dân thắng khi hết Gián Điệp và phe Trắng; Gián Điệp thắng khi số Gián Điệp còn lại bằng số người phe
 Dân (phe Trắng còn sống thắng cùng); chỉ còn hai người mà phe đối lập vẫn còn thì phe đó thắng. Hết ván lật bài mọi người
-và kể diễn biến câu chuyện (phát từ, ai gọi biểu quyết, phiếu bầu, ai bị loại thuộc phe nào, phe Trắng đoán gì) — tất cả
+và kể diễn biến câu chuyện (phát từ, các mô tả, ai gọi biểu quyết, phiếu bầu, ai bị loại thuộc phe nào, phe Trắng đoán gì) — tất cả
 suy ra từ phần công khai `meta.uc`. Từ khoá và phe đi trong `s:<ván>:<uid>` niêm phong như ma sói (cả loạt cùng cỡ — độ
 dài hộp không lộ ai thuộc phe Trắng), người xem nhận bản thấy hết và bị khoá chat trong ván. Người chơi mất kết nối 60
 giây thì bị loại (lộ phe).

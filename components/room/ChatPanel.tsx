@@ -14,7 +14,7 @@ const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional
 const PICTO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /** Tin chỉ gồm sticker hoặc vài emoji gõ tay: hiện to, không bong bóng. */
-const isIcon = (m: ChatMsg) => !m.system && !m.shout && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
+const isIcon = (m: ChatMsg) => !m.system && !m.shout && !m.clue && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
 
 type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
 
@@ -143,6 +143,11 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
                           <Icon key={m.id} m={m} />
                         ))}
                       </div>
+                    ) : r.m.clue ? (
+                      <p className="chat-clue inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]">
+                        <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">✍️ Mô tả</span>
+                        {r.m.text}
+                      </p>
                     ) : r.m.shout ? (
                       <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">
                         {r.m.text}

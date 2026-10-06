@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   autoUndercovers,
+  CLUE_TEXT,
+  clueError,
+  cluesOf,
   GUESS_TEXT,
   guessOf,
   MAX_PLAYERS,
@@ -11,9 +14,8 @@ import {
   MIN_PLAYERS,
   ROLE_ORDER,
   ROLES,
+  speakerOf,
   speakers,
-  TALKS,
-  talkName,
   TIE_NAMES,
   type Out,
   type Public,
@@ -71,7 +73,8 @@ function chatLock(view: View) {
   if (!g.playing) return undefined;
   if (!g.me.inGame) return g.seeAll && !view.isHost ? "👀 Bạn đang xem và thấy hết từ khoá — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
   if (!g.me.alive) return "❌ Bạn đã bị loại — không được tham gia thảo luận nữa.";
-  if (stage === "intro") return "🃏 Đang phát từ — lật bài xong là được thảo luận.";
+  if (stage === "intro") return "🃏 Đang phát từ — lật bài xong là vào lượt mô tả.";
+  if (stage === "clue") return "✍️ Đang lượt mô tả — điền vào khung mô tả theo thứ tự, ai cũng mô tả xong mới được thảo luận.";
   if (stage === "guess") return "👤 Phe Trắng đang đoán từ khoá — giữ im lặng nhé.";
 }
 
@@ -127,6 +130,7 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
         )}
         {g.me.inGame && g.me.word !== undefined && !g.result && <WordCard view={view} />}
         {g.seeAll && g.playing && <SeeAllCard view={view} />}
+        {g.playing && g.pub && <ClueBoard view={view} pub={g.pub} />}
         <Players view={view} pick={pick} balloons={balloons} />
         {!g.playing && <Settings view={view} session={session} />}
         <Flyers flyers={flyers} />
@@ -202,11 +206,20 @@ function stageText(view: View): { icon: string; title: string; sub: string } {
   switch (pub.stage) {
     case "intro":
       return { icon: "🃏", title: "Phát từ", sub: `Bấm vào lá bài của bạn để lật xem từ khoá. Đã lật ${g.ready.length}/${pub.alive.length}.` };
+    case "clue": {
+      const s = speakerOf(pub)!;
+      const left = speakers(pub).length - cluesOf(pub).length - 1;
+      return {
+        icon: "✍️",
+        title: `Vòng ${d} — ${s === view.me ? "tới lượt bạn mô tả!" : `${nameIn(view, s)} đang mô tả`}`,
+        sub: `Lần lượt từng người điền một câu mô tả từ khoá, không nói thẳng từ khoá. ${left > 0 ? `Còn ${left} người sau.` : "Đây là người cuối cùng."}`,
+      };
+    }
     case "talk":
       return {
         icon: "💬",
         title: `Vòng ${d} — thảo luận`,
-        sub: "Lần lượt mô tả từ khoá trong khung chat theo thứ tự, rồi tranh luận xem ai lạc chủ đề. Ai cũng có thể gọi biểu quyết.",
+        sub: "Mọi người đã mô tả xong. Tranh luận trong khung chat xem ai lạc chủ đề — bàn xong thì ai cũng có thể bấm “Biểu quyết ngay”.",
       };
     case "vote":
     case "revote":
@@ -268,6 +281,11 @@ function StageCard({ view, session }: { view: View; session: UndercoverRoom }) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {pub && <CastChips cast={pub.cast} />}
           <div className="flex-1" />
+          {view.isHost && pub?.stage === "clue" && speakerOf(pub) !== view.me && (
+            <ConfirmButton className="btn btn-sm" onConfirm={() => session.skipClue()} confirmLabel="Bấm lần nữa để bỏ qua">
+              ⏭ Bỏ qua lượt {nameIn(view, speakerOf(pub)!)}
+            </ConfirmButton>
+          )}
           {view.isHost && (
             <ConfirmButton className="btn btn-sm btn-coral" onConfirm={() => session.stop()} confirmLabel="Bấm lần nữa để dừng">
               ⏹ Dừng ván
@@ -398,21 +416,37 @@ function ActionCard({
     message = <>🔐 Đang nhận từ khoá bí mật từ chủ phòng…</>;
   } else if (pub.stage === "intro") {
     tone = "var(--sky-soft)";
-    message = g.ready.includes(view.me) ? <>🃏 Bạn đã lật bài. Chờ mọi người lật xong là vào thảo luận…</> : <>🃏 Bấm vào lá bài của bạn để lật xem từ khoá.</>;
+    message = g.ready.includes(view.me) ? <>🃏 Bạn đã lật bài. Chờ mọi người lật xong là vào lượt mô tả…</> : <>🃏 Bấm vào lá bài của bạn để lật xem từ khoá.</>;
     extra = (
       <button type="button" className="btn" onClick={reopenDeal}>
         🃏 Xem lá bài
       </button>
     );
+  } else if (pub.stage === "clue") {
+    const s = speakerOf(pub)!;
+    if (s === view.me) {
+      tone = "var(--grape-soft)";
+      message = me.clue ? (
+        <>
+          ✅ Đã gửi: <b>“{me.clue}”</b>
+        </>
+      ) : (
+        <>✍️ Tới lượt bạn! Mô tả từ khoá bằng một từ hoặc một câu ngắn — đủ để chứng minh bạn biết từ, đừng để lộ quá nhiều.</>
+      );
+      if (!me.clue) extra = <ClueForm session={session} word={me.word} />;
+    } else {
+      const order = speakers(pub);
+      const ahead = order.indexOf(view.me) - order.indexOf(s);
+      const spoke = cluesOf(pub).some((c) => c.uid === view.me);
+      message = (
+        <>
+          ⏳ {nameIn(view, s)} đang điền mô tả… {spoke ? "Bạn đã mô tả vòng này." : ahead > 0 ? `Bạn mô tả sau ${ahead} người nữa — chuẩn bị đi!` : ""}
+        </>
+      );
+    }
   } else if (pub.stage === "talk") {
     tone = "var(--sun-soft)";
-    const order = speakers(pub);
-    message = (
-      <>
-        💬 Lần lượt mô tả từ khoá của mình trong khung chat theo thứ tự <b>{order.map((u) => nameIn(view, u)).join(" → ")}</b> — mỗi người một câu ngắn, không nói thẳng
-        từ khoá. Rồi tranh luận, nghi ngờ, bảo vệ mình. Bàn xong thì ai cũng có thể gọi biểu quyết.
-      </>
-    );
+    message = <>💬 Mọi người đã mô tả xong. Tranh luận, nghi ngờ, bảo vệ mình trong khung chat — bàn xong thì ai cũng có thể gọi biểu quyết.</>;
     extra = callVote;
   } else if (pub.stage === "vote" || pub.stage === "revote") {
     tone = "var(--sun-soft)";
@@ -459,6 +493,82 @@ function ActionCard({
       <p className="text-[15px] font-semibold">{message}</p>
       {extra && <div className="flex flex-wrap gap-2">{extra}</div>}
     </div>
+  );
+}
+
+/** Khung riêng để điền mô tả khi tới lượt mình. */
+function ClueForm({ session, word }: { session: UndercoverRoom; word: string | null }) {
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | undefined>();
+  const warn = text.trim() ? clueError(text, word) : undefined;
+  return (
+    <form
+      className="grid w-full gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setErr(session.describe(text));
+      }}
+    >
+      <div className="flex gap-2">
+        <label htmlFor="uc-clue" className="sr-only">
+          Mô tả của bạn
+        </label>
+        <input
+          id="uc-clue"
+          className="field !min-h-[44px]"
+          placeholder="Một từ hoặc một câu ngắn…"
+          value={text}
+          maxLength={CLUE_TEXT}
+          onChange={(e) => {
+            setText(e.target.value);
+            setErr(undefined);
+          }}
+          autoComplete="off"
+          autoFocus
+        />
+        <button type="submit" className="btn btn-pen" disabled={!text.trim() || !!warn}>
+          Gửi
+        </button>
+      </div>
+      {(warn ?? err) && <p className="text-[13px] font-bold text-coral">{warn ?? err}.</p>}
+    </form>
+  );
+}
+
+/** Các mô tả theo từng vòng: vòng hiện tại xếp theo thứ tự thảo luận (ai đã mô tả, ai đang điền, ai chờ), các vòng trước bên dưới. */
+function ClueBoard({ view, pub }: { view: View; pub: Public }) {
+  const days = [...new Set([pub.day, ...pub.clues.map((c) => c.day)])].sort((a, b) => b - a);
+  const speaker = speakerOf(pub);
+  return (
+    <section className="card p-4 sm:p-5" aria-labelledby="uc-clues-h">
+      <h2 id="uc-clues-h" className="font-display text-lg font-extrabold">
+        ✍️ Mô tả
+      </h2>
+      <ol className="ww-story uc-board mt-2">
+        {days.map((d) => {
+          const said = cluesOf(pub, d);
+          // Vòng hiện tại: cả những người chưa tới lượt (người bị loại trước vòng này thì thôi).
+          const rows = d === pub.day ? [...said.map((c) => c.uid), ...speakers(pub).filter((u) => !said.some((c) => c.uid === u))] : said.map((c) => c.uid);
+          if (!rows.length) return null;
+          return (
+            <li key={d} className={d === pub.day ? "is-now" : ""}>
+              <p className="ww-story-h">Vòng {d}</p>
+              <ul>
+                {rows.map((uid) => {
+                  const c = said.find((x) => x.uid === uid);
+                  return (
+                    <li key={uid} className={uid === speaker ? "font-bold text-ink" : ""}>
+                      <b className="text-ink">{nameIn(view, uid)}:</b>{" "}
+                      {c ? c.text === null ? <i>bỏ qua lượt</i> : <span className="uc-said">“{c.text}”</span> : uid === speaker ? "✍️ đang điền…" : <span className="text-ink-3">chờ tới lượt</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
@@ -602,6 +712,8 @@ function Token({
   const can = !!pick && pick.can(uid);
   const chosen = !!pick && pick.chosen === uid;
   const flipped = g.playing && pub?.stage === "intro" && g.ready.includes(uid);
+  const speaking = g.playing && !!pub && speakerOf(pub) === uid;
+  const clue = g.playing && pub ? cluesOf(pub).find((c) => c.uid === uid) : undefined;
   const voted = g.playing && uid in g.ballots;
 
   const body = (
@@ -640,7 +752,8 @@ function Token({
         {uid === m.host && n > 0 ? "👑 " : ""}
         {nameIn(view, uid)}
       </span>
-      <span className="w-full truncate text-[11px] leading-tight font-semibold text-ink-3">{out ? outText(out) : role ? ROLES[role].team : " "}</span>
+      <span className="w-full truncate text-[11px] leading-tight font-semibold text-ink-3">{out ? outText(out) : speaking ? "✍️ đang mô tả…" : role ? ROLES[role].team : " "}</span>
+      {clue && <span className={`uc-clue ${clue.text === null ? "is-skip" : ""}`}>{clue.text === null ? "bỏ qua lượt" : `“${clue.text}”`}</span>}
       {by.length > 0 && (
         <span className="mt-1 flex flex-wrap justify-center -space-x-1.5" aria-label={`Bị chọn bởi ${names(view, by)}`}>
           {by.slice(0, 6).map((u) => {
@@ -652,7 +765,7 @@ function Token({
     </>
   );
 
-  const cls = `ww-token ${out ? "is-dead" : ""} ${chosen ? "is-chosen" : ""} ${can ? "can-pick" : ""} ${uid === view.me ? "is-me" : ""}`;
+  const cls = `ww-token ${out ? "is-dead" : ""} ${chosen ? "is-chosen" : ""} ${can ? "can-pick" : ""} ${uid === view.me ? "is-me" : ""} ${speaking ? "is-speaking" : ""}`;
   if (!pick) return <div className={cls}>{body}</div>;
   return (
     <button type="button" className={cls} disabled={!can} aria-pressed={chosen} onClick={() => pick.onPick(uid)} title={can ? `${pick.verb} ${nameIn(view, uid)}` : undefined}>
@@ -778,7 +891,7 @@ function DealScene({ view, session, close }: { view: View; session: UndercoverRo
         })}
       </ul>
       <p className="text-[14px] font-semibold opacity-80">
-        Đã lật {g.ready.length}/{pub.alive.length} — mọi người lật xong là vào thảo luận.
+        Đã lật {g.ready.length}/{pub.alive.length} — mọi người lật xong là vào lượt mô tả.
       </p>
       {(mine || all) && (
         <button type="button" className="btn btn-sun" onClick={close}>
@@ -962,7 +1075,13 @@ function Story({ view, pub, roles }: { view: View; pub: Public; roles: Record<st
         </li>
         {days.map((d) => {
           const lines: React.ReactNode[] = [];
-          for (const c of pub.calls.filter((x) => x.day === d)) lines.push(c.uid ? `💬 Thảo luận xong, ${name(c.uid)} gọi biểu quyết.` : "💬 Hết giờ thảo luận.");
+          for (const c of cluesOf(pub, d))
+            lines.push(
+              <>
+                ✍️ {Name(c.uid)}: {c.text === null ? <i>bỏ qua lượt</i> : <span className="uc-said">“{c.text}”</span>}
+              </>,
+            );
+          for (const c of pub.calls.filter((x) => x.day === d)) lines.push(`💬 Thảo luận xong, ${name(c.uid ?? "")} gọi biểu quyết.`);
           pub.tallies
             .filter((t) => t.day === d)
             .forEach((t) => {
@@ -1085,10 +1204,6 @@ function Settings({ view, session }: { view: View; session: UndercoverRoom }) {
       {g.plan.error && n > 0 && <p className="mt-2 text-sm font-semibold text-coral">{g.plan.error}.</p>}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Field label="Thời gian thảo luận">
-          <Seg value={o.talk} options={TALKS} label={talkName} onChange={(v) => set({ talk: v })} disabled={!host} />
-          <p className="mt-1.5 text-[12.5px] text-ink-3">Ai bấm “Biểu quyết ngay” thì cả bàn chuyển sang biểu quyết{o.talk ? "; hết giờ cũng vậy" : ""}.</p>
-        </Field>
         <Field label="Báo phe cho người chơi">
           <Seg value={o.reveal} options={[true, false] as const} label={(v) => (v ? "Có" : "Chỉ báo từ khoá")} onChange={(v) => set({ reveal: v })} disabled={!host} />
           <p className="mt-1.5 text-[12.5px] text-ink-3">
@@ -1237,9 +1352,13 @@ function Rules({ opts }: { opts: UcOptions }) {
         bài) và giữ nguyên cả ván.
       </p>
       <p>
-        <b className="text-ink">💬 Thảo luận.</b> Lần lượt theo thứ tự, mỗi người mô tả từ khoá của mình bằng một câu ngắn trong khung chat — đủ để chứng minh
-        mình biết từ, không nói thẳng từ khoá (tin nhắn có từ khoá của bạn sẽ bị chặn). Sau đó tự do tranh luận, nghi ngờ, bluff, bảo vệ mình
-        {opts.talk ? ` (tối đa ${opts.talk / 60} phút)` : ""}. Ai cũng có thể bấm “Biểu quyết ngay” để cả bàn chuyển sang biểu quyết.
+        <b className="text-ink">✍️ Mô tả.</b> Mỗi vòng, lần lượt theo thứ tự, mỗi người điền một câu ngắn mô tả từ khoá của mình vào khung mô tả — bắt buộc,
+        không đếm giờ (ai treo máy thì chủ phòng bỏ qua lượt). Đủ để chứng minh mình biết từ, không nói thẳng từ khoá. Mô tả hiện trong khung chat (tô tím);
+        trong lúc mô tả thì khung chat tạm khoá.
+      </p>
+      <p>
+        <b className="text-ink">💬 Thảo luận.</b> Mô tả xong thì tự do tranh luận, nghi ngờ, bluff, bảo vệ mình trong khung chat (tin nhắn có từ khoá của bạn sẽ bị
+        chặn). Bàn xong thì ai cũng có thể bấm “Biểu quyết ngay” để cả bàn chuyển sang biểu quyết.
       </p>
       <p>
         <b className="text-ink">🗳️ Biểu quyết.</b> Mỗi người còn trong ván chọn một người khác rồi bấm xác nhận (không đổi được); ai nhiều phiếu nhất bị loại và

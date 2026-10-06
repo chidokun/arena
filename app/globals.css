@@ -1283,6 +1283,48 @@
   .uc-board > li {
     border-left-color: var(--sky);
   }
+  .uc-board > li.is-now {
+    background: var(--sky-soft);
+  }
+  /* Mô tả từ khoá: tô tím ở bảng mô tả, thẻ người chơi và khung chat */
+  .uc-said {
+    color: var(--grape);
+    font-weight: 700;
+  }
+  .ww-token.is-speaking {
+    border-color: var(--grape);
+    background: var(--grape-soft);
+    box-shadow: 0 3px 0 var(--grape);
+  }
+  .ww-token.is-speaking .avatar {
+    animation: speak 1.1s ease-in-out infinite;
+  }
+  .uc-clue {
+    max-width: 100%;
+    margin-top: 5px;
+    padding: 2px 7px;
+    border: 1.5px solid var(--grape);
+    border-radius: 10px;
+    background: var(--grape-soft);
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    animation: pop-in 320ms ease-out;
+  }
+  .uc-clue.is-skip {
+    border-style: dashed;
+    color: var(--ink-3);
+    font-style: italic;
+  }
+  .chat-clue {
+    border-color: var(--grape);
+    background: var(--grape-soft);
+    color: var(--ink);
+  }
+  .chat-clue > span {
+    color: var(--grape);
+  }
   .uc-deck-word {
     max-width: 100%;
     font-size: 15px;
@@ -1408,6 +1450,11 @@
   }
   100% {
     transform: translateY(-18px);
+  }
+}
+@keyframes speak {
+  50% {
+    transform: scale(1.07);
   }
 }
 @keyframes verdict-flip {

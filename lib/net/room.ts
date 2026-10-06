@@ -9,6 +9,7 @@
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người.
  *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
  *   s:<round>:<uid> — ma sói, undercover: bí mật quản trò gửi riêng từng người (vai, từ khoá…), niêm phong.
+ *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
@@ -114,6 +115,8 @@ export type ChatMsg = {
   system?: boolean;
   /** Câu rao tự động thay người chơi (lô tô: "Hò!", "Kinh!"). */
   shout?: boolean;
+  /** Undercover: mô tả từ khoá của người chơi, chép vào khung chat (tô tím). */
+  clue?: boolean;
 };
 
 export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "left" | "elsewhere";
@@ -156,9 +159,9 @@ const CHAT_LIMIT = 120;
 const MAX_REACT_PASSES = 8;
 
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
-const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "w:"];
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:", "w:"];
+const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
