@@ -185,6 +185,7 @@ function WolfChips({ room }: { room: RoomAd }) {
         🙋 {room.players}/{room.seats} dân làng
       </span>
       <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      {opts.hostPlays && <span className="rounded-lg bg-sunken px-2.5 py-1">🎩 Quản trò chơi cùng</span>}
       <span className="rounded-lg bg-sunken px-2.5 py-1">🗣️ {opts.talk ? `${opts.talk / 60} phút thảo luận` : "Quản trò điều khiển"}</span>
       <span className="rounded-lg bg-grape-soft px-2.5 py-1" title={["wolf" as const, ...roles].map((r) => ROLES[r].name).join(", ")}>
         🐺{opts.wolves ? `×${opts.wolves}` : ""} {roles.map((r) => ROLES[r].emoji).join(" ")}
@@ -259,16 +260,16 @@ function CreateForm({ slug }: { slug: string }) {
         <>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Thời gian thảo luận ban ngày</legend>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-[1fr_1fr_2fr] gap-2">
               {TALKS.map((t) => (
-                <button key={t} type="button" onClick={() => setTalk(t)} aria-pressed={talk === t} className={`btn !px-2 ${t ? "" : "col-span-4"} ${talk === t ? "btn-sun" : ""}`}>
+                <button key={t} type="button" onClick={() => setTalk(t)} aria-pressed={talk === t} className={`btn !px-2 ${talk === t ? "btn-sun" : ""}`}>
                   {talkName(t)}
                 </button>
               ))}
             </div>
           </fieldset>
           <p className="rounded-xl bg-grape-soft p-3 text-[13.5px] text-ink-2">
-            🐺 Từ {MIN_PLAYERS} đến {MAX_PLAYERS} người chơi, ai vào cũng xem được. Bạn là Quản trò — không chơi, chỉ xem và điều khiển ván; máy của bạn tự chia vai, gọi các vai dậy ban đêm, đếm
+            🐺 Từ {MIN_PLAYERS} đến {MAX_PLAYERS} người chơi, ai vào cũng xem được. Bạn là Quản trò — mặc định chỉ xem và điều khiển ván (đổi được thành tham gia chơi trong phòng); máy của bạn tự chia vai, gọi các vai dậy ban đêm, đếm
             phiếu ban ngày. Số Sói, các vai đặc biệt và luật chi tiết chỉnh được trong phòng trước mỗi ván.
           </p>
         </>

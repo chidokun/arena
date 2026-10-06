@@ -184,7 +184,10 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
 function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: boolean }) {
   const g = view.game!;
   const pub = g.pub;
-  if (uid === view.meta!.host) return <>🎩 Quản trò — xem và điều khiển ván</>;
+  const m = view.meta!;
+  // Quản trò không ngồi chơi (hoặc chưa sẵn sàng): chỉ xem và điều khiển.
+  if (uid === m.host && !(pub && m.lineup.includes(uid) && (g.playing || g.result)) && !(seated && g.opts.hostPlays))
+    return <>🎩 Quản trò — xem và điều khiển ván</>;
   if (pub && view.meta!.lineup.includes(uid) && (g.playing || g.result)) {
     const d = deathOf(view, uid);
     const role = pub.roles?.[uid];
@@ -239,7 +242,11 @@ function stageText(view: View): { icon: string; title: string; sub: string } {
       return {
         icon: "☀️",
         title: `Ngày thứ ${d} — thảo luận`,
-        sub: `${dead.length ? `Đêm qua ${names(dead)} đã chết.` : "Đêm qua bình yên, không ai chết."} Ai là Sói? ${g.ready.length}/${pub.alive.length} người muốn bỏ phiếu ngay${g.opts.talk ? "" : " — chờ quản trò cho bỏ phiếu"}.`,
+        sub: `${dead.length ? `Đêm qua ${names(dead)} đã chết.` : "Đêm qua bình yên, không ai chết."} Ai là Sói? ${
+          g.opts.hostPlays
+            ? "Bàn xong thì ai cũng có thể bắt đầu bỏ phiếu."
+            : `${g.ready.length}/${pub.alive.length} người muốn bỏ phiếu ngay${g.opts.talk ? "" : " — chờ quản trò cho bỏ phiếu"}.`
+        }`,
       };
     }
     case "vote":
@@ -292,7 +299,7 @@ function StageCard({ view, session }: { view: View; session: WerewolfRoom }) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {pub && <CastChips cast={pub.cast} />}
           <div className="flex-1" />
-          {view.isHost && pub?.stage === "day" && (
+          {view.isHost && pub?.stage === "day" && !(g.opts.hostPlays && g.me.alive) && (
             <button type="button" className={`btn btn-sun ${g.opts.talk ? "btn-sm" : ""}`} onClick={() => session.skipTalk()}>
               ⏭ Bỏ phiếu ngay
             </button>
@@ -334,7 +341,11 @@ function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
   if (view.isHost)
     message = (
       <>
-        🎩 Bạn là Quản trò — không tham gia chơi, chỉ xem hết vai và điều khiển ván.{" "}
+        {g.opts.hostPlays ? (
+          <>🎩 Bạn là Quản trò và tham gia chơi{me.ready ? " — đã sẵn sàng" : " — bấm “Sẵn sàng” để được chia vai"}. Bạn sẽ không thấy vai người khác.</>
+        ) : (
+          <>🎩 Bạn là Quản trò — không tham gia chơi, chỉ xem hết vai và điều khiển ván.</>
+        )}{" "}
         {blocker ? <b>{blocker}.</b> : <b>Bấm “{m.round ? "Ván mới" : "Bắt đầu"}” khi mọi người đã sẵn sàng!</b>}
       </>
     );
@@ -344,7 +355,7 @@ function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
         {message}
       </p>
       <div className="flex flex-wrap gap-2">
-        {view.isHost ? null : me.ready ? (
+        {view.isHost && !g.opts.hostPlays ? null : me.ready ? (
           <button type="button" className="btn" onClick={() => session.setReady(false)} disabled={!!view.pending}>
             Huỷ sẵn sàng
           </button>
@@ -556,14 +567,20 @@ function ActionCard({
     message = (
       <>
         🗣️ Thảo luận xem ai là Sói. Có thể nói dối, tố cáo, nhận mình là Tiên Tri…{" "}
-        {g.opts.talk
-          ? "Cả làng cùng muốn thì bỏ phiếu ngay."
-          : view.isHost
-            ? "Bàn xong thì bấm “Bỏ phiếu ngay” ở khung trên."
-            : "Quản trò sẽ cho bỏ phiếu khi cả làng bàn xong."}
+        {g.opts.hostPlays
+          ? "Bàn xong thì ai cũng có thể bấm “Bắt đầu bỏ phiếu”."
+          : g.opts.talk
+            ? "Cả làng cùng muốn thì bỏ phiếu ngay."
+            : view.isHost
+              ? "Bàn xong thì bấm “Bỏ phiếu ngay” ở khung trên."
+              : "Quản trò sẽ cho bỏ phiếu khi cả làng bàn xong."}
       </>
     );
-    buttons = (
+    buttons = g.opts.hostPlays ? (
+      <button type="button" className="btn btn-sun" onClick={() => session.readyToVote(true)}>
+        🗳️ Bắt đầu bỏ phiếu
+      </button>
+    ) : (
       <button type="button" className={`btn ${ready ? "btn-lime" : ""}`} aria-pressed={ready} onClick={() => session.readyToVote(!ready)}>
         ✋ {ready ? "Đã muốn bỏ phiếu" : g.opts.talk ? "Bỏ phiếu ngay" : "Muốn bỏ phiếu"}
       </button>
@@ -1203,33 +1220,21 @@ function Settings({ view, session }: { view: View; session: WerewolfRoom }) {
         </h2>
         {!host && <p className="text-[13px] font-semibold text-ink-3">Quản trò chỉnh luật</p>}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[14px] font-semibold">
-        <span>Đội hình với {n} người sẵn sàng:</span>
-        <CastChips cast={g.plan.cast} />
-      </div>
-      {g.plan.error && n > 0 && <p className="mt-1 text-sm font-semibold text-coral">{g.plan.error}.</p>}
+      <p className="mt-1 text-[13.5px] text-ink-2">
+        {host ? "Bấm vào thẻ để bật / tắt vai có trong ván." : "Các vai có trong ván tới."} Đội hình với {n} người sẵn sàng:
+      </p>
+      <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+        {ROLE_ORDER.map((r) => (
+          <li key={r}>
+            <RolePick role={r} view={view} session={session} />
+          </li>
+        ))}
+      </ul>
+      {g.plan.error && n > 0 && <p className="mt-2 text-sm font-semibold text-coral">{g.plan.error}.</p>}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Field label="Số Sói">
-          <Seg
-            value={o.wolves}
-            options={[0, ...Array.from({ length: MAX_WOLVES }, (_, i) => i + 1)]}
-            label={(v) => (v ? String(v) : `Tự động (${autoWolves(Math.max(n, MIN_PLAYERS))})`)}
-            onChange={(v) => set({ wolves: v })}
-            disabled={!host}
-          />
-        </Field>
         <Field label="Thảo luận ban ngày">
           <Seg value={o.talk} options={TALKS} label={talkName} onChange={(v) => set({ talk: v })} disabled={!host} />
-        </Field>
-        <Field label="Vai đặc biệt">
-          <div className="flex flex-wrap gap-2">
-            {(["seer", "guard", "witch"] as const).map((r) => (
-              <Toggle key={r} on={o[r]} onClick={() => set({ [r]: !o[r] })} disabled={!host}>
-                {ROLES[r].emoji} {ROLES[r].name}
-              </Toggle>
-            ))}
-          </div>
         </Field>
         <Field label="Hoà phiếu">
           <Seg
@@ -1240,20 +1245,105 @@ function Settings({ view, session }: { view: View; session: WerewolfRoom }) {
             disabled={!host}
           />
         </Field>
-        {o.guard && (
-          <Field label="Bảo Vệ">
-            <div className="flex flex-wrap gap-2">
-              <Toggle on={o.guardSelf} onClick={() => set({ guardSelf: !o.guardSelf })} disabled={!host}>
-                Tự bảo vệ mình
-              </Toggle>
-              <Toggle on={o.guardRepeat} onClick={() => set({ guardRepeat: !o.guardRepeat })} disabled={!host}>
-                Một người hai đêm liền
-              </Toggle>
-            </div>
-          </Field>
-        )}
+        <Field label="Quản trò">
+          <Seg
+            value={o.hostPlays}
+            options={[false, true] as const}
+            label={(v) => (v ? "Tham gia chơi" : "Chỉ xem và điều khiển")}
+            onChange={(v) => set({ hostPlays: v })}
+            disabled={!host}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-3">
+            {o.hostPlays
+              ? "Quản trò bấm Sẵn sàng và được chia vai như mọi người — không thấy vai người khác; máy vẫn tự điều khiển ván."
+              : "Quản trò không được chia vai, thấy hết vai và mọi hành động ban đêm."}
+          </p>
+        </Field>
       </div>
     </section>
+  );
+}
+
+/** Thẻ một vai trong Luật của làng: Sói luôn có (chọn số lượng), các vai khác bấm để bật / tắt. */
+function RolePick({ role, view, session }: { role: Role; view: View; session: WerewolfRoom }) {
+  const g = view.game!;
+  const o = g.opts;
+  const host = view.isHost;
+  const n = view.meta!.players.length;
+  const set = (patch: Partial<WolfOptions>) => session.setOptions(patch);
+  const info = ROLES[role];
+  const on = role === "wolf" || o[role];
+  const count = g.plan.cast[role];
+  const head = (
+    <>
+      <span className="text-[30px] leading-none" aria-hidden="true">
+        {info.emoji}
+      </span>
+      <span className="mt-1 font-display text-[15px] font-extrabold">{info.name}</span>
+      <span className="text-[12px] font-bold text-ink-3">
+        {!on ? "Không dùng" : role === "villager" ? (count ? `${count} người — phần còn lại` : "Phần còn lại") : count > 1 ? `${count} người` : "Có trong ván"}
+      </span>
+    </>
+  );
+  if (role === "wolf")
+    return (
+      <div className="ww-pick is-on">
+        {head}
+        <div className="mt-2 flex flex-wrap justify-center gap-1" role="group" aria-label="Số Sói">
+          {[0, ...Array.from({ length: MAX_WOLVES }, (_, i) => i + 1)].map((v) => (
+            <button
+              key={v}
+              type="button"
+              className={`ww-pick-num ${o.wolves === v ? "is-on" : ""}`}
+              aria-pressed={o.wolves === v}
+              disabled={!host}
+              onClick={() => set({ wolves: v })}
+              title={v ? `${v} Sói` : `Tự động theo số người (${autoWolves(Math.max(n, MIN_PLAYERS))} Sói)`}
+            >
+              {v || "Tự động"}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  return (
+    <div className={`ww-pick ${on ? "is-on" : ""}`}>
+      <button
+        type="button"
+        className="ww-pick-toggle"
+        aria-pressed={on}
+        disabled={!host}
+        onClick={() => set({ [role]: !on })}
+        title={host ? (on ? `Bỏ ${info.name} khỏi ván` : `Thêm ${info.name} vào ván`) : info.brief}
+      >
+        <span className="ww-pick-check" aria-hidden="true">
+          {on ? "✓" : ""}
+        </span>
+        {head}
+      </button>
+      {role === "guard" && on && (
+        <div className="mt-2 grid gap-1">
+          <button
+            type="button"
+            className={`ww-pick-num ${o.guardSelf ? "is-on" : ""}`}
+            aria-pressed={o.guardSelf}
+            disabled={!host}
+            onClick={() => set({ guardSelf: !o.guardSelf })}
+          >
+            {o.guardSelf ? "✓" : "✕"} Tự bảo vệ mình
+          </button>
+          <button
+            type="button"
+            className={`ww-pick-num ${o.guardRepeat ? "is-on" : ""}`}
+            aria-pressed={o.guardRepeat}
+            disabled={!host}
+            onClick={() => set({ guardRepeat: !o.guardRepeat })}
+          >
+            {o.guardRepeat ? "✓" : "✕"} Một người hai đêm liền
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1266,7 +1356,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Seg<T extends string | number>({
+function Seg<T extends string | number | boolean>({
   value,
   options,
   label,
@@ -1297,14 +1387,6 @@ function Seg<T extends string | number>({
   );
 }
 
-function Toggle({ on, onClick, disabled, children }: { on: boolean; onClick: () => void; disabled: boolean; children: React.ReactNode }) {
-  return (
-    <button type="button" className={`btn btn-sm ${on ? "btn-lime" : ""}`} aria-pressed={on} disabled={disabled} onClick={onClick}>
-      {on ? "✓" : "✕"} {children}
-    </button>
-  );
-}
-
 function Rules({ opts }: { opts: WolfOptions }) {
   return (
     <div className="grid gap-3 text-[14.5px] text-ink-2">
@@ -1313,8 +1395,9 @@ function Rules({ opts }: { opts: WolfOptions }) {
         còn sống bằng hoặc nhiều hơn phần còn lại; Dân thắng khi không còn con Sói nào.
       </p>
       <p>
-        <b className="text-ink">Vào chơi.</b> Người tạo phòng là Quản trò: không chơi, chỉ xem hết vai và điều khiển ván. Ai bấm “Sẵn sàng” mới được chia vai;
-        những người còn lại xem — người xem thấy hết vai nên không được trò chuyện trong ván. Hết ván mọi người sẵn sàng lại.
+        <b className="text-ink">Vào chơi.</b> Người tạo phòng là Quản trò: tuỳ luật, chỉ xem hết vai và điều khiển ván, hoặc tham gia chơi như mọi người (khi đó
+        không thấy vai người khác). Ai bấm “Sẵn sàng” mới được chia vai; những người còn lại xem — người xem thấy hết vai nên không được trò chuyện trong ván.
+        Hết ván mọi người sẵn sàng lại.
       </p>
       <ul className="grid gap-1.5">
         {ROLE_ORDER.map((r) => (

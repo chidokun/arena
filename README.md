@@ -55,11 +55,13 @@ bằng giọng tiếng Việt của máy (Web Speech API, chỉ nhận giọng `
 thì đọc "{tên} đang đợi rồi á nha!", có người kinh thì đọc "Chúc mừng {tên} đã kinh!" (nhiều người: "… đã kinh trùng!").
 Máy không có giọng Việt thì không đọc và hiện hướng dẫn cài.
 
-**Ma sói.** 4–16 người chơi, phòng không giới hạn người xem. Người tạo phòng là *Quản trò*: không bao giờ chơi, chỉ
-xem hết vai và điều khiển ván. Ai bấm *Sẵn sàng* (ghế trong `meta.players`) mới được chia vai; còn lại là người xem. Hết
+**Ma sói.** 4–16 người chơi, phòng không giới hạn người xem. Người tạo phòng là *Quản trò*: mặc định không chơi,
+chỉ xem hết vai và điều khiển ván; luật "Quản trò tham gia chơi" cho quản trò sẵn sàng và nhận vai như mọi người (khi đó
+giao diện chỉ hiện phần của mình — máy vẫn giữ bí mật của ván để điều khiển). Ai bấm *Sẵn sàng* (ghế trong `meta.players`) mới được chia vai; còn lại là người xem. Hết
 ván mọi người về chế độ xem, ván sau sẵn sàng lại. Vai: Ma Sói,
-Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy; chủ phòng chỉnh số Sói (mặc định tự động), bật/tắt vai đặc biệt, luật Bảo Vệ,
-hoà phiếu (bỏ phiếu lại một lần / không ai chết), thời gian thảo luận. Vai của người chết giữ bí mật tới hết ván. Máy chủ phòng là
+Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy — quản trò bấm thẻ để bật/tắt từng vai có trong ván (Sói luôn có, chọn số lượng
+hoặc tự động; Dân Làng lấp phần còn lại, tắt đi thì số người phải vừa khít số vai), luật Bảo Vệ, hoà phiếu (bỏ phiếu lại
+một lần / không ai chết), thời gian thảo luận. Vai của người chết giữ bí mật tới hết ván. Máy chủ phòng là
 quản trò, chạy vòng *nhận vai ("Trời tối rồi…", chia bài rồi lật) → đêm → đếm ngược 3‑2‑1 → sáng, thảo luận → bỏ phiếu
 → (bỏ phiếu lại) → tuyên án*. Ban đêm mọi vai có chức năng thức cùng lúc, chọn người rồi bấm chốt (Phù Thủy thấy người
 bầy Sói đang thống nhất cắn). Đêm không giới hạn thời gian: ai cũng chốt xong (tối thiểu 6 giây) thì đếm ngược 3‑2‑1 rồi

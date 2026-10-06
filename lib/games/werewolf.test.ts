@@ -72,6 +72,14 @@ test("số Sói tự động và đội hình", () => {
   assert.equal(castFor(4, DEFAULT_OPTIONS).cast.villager, 0);
 });
 
+test("tắt Dân Làng thì số người phải vừa khít số vai", () => {
+  const opts = { ...DEFAULT_OPTIONS, villager: false };
+  assert.equal(castFor(4, opts).error, undefined);
+  assert.deepEqual(castFor(4, opts).cast, { wolf: 1, seer: 1, guard: 1, witch: 1, villager: 0 });
+  assert.match(castFor(5, opts).error!, /cần đúng 4 người/);
+  assert.equal(castFor(5, { ...opts, wolves: 2 }).error, undefined, "2 Sói + 3 vai đặc biệt = 5 người");
+});
+
 test("chia vai đúng đội hình, mỗi người một vai", () => {
   for (let seed = 1; seed <= 50; seed++) {
     const { cast } = castFor(PLAYERS.length, DEFAULT_OPTIONS);
@@ -342,6 +350,20 @@ test("thảo luận do quản trò điều khiển: không hết giờ, chỉ qu
   g = skipTalk(g, g.pub.since + 1);
   assert.equal(g.pub.stage, "vote");
   assert.equal(normOptions({ talk: 0 }).talk, 0);
+});
+
+test("quản trò chơi cùng: một người sống bấm là bắt đầu bỏ phiếu", () => {
+  for (const talk of [0, 120]) {
+    const opts = { ...DEFAULT_OPTIONS, hostPlays: true, talk };
+    let g = timeout(fixed(opts), { opts });
+    g = night(g, { a: { day: 1, wolf: "f" } }, opts);
+    assert.equal(g.pub.stage, "day");
+    // Người đã chết bấm không tính.
+    g = step(g, { now: g.pub.since + 1, opts, votes: { f: { day: 1, stage: "day", ready: true } } });
+    assert.equal(g.pub.stage, "day");
+    g = step(g, { now: g.pub.since + 1, opts, votes: { h: { day: 1, stage: "day", ready: true } } });
+    assert.equal(g.pub.stage, "vote");
+  }
 });
 
 test("ghép tên", () => {

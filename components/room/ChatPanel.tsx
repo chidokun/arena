@@ -70,11 +70,13 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
     } catch {}
   };
 
-  // Tự cuộn xuống khi có tin mới hoặc vừa mở lại, trừ khi người dùng đang cuộn lên đọc tin cũ.
+  // Tự cuộn xuống khi có tin mới, vừa mở lại hoặc ô nhập vừa ẩn / hiện, trừ khi người dùng đang cuộn lên đọc tin cũ.
+  // Theo id tin cuối chứ không theo số tin: đủ CHAT_LIMIT tin rồi thì số tin không đổi nữa.
+  const lastId = chat.at(-1)?.id;
   useEffect(() => {
     const el = listRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [chat.length, open]);
+  }, [lastId, open, locked]);
 
   const sendSticker = (sticker: StickerId) => {
     session.send({ sticker });
@@ -83,7 +85,7 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
 
   return (
     <section
-      className={`card flex flex-col overflow-hidden ${!open ? "" : packOpen ? "min-h-[380px] lg:h-[700px]" : "min-h-[380px] lg:h-[520px]"}`}
+      className={`card flex flex-col overflow-hidden ${!open ? "" : packOpen ? "h-[min(78vh,640px)] lg:h-[700px]" : "h-[min(70vh,520px)] lg:h-[520px]"}`}
       aria-label="Trò chuyện trong phòng"
     >
       <h2 className={`font-display text-lg font-extrabold ${open ? "border-b-2 border-edge" : ""}`}>
@@ -112,14 +114,14 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
             ref={listRef}
             onScroll={(e) => {
               const el = e.currentTarget;
-              stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+              stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
             }}
             onLoadCapture={() => {
               // Ảnh sticker tải xong làm danh sách cao thêm: giữ đáy nếu đang bám đáy.
               const el = listRef.current;
               if (el && stick.current) el.scrollTop = el.scrollHeight;
             }}
-            className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
+            className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
             aria-live="polite"
           >
             {chat.length === 0 && <li className="py-8 text-center text-sm text-ink-3">Chưa có tin nhắn. Chào cả phòng một câu đi! 👋</li>}

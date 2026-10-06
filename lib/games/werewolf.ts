@@ -33,12 +33,16 @@ export type WolfOptions = {
   seer: boolean;
   guard: boolean;
   witch: boolean;
+  /** Có Dân Làng (lấp phần còn lại); tắt thì số người phải vừa khít số vai. */
+  villager: boolean;
   /** Bảo vệ được chính mình. */
   guardSelf: boolean;
   /** Bảo vệ cùng một người hai đêm liên tiếp. */
   guardRepeat: boolean;
   /** Hoà phiếu: bỏ phiếu lại giữa những người hoà (một lần), hoặc không ai bị treo. */
   tie: "revote" | "none";
+  /** Quản trò (chủ phòng) cũng được chia vai như một người chơi; tắt thì chỉ xem hết vai và điều khiển ván. */
+  hostPlays: boolean;
   /** Thời gian thảo luận ban ngày (giây); 0 là quản trò điều khiển — không đếm giờ, quản trò bấm mới bỏ phiếu. */
   talk: number;
 };
@@ -46,7 +50,7 @@ export type WolfOptions = {
 export const MIN_PLAYERS = 4;
 export const MAX_PLAYERS = 16;
 export const MAX_WOLVES = 5;
-export const TALKS = [60, 120, 180, 300, 0];
+export const TALKS = [60, 120, 0];
 /** Tên lựa chọn thời gian thảo luận. */
 export const talkName = (talk: number) => (talk ? `${talk / 60} phút` : "Quản trò điều khiển");
 
@@ -55,9 +59,11 @@ export const DEFAULT_OPTIONS: WolfOptions = {
   seer: true,
   guard: true,
   witch: true,
+  villager: true,
   guardSelf: true,
   guardRepeat: false,
   tie: "revote",
+  hostPlays: false,
   talk: 120,
 };
 
@@ -84,9 +90,11 @@ export function normOptions(o: unknown): WolfOptions {
     seer: bool(x.seer, d.seer),
     guard: bool(x.guard, d.guard),
     witch: bool(x.witch, d.witch),
+    villager: bool(x.villager, d.villager),
     guardSelf: bool(x.guardSelf, d.guardSelf),
     guardRepeat: bool(x.guardRepeat, d.guardRepeat),
     tie: x.tie === "none" ? "none" : "revote",
+    hostPlays: bool(x.hostPlays, d.hostPlays),
     talk: TALKS.includes(x.talk as number) ? (x.talk as number) : d.talk,
   };
 }
@@ -101,11 +109,13 @@ export function castFor(n: number, opts: WolfOptions): { cast: Cast; error?: str
   const wolves = opts.wolves || autoWolves(n);
   const cast: Cast = { wolf: wolves, seer: opts.seer ? 1 : 0, guard: opts.guard ? 1 : 0, witch: opts.witch ? 1 : 0, villager: 0 };
   const special = cast.seer + cast.guard + cast.witch;
-  cast.villager = Math.max(0, n - wolves - special);
+  cast.villager = opts.villager ? Math.max(0, n - wolves - special) : 0;
   if (n < MIN_PLAYERS) return { cast, error: `Cần ít nhất ${MIN_PLAYERS} người sẵn sàng` };
   if (n > MAX_PLAYERS) return { cast, error: `Tối đa ${MAX_PLAYERS} người chơi` };
   if (wolves * 2 >= n) return { cast, error: `${wolves} Sói là quá nhiều cho ${n} người — Sói phải ít hơn nửa làng` };
-  if (wolves + special > n) return { cast, error: "Không đủ người cho các vai đặc biệt" };
+  if (wolves + special > n) return { cast, error: `Không đủ người cho các vai đã chọn — cần ít nhất ${wolves + special} người` };
+  if (!opts.villager && wolves + special < n)
+    return { cast, error: `Không có Dân Làng thì cần đúng ${wolves + special} người (đang có ${n}) — bật Dân Làng hoặc thêm vai` };
   return { cast };
 }
 
@@ -443,9 +453,14 @@ export function advance(g0: Game, inp: Input): Game {
       break;
     }
     case "day": {
+      const ready = readyOf(pub, inp.votes);
+      // Quản trò chơi cùng (cũng là một người chơi): ai còn sống cũng bắt đầu bỏ phiếu được.
+      if (opts.hostPlays && ready.length > 0) {
+        enter(pub, "vote", now, DURATION.vote);
+        break;
+      }
       // Quản trò điều khiển: không hết giờ, cả làng muốn bỏ phiếu cũng phải chờ quản trò bấm.
       if (!opts.talk) break;
-      const ready = readyOf(pub, inp.votes);
       if (now >= pub.until || (pub.alive.length > 0 && ready.length === pub.alive.length)) enter(pub, "vote", now, DURATION.vote);
       break;
     }

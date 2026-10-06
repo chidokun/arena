@@ -12,7 +12,8 @@
  *   v:<ván>:<uid>    — phiếu bầu ban ngày, công khai.
  *
  * Người chơi là những người đã bấm sẵn sàng (ghế trong `meta.players`); hết ván ai cũng về xem, ván sau sẵn sàng lại.
- * Quản trò (chủ phòng) không bao giờ chơi: chỉ xem hết mọi bí mật và điều khiển ván.
+ * Quản trò (chủ phòng) mặc định không chơi: chỉ xem hết mọi bí mật và điều khiển ván. Luật `hostPlays` cho quản trò
+ * được chia vai như mọi người — khi đó giao diện chỉ hiện phần của mình (máy vẫn giữ bí mật của ván để điều khiển).
  * Bí mật của quản trò chỉ nằm trên máy chủ phòng (cất trong sessionStorage để tải lại trang vẫn giữ). Quản trò mất
  * kết nối thì người kế nhiệm không có bí mật để điều khiển tiếp: ván dừng.
  */
@@ -284,12 +285,12 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       m.scored = m.round;
       m.players = [];
     }
-    // Quản trò không chơi, chỉ xem và điều khiển ván.
-    if (m.status !== "playing") m.players = m.players.filter((u) => u !== m.host);
+    // Quản trò chỉ xem và điều khiển thì không ngồi chơi (luật cho quản trò chơi cùng thì được sẵn sàng như mọi người).
+    if (m.status !== "playing" && !normOptions(m.opts).hostPlays) m.players = m.players.filter((u) => u !== m.host);
   }
 
   protected applyIntent(m: Meta, p: Member) {
-    if (p.uid === m.host) return;
+    if (p.uid === m.host && !normOptions(m.opts).hostPlays) return;
     super.applyIntent(m, p);
   }
 
@@ -501,10 +502,10 @@ export class WerewolfRoom extends RoomSession<WolfView> {
 
   // ---------- hành động người chơi ----------
 
-  /** Bấm sẵn sàng (vào chơi ván tới) hoặc huỷ (về xem). Quản trò không chơi. */
+  /** Bấm sẵn sàng (vào chơi ván tới) hoặc huỷ (về xem). Quản trò chỉ chơi khi luật cho phép. */
   setReady(on: boolean) {
     const m = this.meta();
-    if (!m || m.status === "playing" || m.host === this.me) return;
+    if (!m || m.status === "playing" || (m.host === this.me && !normOptions(m.opts).hostPlays)) return;
     if (on) this.join();
     else this.leaveSeat();
   }
