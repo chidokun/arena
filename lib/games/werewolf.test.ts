@@ -583,7 +583,7 @@ test("bí mật riêng: Sói biết đồng bọn và lựa chọn của nhau, d
 });
 
 test("thảo luận do quản trò điều khiển: không hết giờ, chỉ quản trò cho bỏ phiếu", () => {
-  const opts = { ...DEFAULT_OPTIONS, talk: 0 };
+  const opts = { ...DEFAULT_OPTIONS, talk: 0, hostPlays: false };
   let g = timeout(fixed(opts), { opts });
   g = night(g, {}, opts);
   assert.equal(g.pub.stage, "day");

@@ -47,7 +47,7 @@ export const GAMES: GameDef[] = [
     name: "Ma Sói",
     tagline: "Đêm Sói cắn, ngày cả làng treo cổ",
     description:
-      "Người tạo phòng là Quản trò — chỉ xem và điều khiển, hoặc chơi cùng; máy của họ tự chia vai bí mật: Ma Sói, Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy, Thợ Săn, Cupid, Bán Sói, Minion. Đêm xuống quản trò gọi lần lượt từng vai: Sói chọn người để cắn, các vai đặc biệt dùng năng lực; ngày lên cả làng tranh luận và bỏ phiếu treo cổ. Dân thắng khi hết Sói — Sói thắng khi đông bằng phần còn lại.",
+      "Người tạo phòng là Quản trò — mặc định chơi cùng, hoặc chỉ xem và điều khiển; máy của họ tự chia vai bí mật: Ma Sói, Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy, Thợ Săn, Cupid, Bán Sói, Minion. Đêm xuống quản trò gọi lần lượt từng vai: Sói chọn người để cắn, các vai đặc biệt dùng năng lực; ngày lên cả làng tranh luận và bỏ phiếu treo cổ. Dân thắng khi hết Sói — Sói thắng khi đông bằng phần còn lại.",
     seats: { min: 4, max: 16 },
     capacity: { min: 0, max: 0, default: 0 },
     available: true,

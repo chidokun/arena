@@ -103,7 +103,7 @@ export const DEFAULT_OPTIONS: WolfOptions = {
   guardSelf: true,
   guardRepeat: false,
   tie: "revote",
-  hostPlays: false,
+  hostPlays: true,
   talk: 120,
 };
 

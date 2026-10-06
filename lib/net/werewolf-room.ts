@@ -12,8 +12,8 @@
  *   v:<ván>:<uid>    — phiếu bầu ban ngày, công khai.
  *
  * Người chơi là những người đã bấm sẵn sàng (ghế trong `meta.players`); hết ván ai cũng về xem, ván sau sẵn sàng lại.
- * Quản trò (chủ phòng) mặc định không chơi: chỉ xem hết mọi bí mật và điều khiển ván. Luật `hostPlays` cho quản trò
- * được chia vai như mọi người — khi đó giao diện chỉ hiện phần của mình (máy vẫn giữ bí mật của ván để điều khiển).
+ * Quản trò (chủ phòng) mặc định cũng chơi (luật `hostPlays`): được chia vai như mọi người, giao diện chỉ hiện phần của
+ * mình (máy vẫn giữ bí mật của ván để điều khiển). Tắt luật đó thì quản trò chỉ xem hết mọi bí mật và điều khiển ván.
  * Bí mật của quản trò chỉ nằm trên máy chủ phòng (cất trong sessionStorage để tải lại trang vẫn giữ). Quản trò mất
  * kết nối thì người kế nhiệm không có bí mật để điều khiển tiếp: ván dừng.
  */
