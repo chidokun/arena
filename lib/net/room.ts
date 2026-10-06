@@ -21,7 +21,7 @@
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
-import type { Public as WolfPublic, Team } from "../games/werewolf";
+import type { Public as WolfPublic, Side } from "../games/werewolf";
 import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
@@ -41,7 +41,7 @@ export type Result = {
   winners?: string[];
   reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
-  team?: Team | UcTeam;
+  team?: Side | UcTeam;
 };
 
 export type Meta = {

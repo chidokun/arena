@@ -11,10 +11,13 @@ import {
   DURATION,
   joinNames,
   newGame,
+  nightTurns,
   normOptions,
   secretFor,
+  sideOf,
   skipNight,
   skipTalk,
+  skipTurn,
   tally,
   watchView,
   winnerOf,
@@ -51,22 +54,37 @@ const step = (g: Game, s: Step) => advance(g, { actions: s.actions ?? {}, votes:
 /** Hết giai đoạn hiện tại. */
 const timeout = (g: Game, s: Omit<Step, "now"> = {}) => step(g, { ...s, now: g.pub.until });
 
-/** Qua đêm: nhận hành động, quản trò cho trời sáng, hết đếm ngược. */
-function night(g: Game, actions: Record<string, Action> = {}, opts?: WolfOptions) {
-  g = step(g, { actions, opts, now: g.pub.since + 1 });
-  g = skipNight(g, g.pub.since + 2, rng(7));
+/** Qua từng lượt của đêm: nhận hành động của vai đang được gọi; chưa chốt thì quản trò bỏ qua lượt. Dừng khi hết đêm. */
+function dawnNow(g: Game, actions: Record<string, Action> = {}, opts?: WolfOptions) {
+  for (let i = 0; g.pub.stage === "night" && i < 20; i++) {
+    const turn = g.pub.turn;
+    g = step(g, { actions, opts, now: g.pub.since + 1 });
+    if (g.pub.stage === "night" && g.pub.turn === turn) g = skipTurn(g, g.pub.since + 1, rng(7));
+  }
   assert.equal(g.pub.stage, "dawn");
-  return timeout(g, { opts });
+  return g;
 }
 
-/** Quản trò cho trời sáng ngay (sau khi đã nhận hành động). */
-const dawnNow = (g: Game, actions: Record<string, Action> = {}) => skipNight(step(g, { actions, now: g.pub.since + 1 }), g.pub.since + 2, rng(7));
+/** Qua đêm rồi hết đếm ngược. */
+const night = (g: Game, actions: Record<string, Action> = {}, opts?: WolfOptions) => timeout(dawnNow(g, actions, opts), { opts });
+
+/** Qua các lượt trước cho tới lượt của vai `role`. */
+function toTurn(g: Game, role: Role, actions: Record<string, Action> = {}, opts?: WolfOptions) {
+  for (let i = 0; g.pub.turn !== role && i < 20; i++) {
+    const turn = g.pub.turn;
+    g = step(g, { actions, opts, now: g.pub.since + 1 });
+    if (g.pub.turn === turn) g = skipTurn(g, g.pub.since + 1, rng(7));
+  }
+  assert.equal(g.pub.turn, role);
+  return g;
+}
 
 test("số Sói tự động và đội hình", () => {
   assert.deepEqual([4, 5, 6, 8, 9, 12, 15, 16].map(autoWolves), [1, 1, 2, 2, 3, 4, 5, 5]);
   const { cast, error } = castFor(8, DEFAULT_OPTIONS);
   assert.equal(error, undefined);
-  assert.deepEqual(cast, { wolf: 2, seer: 1, guard: 1, witch: 1, villager: 3 });
+  assert.deepEqual(cast, { wolf: 2, cursed: 0, seer: 1, guard: 1, witch: 1, cupid: 0, villager: 3 });
+  assert.deepEqual(castFor(8, { ...DEFAULT_OPTIONS, cupid: true, cursed: true }).cast, { wolf: 2, cursed: 1, seer: 1, guard: 1, witch: 1, cupid: 1, villager: 1 });
   assert.match(castFor(3, DEFAULT_OPTIONS).error!, /ít nhất/);
   assert.match(castFor(4, { ...DEFAULT_OPTIONS, wolves: 2 }).error!, /quá nhiều/);
   assert.equal(castFor(4, DEFAULT_OPTIONS).cast.villager, 0);
@@ -75,7 +93,7 @@ test("số Sói tự động và đội hình", () => {
 test("tắt Dân Làng thì số người phải vừa khít số vai", () => {
   const opts = { ...DEFAULT_OPTIONS, villager: false };
   assert.equal(castFor(4, opts).error, undefined);
-  assert.deepEqual(castFor(4, opts).cast, { wolf: 1, seer: 1, guard: 1, witch: 1, villager: 0 });
+  assert.deepEqual(castFor(4, opts).cast, { wolf: 1, cursed: 0, seer: 1, guard: 1, witch: 1, cupid: 0, villager: 0 });
   assert.match(castFor(5, opts).error!, /cần đúng 4 người/);
   assert.equal(castFor(5, { ...opts, wolves: 2 }).error, undefined, "2 Sói + 3 vai đặc biệt = 5 người");
 });
@@ -112,9 +130,11 @@ test("đếm phiếu: nhiều nhất thắng, hoà trả nhiều người, bỏ 
   assert.deepEqual(tally({ a: null }).top, []);
 });
 
-test("đêm: mọi vai cùng thức, chốt hết thì đếm ngược rồi trời sáng", () => {
+test("đêm: gọi lần lượt từng vai, vai này chốt xong mới tới vai kia", () => {
   let g = timeout(fixed());
   assert.equal(g.pub.stage, "night");
+  assert.deepEqual(nightTurns(g.pub), ["guard", "wolf", "seer", "witch"], "không có Cupid trong đội hình");
+  assert.equal(g.pub.turn, "guard");
   const all: Record<string, Action> = {
     a: { day: 1, wolf: "f", done: true },
     b: { day: 1, wolf: "f", done: true },
@@ -122,13 +142,27 @@ test("đêm: mọi vai cùng thức, chốt hết thì đếm ngược rồi tr�
     d: { day: 1, guard: "g", done: true },
     e: { day: 1, done: true },
   };
-  // Chọn mà chưa chốt thì chưa sáng.
-  g = step(g, { now: g.pub.since + DURATION.nightMin, actions: { ...all, d: { day: 1, guard: "g" } } });
-  assert.equal(g.pub.stage, "night");
-  // Tiên Tri chốt là có kết quả ngay trong đêm.
-  assert.deepEqual(secretFor(g, "c")!.seen, [{ day: 1, target: "a", wolf: true }]);
-  g = step(g, { now: g.pub.since + DURATION.nightMin, actions: all });
+  // Chưa tới lượt thì lựa chọn của vai khác không được tính.
+  g = step(g, { now: 1, actions: { ...all, d: { day: 1, guard: "g" } } });
+  assert.equal(g.pub.turn, "guard");
+  assert.deepEqual(g.sec.night.wolves, {});
+  assert.equal(g.sec.night.seerPick, undefined);
+  g = step(g, { now: 2, actions: all });
+  assert.equal(g.pub.turn, "wolf");
+  assert.equal(secretFor(g, "e")!.victim, undefined, "Phù Thủy chưa tới lượt thì không biết gì");
+  g = step(g, { now: 3, actions: { ...all, b: { day: 1, wolf: "f" } } });
+  assert.equal(g.pub.turn, "wolf", "chờ cả bầy chốt");
+  g = step(g, { now: 4, actions: all });
+  assert.equal(g.pub.turn, "seer");
+  assert.equal(g.sec.night.victim, "f");
+  g = step(g, { now: 5, actions: all });
+  assert.deepEqual(secretFor(g, "c")!.seen, [{ day: 1, target: "a", wolf: true }], "Tiên Tri chốt là có kết quả ngay trong đêm");
+  assert.equal(g.pub.turn, "witch");
+  assert.equal(secretFor(g, "e")!.victim, "f", "tới lượt Phù Thủy thì biết ai bị cắn");
+  assert.equal(secretFor(g, "c")!.victim, undefined, "người khác không thấy nạn nhân");
+  g = step(g, { now: 6, actions: all });
   assert.equal(g.pub.stage, "dawn");
+  assert.equal(g.pub.turn, undefined);
   assert.equal(g.pub.until - g.pub.since, DURATION.dawn);
   // Đang đếm ngược: chưa công bố ai chết.
   assert.equal(g.pub.deaths.length, 0);
@@ -139,28 +173,32 @@ test("đêm: mọi vai cùng thức, chốt hết thì đếm ngược rồi tr�
   assert.deepEqual(g.sec.story[0], { day: 1, bite: "f", guard: "g", seer: { target: "a", wolf: true }, died: ["f"] });
 });
 
-test("đêm không hết giờ: chờ mọi vai chốt hoặc quản trò cho trời sáng", () => {
+test("lượt không hết giờ: chờ người giữ vai chốt, quản trò bỏ qua lượt hoặc cho trời sáng", () => {
   let g = timeout(fixed());
-  assert.equal(g.pub.stage, "night");
   assert.equal(g.pub.until, g.pub.since, "không có đồng hồ đếm ngược");
-  g = step(g, { now: g.pub.since + 3_600_000, actions: { a: { day: 1, wolf: "f", done: true } } });
-  assert.equal(g.pub.stage, "night");
-  g = skipNight(g, g.pub.since + 3_600_001, rng(7));
+  g = step(g, { now: 3_600_000, actions: { d: { day: 1, guard: "g" } } });
+  assert.equal(g.pub.turn, "guard");
+  g = skipTurn(g, 3_600_001, rng(7));
+  assert.equal(g.pub.turn, "wolf");
+  assert.equal(g.sec.night.guard, "g", "lựa chọn đang có vẫn được tính");
+  g = step(g, { now: 3_600_002, actions: { a: { day: 1, wolf: "f" } } });
+  g = skipNight(g, 3_600_003, rng(7));
   assert.equal(g.pub.stage, "dawn");
   assert.equal(g.sec.night.victim, "f", "lựa chọn đang có vẫn được tính");
+  g = timeout(g);
+  assert.equal(g.pub.deaths.length, 1);
 });
 
-test("chưa đủ thời lượng tối thiểu thì đêm chưa hết dù mọi người đã chốt", () => {
+test("vai đã chết vẫn được gọi một lúc để không lộ", () => {
   let g = timeout(fixed());
-  const acts: Record<string, Action> = {
-    a: { day: 1, wolf: "f", done: true },
-    b: { day: 1, wolf: "f", done: true },
-    c: { day: 1, seer: "a", done: true },
-    d: { day: 1, guard: "g", done: true },
-    e: { day: 1, done: true },
-  };
-  g = step(g, { now: g.pub.since + 1, actions: acts });
-  assert.equal(g.pub.stage, "night");
+  g = depart(g, "c");
+  g = toTurn(g, "seer");
+  const idle = g.sec.night.idleUntil!;
+  assert.ok(idle - g.sec.night.turnAt >= DURATION.idleMin && idle - g.sec.night.turnAt <= DURATION.idleMax);
+  g = step(g, { now: idle - 1 });
+  assert.equal(g.pub.turn, "seer");
+  g = step(g, { now: idle });
+  assert.equal(g.pub.turn, "witch");
 });
 
 test("Bảo Vệ chặn được Sói; không được bảo vệ một người hai đêm liền", () => {
@@ -175,22 +213,18 @@ test("Bảo Vệ chặn được Sói; không được bảo vệ một người
   g = timeout(g);
   assert.equal(g.pub.stage, "night");
   assert.equal(g.pub.day, 2);
+  assert.equal(g.pub.turn, "guard");
   g = step(g, { now: g.pub.since + 1, actions: { d: { day: 2, guard: "f" } } });
   assert.equal(g.sec.night.guard, undefined);
-  g = step(g, { now: g.pub.since + 2, actions: { d: { day: 2, guard: "d" }, a: { day: 2, wolf: "f" } } });
-  assert.equal(g.sec.night.guard, "d");
   // Hành động của đêm cũ bị bỏ qua.
-  g = step(g, { now: g.pub.since + 3, actions: { b: { day: 1, wolf: "g" } } });
-  assert.deepEqual(g.sec.night.wolves, { a: "f" });
+  g = step(g, { now: g.pub.since + 2, actions: { d: { day: 1, guard: "d" } } });
+  assert.equal(g.sec.night.guard, undefined);
+  g = step(g, { now: g.pub.since + 3, actions: { d: { day: 2, guard: "d" } } });
+  assert.equal(g.sec.night.guard, "d");
 });
 
-test("Phù Thủy thấy người bầy Sói thống nhất cắn, cứu và đầu độc ngay trong đêm", () => {
+test("Phù Thủy cứu người bị cắn và đầu độc trong lượt của mình", () => {
   let g = timeout(fixed());
-  g = step(g, { now: 1, actions: { a: { day: 1, wolf: "g" } } });
-  assert.equal(secretFor(g, "e")!.victim, undefined, "bầy chưa thống nhất");
-  g = step(g, { now: 2, actions: { a: { day: 1, wolf: "g" }, b: { day: 1, wolf: "g" } } });
-  assert.equal(secretFor(g, "e")!.victim, "g");
-  assert.equal(secretFor(g, "c")!.victim, undefined, "người khác không thấy nạn nhân");
   g = night(g, { a: { day: 1, wolf: "g" }, b: { day: 1, wolf: "g" }, e: { day: 1, save: "g", poison: "a", done: true } });
   assert.deepEqual(
     g.pub.deaths.map((d) => d.uid),
@@ -201,7 +235,7 @@ test("Phù Thủy thấy người bầy Sói thống nhất cắn, cứu và đ�
   assert.equal(g.sec.story[0].poison, "a");
 });
 
-test("Phù Thủy cứu nhầm người (Sói đổi ý) thì không mất bình cứu", () => {
+test("Phù Thủy chỉ cứu được đúng người bị cắn; Sói không cắn ai thì biết là không ai", () => {
   let g = timeout(fixed());
   g = night(g, { a: { day: 1, wolf: "h" }, b: { day: 1, wolf: "h" }, e: { day: 1, save: "g", done: true } });
   assert.deepEqual(
@@ -209,30 +243,39 @@ test("Phù Thủy cứu nhầm người (Sói đổi ý) thì không mất bình
     ["h"],
   );
   assert.equal(g.sec.potions.save, true);
+  let h = toTurn(timeout(fixed()), "witch");
+  assert.equal(secretFor(h, "e")!.victim, null);
+  h = step(h, { now: 1, actions: { e: { day: 1, save: "f" } } });
+  assert.equal(h.sec.night.save, undefined);
 });
 
-test("Phù Thủy hết thuốc thì không phải chờ chốt", () => {
+test("Phù Thủy đã dùng bình cứu thì không được biết ai bị cắn", () => {
+  let g = timeout(fixed());
+  g.sec.potions.save = false;
+  g = toTurn(g, "witch", { a: { day: 1, wolf: "f" }, b: { day: 1, wolf: "f" } });
+  assert.equal(g.sec.night.victim, "f");
+  assert.equal(secretFor(g, "e")!.victim, undefined);
+});
+
+test("Phù Thủy hết thuốc thì lượt của mình trôi qua như vai đã chết", () => {
   let g = timeout(fixed());
   g.sec.potions = { save: false, poison: false };
-  const acts: Record<string, Action> = {
-    a: { day: 1, wolf: "f", done: true },
-    b: { day: 1, wolf: "f", done: true },
-    c: { day: 1, seer: "a", done: true },
-    d: { day: 1, guard: "g", done: true },
-  };
-  g = step(g, { now: g.pub.since + DURATION.nightMin, actions: acts });
+  g = toTurn(g, "witch");
+  assert.ok(g.sec.night.idleUntil);
+  g = step(g, { now: g.sec.night.idleUntil! });
   assert.equal(g.pub.stage, "dawn");
 });
 
-test("Tiên Tri chỉ soi một người mỗi đêm; chưa chốt mà hết đêm thì soi người đang chọn", () => {
-  let g = timeout(fixed());
-  g = step(g, { now: 1, actions: { c: { day: 1, seer: "f", done: true } } });
-  g = step(g, { now: 2, actions: { c: { day: 1, seer: "a", done: true } } });
+test("Tiên Tri chỉ soi một người mỗi đêm; bị bỏ qua lượt thì soi người đang chọn", () => {
+  let g = toTurn(timeout(fixed()), "seer");
+  g = step(g, { now: 1, actions: { c: { day: 1, seer: "f" } } });
+  assert.deepEqual(secretFor(g, "c")!.seen, []);
+  g = step(g, { now: 2, actions: { c: { day: 1, seer: "f", done: true } } });
+  g = step(g, { now: 3, actions: { c: { day: 1, seer: "a", done: true } } });
   assert.deepEqual(secretFor(g, "c")!.seen, [{ day: 1, target: "f", wolf: false }]);
-  let h = timeout(fixed());
+  let h = toTurn(timeout(fixed()), "seer");
   h = step(h, { now: 1, actions: { c: { day: 1, seer: "b" } } });
-  assert.deepEqual(secretFor(h, "c")!.seen, []);
-  h = dawnNow(h, { c: { day: 1, seer: "b" } });
+  h = skipTurn(h, 2, rng(7));
   assert.deepEqual(secretFor(h, "c")!.seen, [{ day: 1, target: "b", wolf: true }]);
 });
 
@@ -240,9 +283,106 @@ test("Sói không đồng ý thì bốc thăm giữa các lựa chọn nhiều p
   let g = timeout(fixed());
   g = dawnNow(g, { a: { day: 1, wolf: "f" }, b: { day: 1, wolf: "g" } });
   assert.ok(["f", "g"].includes(g.sec.night.victim!));
-  let h = timeout(fixed());
+  let h = toTurn(timeout(fixed()), "wolf");
   h = step(h, { now: 1, actions: { a: { day: 1, wolf: "b" } } });
   assert.deepEqual(h.sec.night.wolves, {}, "Sói không cắn Sói");
+});
+
+test("Cupid ghép đôi đêm đầu; một người chết thì người kia chết theo", () => {
+  const opts = { ...DEFAULT_OPTIONS, cupid: true };
+  let g = newGame(1, PLAYERS, opts, 0, rng(1));
+  g.sec.roles = { a: "wolf", b: "wolf", c: "seer", d: "guard", e: "witch", f: "cupid", g: "villager", h: "villager" };
+  g = timeout(g, { opts });
+  assert.equal(g.pub.turn, "cupid");
+  g = step(g, { opts, now: 1, actions: { f: { day: 1, cupid: ["g", "g"], done: true } } });
+  assert.equal(g.pub.turn, "cupid", "phải là hai người khác nhau");
+  g = step(g, { opts, now: 2, actions: { f: { day: 1, cupid: ["g", "h"], done: true } } });
+  assert.equal(g.pub.turn, "guard");
+  assert.deepEqual(g.sec.lovers, ["g", "h"]);
+  assert.equal(secretFor(g, "g")!.lover, "h");
+  assert.equal(secretFor(g, "h")!.loverRole, "villager");
+  assert.deepEqual(secretFor(g, "f")!.lovers, ["g", "h"]);
+  assert.equal(secretFor(g, "c")!.lover, undefined);
+  // Sói cắn g: h chết theo, công bố chung như người chết đêm qua.
+  g = night(g, { a: { day: 1, wolf: "g" }, b: { day: 1, wolf: "g" } }, opts);
+  assert.deepEqual(g.pub.deaths, [
+    { uid: "g", day: 1, how: "night" },
+    { uid: "h", day: 1, how: "night" },
+  ]);
+  assert.deepEqual(g.sec.story[0].lovers, ["g", "h"]);
+  assert.deepEqual(g.sec.story[0].love, ["h"]);
+  // Đêm sau không gọi Cupid nữa.
+  g = timeout(timeout(skipTalk(g, 0), { opts }), { opts });
+  assert.equal(g.pub.stage, "night");
+  assert.deepEqual(nightTurns(g.pub), ["guard", "wolf", "seer", "witch"]);
+});
+
+test("người yêu bị treo cổ thì người kia chết theo ngay", () => {
+  const opts = { ...DEFAULT_OPTIONS, cupid: true };
+  let g = newGame(1, PLAYERS, opts, 0, rng(1));
+  g.sec.roles = { a: "wolf", b: "wolf", c: "seer", d: "guard", e: "witch", f: "cupid", g: "villager", h: "villager" };
+  g = timeout(g, { opts });
+  g = night(g, { f: { day: 1, cupid: ["a", "h"] } }, opts);
+  assert.deepEqual(g.sec.lovers, ["a", "h"]);
+  assert.equal(secretFor(g, "h")!.loverRole, "wolf");
+  g = skipTalk(g, 0);
+  g = timeout(g, { opts, votes: { c: { day: 1, stage: "vote", target: "a" } } });
+  assert.equal(g.pub.hanged, "a");
+  assert.deepEqual(g.pub.deaths.slice(-2), [
+    { uid: "a", day: 1, how: "hang", wolf: true },
+    { uid: "h", day: 1, how: "love" },
+  ]);
+});
+
+test("cặp đôi khác phe thắng khi chỉ còn hai người", () => {
+  const roles: Record<string, Role> = { a: "wolf", b: "villager", c: "seer", d: "wolf" };
+  assert.equal(winnerOf(["a", "b"], roles, ["a", "b"]), "lovers");
+  assert.equal(winnerOf(["a", "b"], roles, null), "wolf");
+  assert.equal(winnerOf(["a", "b", "c"], roles, ["a", "b"]), undefined, "Sói trong cặp đôi không tính vào bầy");
+  assert.equal(winnerOf(["a", "b", "d"], roles, ["a", "b"]), undefined);
+  assert.equal(winnerOf(["a", "d", "b", "c"], roles, ["a", "d"]), "wolf", "cặp đôi cùng phe Sói thì như thường");
+  assert.equal(sideOf(roles, ["a", "b"], "a"), "lovers");
+  assert.equal(sideOf(roles, ["a", "d"], "a"), "wolf");
+  assert.equal(sideOf(roles, ["a", "b"], "c"), "village");
+});
+
+test("Bán Sói bị cắn thì hoá Sói, theo bầy từ đêm sau; được bảo vệ thì không sao", () => {
+  const opts = { ...DEFAULT_OPTIONS, cursed: true };
+  const setup = () => {
+    const g = newGame(1, PLAYERS, opts, 0, rng(1));
+    g.sec.roles = { a: "wolf", b: "wolf", c: "seer", d: "guard", e: "witch", f: "cursed", g: "villager", h: "villager" };
+    return timeout(g, { opts });
+  };
+  let g = toTurn(setup(), "seer", {}, opts);
+  g = step(g, { opts, now: 1, actions: { c: { day: 1, seer: "f", done: true } } });
+  assert.deepEqual(secretFor(g, "c")!.seen, [{ day: 1, target: "f", wolf: false }], "Tiên Tri soi Bán Sói thấy không phải Sói");
+
+  g = night(setup(), { a: { day: 1, wolf: "f" }, b: { day: 1, wolf: "f" } }, opts);
+  assert.equal(g.pub.deaths.length, 0, "không ai chết");
+  assert.equal(g.sec.roles.f, "wolf");
+  assert.deepEqual(g.sec.turned, ["f"]);
+  assert.equal(g.sec.story[0].turned, "f");
+  const s = secretFor(g, "f")!;
+  assert.equal(s.role, "wolf");
+  assert.equal(s.turned, true);
+  assert.deepEqual(s.pack, ["a", "b", "f"]);
+  assert.deepEqual(secretFor(g, "a")!.pack, ["a", "b", "f"]);
+
+  const h = night(setup(), { a: { day: 1, wolf: "f" }, b: { day: 1, wolf: "f" }, d: { day: 1, guard: "f" } }, opts);
+  assert.equal(h.sec.roles.f, "cursed");
+  assert.equal(h.pub.deaths.length, 0);
+});
+
+test("Bán Sói hoá Sói có thể khiến Sói thắng ngay lúc trời sáng", () => {
+  const players = ["a", "b", "c", "d"];
+  const opts = { ...DEFAULT_OPTIONS, seer: false, guard: false, witch: false, cursed: true };
+  let g = newGame(1, players, opts, 0, rng(3));
+  g.sec.roles = { a: "wolf", b: "cursed", c: "villager", d: "villager" };
+  g = timeout(g, { opts });
+  g = night(g, { a: { day: 1, wolf: "b" } }, opts);
+  assert.equal(g.pub.winner, "wolf");
+  assert.deepEqual(g.pub.turned, ["b"]);
+  assert.equal(g.pub.roles?.b, "wolf");
 });
 
 test("bỏ phiếu: đủ phiếu thì kết thúc sớm, người nhiều phiếu nhất bị treo và lộ có phải Sói không", () => {
@@ -322,20 +462,25 @@ test("Sói thắng khi bằng số người còn lại — kể cả lúc trời
 
 test("bí mật riêng: Sói biết đồng bọn và lựa chọn của nhau, dân không biết gì thêm; người xem thấy hết", () => {
   let g = timeout(fixed());
+  // Sói thì thầm được cả khi chưa tới lượt.
   g = step(g, { now: 1, actions: { a: { day: 1, wolf: "f", say: [{ id: "1", text: " cắn f nhé " }] }, d: { day: 1, guard: "g", done: true } } });
+  assert.equal(g.sec.whisper.length, 1);
+  assert.equal(watchView(g).night?.guard, "g");
+  assert.deepEqual(watchView(g).night?.done, ["d"]);
+  assert.equal(secretFor(g, "d")!.done, true);
+  g = step(g, { now: 2, actions: { a: { day: 1, wolf: "f", say: [{ id: "1", text: " cắn f nhé " }] } } });
+  assert.equal(g.pub.turn, "wolf");
   const wolf = secretFor(g, "b")!;
   assert.deepEqual(wolf.pack, ["a", "b"]);
   assert.deepEqual(wolf.picks, { a: "f" });
   assert.deepEqual(wolf.whisper, [{ id: "1", uid: "a", text: "cắn f nhé" }]);
   assert.deepEqual(secretFor(g, "f"), { role: "villager" });
-  assert.equal(secretFor(g, "d")!.done, true);
-  g = step(g, { now: 2, actions: { a: { day: 1, say: [{ id: "1", text: "cắn f nhé" }] } } });
+  g = step(g, { now: 3, actions: { a: { day: 1, say: [{ id: "1", text: "cắn f nhé" }] } } });
   assert.equal(g.sec.whisper.length, 1, "lời thì thầm gửi lại không bị nhân đôi");
   const w = watchView(g);
   assert.equal(w.roles.a, "wolf");
   assert.deepEqual(w.night?.wolves, { a: "f" });
-  assert.equal(w.night?.guard, "g");
-  assert.deepEqual(w.night?.done, ["d"]);
+  assert.equal(w.night?.victim, undefined, "bầy chưa thống nhất");
 });
 
 test("thảo luận do quản trò điều khiển: không hết giờ, chỉ quản trò cho bỏ phiếu", () => {

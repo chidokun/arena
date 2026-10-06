@@ -6,13 +6,17 @@ import {
   MAX_PLAYERS,
   MAX_WOLVES,
   MIN_PLAYERS,
+  NIGHT_ORDER,
+  nightTurns,
   ROLE_ORDER,
   ROLES,
+  sideOf,
   TALKS,
   talkName,
   type Chapter,
   type Death,
   type Role,
+  type Side,
   type WolfOptions,
 } from "@/lib/games/werewolf";
 import type { ChatMsg, RoomView } from "@/lib/net/room";
@@ -27,8 +31,10 @@ import { useBalloons, useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<WolfView>;
 
-/** Một lựa chọn đang mở trên bàn: bấm vào người trong làng để chọn. */
-type Pick = { verb: string; can: (uid: string) => boolean; chosen?: string | null; onPick: (uid: string) => void };
+/** Một lựa chọn đang mở trên bàn: bấm vào người trong làng để chọn (Cupid chọn hai người). */
+type Pick = { verb: string; can: (uid: string) => boolean; chosen: string[]; onPick: (uid: string) => void };
+
+const one = (u: string | null | undefined) => (u ? [u] : []);
 
 /** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 500) {
@@ -51,11 +57,34 @@ function deathOf(view: View, uid: string): Death | undefined {
   return view.game!.pub?.deaths.find((d) => d.uid === uid);
 }
 
-/** Vai của một người mà mình được biết: thấy hết (quản trò, người xem), hết ván, người chết lộ vai, của mình, đồng bọn Sói. */
+/** Vai của một người mà mình được biết: thấy hết (quản trò, người xem), hết ván, của mình, đồng bọn Sói, người yêu. */
 function knownRole(view: View, uid: string): Role | undefined {
   const g = view.game!;
-  return g.seeAll?.roles[uid] ?? g.pub?.roles?.[uid] ?? (uid === view.me ? g.me.role : undefined) ?? (g.me.secret?.pack?.includes(uid) ? "wolf" : undefined);
+  const s = g.me.secret;
+  return (
+    g.seeAll?.roles[uid] ??
+    g.pub?.roles?.[uid] ??
+    (uid === view.me ? g.me.role : undefined) ??
+    (s?.pack?.includes(uid) ? "wolf" : undefined) ??
+    (s?.lover === uid ? s.loverRole : undefined)
+  );
 }
+
+/** Cặp đôi mình được biết: thấy hết, hết ván, Cupid, hoặc mình là một trong hai. */
+function knownLovers(view: View): string[] {
+  const g = view.game!;
+  const s = g.me.secret;
+  return g.seeAll?.lovers ?? g.pub?.lovers ?? s?.lovers ?? (s?.lover ? [view.me, s.lover] : []);
+}
+
+/** Bán Sói đã hoá Sói mà mình được biết. */
+function knownTurned(view: View): string[] {
+  const g = view.game!;
+  return g.seeAll?.turned ?? g.pub?.turned ?? (g.me.secret?.turned ? [view.me] : []);
+}
+
+/** Hai người Cupid đang chọn ghép đôi. */
+const cupidPair = (g: WolfView) => (g.me.act.cupid ?? g.me.secret?.cupid ?? []).slice(-2);
 
 const isNight = (g: WolfView) => g.playing && (g.pub?.stage === "night" || g.pub?.stage === "dawn");
 /** Đã chốt hành động đêm nay. */
@@ -69,33 +98,43 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
   if (!g.playing || !pub || !me.alive) return null;
   const alive = (u: string) => pub.alive.includes(u);
   const s = me.secret;
-  if (pub.stage === "night" && s && !isDone(g)) {
+  // Ban đêm chỉ vai đang được gọi mới chọn được.
+  if (pub.stage === "night" && s && s.role === pub.turn && !isDone(g)) {
+    if (s.role === "cupid") {
+      const pair = cupidPair(g);
+      return {
+        verb: "Ghép đôi",
+        can: alive,
+        chosen: pair,
+        onPick: (u) => session.cupid(pair.includes(u) ? pair.filter((x) => x !== u) : [...pair, u]),
+      };
+    }
     if (s.role === "wolf")
       return {
         verb: "Cắn",
         can: (u) => alive(u) && !s.pack?.includes(u),
-        chosen: me.act.wolf ?? s.picks?.[view.me],
+        chosen: one(me.act.wolf ?? s.picks?.[view.me]),
         onPick: (u) => session.nightPick("wolf", u),
       };
     if (s.role === "guard")
       return {
         verb: "Bảo vệ",
         can: (u) => alive(u) && (g.opts.guardSelf || u !== view.me) && (g.opts.guardRepeat || u !== s.lastGuard),
-        chosen: me.act.guard ?? s.guarded,
+        chosen: one(me.act.guard ?? s.guarded),
         onPick: (u) => session.nightPick("guard", u),
       };
     if (s.role === "seer")
       return {
         verb: "Soi",
         can: (u) => alive(u) && u !== view.me && !s.seen?.some((x) => x.target === u),
-        chosen: me.act.seer ?? s.seerPick,
+        chosen: one(me.act.seer ?? s.seerPick),
         onPick: (u) => session.nightPick("seer", u),
       };
     if (s.role === "witch" && poisoning && s.potions?.poison)
       return {
         verb: "Đầu độc",
         can: (u) => alive(u) && u !== view.me,
-        chosen: me.act.poison !== undefined ? me.act.poison : s.poison,
+        chosen: one(me.act.poison !== undefined ? me.act.poison : s.poison),
         onPick: (u) => session.witch({ poison: u }),
       };
   }
@@ -103,7 +142,7 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
     return {
       verb: "Treo",
       can: (u) => alive(u) && u !== view.me && (!pub.candidates || pub.candidates.includes(u)),
-      chosen: g.ballots[view.me],
+      chosen: one(g.ballots[view.me]),
       onPick: (u) => session.vote(u),
     };
   return null;
@@ -194,8 +233,12 @@ function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: bo
     if (!d) return <>{g.playing ? "Còn sống" : "Sống sót"}</>;
     return (
       <>
-        💀 {deathText(d)}
-        {role ? ` · ${ROLES[role].emoji} ${ROLES[role].name}` : d.wolf !== undefined ? ` · ${d.wolf ? "🐺 là Sói" : "không phải Sói"}` : ""}
+        {deathIcon(d)} {deathText(d)}
+        {role
+          ? ` · ${ROLES[role].emoji} ${roleName(role, !!pub.turned?.includes(uid))}`
+          : d.wolf !== undefined
+            ? ` · ${d.wolf ? "🐺 là Sói" : "không phải Sói"}`
+            : ""}
       </>
     );
   }
@@ -203,7 +246,21 @@ function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: bo
   return <>{seated ? "✅ Sẵn sàng" : "Đang xem"}</>;
 }
 
-const deathText = (d: Death) => (d.how === "hang" ? `treo ngày ${d.day}` : d.how === "left" ? "bỏ làng" : `chết đêm ${d.day}`);
+const deathText = (d: Death) =>
+  d.how === "hang" ? `treo ngày ${d.day}` : d.how === "left" ? "bỏ làng" : d.how === "love" ? `chết theo người yêu` : `chết đêm ${d.day}`;
+/** Tên vai; Bán Sói đã hoá Sói thì ghi rõ. */
+const roleName = (role: Role, turned: boolean) => (turned ? "Sói (vốn Bán Sói)" : ROLES[role].name);
+const deathIcon = (d: Death) => (d.how === "hang" ? "🪢" : d.how === "left" ? "🚪" : d.how === "love" ? "💔" : "💀");
+
+const SIDE_TITLE: Record<Side, string> = { wolf: "Phe Ma Sói thắng!", village: "Dân làng thắng!", lovers: "Cặp đôi thắng!" };
+const SIDE_ICON: Record<Side, string> = { wolf: "🐺", village: "👨‍🌾", lovers: "💘" };
+
+/** Phe của mình khi hết ván (cần vai mọi người đã lộ). */
+function mySide(view: View): Side | undefined {
+  const g = view.game!;
+  const roles = g.pub?.roles;
+  return g.me.inGame && roles?.[view.me] ? sideOf(roles, g.pub?.lovers, view.me) : undefined;
+}
 
 // ---------- giai đoạn ----------
 
@@ -226,11 +283,12 @@ function stageText(view: View): { icon: string; title: string; sub: string } {
     case "intro":
       return { icon: "🎭", title: "Nhận vai", sub: "Lật bài xem vai của bạn và giữ bí mật. Đêm đầu tiên sắp buông xuống…" };
     case "night": {
-      const awake = (["wolf", "guard", "seer", "witch"] as const).filter((r) => pub.cast[r]).map((r) => ROLES[r].name);
       return {
         icon: "🌙",
         title: `Đêm thứ ${d}`,
-        sub: `Cả làng đi ngủ. ${awake.join(", ")} cùng thức dậy… chờ mọi vai chốt xong là trời sáng.${
+        sub: `Cả làng đi ngủ. ${
+          pub.turn ? `Quản trò gọi ${ROLES[pub.turn].name} thức dậy…` : ""
+        } Lần lượt từng vai: vai này chốt xong mới tới vai kia, hết lượt là trời sáng.${
           g.seeAll?.night ? ` ✅ Đã chốt: ${g.seeAll.night.done.length ? g.seeAll.night.done.map((u) => nameIn(view, u)).join(", ") : "chưa ai"}.` : ""
         }`,
       };
@@ -295,6 +353,7 @@ function StageCard({ view, session }: { view: View; session: WerewolfRoom }) {
           <span style={{ width: `${Math.min(100, (left / total) * 100)}%` }} />
         </div>
       )}
+      {g.playing && pub?.stage === "night" && <NightTurns pub={pub} />}
       {g.playing ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {pub && <CastChips cast={pub.cast} />}
@@ -304,8 +363,23 @@ function StageCard({ view, session }: { view: View; session: WerewolfRoom }) {
               ⏭ Bỏ phiếu ngay
             </button>
           )}
+          {view.isHost && pub?.stage === "night" && pub.turn && (
+            // Đổi lượt thì nút về trạng thái chưa bấm — không lỡ tay bỏ qua lượt của vai kế tiếp.
+            <ConfirmButton
+              key={pub.turn}
+              className="btn btn-sm"
+              onConfirm={() => session.skipTurn()}
+              confirmLabel={`Bấm lần nữa — bỏ qua lượt ${ROLES[pub.turn].name}`}
+            >
+              ⏭ Bỏ qua lượt {ROLES[pub.turn].name}
+            </ConfirmButton>
+          )}
           {view.isHost && pub?.stage === "night" && (
-            <ConfirmButton className="btn btn-sm btn-sun" onConfirm={() => session.skipNight()} confirmLabel="Bấm lần nữa — ai chưa chốt sẽ bị bỏ qua">
+            <ConfirmButton
+              className="btn btn-sm btn-sun"
+              onConfirm={() => session.skipNight()}
+              confirmLabel="Bấm lần nữa — bỏ qua các lượt còn lại, trời sáng"
+            >
               ☀️ Trời sáng ngay
             </ConfirmButton>
           )}
@@ -374,6 +448,21 @@ function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
+/** Thứ tự quản trò gọi các vai đêm nay: vai đang thức, vai đã xong, vai sắp tới. */
+function NightTurns({ pub }: { pub: NonNullable<WolfView["pub"]> }) {
+  const order = nightTurns(pub);
+  const now = pub.turn ? order.indexOf(pub.turn) : order.length;
+  return (
+    <ol className="ww-turns mt-3" aria-label="Thứ tự gọi các vai">
+      {order.map((r, i) => (
+        <li key={r} className={i < now ? "is-past" : i === now ? "is-now" : ""} aria-current={i === now ? "step" : undefined}>
+          {ROLES[r].emoji} {ROLES[r].name}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function CastChips({ cast }: { cast: Record<Role, number> }) {
   return (
     <span className="flex flex-wrap gap-1.5" aria-label="Đội hình">
@@ -409,7 +498,7 @@ function ActionCard({
   let tone = "var(--sunken)";
   let message: React.ReactNode;
   let buttons: React.ReactNode = null;
-  const chosen = pick?.chosen ? nameMid(view, pick.chosen) : null;
+  const chosen = pick?.chosen[0] ? nameMid(view, pick.chosen[0]) : null;
   const done = isDone(g);
   const confirm = (label: string, ok: boolean) => (
     <button type="button" className="btn btn-pen" onClick={() => session.confirm()} disabled={!ok}>
@@ -421,7 +510,7 @@ function ActionCard({
     message = view.isHost ? (
       <>
         🎩 Bạn là Quản trò — theo dõi vai và mọi hành động ban đêm, điều khiển ván bằng các nút ở khung trên
-        {g.pub?.stage === "night" ? " (có người treo máy thì bấm “Trời sáng ngay”)" : ""}. Đừng tiết lộ nhé!
+        {g.pub?.stage === "night" ? " (có người treo máy thì bấm “Bỏ qua lượt” hoặc “Trời sáng ngay”)" : ""}. Đừng tiết lộ nhé!
       </>
     ) : g.seeAll ? (
       <>👀 Bạn đang xem — thấy được vai của mọi người và mọi hành động ban đêm. Đừng tiết lộ nhé!</>
@@ -446,39 +535,73 @@ function ActionCard({
     );
   } else if (pub!.stage === "night") {
     tone = "var(--grape-soft)";
-    if (s.role === "wolf") {
+    const turn = pub!.turn;
+    const calling = turn ? (
+      <b>
+        {ROLES[turn].emoji} {ROLES[turn].name}
+      </b>
+    ) : null;
+    const order = nightTurns(pub!);
+    const today = s.role === "seer" ? s.seen?.find((x) => x.day === pub!.day) : undefined;
+    if (today) {
+      tone = today.wolf ? "var(--coral-soft)" : "var(--lime-soft)";
+      message = (
+        <>
+          🔮 <b>{nameIn(view, today.target)}</b> {today.wolf ? <b>LÀ SÓI! 🐺</b> : <>không phải Sói ✅</>}. Nhớ kỹ và chờ trời sáng.
+        </>
+      );
+    } else if (turn !== s.role) {
+      // Chưa tới lượt / đã qua lượt của mình / vai không thức dậy ban đêm.
+      tone = "var(--sunken)";
+      const mine = order.indexOf(s.role);
+      const now = turn ? order.indexOf(turn) : order.length;
+      message =
+        mine < 0 ? (
+          <>😴 Bạn đang ngủ say… {calling ? <>Quản trò đang gọi {calling} dậy.</> : "Chờ trời sáng."}</>
+        ) : mine < now ? (
+          <>😴 Bạn đã xong lượt đêm nay — ngủ tiếp thôi. {calling ? <>Đang gọi {calling} dậy.</> : ""}</>
+        ) : (
+          <>
+            😴 Bạn đang ngủ — chờ quản trò gọi {ROLES[s.role].name} dậy. {calling ? <>Đang gọi {calling}.</> : ""}
+          </>
+        );
+    } else if (s.role === "cupid") {
+      const pair = cupidPair(g).map((u) => nameMid(view, u));
+      message = done ? (
+        <>💘 Đã ghép đôi {pair.join(" ❤ ")}. Chờ trời sáng…</>
+      ) : pair.length === 2 ? (
+        <>
+          💘 Ghép đôi <b>{pair[0]}</b> ❤ <b>{pair[1]}</b>? Bấm vào người khác để đổi.
+        </>
+      ) : (
+        <>💘 Bạn thức dậy! Chọn hai người (có thể là bạn) để ghép thành một cặp đôi{pair.length ? ` — đã chọn ${pair[0]}, chọn thêm một người` : ""}.</>
+      );
+      buttons = !done && confirm(pair.length === 2 ? "Chốt ghép đôi" : "Chốt", pair.length === 2);
+    } else if (s.role === "wolf") {
       const picks = { ...s.picks, ...(me.act.wolf ? { [view.me]: me.act.wolf } : {}) };
       const pack = (s.pack ?? []).filter((u) => pub!.alive.includes(u));
       const agreed = pack.every((u) => picks[u]) && new Set(pack.map((u) => picks[u])).size === 1;
       const target = picks[view.me] ? nameMid(view, picks[view.me]) : chosen;
       message = done ? (
-        <>🐺 Đã chốt cắn {target}. Chờ cả làng xong việc…</>
+        <>🐺 Đã chốt cắn {target}. {pack.length > 1 ? "Chờ cả bầy chốt…" : "Chờ trời sáng…"}</>
       ) : chosen ? (
         <>
           🐺 Bạn chọn cắn <b>{chosen}</b>.{" "}
           {pack.length > 1 ? (agreed ? "Cả bầy đã thống nhất!" : "Cả bầy nên chọn cùng một người — không thì người nhiều Sói chọn nhất bị cắn.") : ""}
         </>
       ) : (
-        <>🐺 Chọn một người trong làng để cắn đêm nay, rồi bấm chốt.</>
+        <>🐺 Bầy Sói thức dậy! Chọn một người trong làng để cắn đêm nay, rồi bấm chốt.</>
       );
       buttons = !done && confirm(chosen ? `Chốt cắn ${chosen}` : "Chốt", !!chosen);
     } else if (s.role === "seer") {
-      const today = s.seen?.find((x) => x.day === pub!.day);
-      if (today) {
-        tone = today.wolf ? "var(--coral-soft)" : "var(--lime-soft)";
-        message = (
-          <>
-            🔮 <b>{nameIn(view, today.target)}</b> {today.wolf ? <b>LÀ SÓI! 🐺</b> : <>không phải Sói ✅</>}. Nhớ kỹ và chờ trời sáng.
-          </>
-        );
-      } else if (done) message = <>🔮 Đang soi… quản trò sẽ báo ngay.</>;
+      if (done) message = <>🔮 Đang soi… quản trò sẽ báo ngay.</>;
       else {
         message = chosen ? (
           <>
             🔮 Soi <b>{chosen}</b>? Bấm để xem người đó có phải Sói không.
           </>
         ) : (
-          <>🔮 Chọn một người để soi xem có phải Sói không.</>
+          <>🔮 Bạn thức dậy! Chọn một người để soi xem có phải Sói không.</>
         );
         buttons = confirm(chosen ? `Soi ${chosen}` : "Soi", !!chosen);
       }
@@ -492,15 +615,16 @@ function ActionCard({
         </>
       ) : (
         <>
-          🛡️ Chọn một người để bảo vệ đêm nay.
+          🛡️ Bạn thức dậy! Chọn một người để bảo vệ đêm nay.
           {s.lastGuard && !g.opts.guardRepeat ? ` Không được bảo vệ ${nameMid(view, s.lastGuard)} hai đêm liền.` : ""}
         </>
       );
       buttons = !done && confirm(chosen ? `Chốt bảo vệ ${chosen}` : "Chốt", !!chosen);
     } else if (s.role === "witch") {
       const potions = s.potions ?? { save: false, poison: false };
+      const victim = s.victim;
       const save = me.act.save !== undefined ? me.act.save : s.save;
-      const saving = !!s.victim && save === s.victim;
+      const saving = !!victim && save === victim;
       const poison = me.act.poison !== undefined ? me.act.poison : s.poison;
       if (!potions.save && !potions.poison) message = <>🧙 Bạn đã dùng hết thuốc — ngủ tiếp thôi.</>;
       else if (done) message = <>🧙 Đã chốt quyết định — chờ trời sáng.</>;
@@ -508,12 +632,16 @@ function ActionCard({
         message = (
           <>
             🧙{" "}
-            {s.victim ? (
+            {!potions.save ? (
+              "Bình cứu đã dùng nên bạn không được biết ai bị cắn."
+            ) : victim ? (
               <>
-                Bầy Sói định cắn <b>{nameMid(view, s.victim)}</b>.
+                Đêm nay bầy Sói cắn <b>{nameMid(view, victim)}</b>.
               </>
+            ) : victim === null ? (
+              "Đêm nay bầy Sói không cắn ai."
             ) : (
-              "Bầy Sói đang bàn bạc… chờ chúng thống nhất để biết ai bị cắn."
+              "Đang nhận tin từ quản trò…"
             )}{" "}
             {saving ? <b>Sẽ cứu. </b> : ""}
             {poison ? <b>Sẽ đầu độc {nameMid(view, poison)}. </b> : poisoning ? "Chọn người muốn đầu độc trong làng. " : ""}
@@ -522,14 +650,14 @@ function ActionCard({
         );
         buttons = (
           <>
-            {potions.save && s.victim && (
+            {potions.save && victim && (
               <button
                 type="button"
                 className={`btn ${saving ? "btn-lime" : ""}`}
                 aria-pressed={saving}
-                onClick={() => session.witch({ save: saving ? null : s.victim })}
+                onClick={() => session.witch({ save: saving ? null : victim })}
               >
-                ❤️ {saving ? "Đang cứu" : "Cứu"}
+                ❤️ {saving ? "Đang cứu" : `Cứu ${nameMid(view, victim)}`}
               </button>
             )}
             {potions.poison && (
@@ -558,7 +686,7 @@ function ActionCard({
           </>
         );
       }
-    } else message = <>😴 Bạn đang ngủ say… chờ trời sáng.</>;
+    }
   } else if (pub!.stage === "dawn") {
     message = <>🌅 Trời sắp sáng…</>;
   } else if (pub!.stage === "day") {
@@ -727,10 +855,13 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
   const role = inRound ? knownRole(view, uid) : undefined;
   const seen = g.me.secret?.seen?.filter((x) => x.target === uid).at(-1);
   const can = !!pick && pick.can(uid);
-  const chosen = !!pick && pick.chosen === uid;
+  const chosen = !!pick && pick.chosen.includes(uid);
   const ready = g.ready.includes(uid);
   const night = isNight(g) ? g.seeAll?.night : undefined;
+  const turned = !!role && knownTurned(view).includes(uid);
   const tags: string[] = [];
+  if (inRound && knownLovers(view).includes(uid)) tags.push("💘");
+  if (night?.cupid?.includes(uid)) tags.push("🏹");
   if (night?.guard === uid) tags.push("🛡️");
   if (night?.seer === uid) tags.push("🔮");
   if (night?.victim === uid) tags.push("🎯");
@@ -738,7 +869,7 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
   if (night?.poison === uid) tags.push("☠️");
   if (night?.done.includes(uid)) tags.push("✅");
   const dot = role
-    ? { icon: ROLES[role].emoji, title: ROLES[role].name }
+    ? { icon: ROLES[role].emoji, title: roleName(role, turned) }
     : death?.wolf !== undefined
       ? { icon: death.wolf ? "🐺" : "🙂", title: death.wolf ? "Là Sói" : "Không phải Sói" }
       : seen
@@ -762,7 +893,7 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
         )}
         {death && (
           <span className="ww-dead" aria-hidden="true">
-            {death.how === "hang" ? "🪢" : death.how === "left" ? "🚪" : "💀"}
+            {deathIcon(death)}
           </span>
         )}
         {ready && !death && (
@@ -773,7 +904,7 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
         {by.length > 0 && <span className="ww-count">{by.length}</span>}
       </span>
       <span className="mt-1 w-full truncate text-[12.5px] leading-tight font-bold">{nameIn(view, uid)}</span>
-      <span className="w-full truncate text-[11px] leading-tight font-semibold text-ink-3">{death ? deathText(death) : role ? ROLES[role].name : " "}</span>
+      <span className="w-full truncate text-[11px] leading-tight font-semibold text-ink-3">{death ? deathText(death) : role ? roleName(role, turned) : " "}</span>
       {tags.length > 0 && <span className="text-[13px] leading-tight">{tags.join(" ")}</span>}
       {by.length > 0 && (
         <span className="mt-1 flex flex-wrap justify-center -space-x-1.5" aria-label={`Được chọn bởi ${by.map((u) => nameIn(view, u)).join(", ")}`}>
@@ -827,6 +958,31 @@ function RoleCard({ view }: { view: View }) {
       </div>
       {!hidden && s && (
         <div className="mt-3 grid gap-1.5 border-t-2 border-rule pt-3 text-[14px]">
+          {s.turned && <p>🌗 Bạn vốn là Bán Sói — đã bị Sói cắn và hoá thành Sói, giờ theo bầy.</p>}
+          {s.lover && (
+            <p>
+              💘 Bạn đang yêu{" "}
+              <b>
+                {nameIn(view, s.lover)}
+                {s.loverRole ? ` (${ROLES[s.loverRole].emoji} ${ROLES[s.loverRole].name})` : ""}
+              </b>
+              . Một người chết thì người kia chết theo.{" "}
+              {s.loverRole && (s.loverRole === "wolf") !== (role === "wolf")
+                ? "Hai bạn khác phe — giờ là phe riêng, thắng khi chỉ còn hai bạn sống sót."
+                : "Hai bạn cùng phe."}
+            </p>
+          )}
+          {role === "cupid" && (
+            <p className="text-ink-2">
+              {s.lovers ? (
+                <>
+                  Đã ghép đôi <b className="text-ink">{s.lovers.map((u) => nameIn(view, u)).join(" ❤ ")}</b>.
+                </>
+              ) : (
+                "Đêm đầu tiên bạn sẽ ghép một cặp đôi."
+              )}
+            </p>
+          )}
           {role === "wolf" && (
             <p>
               <b>Bầy Sói:</b> {(s.pack ?? []).map((u) => nameIn(view, u)).join(", ")}
@@ -1057,13 +1213,13 @@ function SceneView({ view, scene }: { view: View; scene: Scene }) {
         </div>
       );
     case "end": {
-      const mine = g.me.inGame && g.me.role ? ROLES[g.me.role].team : undefined;
+      const mine = mySide(view);
       return (
         <div className="grid justify-items-center gap-3 text-center">
           <span className="ww-moon" aria-hidden="true">
-            {scene.team === "wolf" ? "🐺" : "🏆"}
+            {scene.team === "village" ? "🏆" : SIDE_ICON[scene.team]}
           </span>
-          <p className="ww-cine-title !text-[40px]">{scene.team === "wolf" ? "Phe Ma Sói thắng!" : "Dân làng thắng!"}</p>
+          <p className="ww-cine-title !text-[40px]">{SIDE_TITLE[scene.team]}</p>
           {mine && <p className="text-[17px] font-bold">{mine === scene.team ? "Phe của bạn đã thắng 🎉" : "Phe của bạn đã thua…"}</p>}
         </div>
       );
@@ -1078,8 +1234,9 @@ function ResultCard({ view }: { view: View }) {
   const g = view.game!;
   const r = g.result!;
   const pub = g.pub;
-  const mine = g.me.inGame && g.me.role ? ROLES[g.me.role].team : undefined;
-  const title = r.team === "wolf" ? "🐺 Phe Ma Sói thắng!" : r.team === "village" ? "👨‍🌾 Dân làng thắng!" : "⏹ Ván dừng giữa chừng";
+  const side = r.team as Side | undefined;
+  const mine = mySide(view);
+  const title = side ? `${SIDE_ICON[side]} ${SIDE_TITLE[side]}` : "⏹ Ván dừng giữa chừng";
   const roles = pub?.roles ?? {};
   return (
     <section className={`card ww-result p-4 sm:p-5 ${r.team === "wolf" ? "is-wolf" : ""}`} aria-label={`Kết quả ván ${r.round}`}>
@@ -1101,7 +1258,8 @@ function ResultCard({ view }: { view: View }) {
               const p = g.people[uid]?.member;
               const role = roles[uid];
               const d = deathOf(view, uid);
-              const won = role && r.team ? ROLES[role].team === r.team : false;
+              const won = role && side ? sideOf(roles, pub.lovers, uid) === side : false;
+              const turned = !!pub.turned?.includes(uid);
               return (
                 <li key={uid} className={`ww-reveal ${role === "wolf" ? "is-wolf" : ""}`}>
                   <span className="text-[30px] leading-none" aria-hidden="true">
@@ -1112,15 +1270,16 @@ function ResultCard({ view }: { view: View }) {
                       {p && <Avatar p={p} size={20} className={d ? "opacity-50 grayscale" : ""} />}
                       <b className="truncate text-[14px]">{nameIn(view, uid)}</b>
                       {won && <span title="Phe thắng">🏆</span>}
+                      {pub.lovers?.includes(uid) && <span title="Cặp đôi">💘</span>}
                     </span>
-                    <span className="block text-[12.5px] font-semibold text-ink-2">{role ? ROLES[role].name : "Không rõ"}</span>
+                    <span className="block text-[12.5px] font-semibold text-ink-2">{role ? roleName(role, turned) : "Không rõ"}</span>
                     <span className="block text-[12px] text-ink-3">{d ? deathText(d) : "sống sót"}</span>
                   </span>
                 </li>
               );
             })}
           </ul>
-          {pub.story && pub.story.length > 0 && <Story view={view} story={pub.story} roles={roles} />}
+          {pub.story && pub.story.length > 0 && <Story view={view} story={pub.story} roles={roles} turned={pub.turned ?? []} />}
         </>
       )}
     </section>
@@ -1128,26 +1287,33 @@ function ResultCard({ view }: { view: View }) {
 }
 
 /** Diễn biến từng ngày: đêm ai cắn ai, ai bảo vệ, soi, cứu, đầu độc; ngày ai bầu ai, ai bị treo. */
-function Story({ view, story, roles }: { view: View; story: Chapter[]; roles: Record<string, Role> }) {
+function Story({ view, story, roles, turned }: { view: View; story: Chapter[]; roles: Record<string, Role>; turned: string[] }) {
   const name = (uid: string) => nameMid(view, uid);
   const holder = (r: Role) => {
     const uid = Object.keys(roles).find((u) => roles[u] === r);
     return uid ? `${ROLES[r].name} ${uid === view.me ? "(bạn)" : name(uid)}` : ROLES[r].name;
   };
+  // Bán Sói hoá Sói từ đêm sau đêm bị cắn.
+  const turnedAt = (u: string) => story.find((c) => c.turned === u)?.day ?? 0;
   // Bầy Sói của từng đêm: những con còn sống tới đêm đó (chết từ ngày trước trở về trước thì không tính).
-  const pack = (day: number) => Object.keys(roles).filter((u) => roles[u] === "wolf" && !((deathOf(view, u)?.day ?? Infinity) < day));
+  const pack = (day: number) =>
+    Object.keys(roles).filter(
+      (u) => roles[u] === "wolf" && !((deathOf(view, u)?.day ?? Infinity) < day) && !(turned.includes(u) && turnedAt(u) >= day),
+    );
   return (
     <>
       <h3 className="mt-5 font-display text-lg font-extrabold">📖 Diễn biến câu chuyện</h3>
       <ol className="ww-story mt-2">
         {story.map((c) => {
           const nights: React.ReactNode[] = [];
+          if (c.lovers) nights.push(`💘 ${holder("cupid")} ghép đôi ${c.lovers.map(name).join(" ❤ ")}.`);
           if (c.bite !== undefined) {
             nights.push(c.bite ? `🐺 Bầy Sói (${pack(c.day).map(name).join(", ")}) chọn cắn ${name(c.bite)}.` : "🐺 Bầy Sói không cắn ai.");
             if (c.guard) nights.push(`🛡️ ${holder("guard")} bảo vệ ${name(c.guard)}${c.guard === c.bite ? " — chặn được nanh Sói!" : "."}`);
             if (c.seer) nights.push(`🔮 ${holder("seer")} soi ${name(c.seer.target)} — ${c.seer.wolf ? "là Sói!" : "không phải Sói."}`);
             if (c.save) nights.push(`🧙 ${holder("witch")} dùng bình cứu ${name(c.save)}.`);
             if (c.poison) nights.push(`🧙 ${holder("witch")} đầu độc ${name(c.poison)}.`);
+            if (c.turned) nights.push(`🌗 ${name(c.turned)} là Bán Sói — bị cắn nên hoá thành Sói!`);
             nights.push(<b key="dawn">{c.died?.length ? `💀 Sáng ra: ${c.died.map(name).join(", ")} đã chết.` : "🕊️ Sáng ra không ai chết."}</b>);
           }
           const days: React.ReactNode[] = [];
@@ -1174,6 +1340,12 @@ function Story({ view, story, roles }: { view: View; story: Chapter[]; roles: Re
               </b>,
             );
           if (c.left?.length) days.push(`🚪 ${c.left.map(name).join(", ")} bỏ làng ra đi.`);
+          // Người yêu chết theo: ban đêm đã nằm trong danh sách chết đêm qua, kể thêm cho rõ.
+          for (const u of c.love ?? []) {
+            const line = `💔 ${name(u)} đau buồn chết theo người yêu.`;
+            if (deathOf(view, u)?.how === "love") days.push(line);
+            else nights.splice(Math.max(0, nights.length - 1), 0, line);
+          }
           return (
             <li key={c.day}>
               {nights.length > 0 && (
@@ -1223,7 +1395,7 @@ function Settings({ view, session }: { view: View; session: WerewolfRoom }) {
       <p className="mt-1 text-[13.5px] text-ink-2">
         {host ? "Bấm vào thẻ để bật / tắt vai có trong ván." : "Các vai có trong ván tới."} Đội hình với {n} người sẵn sàng:
       </p>
-      <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+      <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
         {ROLE_ORDER.map((r) => (
           <li key={r}>
             <RolePick role={r} view={view} session={session} />
@@ -1392,7 +1564,8 @@ function Rules({ opts }: { opts: WolfOptions }) {
     <div className="grid gap-3 text-[14.5px] text-ink-2">
       <p>
         <b className="text-ink">Hai phe.</b> Ma Sói muốn giết hết dân làng; Dân Làng (kể cả các vai đặc biệt) muốn tìm và treo cổ hết Sói. Sói thắng khi số Sói
-        còn sống bằng hoặc nhiều hơn phần còn lại; Dân thắng khi không còn con Sói nào.
+        còn sống bằng hoặc nhiều hơn phần còn lại; Dân thắng khi không còn con Sói nào. Cặp đôi Cupid ghép mà khác phe (một Sói, một không) thành phe thứ ba:
+        thắng khi chỉ còn hai người họ sống sót.
       </p>
       <p>
         <b className="text-ink">Vào chơi.</b> Người tạo phòng là Quản trò: tuỳ luật, chỉ xem hết vai và điều khiển ván, hoặc tham gia chơi như mọi người (khi đó
@@ -1410,9 +1583,10 @@ function Rules({ opts }: { opts: WolfOptions }) {
         ))}
       </ul>
       <p>
-        <b className="text-ink">🌙 Ban đêm.</b> Cả làng ngủ, không trò chuyện. Sói, Bảo Vệ, Tiên Tri, Phù Thủy cùng thức dậy một lúc, chọn người rồi bấm chốt
-        (Sói thì thầm được với nhau; Phù Thủy thấy người bầy Sói định cắn để quyết định cứu hay đầu độc). Đêm không giới hạn thời gian — chờ mọi vai chốt xong
-        thì đếm ngược 3, 2, 1, trời sáng (có người treo máy thì Quản trò cho trời sáng luôn).
+        <b className="text-ink">🌙 Ban đêm.</b> Cả làng ngủ, không trò chuyện. Quản trò gọi lần lượt từng vai thức dậy:{" "}
+        {NIGHT_ORDER.map((r) => ROLES[r].name).join(" → ")} (Cupid chỉ đêm đầu) — vai này chọn người và bấm chốt xong mới tới vai kia. Sói thì thầm được
+        với nhau; tới lượt Phù Thủy thì được biết bầy Sói vừa cắn ai (khi còn bình cứu) để quyết định cứu hay đầu độc. Vai đã chết vẫn được “gọi” để không lộ.
+        Không giới hạn thời gian — hết lượt vai cuối thì đếm ngược 3, 2, 1, trời sáng (có người treo máy thì Quản trò bỏ qua lượt hoặc cho trời sáng luôn).
       </p>
       <p>
         <b className="text-ink">☀️ Ban ngày.</b> Quản trò công bố ai chết đêm qua — vai của người chết giữ bí mật tới hết ván. Cả làng thảo luận{" "}

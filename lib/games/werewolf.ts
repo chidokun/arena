@@ -2,14 +2,18 @@
  * Luật Ma Sói. Máy chủ phòng là quản trò: giữ bí mật của ván (`Secret` — vai của từng người, bình thuốc, kế hoạch
  * đêm nay, diễn biến) và công bố phần ai cũng biết (`Public` — giai đoạn, ai còn sống, ai đã chết, kết quả bỏ phiếu).
  * Ván chạy theo vòng: nhận vai → [đêm → đếm ngược trời sáng → ngày (thảo luận) → bỏ phiếu → (bỏ phiếu lại) → tuyên án].
- * Ban đêm mọi vai có chức năng cùng thức dậy một lúc (không gọi lần lượt); ai cũng chốt xong thì trời sáng.
+ * Ban đêm quản trò gọi lần lượt từng vai (`NIGHT_ORDER`): vai này chốt xong mới tới vai kia; hết lượt vai cuối thì trời
+ * sáng. Vai có trong đội hình mà không còn ai làm được (đã chết, Phù Thủy hết thuốc) vẫn được "gọi" một lúc ngẫu nhiên
+ * để độ dài đêm không lộ ai đã chết.
  *
  * Mọi bước là hàm thuần trên (Public, Secret) + đầu vào (hành động đêm đã giải mã, phiếu bầu công khai, giờ, hàm
  * ngẫu nhiên) nên chạy được trong unit test, không phụ thuộc mạng.
  */
 
-export type Role = "wolf" | "villager" | "seer" | "guard" | "witch";
+export type Role = "wolf" | "villager" | "seer" | "guard" | "witch" | "cupid" | "cursed";
 export type Team = "wolf" | "village";
+/** Phe thắng: ngoài Sói và Dân còn có cặp đôi khác phe (một Sói, một không) do Cupid ghép. */
+export type Side = Team | "lovers";
 
 export const ROLES: Record<Role, { name: string; emoji: string; team: Team; brief: string }> = {
   wolf: { name: "Ma Sói", emoji: "🐺", team: "wolf", brief: "Mỗi đêm cùng bầy chọn một người để cắn. Ban ngày giả làm dân lành, đừng để bị lộ." },
@@ -20,12 +24,27 @@ export const ROLES: Record<Role, { name: string; emoji: string; team: Team; brie
     name: "Phù Thủy",
     emoji: "🧙",
     team: "village",
-    brief: "Có một bình cứu người bị Sói cắn và một bình độc giết một người, mỗi bình dùng một lần cả ván.",
+    brief: "Tới lượt mình được biết ai bị Sói cắn. Có một bình cứu người đó và một bình độc giết một người, mỗi bình dùng một lần cả ván.",
+  },
+  cupid: {
+    name: "Cupid",
+    emoji: "💘",
+    team: "village",
+    brief: "Đêm đầu tiên ghép hai người (có thể là mình) thành một cặp đôi. Một người chết thì người kia chết theo; cặp đôi khác phe thì thành phe riêng, thắng khi chỉ còn hai người.",
+  },
+  cursed: {
+    name: "Bán Sói",
+    emoji: "🌗",
+    team: "village",
+    brief: "Thuộc phe dân làng — Tiên Tri soi thấy không phải Sói. Nếu bị Sói cắn thì không chết mà hoá thành Sói, theo bầy từ đêm sau.",
   },
 };
 
 /** Thứ tự hiện các vai (đội hình, bảng lộ vai). */
-export const ROLE_ORDER: Role[] = ["wolf", "seer", "guard", "witch", "villager"];
+export const ROLE_ORDER: Role[] = ["wolf", "cursed", "seer", "guard", "witch", "cupid", "villager"];
+
+/** Thứ tự quản trò gọi các vai thức dậy ban đêm (Cupid chỉ đêm đầu). */
+export const NIGHT_ORDER: Role[] = ["cupid", "guard", "wolf", "seer", "witch"];
 
 export type WolfOptions = {
   /** Số Sói; 0 là tự động theo số người chơi. */
@@ -33,6 +52,8 @@ export type WolfOptions = {
   seer: boolean;
   guard: boolean;
   witch: boolean;
+  cupid: boolean;
+  cursed: boolean;
   /** Có Dân Làng (lấp phần còn lại); tắt thì số người phải vừa khít số vai. */
   villager: boolean;
   /** Bảo vệ được chính mình. */
@@ -59,6 +80,8 @@ export const DEFAULT_OPTIONS: WolfOptions = {
   seer: true,
   guard: true,
   witch: true,
+  cupid: false,
+  cursed: false,
   villager: true,
   guardSelf: true,
   guardRepeat: false,
@@ -71,8 +94,9 @@ export const DEFAULT_OPTIONS: WolfOptions = {
 export const DURATION = {
   /** "Trời tối rồi…" rồi lật bài vai của từng người. */
   intro: 15000,
-  /** Đêm kéo dài ít nhất bấy nhiêu, để độ dài đêm không tiết lộ ai đã chết. */
-  nightMin: 6000,
+  /** Lượt của vai không còn ai làm được: vẫn "gọi" trong khoảng này (ngẫu nhiên) để không lộ vai đó đã chết. */
+  idleMin: 5000,
+  idleMax: 10000,
   /** Mọi người chốt xong: đếm ngược 3, 2, 1 rồi trời sáng. */
   dawn: 3000,
   vote: 45000,
@@ -90,6 +114,8 @@ export function normOptions(o: unknown): WolfOptions {
     seer: bool(x.seer, d.seer),
     guard: bool(x.guard, d.guard),
     witch: bool(x.witch, d.witch),
+    cupid: bool(x.cupid, d.cupid),
+    cursed: bool(x.cursed, d.cursed),
     villager: bool(x.villager, d.villager),
     guardSelf: bool(x.guardSelf, d.guardSelf),
     guardRepeat: bool(x.guardRepeat, d.guardRepeat),
@@ -107,8 +133,17 @@ export type Cast = Record<Role, number>;
 /** Đội hình cho n người chơi; `error` nếu không chia được. */
 export function castFor(n: number, opts: WolfOptions): { cast: Cast; error?: string } {
   const wolves = opts.wolves || autoWolves(n);
-  const cast: Cast = { wolf: wolves, seer: opts.seer ? 1 : 0, guard: opts.guard ? 1 : 0, witch: opts.witch ? 1 : 0, villager: 0 };
-  const special = cast.seer + cast.guard + cast.witch;
+  const one = (on: boolean) => (on ? 1 : 0);
+  const cast: Cast = {
+    wolf: wolves,
+    cursed: one(opts.cursed),
+    seer: one(opts.seer),
+    guard: one(opts.guard),
+    witch: one(opts.witch),
+    cupid: one(opts.cupid),
+    villager: 0,
+  };
+  const special = cast.cursed + cast.seer + cast.guard + cast.witch + cast.cupid;
   cast.villager = opts.villager ? Math.max(0, n - wolves - special) : 0;
   if (n < MIN_PLAYERS) return { cast, error: `Cần ít nhất ${MIN_PLAYERS} người sẵn sàng` };
   if (n > MAX_PLAYERS) return { cast, error: `Tối đa ${MAX_PLAYERS} người chơi` };
@@ -142,8 +177,11 @@ export type Stage = "intro" | "night" | "dawn" | "day" | "vote" | "revote" | "ve
 export type Death = {
   uid: string;
   day: number;
-  /** Chết trong đêm (không nói vì sao), bị treo cổ, hoặc bỏ làng (rớt mạng / bị mời ra). Vai giữ bí mật tới hết ván. */
-  how: "night" | "hang" | "left";
+  /**
+   * Chết trong đêm (không nói vì sao — kể cả người chết theo người yêu), bị treo cổ, bỏ làng (rớt mạng / bị mời ra),
+   * hoặc ban ngày chết theo người yêu. Vai giữ bí mật tới hết ván.
+   */
+  how: "night" | "hang" | "left" | "love";
   /** Người bị treo: có phải Sói không (chỉ công bố chừng đó). */
   wolf?: boolean;
 };
@@ -151,6 +189,8 @@ export type Death = {
 /** Diễn biến của một ngày (đêm hôm trước + ban ngày), công bố khi hết ván. */
 export type Chapter = {
   day: number;
+  /** Cặp đôi Cupid ghép (đêm đầu). */
+  lovers?: string[];
   /** Nạn nhân bầy Sói chọn; null là không cắn ai. */
   bite?: string | null;
   guard?: string;
@@ -158,8 +198,12 @@ export type Chapter = {
   /** Người Phù Thủy cứu (chỉ ghi khi cứu đúng người bị cắn). */
   save?: string;
   poison?: string;
+  /** Bán Sói bị cắn, hoá Sói. */
+  turned?: string;
   /** Chết trong đêm. */
   died?: string[];
+  /** Chết theo người yêu (đêm hoặc ngày). */
+  love?: string[];
   /** Các lượt bỏ phiếu trong ngày (lượt đầu, có thể thêm lượt bỏ phiếu lại). */
   votes?: Record<string, string | null>[];
   hanged?: string | null;
@@ -172,6 +216,8 @@ export type Public = {
   stage: Stage;
   /** Đêm `day` rồi tới ngày `day`. */
   day: number;
+  /** Ban đêm: vai đang được gọi dậy (ai cũng biết tới lượt vai nào, không biết ai giữ vai). */
+  turn?: Role;
   /** Giờ máy quản trò lúc vào giai đoạn và hạn chót. */
   since: number;
   until: number;
@@ -182,15 +228,22 @@ export type Public = {
   candidates?: string[];
   /** Tuyên án: người bị treo; null là không ai. */
   hanged?: string | null;
-  winner?: Team;
-  /** Hết ván: vai của mọi người và diễn biến từng ngày. */
+  winner?: Side;
+  /** Hết ván: vai của mọi người (Bán Sói đã hoá là Sói), ai là Bán Sói đã hoá, cặp đôi, diễn biến từng ngày. */
   roles?: Record<string, Role>;
+  turned?: string[];
+  lovers?: string[];
   story?: Chapter[];
 };
 
 export type Whisper = { id: string; uid: string; text: string };
 
 type Plan = {
+  /** Lúc bắt đầu lượt hiện tại; lượt không ai làm được thì kéo tới `idleUntil`. */
+  turnAt: number;
+  idleUntil?: number;
+  /** Cupid chọn hai người. */
+  cupid?: string[];
   guard?: string;
   /** Lựa chọn của từng con Sói. */
   wolves: Record<string, string>;
@@ -202,13 +255,17 @@ type Plan = {
   poison?: string;
   /** Những người đã chốt hành động đêm nay. */
   done: Record<string, true>;
-  /** Nạn nhân của bầy Sói, chốt khi hết đêm. */
+  /** Nạn nhân của bầy Sói, chốt khi hết lượt Sói (Phù Thủy tới lượt thì biết). */
   victim?: string | null;
 };
 
 /** Bí mật của quản trò. */
 export type Secret = {
+  /** Vai hiện tại: Bán Sói bị cắn thì thành "wolf" (có tên trong `turned`). */
   roles: Record<string, Role>;
+  turned: string[];
+  /** Cặp đôi Cupid ghép; null nếu chưa / không ghép. */
+  lovers: string[] | null;
   potions: { save: boolean; poison: boolean };
   /** Người được bảo vệ đêm trước. */
   lastGuard: string | null;
@@ -225,6 +282,8 @@ export type Game = { pub: Public; sec: Secret };
 /** Hành động ban đêm một người gửi riêng cho quản trò (đã mã hoá). Trường vắng mặt là "không đổi". */
 export type Action = {
   day: number;
+  /** Cupid: hai người ghép đôi. */
+  cupid?: string[];
   guard?: string;
   wolf?: string;
   seer?: string;
@@ -252,7 +311,7 @@ export type Input = {
 export const WHISPER_LIMIT = 40;
 export const WHISPER_TEXT = 120;
 
-const freshPlan = (): Plan => ({ wolves: {}, done: {} });
+const freshPlan = (now = 0): Plan => ({ turnAt: now, wolves: {}, done: {} });
 
 function enter(pub: Public, stage: Stage, now: number, ms: number) {
   pub.stage = stage;
@@ -266,6 +325,8 @@ export function newGame(round: number, players: string[], opts: WolfOptions, now
     pub: { round, stage: "intro", day: 1, since: now, until: now + DURATION.intro, alive: [...players], deaths: [], cast },
     sec: {
       roles: deal(players, cast, rand),
+      turned: [],
+      lovers: null,
       potions: { save: true, poison: true },
       lastGuard: null,
       seen: [],
@@ -276,20 +337,45 @@ export function newGame(round: number, players: string[], opts: WolfOptions, now
   };
 }
 
-/** Phe thắng nếu ván đã ngã ngũ: hết Sói thì Dân thắng; Sói nhiều bằng phần còn lại thì Sói thắng. */
-export function winnerOf(alive: string[], roles: Record<string, Role>): Team | undefined {
-  const wolves = alive.filter((u) => roles[u] === "wolf").length;
-  if (wolves === 0) return "village";
-  if (wolves >= alive.length - wolves) return "wolf";
+/** Cặp đôi khác phe (một Sói, một không) — thành phe riêng. */
+export function mixedLovers(roles: Record<string, Role>, lovers: string[] | null | undefined) {
+  return !!lovers && lovers.length === 2 && (roles[lovers[0]] === "wolf") !== (roles[lovers[1]] === "wolf");
+}
+
+/** Phe của một người khi hết ván: cặp đôi khác phe là phe riêng, còn lại theo vai hiện tại (Bán Sói đã hoá là Sói). */
+export function sideOf(roles: Record<string, Role>, lovers: string[] | null | undefined, uid: string): Side {
+  if (mixedLovers(roles, lovers) && lovers!.includes(uid)) return "lovers";
+  return roles[uid] === "wolf" ? "wolf" : "village";
+}
+
+/**
+ * Phe thắng nếu ván đã ngã ngũ: cặp đôi khác phe là hai người cuối cùng thì cặp đôi thắng; hết Sói thì Dân thắng;
+ * Sói (không tính Sói trong cặp đôi khác phe) nhiều bằng phần còn lại thì Sói thắng.
+ */
+export function winnerOf(alive: string[], roles: Record<string, Role>, lovers?: string[] | null): Side | undefined {
+  const couple = lovers && mixedLovers(roles, lovers) && lovers.every((u) => alive.includes(u)) ? lovers : null;
+  if (couple && alive.length === 2) return "lovers";
+  const wolves = alive.filter((u) => roles[u] === "wolf");
+  if (wolves.length === 0) return "village";
+  const pack = couple ? wolves.filter((u) => !couple.includes(u)) : wolves;
+  if (pack.length && pack.length >= alive.length - pack.length) return "wolf";
 }
 
 /** Lộ hết bí mật khi hết ván (thắng thua hoặc chủ phòng dừng). */
 export function unveil(g: Game): Public {
-  return { ...g.pub, roles: { ...g.sec.roles }, story: structuredClone(g.sec.story) };
+  const pub = { ...g.pub };
+  delete pub.turn;
+  return {
+    ...pub,
+    roles: { ...g.sec.roles },
+    turned: [...g.sec.turned],
+    ...(g.sec.lovers ? { lovers: [...g.sec.lovers] } : {}),
+    story: structuredClone(g.sec.story),
+  };
 }
 
 function settle(g: Game) {
-  const w = winnerOf(g.pub.alive, g.sec.roles);
+  const w = winnerOf(g.pub.alive, g.sec.roles, g.sec.lovers);
   if (!w) return false;
   g.pub = { ...unveil(g), winner: w };
   return true;
@@ -305,13 +391,25 @@ function chapter(g: Game, day = g.pub.day): Chapter {
   return c;
 }
 
+/** Người yêu của `uid` (nếu có). */
+const partnerOf = (lovers: string[] | null, uid: string) => (lovers?.includes(uid) ? lovers.find((u) => u !== uid) : undefined);
+
+/** Giết những người này; người yêu của họ chết theo (ban đêm thì công bố chung như mọi người chết đêm qua). */
 function kill(g: Game, uids: string[], how: Death["how"]) {
-  for (const uid of uids) {
-    if (!g.pub.alive.includes(uid)) continue;
+  const gone = uids.filter((u) => g.pub.alive.includes(u));
+  for (const uid of gone) {
     const role = g.sec.roles[uid];
     g.pub.alive = g.pub.alive.filter((u) => u !== uid);
     g.pub.deaths.push({ uid, day: g.pub.day, how, ...(how === "hang" ? { wolf: role === "wolf" } : {}) });
     delete g.sec.night.wolves[uid];
+  }
+  for (const uid of gone) {
+    const other = partnerOf(g.sec.lovers, uid);
+    if (other && g.pub.alive.includes(other)) {
+      const c = chapter(g);
+      c.love = [...(c.love ?? []), other];
+      kill(g, [other], how === "night" ? "night" : "love");
+    }
   }
 }
 
@@ -375,13 +473,56 @@ export function consensus(g: Game): string | undefined {
   if (picks.length && picks.every(Boolean) && new Set(picks).size === 1) return picks[0];
 }
 
-/** Những người còn sống phải chốt hành động đêm nay (Phù Thủy hết thuốc thì không phải chờ). */
+/** Các lượt của đêm nay theo thứ tự: mọi vai có chức năng trong đội hình (kể cả khi đã chết), Cupid chỉ đêm đầu. */
+export function nightTurns(pub: Pick<Public, "cast" | "day">): Role[] {
+  return NIGHT_ORDER.filter((r) => pub.cast[r] > 0 && (r !== "cupid" || pub.day === 1));
+}
+
+/** Những người phải chốt trong lượt hiện tại (Phù Thủy hết thuốc thì không ai). */
 export function actorsOf(g: Game) {
-  return g.pub.alive.filter((u) => {
-    const r = g.sec.roles[u];
-    if (r === "witch") return g.sec.potions.save || g.sec.potions.poison;
-    return r === "wolf" || r === "guard" || r === "seer";
-  });
+  const r = g.pub.turn;
+  if (!r || (r === "witch" && !g.sec.potions.save && !g.sec.potions.poison)) return [];
+  return living(g, r);
+}
+
+/** Gọi vai kế tiếp dậy; hết lượt thì đếm ngược tới sáng. */
+function nextTurn(g: Game, now: number, rand: () => number) {
+  const order = nightTurns(g.pub);
+  const next = order[g.pub.turn ? order.indexOf(g.pub.turn) + 1 : 0];
+  if (!next) return endNight(g, now);
+  g.pub.turn = next;
+  const n = g.sec.night;
+  n.turnAt = now;
+  n.idleUntil = actorsOf(g).length ? undefined : now + DURATION.idleMin + Math.floor(rand() * (DURATION.idleMax - DURATION.idleMin));
+}
+
+/** Hết lượt của vai hiện tại: chốt lựa chọn đang có (Cupid ghép đôi, nạn nhân của bầy Sói, người Tiên Tri soi). */
+function endTurn(g: Game, now: number, rand: () => number) {
+  const n = g.sec.night;
+  switch (g.pub.turn) {
+    case "cupid": {
+      const pair = n.cupid?.filter((u) => g.pub.alive.includes(u));
+      if (pair?.length === 2 && !g.sec.lovers) {
+        g.sec.lovers = pair;
+        chapter(g).lovers = pair;
+      }
+      break;
+    }
+    case "wolf":
+      n.victim = wolfTarget(n.wolves, rand);
+      break;
+    case "seer":
+      lockSeer(g);
+      break;
+  }
+  nextTurn(g, now, rand);
+}
+
+function startNight(g: Game, now: number, rand: () => number) {
+  enter(g.pub, "night", now, 0);
+  delete g.pub.turn;
+  g.sec.night = freshPlan(now);
+  nextTurn(g, now, rand);
 }
 
 function lockSeer(g: Game) {
@@ -405,16 +546,31 @@ export function advance(g0: Game, inp: Input): Game {
 
   switch (pub.stage) {
     case "intro": {
-      if (now >= pub.until) enter(pub, "night", now, 0);
+      if (now >= pub.until) startNight(g, now, inp.rand);
       break;
     }
     case "night": {
       const n = sec.night;
+      const turn = pub.turn;
       for (const u of pub.alive) {
         const a = act(u);
         if (!a) continue;
         const r = sec.roles[u];
+        // Sói thì thầm được cả đêm; còn lại chỉ vai đang được gọi mới chọn / chốt.
+        if (r === "wolf" && Array.isArray(a.say)) {
+          for (const s of a.say) {
+            if (typeof s?.id !== "string" || typeof s.text !== "string" || !s.text.trim() || sec.whisper.some((w) => w.id === s.id)) continue;
+            sec.whisper.push({ id: s.id, uid: u, text: s.text.trim().slice(0, WHISPER_TEXT) });
+          }
+          sec.whisper = sec.whisper.slice(-WHISPER_LIMIT);
+        }
+        if (r !== turn) continue;
         let chosen = false;
+        if (r === "cupid") {
+          const pair = Array.isArray(a.cupid) ? [...new Set(a.cupid)].filter(alive) : [];
+          if (pair.length === 2) n.cupid = pair;
+          chosen = n.cupid?.length === 2;
+        }
         if (r === "guard") {
           if (a.guard !== undefined && canGuard(g, u, a.guard, opts)) n.guard = a.guard;
           chosen = n.guard !== undefined;
@@ -422,20 +578,13 @@ export function advance(g0: Game, inp: Input): Game {
         if (r === "wolf") {
           if (a.wolf !== undefined && alive(a.wolf) && sec.roles[a.wolf] !== "wolf") n.wolves[u] = a.wolf;
           chosen = !!n.wolves[u];
-          if (Array.isArray(a.say)) {
-            for (const s of a.say) {
-              if (typeof s?.id !== "string" || typeof s.text !== "string" || !s.text.trim() || sec.whisper.some((w) => w.id === s.id)) continue;
-              sec.whisper.push({ id: s.id, uid: u, text: s.text.trim().slice(0, WHISPER_TEXT) });
-            }
-            sec.whisper = sec.whisper.slice(-WHISPER_LIMIT);
-          }
         }
         if (r === "seer") {
           if (n.seer === undefined && a.seer !== undefined && alive(a.seer) && a.seer !== u) n.seerPick = a.seer;
           chosen = n.seerPick !== undefined;
         }
         if (r === "witch") {
-          if (a.save !== undefined) n.save = a.save && sec.potions.save && alive(a.save) ? a.save : undefined;
+          if (a.save !== undefined) n.save = a.save && sec.potions.save && a.save === n.victim ? a.save : undefined;
           if (a.poison !== undefined) n.poison = a.poison && sec.potions.poison && alive(a.poison) && a.poison !== u ? a.poison : undefined;
           chosen = true;
         }
@@ -444,8 +593,9 @@ export function advance(g0: Game, inp: Input): Game {
           if (r === "seer") lockSeer(g);
         }
       }
-      // Đêm không hết giờ: chờ mọi vai có chức năng chốt xong (quản trò có thể cho trời sáng sớm).
-      if (actorsOf(g).every((u) => n.done[u]) && now >= pub.since + DURATION.nightMin) endNight(g, now, inp.rand);
+      // Lượt không hết giờ: chờ mọi người giữ vai đang được gọi chốt xong (quản trò có thể bỏ qua lượt / cho trời sáng).
+      const actors = actorsOf(g);
+      if (actors.length ? actors.every((u) => n.done[u]) : now >= (n.idleUntil ?? 0)) endTurn(g, now, inp.rand);
       break;
     }
     case "dawn": {
@@ -488,25 +638,32 @@ export function advance(g0: Game, inp: Input): Game {
       if (now < pub.until) break;
       pub.day += 1;
       delete pub.hanged;
-      enter(pub, "night", now, 0);
+      startNight(g, now, inp.rand);
       break;
     }
   }
   return g;
 }
 
-/** Hết đêm: chốt người Tiên Tri soi (nếu đang chọn), nạn nhân của bầy Sói, rồi đếm ngược tới sáng. */
-function endNight(g: Game, now: number, rand: () => number) {
-  lockSeer(g);
-  g.sec.night.victim = wolfTarget(g.sec.night.wolves, rand);
+/** Hết đêm: đếm ngược tới sáng. */
+function endNight(g: Game, now: number) {
+  delete g.pub.turn;
   enter(g.pub, "dawn", now, DURATION.dawn);
 }
 
-/** Quản trò cho trời sáng ngay (có người treo máy không chốt): lựa chọn đang có vẫn được tính. */
+/** Quản trò bỏ qua lượt hiện tại (người giữ vai treo máy): lựa chọn đang có vẫn được tính, gọi vai kế tiếp. */
+export function skipTurn(g0: Game, now: number, rand: () => number): Game {
+  if (g0.pub.stage !== "night" || g0.pub.winner) return g0;
+  const g: Game = structuredClone(g0);
+  endTurn(g, now, rand);
+  return g;
+}
+
+/** Quản trò cho trời sáng ngay: lượt đang dở vẫn tính lựa chọn đang có, các lượt sau bị bỏ qua. */
 export function skipNight(g0: Game, now: number, rand: () => number): Game {
   if (g0.pub.stage !== "night" || g0.pub.winner) return g0;
   const g: Game = structuredClone(g0);
-  endNight(g, now, rand);
+  for (let i = 0; i <= NIGHT_ORDER.length && g.pub.stage === "night"; i++) endTurn(g, now, rand);
   return g;
 }
 
@@ -517,22 +674,42 @@ function dawn(g: Game, now: number, opts: WolfOptions) {
   const victim = n.victim ?? null;
   const saved = !!victim && n.save === victim && sec.potions.save;
   const dead: string[] = [];
-  if (victim && victim !== n.guard && !saved) dead.push(victim);
+  let turned: string | undefined;
+  if (victim && victim !== n.guard && !saved) {
+    // Bán Sói bị cắn không chết mà hoá Sói.
+    if (sec.roles[victim] === "cursed") {
+      sec.roles[victim] = "wolf";
+      sec.turned.push(victim);
+      turned = victim;
+    } else dead.push(victim);
+  }
   if (saved) sec.potions.save = false;
   if (n.poison) {
     sec.potions.poison = false;
     if (!dead.includes(n.poison)) dead.push(n.poison);
   }
+  // Người yêu chết theo, công bố chung với những người chết đêm qua.
+  const love: string[] = [];
+  for (const u of [...dead]) {
+    const other = partnerOf(sec.lovers, u);
+    if (other && pub.alive.includes(other) && !dead.includes(other)) {
+      dead.push(other);
+      love.push(other);
+    }
+  }
   sec.lastGuard = n.guard ?? null;
   // Xếp theo thứ tự ghế để không lộ ai bị Sói cắn, ai bị đầu độc.
   const died = pub.alive.filter((u) => dead.includes(u));
-  Object.assign(chapter(g), {
+  const c = chapter(g);
+  Object.assign(c, {
     bite: victim,
     ...(n.guard ? { guard: n.guard } : {}),
     ...(n.seer ? { seer: { target: n.seer, wolf: sec.roles[n.seer] === "wolf" } } : {}),
     ...(saved ? { save: victim } : {}),
     ...(n.poison ? { poison: n.poison } : {}),
+    ...(turned ? { turned } : {}),
     died,
+    ...(love.length ? { love: [...(c.love ?? []), ...love] } : {}),
   });
   sec.night = freshPlan();
   kill(g, died, "night");
@@ -565,16 +742,28 @@ export const diedAt = (pub: Public, day: number, how: Death["how"] = "night") =>
 /** Những gì người biết hết (quản trò, người xem) thấy: vai mọi người và hành động đêm nay. */
 export type WatchView = {
   roles: Record<string, Role>;
-  night?: { guard?: string; wolves: Record<string, string>; seer?: string; save?: string; poison?: string; victim?: string; done: string[] };
+  turned: string[];
+  lovers?: string[];
+  night?: {
+    cupid?: string[];
+    guard?: string;
+    wolves: Record<string, string>;
+    seer?: string;
+    save?: string;
+    poison?: string;
+    victim?: string;
+    done: string[];
+  };
 };
 
 export function watchView(g: Game): WatchView {
   const n = g.sec.night;
-  const v: WatchView = { roles: { ...g.sec.roles } };
+  const v: WatchView = { roles: { ...g.sec.roles }, turned: [...g.sec.turned], ...(g.sec.lovers ? { lovers: [...g.sec.lovers] } : {}) };
   if (g.pub.stage === "night" || g.pub.stage === "dawn") {
     v.night = {
       wolves: { ...n.wolves },
       done: Object.keys(n.done),
+      ...(n.cupid && !g.sec.lovers ? { cupid: [...n.cupid] } : {}),
       ...(n.guard ? { guard: n.guard } : {}),
       ...((n.seer ?? n.seerPick) ? { seer: n.seer ?? n.seerPick } : {}),
       ...(n.save ? { save: n.save } : {}),
@@ -590,6 +779,14 @@ export type SecretView = {
   role?: Role;
   /** Đã chốt hành động đêm nay. */
   done?: boolean;
+  /** Bán Sói đã bị cắn, hoá Sói (`role` là "wolf"). */
+  turned?: boolean;
+  /** Người trong cặp đôi: người yêu và vai hiện tại của họ. */
+  lover?: string;
+  loverRole?: Role;
+  /** Cupid: cặp đôi đã ghép; ban đêm đầu: hai người đang chọn. */
+  lovers?: string[];
+  cupid?: string[];
   /** Sói: cả bầy (kể cả con đã chết). */
   pack?: string[];
   /** Sói, ban đêm: lựa chọn hiện tại của từng con. */
@@ -603,8 +800,8 @@ export type SecretView = {
   guarded?: string;
   /** Phù Thủy. */
   potions?: Secret["potions"];
-  /** Phù Thủy, ban đêm: người bầy Sói đang thống nhất cắn (chưa thống nhất thì không có), quyết định đã ghi nhận. */
-  victim?: string;
+  /** Phù Thủy, tới lượt và còn bình cứu: người bầy Sói đã cắn (null: không cắn ai); quyết định đã ghi nhận. */
+  victim?: string | null;
   save?: string;
   poison?: string;
   /** Người xem (không chơi): thấy hết. */
@@ -619,6 +816,13 @@ export function secretFor(g: Game, uid: string): SecretView | undefined {
   const night = pub.stage === "night";
   const v: SecretView = { role };
   if (night && n.done[uid]) v.done = true;
+  if (sec.turned.includes(uid)) v.turned = true;
+  const lover = partnerOf(sec.lovers, uid);
+  if (lover) Object.assign(v, { lover, loverRole: sec.roles[lover] });
+  if (role === "cupid") {
+    if (sec.lovers) v.lovers = [...sec.lovers];
+    else if (night && n.cupid) v.cupid = [...n.cupid];
+  }
   if (role === "wolf") {
     v.pack = Object.keys(sec.roles).filter((u) => sec.roles[u] === "wolf");
     if (night) v.picks = { ...n.wolves };
@@ -634,9 +838,8 @@ export function secretFor(g: Game, uid: string): SecretView | undefined {
   }
   if (role === "witch") {
     v.potions = sec.potions;
-    if (night) {
-      const victim = consensus(g);
-      if (victim) v.victim = victim;
+    if (night && pub.turn === "witch") {
+      if (sec.potions.save && n.victim !== undefined) v.victim = n.victim;
       if (n.save) v.save = n.save;
       if (n.poison) v.poison = n.poison;
     }

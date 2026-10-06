@@ -26,10 +26,11 @@ import {
   newGame,
   normOptions,
   readyOf,
-  ROLES,
   secretFor,
+  sideOf,
   skipNight,
   skipTalk,
+  skipTurn,
   unveil,
   watchView,
   WHISPER_TEXT,
@@ -40,7 +41,7 @@ import {
   type Public,
   type Role,
   type SecretView,
-  type Team,
+  type Side,
   type Vote,
   type WatchView,
   type WolfOptions,
@@ -86,7 +87,7 @@ export type Scene = { id: string } & (
   | { kind: "sunrise"; day: number; dead: Death[] }
   | { kind: "hang"; death: Death }
   | { kind: "spared" }
-  | { kind: "end"; team: Team }
+  | { kind: "end"; team: Side }
 );
 type DistOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 type SceneBody = DistOmit<Scene, "id">;
@@ -322,7 +323,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     const pub = m.ww;
     if (!pub?.winner || pub.round !== m.round) return;
     const roles = pub.roles ?? {};
-    const winners = m.lineup.filter((u) => roles[u] && ROLES[roles[u]].team === pub.winner);
+    const winners = m.lineup.filter((u) => roles[u] && sideOf(roles, pub.lovers, u) === pub.winner);
     return { round: m.round, winner: null, winners, reason: "team", team: pub.winner };
   }
 
@@ -404,7 +405,10 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     const fresh = pub ? pub.deaths.slice(this.deathsHeard) : [];
     this.deathsHeard = pub?.deaths.length ?? 0;
     for (const d of fresh) if (d.how === "left") this.system(`🚪 ${this.who(d)} đã bỏ làng ra đi`);
-    if (key === this.heard) return;
+    if (key === this.heard) {
+      this.grief(fresh);
+      return;
+    }
     const prev = this.heard;
     this.heard = key;
     if (!pub) return;
@@ -414,7 +418,8 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       if (night.length || prev.endsWith(":dawn")) this.sunrise(pub, night);
       const hang = fresh.find((d) => d.how === "hang");
       if (hang) this.hanged(hang);
-      if (m.result?.team) this.scene({ kind: "end", team: m.result.team as Team });
+      this.grief(fresh);
+      if (m.result?.team) this.scene({ kind: "end", team: m.result.team as Side });
       return;
     }
     const d = pub.day;
@@ -448,6 +453,12 @@ export class WerewolfRoom extends RoomSession<WolfView> {
         break;
       }
     }
+    this.grief(fresh);
+  }
+
+  /** Ban ngày người yêu chết theo (ban đêm thì đã công bố chung với những người chết đêm qua). */
+  private grief(fresh: Death[]) {
+    for (const d of fresh) if (d.how === "love") this.system(`💔 ${this.who(d)} đau buồn chết theo người yêu`);
   }
 
   // ---------- giao diện ----------
@@ -497,6 +508,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
   protected resultText(r: Result, name: (uid: string) => string) {
     if (r.team === "wolf") return `🐺 Phe Ma Sói thắng ván ${r.round}! (${(r.winners ?? []).map(name).join(", ")})`;
     if (r.team === "village") return `👨‍🌾 Dân làng thắng ván ${r.round}!`;
+    if (r.team === "lovers") return `💘 Cặp đôi ${(r.winners ?? []).map(name).join(" & ")} thắng ván ${r.round}!`;
     return `Ván ${r.round} đã dừng giữa chừng`;
   }
 
@@ -533,12 +545,17 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.plan({ [kind]: target });
   }
 
+  /** Cupid: hai người sẽ ghép đôi. */
+  cupid(pair: string[]) {
+    this.plan({ cupid: pair.slice(-2) });
+  }
+
   /** Phù Thủy: cứu người bị cắn (null: thôi cứu), chọn người đầu độc (null: bỏ chọn). */
   witch(change: { save?: string | null; poison?: string | null }) {
     this.plan(change);
   }
 
-  /** Chốt hành động đêm nay — mọi vai có chức năng chốt xong thì trời sáng. */
+  /** Chốt hành động đêm nay — những người giữ vai đang được gọi chốt xong thì tới lượt vai kế tiếp. */
   confirm() {
     this.plan({ done: true });
   }
@@ -589,7 +606,16 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
-  /** Cho trời sáng ngay, không chờ người chưa chốt (vd. có người treo máy). */
+  /** Bỏ qua lượt của vai đang được gọi (người giữ vai treo máy), gọi vai kế tiếp. */
+  skipTurn() {
+    this.hostEdit((m) => {
+      const g = m.status === "playing" ? this.gameOf(m) : null;
+      if (!g || g.pub.stage !== "night") return false;
+      this.commit(m, skipTurn(g, Date.now(), Math.random));
+    });
+  }
+
+  /** Cho trời sáng ngay, bỏ qua các lượt còn lại (vd. có người treo máy). */
   skipNight() {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;

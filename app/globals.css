@@ -216,6 +216,11 @@
     box-shadow: none;
     transform: translateY(3px);
   }
+  /* Nút bấm hai lần (ConfirmButton) đang chờ xác nhận. */
+  .btn[data-armed] {
+    outline: 3px dashed var(--coral);
+    outline-offset: 2px;
+  }
   .btn-sm {
     min-height: 34px;
     padding: 0 12px;
@@ -835,6 +840,51 @@
   }
   .ww-cast b {
     font-size: 12px;
+  }
+
+  /* Thứ tự gọi các vai ban đêm: vai đang thức sáng lên, vai đã xong mờ đi. */
+  .ww-turns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .ww-turns li {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border: 1.5px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+  .ww-turns li + li::before {
+    content: "›";
+    margin: 0 4px 0 -2px;
+    color: var(--ink-3);
+  }
+  .ww-turns li.is-past {
+    opacity: 0.55;
+    text-decoration: line-through;
+  }
+  .ww-turns li.is-now {
+    color: var(--ink);
+    border-color: var(--sun);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 35%, transparent);
+    animation: ww-turn-glow 1.6s ease-in-out infinite;
+  }
+  @keyframes ww-turn-glow {
+    50% {
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--sun) 12%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ww-turns li.is-now {
+      animation: none;
+    }
   }
 
   .ww-token {
