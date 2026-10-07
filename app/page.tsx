@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GameGrid, LiveStats } from "@/components/home/GameGrid";
+import { StickerArt } from "@/components/room/Sticker";
 
 const STEPS = [
   { n: "1", title: "Chọn game", text: "Vào sảnh của game để xem các phòng đang mở và số người trong đó.", tone: "var(--sky)" },
@@ -94,17 +95,17 @@ function HeroArt() {
           })}
         </svg>
       </div>
-      <span className="bob absolute -top-6 -left-4 text-6xl" style={{ ["--r" as string]: "-12deg" }}>
-        👏
+      <span className="bob absolute -top-6 -left-4" style={{ ["--r" as string]: "-12deg" }}>
+        <StickerArt id="clap" size={68} />
       </span>
-      <span className="bob absolute -right-3 -bottom-5 text-6xl" style={{ ["--r" as string]: "10deg", animationDelay: "-1.2s" }}>
-        🐄
+      <span className="bob absolute -right-3 -bottom-5" style={{ ["--r" as string]: "10deg", animationDelay: "-1.2s" }}>
+        <StickerArt id="cow" size={68} />
       </span>
-      <span className="bob absolute top-1/3 -right-8 text-5xl" style={{ animationDelay: "-2s" }}>
-        ❤️
+      <span className="bob absolute top-1/3 -right-8" style={{ animationDelay: "-2s" }}>
+        <StickerArt id="heart" size={54} />
       </span>
-      <span className="bob absolute -bottom-6 left-8 text-5xl" style={{ ["--r" as string]: "-20deg", animationDelay: "-0.6s" }}>
-        🧱
+      <span className="bob absolute -bottom-6 left-8" style={{ ["--r" as string]: "-20deg", animationDelay: "-0.6s" }}>
+        <StickerArt id="brick" size={54} />
       </span>
     </div>
   );

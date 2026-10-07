@@ -7,14 +7,13 @@ import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
 import { hostTitle } from "@/lib/games/registry";
-import { getSticker } from "@/lib/stickers";
 import { StickerArt } from "./Sticker";
 
 export function Balloon({ msg }: { msg?: ChatMsg }) {
   if (!msg) return null;
   return (
     <span key={msg.id} className={`balloon ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
-      {msg.sticker ? getSticker(msg.sticker)?.src ? <StickerArt id={msg.sticker} size={72} /> : getSticker(msg.sticker)?.emoji : msg.text}
+      {msg.sticker ? <StickerArt id={msg.sticker} size={72} /> : msg.text}
     </span>
   );
 }

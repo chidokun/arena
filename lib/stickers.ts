@@ -1,14 +1,14 @@
 /**
  * Danh mục sticker dùng chung cho mạng (kiểm tra id nhận được) và giao diện (hiển thị).
- * - Bộ "nhanh": emoji, có hiệu ứng bay riêng trên bàn chơi.
+ * - Bộ "nhanh": ảnh trong public/stickers/quick, mỗi cái có hiệu ứng bay riêng trên bàn chơi.
  * - KaiXin Stickers: ảnh tĩnh trong public/stickers/kaixin, gửi một cái là cả đàn bay qua bàn chơi.
  */
 
-const EMOJI = [
-  { id: "heart", emoji: "❤️", label: "Trái tim" },
-  { id: "brick", emoji: "🧱", label: "Cục gạch" },
-  { id: "cow", emoji: "🐄", label: "Con bò" },
-  { id: "clap", emoji: "👏", label: "Vỗ tay" },
+const QUICK = [
+  { id: "heart", label: "Trái tim" },
+  { id: "brick", label: "Cục gạch" },
+  { id: "cow", label: "Con bò" },
+  { id: "clap", label: "Vỗ tay" },
 ] as const;
 
 const KAIXIN = [
@@ -26,17 +26,19 @@ const KAIXIN = [
   { id: "kx-vua", label: "Vua" },
 ] as const;
 
-export type EmojiStickerId = (typeof EMOJI)[number]["id"];
-export type StickerId = EmojiStickerId | (typeof KAIXIN)[number]["id"];
+export type QuickStickerId = (typeof QUICK)[number]["id"];
+export type StickerId = QuickStickerId | (typeof KAIXIN)[number]["id"];
 
-export type Sticker = { id: StickerId; label: string } & ({ emoji: string; src?: undefined } | { emoji?: undefined; src: string });
+/** `pack`: "quick" bay một cái theo hiệu ứng riêng, "kaixin" bay cả đàn. */
+export type Sticker = { id: StickerId; label: string; src: string; pack: "quick" | "kaixin" };
 
-export const EMOJI_STICKERS: Sticker[] = EMOJI.map((s) => ({ ...s }));
+export const QUICK_STICKERS: Sticker[] = QUICK.map((s) => ({ ...s, src: `/stickers/quick/${s.id}.webp`, pack: "quick" }));
 
 export const KAIXIN_PACK = "KaiXin Stickers";
-export const KAIXIN_STICKERS: Sticker[] = KAIXIN.map((s) => ({ ...s, src: `/stickers/kaixin/${s.id.slice(3)}.webp` }));
+export const KAIXIN_STICKERS: Sticker[] = KAIXIN.map((s) => ({ ...s, src: `/stickers/kaixin/${s.id.slice(3)}.webp`, pack: "kaixin" }));
 
-const BY_ID = new Map<string, Sticker>([...EMOJI_STICKERS, ...KAIXIN_STICKERS].map((s) => [s.id, s]));
+const BY_ID = new Map<string, Sticker>([...QUICK_STICKERS, ...KAIXIN_STICKERS].map((s) => [s.id, s]));
 
 export const getSticker = (id: string) => BY_ID.get(id);
+export const isKaixin = (id: string) => BY_ID.get(id)?.pack === "kaixin";
 export const isStickerId = (id: unknown): id is StickerId => typeof id === "string" && BY_ID.has(id);

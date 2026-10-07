@@ -4,7 +4,7 @@
  * hay việc chuyển trang nhanh không làm rời rồi vào lại room liên tục.
  */
 import type { Wire, WireKind } from "./gossip";
-import { forceRelay, turnServers } from "./ice";
+import { forceRelay, turnOnAnswer, turnServers } from "./ice";
 
 export const APP_ID = "arena.nguyentuan.dev/v1";
 const KINDS: WireKind[] = ["dig", "dlt", "req", "rum"];
@@ -145,14 +145,20 @@ export async function openChannel(name: string): Promise<Channel> {
         {
           appId: `${APP_ID}/${name}`,
           relayConfig: { urls: RELAY_URLS, warnOnRelayFailure: false },
-          turnConfig: turn,
-          rtcConfig: relayOnly ? { iceTransportPolicy: "relay" } : undefined,
+          // Bình thường chỉ phía trả lời offer mới xin TURN (xem lib/net/ice.ts). Ở chế độ `?relay` thì mọi kết
+          // nối đều phải có TURN, nếu không phía chào hàng sẽ không có ứng viên ICE nào.
+          ...(relayOnly
+            ? { turnConfig: turn, rtcConfig: { iceTransportPolicy: "relay" as const } }
+            : { rtcPolyfill: turnOnAnswer(turn) }),
         },
         name,
         {
           onJoinError: (d) => {
             h.noteFailure(d.peerId);
-            console.warn(`[arena] kênh ${name}: không nối được peer ${d.peerId}`, d.error);
+            console.warn(
+              `[arena] kênh ${name}: không nối được peer ${d.peerId} (${turn.length ? "đã có TURN" : "không có TURN"})`,
+              d.error,
+            );
           },
         },
       ),

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMsg, RoomSession } from "@/lib/net/room";
-import { EMOJI_STICKERS, getSticker, KAIXIN_PACK, KAIXIN_STICKERS, type StickerId } from "@/lib/stickers";
+import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
 import { StickerArt } from "./Sticker";
 
@@ -37,7 +37,7 @@ function Icon({ m }: { m: ChatMsg }) {
         {m.text}
       </span>
     );
-  return <StickerArt id={m.sticker} size={getSticker(m.sticker)?.src ? 120 : 56} className="pop-in" />;
+  return <StickerArt id={m.sticker} size={120} className="pop-in" />;
 }
 
 /** `locked`: lý do tạm không cho gửi tin (ma sói: ban đêm, người đã chết) — vẫn đọc được. */
@@ -190,16 +190,16 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
                 </div>
             )}
             <div className="mb-2.5 flex gap-1.5" role="group" aria-label="Gửi sticker">
-              {EMOJI_STICKERS.map((s) => (
+              {QUICK_STICKERS.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   title={s.label}
                   aria-label={`Gửi sticker ${s.label}`}
                   onClick={() => sendSticker(s.id)}
-                  className="grid h-10 flex-1 place-items-center rounded-xl border-2 border-edge bg-surface text-[22px] transition-transform hover:-translate-y-0.5 hover:bg-sunken active:translate-y-0.5"
+                  className="grid h-10 flex-1 place-items-center rounded-xl border-2 border-edge bg-surface transition-transform hover:-translate-y-0.5 hover:bg-sunken active:translate-y-0.5"
                 >
-                  {s.emoji}
+                  <StickerArt id={s.id} size={30} />
                 </button>
               ))}
               <button

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { gameHref, getGame } from "@/lib/games/registry";
-import { getSticker } from "@/lib/stickers";
+import { isKaixin } from "@/lib/stickers";
 import { StickerArt } from "./Sticker";
 import type { Flyer } from "./useRoom";
 
@@ -83,22 +83,25 @@ export function StatusChip({ status, round, playing = "đang đấu" }: { status
   );
 }
 
-/** Sticker bay ngang bàn chơi (đặt trong khối `relative`). */
+/** Sticker và pháo giấy bay ngang bàn chơi (đặt trong khối `relative`). */
 export function Flyers({ flyers }: { flyers: Flyer[] }) {
-  return flyers.map((f) =>
-    getSticker(f.sticker)?.src ? (
-      <span
-        key={f.key}
-        className="fly fly-kx"
-        style={{ left: `${f.left}%`, top: `${f.top}%`, animationDelay: `${f.delay ?? 0}ms`, ["--rot" as string]: `${f.rot ?? 0}deg`, ["--dx" as string]: `${f.dx ?? 0}px` }}
-        aria-hidden="true"
-      >
-        <StickerArt id={f.sticker} size={f.size ?? 110} />
+  return flyers.map((f) => {
+    const style = {
+      left: `${f.left}%`,
+      top: `${f.top}%`,
+      animationDelay: `${f.delay ?? 0}ms`,
+      ["--rot" as string]: `${f.rot ?? 0}deg`,
+      ["--dx" as string]: `${f.dx ?? 0}px`,
+      ["--dy" as string]: `${f.dy ?? 0}px`,
+      ["--dir" as string]: f.dir ?? 1,
+    };
+    if (f.color)
+      return <span key={f.key} className="fly-confetti" style={{ ...style, width: f.size, height: (f.size ?? 10) * 0.55, background: f.color }} aria-hidden="true" />;
+    if (!f.sticker) return null;
+    return (
+      <span key={f.key} className={`fly ${isKaixin(f.sticker) ? "fly-kx" : `fly-${f.sticker}`}`} style={style} aria-hidden="true">
+        <StickerArt id={f.sticker} size={f.size ?? 90} />
       </span>
-    ) : (
-      <span key={f.key} className={`fly fly-${f.sticker}`} style={{ left: `${f.left}%`, top: `${f.top}%` }} aria-hidden="true">
-        {getSticker(f.sticker)?.emoji}
-      </span>
-    ),
-  );
+    );
+  });
 }

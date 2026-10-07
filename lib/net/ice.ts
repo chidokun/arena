@@ -11,6 +11,12 @@
  * Có thể dùng cả hai; không đặt gì thì chỉ có STUN như cũ.
  *
  * Thử TURN trên một máy: thêm `?relay` vào URL để ép mọi kết nối đi qua TURN (giữ trong tab đến khi đóng).
+ *
+ * Tiết kiệm allocation: mỗi RTCPeerConnection xin một allocation TURN cho *mỗi* URL, mà Trystero luôn giữ sẵn
+ * 20 kết nối chào hàng (offer pool) và làm mới chúng mỗi ~1 phút — nếu cấp TURN cho cả pool thì một tab ngốn
+ * hàng chục allocation, gói miễn phí hết quota ngay ("486 Allocation Quota Reached") và TURN coi như không có.
+ * Vì vậy chỉ phía trả lời offer mới xin TURN (`turnOnAnswer`): một cặp peer chỉ cần một bên có ứng viên relay
+ * là đi được, kể cả khi bên kia sau NAT đối xứng. Mỗi máy chủ cũng chỉ giữ một URL UDP và một URL TCP/TLS.
  */
 
 export type IceServer = { urls: string | string[]; username?: string; credential?: string };
@@ -34,11 +40,54 @@ function isIceServer(x: unknown): x is IceServer {
   return !!s && (typeof s.urls === "string" || (Array.isArray(s.urls) && s.urls.every((u) => typeof u === "string")));
 }
 
-/** Chỉ giữ địa chỉ TURN: STUN đã có sẵn trong Trystero, thêm nữa chỉ làm chậm việc thu thập ứng viên ICE. */
-function turnOnly(list: IceServer[]): IceServer[] {
+const isTcp = (u: string) => /^turns:/i.test(u) || /transport=tcp/i.test(u);
+
+/** Ưu tiên cổng 443 (ít bị tường lửa chặn), rồi tới TLS (`turns:`) cho đường TCP. */
+const rank = (u: string) => Number(/:443\b/.test(u)) * 2 + Number(/^turns:/i.test(u));
+
+/**
+ * Chỉ giữ địa chỉ TURN (STUN đã có sẵn trong Trystero), và mỗi máy chủ chỉ một URL UDP + một URL TCP/TLS:
+ * nhà cung cấp hay trả về 4–6 URL, mỗi URL lại là một allocation riêng.
+ */
+export function turnOnly(list: IceServer[]): IceServer[] {
   return list
-    .map((s) => ({ ...s, urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => /^turns?:/i.test(u)) }))
+    .map((s) => {
+      const turn = (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => /^turns?:/i.test(u));
+      const best = (xs: string[]) => xs.reduce<string | undefined>((a, u) => (a == null || rank(u) > rank(a) ? u : a), undefined);
+      const urls = [best(turn.filter((u) => !isTcp(u))), best(turn.filter(isTcp))].filter((u): u is string => !!u);
+      return { ...s, urls };
+    })
     .filter((s) => s.urls.length > 0);
+}
+
+/**
+ * RTCPeerConnection chỉ thêm máy chủ TURN khi nhận offer (tức là phía trả lời), ngay trước khi bắt đầu thu thập
+ * ứng viên ICE. Kết nối chào hàng trong pool của Trystero vì vậy không chiếm allocation nào.
+ */
+export function turnOnAnswer(turn: IceServer[]): typeof RTCPeerConnection | undefined {
+  if (!turn.length || typeof RTCPeerConnection === "undefined") return undefined;
+  return class extends RTCPeerConnection {
+    private turnAdded = false;
+
+    override setRemoteDescription(desc: RTCSessionDescriptionInit): Promise<void>;
+    override setRemoteDescription(
+      desc: RTCSessionDescriptionInit,
+      ok: VoidFunction,
+      fail: RTCPeerConnectionErrorCallback,
+    ): Promise<void>;
+    override setRemoteDescription(desc: RTCSessionDescriptionInit, ok?: VoidFunction, fail?: RTCPeerConnectionErrorCallback) {
+      if (!this.turnAdded && desc?.type === "offer" && !this.localDescription) {
+        this.turnAdded = true;
+        try {
+          const cfg = this.getConfiguration();
+          this.setConfiguration({ ...cfg, iceServers: [...(cfg.iceServers ?? []), ...turn] });
+        } catch (e) {
+          console.warn("[arena] không gắn được TURN vào kết nối", e);
+        }
+      }
+      return ok && fail ? super.setRemoteDescription(desc, ok, fail) : super.setRemoteDescription(desc);
+    }
+  };
 }
 
 async function fetchServers(url: string): Promise<IceServer[]> {
