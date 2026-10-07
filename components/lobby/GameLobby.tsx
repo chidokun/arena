@@ -6,6 +6,17 @@ import { useState } from "react";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
+  DEFAULT_OPTIONS as SD_DEFAULTS,
+  LEVEL_KEYS,
+  LEVELS,
+  MAX_PLAYERS as SD_MAX,
+  MODE_KEYS,
+  MODES,
+  normOptions as sdOptions,
+  type Level,
+  type Mode,
+} from "@/lib/games/sudoku";
+import {
   DEFAULT_OPTIONS as UC_DEFAULTS,
   MAX_PLAYERS as UC_MAX,
   MIN_PLAYERS as UC_MIN,
@@ -112,12 +123,13 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const loto = room.game === "loto";
   const wolf = room.game === "werewolf";
   const spy = room.game === "undercover";
+  const sudoku = room.game === "sudoku";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
   const status = playing
-    ? { label: loto ? "Đang kêu số" : wolf || spy ? "Đang chơi" : "Đang đấu", color: "var(--coral)" }
+    ? { label: loto ? "Đang kêu số" : wolf || spy ? "Đang chơi" : sudoku ? "Đang giải" : "Đang đấu", color: "var(--coral)" }
     : room.status === "ended"
       ? { label: "Vừa xong ván", color: "var(--grape)" }
       : { label: "Đang chờ", color: "var(--lime)" };
@@ -134,7 +146,17 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           {status.label}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? <LotoChips room={room} /> : wolf ? <WolfChips room={room} /> : spy ? <UcChips room={room} /> : <CaroChips room={room} />}</div>
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">{loto ? (
+          <LotoChips room={room} />
+        ) : wolf ? (
+          <WolfChips room={room} />
+        ) : spy ? (
+          <UcChips room={room} />
+        ) : sudoku ? (
+          <SudokuChips room={room} />
+        ) : (
+          <CaroChips room={room} />
+        )}</div>
       <div className="mt-auto flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-ink-3">#{room.id}</span>
         {full ? (
@@ -219,6 +241,24 @@ function UcChips({ room }: { room: RoomAd }) {
   );
 }
 
+function SudokuChips({ room }: { room: RoomAd }) {
+  const opts = sdOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-lime-soft px-2.5 py-1">
+        {LEVELS[opts.level].emoji} {LEVELS[opts.level].name}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        {MODES[opts.mode].emoji} {MODES[opts.mode].name}
+      </span>
+    </>
+  );
+}
+
 function JoinByCode({ slug }: { slug: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -253,9 +293,12 @@ function CreateForm({ slug }: { slug: string }) {
   const [pace, setPace] = useState(DEFAULT_PACE);
   const [talk, setTalk] = useState(DEFAULT_OPTIONS.talk);
   const [hostPlays, setHostPlays] = useState(UC_DEFAULTS.hostPlays);
+  const [level, setLevel] = useState<Level>(SD_DEFAULTS.level);
+  const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
+  const sudoku = slug === "sudoku";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -276,6 +319,9 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (spy) {
           // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: UC_MAX, opts: { ...UC_DEFAULTS, hostPlays } });
+        } else if (sudoku) {
+          // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
@@ -286,7 +332,32 @@ function CreateForm({ slug }: { slug: string }) {
         </label>
         <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
       </div>
-      {spy ? (
+      {sudoku ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Mức đề</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {LEVEL_KEYS.map((l) => (
+                <button key={l} type="button" onClick={() => setLevel(l)} aria-pressed={level === l} className={`btn !px-2 ${level === l ? "btn-sun" : ""}`}>
+                  {LEVELS[l].emoji} {LEVELS[l].name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">{LEVELS[level].text}</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chế độ tranh đấu</legend>
+            <div className="grid gap-2">
+              {MODE_KEYS.map((k) => (
+                <Choice key={k} on={mode === k} onClick={() => setMode(k)} title={`${MODES[k].emoji} ${MODES[k].name}`} text={MODES[k].text} />
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
+            🔢 Từ 1 đến {SD_MAX} người chơi, ai vào cũng xem được. Mỗi ván một đề mới; mức đề và chế độ đổi được trong phòng trước mỗi ván.
+          </p>
+        </>
+      ) : spy ? (
         <>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Chủ phòng</legend>

@@ -6,11 +6,12 @@ import { CaroRoom } from "@/lib/net/caro-room";
 import type { Lobby } from "@/lib/net/lobby";
 import { LotoRoom } from "@/lib/net/loto-room";
 import type { ChatMsg, RoomSession, RoomView, StickerId } from "@/lib/net/room";
+import { SudokuRoom } from "@/lib/net/sudoku-room";
 import { UndercoverRoom } from "@/lib/net/undercover-room";
 import { WerewolfRoom } from "@/lib/net/werewolf-room";
 import { getSticker } from "@/lib/stickers";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -29,7 +30,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
           ? WerewolfRoom.open(id, uid, profile, lobby)
           : game === "undercover"
             ? UndercoverRoom.open(id, uid, profile, lobby)
-            : CaroRoom.open(id, uid, profile, lobby);
+            : game === "sudoku"
+              ? SudokuRoom.open(id, uid, profile, lobby)
+              : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }

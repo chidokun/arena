@@ -68,6 +68,18 @@ export const GAMES: GameDef[] = [
     emoji: "🕵️",
   },
   {
+    slug: "sudoku",
+    name: "Sudoku Tranh Đấu",
+    tagline: "Cùng một đề — ai nhanh tay, nhanh trí hơn?",
+    description:
+      "Cả phòng nhận cùng một đề Sudoku 9×9 mức Dễ, Vừa hoặc Khó. Cùng giải đề: mọi người điền chung một bàn, điền đúng một ô trước người khác được 1 điểm, sai bị trừ — nhiều điểm nhất thắng. Đối kháng: mỗi người tự giải đề của mình, ô người khác đã giải được tô màu người nhanh nhất — ai giải xong trước thắng, người còn lại giải tiếp để xếp hạng.",
+    seats: { min: 1, max: 10 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "lime",
+    emoji: "🔢",
+  },
+  {
     slug: "connect-four",
     name: "Thả Cờ 4",
     tagline: "Thả quân, nối bốn, hạ đối thủ",

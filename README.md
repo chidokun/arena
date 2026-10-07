@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -28,12 +28,14 @@ lib/net/caro-room.ts  phòng caro (lớp con của RoomSession): nước đi, xi
 lib/net/loto-room.ts  phòng lô tô: chọn tờ, chủ phòng kêu số, rao "Hò!" / "Kinh!"
 lib/net/werewolf-room.ts  phòng ma sói: máy chủ phòng làm quản trò, bí mật niêm phong giữa từng người và quản trò
 lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, từ khoá niêm phong giữa từng người và máy chủ phòng
+lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của mình, máy chủ phòng phân xử thứ tự và ghi bàn chung
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
 lib/games/werewolf.ts luật ma sói thuần (máy trạng thái đêm → ngày → bỏ phiếu, điều kiện thắng)
 lib/games/undercover.ts luật undercover thuần (phát từ → thảo luận → biểu quyết → phe Trắng đoán, điều kiện thắng)
 lib/games/undercover-words.ts bộ 1000 cặp từ khoá
+lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed theo mức, phân xử nước điền, dựng lại điểm từ bàn chung)
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -105,6 +107,27 @@ suy ra từ phần công khai `meta.uc`. Từ khoá và phe đi trong `s:<ván>:
 dài hộp không lộ ai thuộc phe Trắng), người xem nhận bản thấy hết và bị khoá chat trong ván. Người chơi mất kết nối 60
 giây thì bị loại (lộ phe).
 
+**Sudoku Tranh Đấu** (slug `sudoku`). 1–10 người chơi (bấm *Vào chơi* để vào ghế), phòng không giới hạn người xem.
+Chủ phòng chọn *mức đề* và *chế độ* trước mỗi ván. Bắt đầu ván, chủ phòng chốt đội hình (người trong ghế đang online)
+và `meta.sd` (seed, mức, chế độ); mọi máy tự sinh cùng một đề từ seed: bàn đầy sinh bằng quay lui xáo số, rồi khoét
+từng cặp ô đối xứng tâm khi đề vẫn giải được theo cách của mức — *Dễ* (38 số) chỉ cần ô còn một ứng viên, *Vừa* (30 số)
+thêm số chỉ còn một chỗ trong hàng / cột / khối, *Khó* (~27 số) chỉ cần duy nhất một lời giải và ưu tiên đề không giải
+được bằng hai mẹo trên. Đề lộ sau cảnh đếm ngược 5‑4‑3‑2‑1 toàn màn hình (tính trên giờ máy từng người, kẹp theo giờ
+chủ phòng), kèm lời nhắc theo chế độ. Người chơi
+chỉ nối nước điền của mình vào `m:<ván>:<uid>` (ô, số); máy nào cũng có lời giải nên phản hồi đúng / sai ngay, còn
+thứ tự do máy chủ phòng phân xử: xét các nước mới theo thứ tự mình thấy rồi ghi bàn chung `g:<ván>` (nước được tính,
+đã xét tới đâu của từng người, thời gian giải). Điểm, người giữ ô, người thắng đều suy ra tất định từ bàn chung.
+*Cùng giải đề*: cả phòng điền chung một bàn, ai điền đúng một ô trước giữ ô đó (+1, ô tô màu người đó), điền sai −1;
+hết ô trống thì người nhiều điểm nhất thắng (bằng điểm thì đồng hạng) — cảnh chiến thắng hiện người thắng và số điểm.
+*Đối kháng*: mỗi người giải bàn riêng (dựng từ nhật ký của chính mình), ô người khác đã giải được tô màu của người giải
+ô đó nhanh nhất mà không lộ số — người xem cũng vậy; hết ván mới hiện cả lời giải kèm màu. Điền sai bị khoá tay 5 giây.
+Ai giải xong trước thắng ngay (cảnh chiến thắng, nhắc người còn lại giải tiếp), những người còn lại giải tiếp tới khi
+xong để xếp hạng; chủ phòng ghi giờ xong của từng người vào bàn chung. Ván kết thúc khi mọi người xong, hoặc khi những
+người chưa xong đều mất kết nối 20 giây (chủ phòng dừng ván lúc này thì người về nhất vẫn thắng). Ở cả hai chế độ,
+khi người khác giải đúng một ô thì pháo giấy màu của người đó nổ ra từ ô ấy (mỗi máy tự diễn theo các nước mới trong bàn
+chung, không phát lại nước cũ khi vào phòng / tải lại trang). Ghi chú bút chì chỉ lưu ở máy mình; bàn phím: 1–9, mũi tên, N (ghi chú), Backspace.
+Cả đội hình mất kết nối 60 giây thì dừng ván.
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -129,7 +152,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

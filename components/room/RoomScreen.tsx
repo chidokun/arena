@@ -7,6 +7,7 @@ import { useNet, useWhere } from "../NetProvider";
 import { CaroTable } from "./CaroTable";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
+import { SudokuTable } from "./SudokuTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { useRoomSession, useRoomView } from "./useRoom";
@@ -90,5 +91,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "loto") return <LotoTable id={id} slug={slug} session={session} />;
   if (session.game === "werewolf") return <WerewolfTable id={id} slug={slug} session={session} />;
   if (session.game === "undercover") return <UndercoverTable id={id} slug={slug} session={session} />;
+  if (session.game === "sudoku") return <SudokuTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }
