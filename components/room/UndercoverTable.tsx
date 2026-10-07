@@ -1166,7 +1166,7 @@ function Settings({ view, session }: { view: View; session: UndercoverRoom }) {
                   aria-pressed={o.undercovers === v}
                   disabled={!host}
                   onClick={() => set({ undercovers: v })}
-                  title={v ? `${v} Gián Điệp` : `Tự động theo số người (${autoUndercovers(Math.max(n, MIN_PLAYERS))})`}
+                  title={v ? `${v} Gián Điệp` : `Tự động theo số người (${autoUndercovers(Math.max(n, MIN_PLAYERS), o.white ? o.whites : 0)})`}
                 >
                   {v || "Tự động"}
                 </button>

@@ -3,10 +3,10 @@
  *
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
- *   g:<round>       — nhật ký của ván: caro là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
+ *   g:<round>       — nhật ký của ván: caro, cờ tướng là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
- *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người.
+ *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin).
  *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
  *   s:<round>:<uid> — ma sói, undercover: bí mật quản trò gửi riêng từng người (vai, từ khoá…), niêm phong.
  *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
@@ -19,7 +19,7 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { SudokuRound } from "../games/sudoku";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
@@ -41,7 +41,8 @@ export type Result = {
   loser?: string;
   /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve";
+  /** Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. */
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -80,9 +81,9 @@ export type Meta = {
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
-  /** Caro: số ván thắng của từng người trong phòng, cộng dồn qua các ván. */
+  /** Caro, cờ tướng: số ván thắng của từng người trong phòng, cộng dồn qua các ván. */
   wins?: Record<string, number>;
-  /** Caro: số ván hoà. */
+  /** Caro, cờ tướng: số ván hoà. */
   draws?: number;
   /** Caro: ván gần nhất đã cộng vào `wins`/`draws` — để mỗi kết quả chỉ được tính một lần. */
   scored?: number;

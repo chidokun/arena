@@ -19,10 +19,12 @@ export function Balloon({ msg }: { msg?: ChatMsg }) {
   );
 }
 
-/** Thẻ người chơi trong thanh đối đầu, có bóng thoại hiện trên avatar. */
+/** Thẻ người chơi trong thanh đối đầu, có bóng thoại hiện trên avatar. Mặc định huy hiệu là X / O (caro); game khác đặt `badge`, `tone`. */
 export function SeatCard({
   seat,
   mark,
+  badge,
+  tone: toneOf,
   active,
   isHost,
   balloon,
@@ -31,6 +33,8 @@ export function SeatCard({
 }: {
   seat?: SeatView;
   mark?: 1 | 2;
+  badge?: string;
+  tone?: string;
   active?: boolean;
   isHost?: boolean;
   balloon?: ChatMsg;
@@ -38,7 +42,8 @@ export function SeatCard({
   align?: "left" | "right";
 }) {
   const m = seat?.member;
-  const tone = mark === 1 ? "var(--coral)" : mark === 2 ? "var(--sky)" : "var(--ink-3)";
+  const tone = toneOf ?? (mark === 1 ? "var(--coral)" : mark === 2 ? "var(--sky)" : "var(--ink-3)");
+  const label = badge ?? (mark === 1 ? "X" : "O");
   return (
     <div
       className={`card relative flex min-w-0 flex-1 flex-col items-center gap-2 p-3 text-center transition-all sm:flex-row sm:gap-3 sm:p-4 ${align === "right" ? "sm:flex-row-reverse sm:text-right" : "sm:text-left"}`}
@@ -63,7 +68,7 @@ export function SeatCard({
               style={{ background: tone }}
               aria-hidden="true"
             >
-              {mark === 1 ? "X" : "O"}
+              {label}
             </span>
           )}
         </span>
@@ -83,7 +88,7 @@ export function SeatCard({
       </div>
       {mark && (
         <span className="hidden h-11 w-11 flex-none place-items-center rounded-xl border-2 border-edge font-display text-2xl font-extrabold text-white sm:grid" style={{ background: tone }}>
-          {mark === 1 ? "X" : "O"}
+          {label}
         </span>
       )}
     </div>

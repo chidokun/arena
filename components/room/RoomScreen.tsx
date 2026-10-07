@@ -10,6 +10,7 @@ import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
+import { XiangqiTable } from "./XiangqiTable";
 import { useRoomSession, useRoomView } from "./useRoom";
 
 export function RoomScreen({ slug }: { slug: string }) {
@@ -92,5 +93,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "werewolf") return <WerewolfTable id={id} slug={slug} session={session} />;
   if (session.game === "undercover") return <UndercoverTable id={id} slug={slug} session={session} />;
   if (session.game === "sudoku") return <SudokuTable id={id} slug={slug} session={session} />;
+  if (session.game === "xiangqi") return <XiangqiTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

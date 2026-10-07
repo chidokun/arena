@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -29,6 +29,7 @@ lib/net/loto-room.ts  phòng lô tô: chọn tờ, chủ phòng kêu số, rao "
 lib/net/werewolf-room.ts  phòng ma sói: máy chủ phòng làm quản trò, bí mật niêm phong giữa từng người và quản trò
 lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, từ khoá niêm phong giữa từng người và máy chủ phòng
 lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của mình, máy chủ phòng phân xử thứ tự và ghi bàn chung
+lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
@@ -36,6 +37,7 @@ lib/games/werewolf.ts luật ma sói thuần (máy trạng thái đêm → ngày
 lib/games/undercover.ts luật undercover thuần (phát từ → thảo luận → biểu quyết → phe Trắng đoán, điều kiện thắng)
 lib/games/undercover-words.ts bộ 1000 cặp từ khoá
 lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed theo mức, phân xử nước điền, dựng lại điểm từ bàn chung)
+lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -129,6 +131,20 @@ chung, không phát lại nước cũ khi vào phòng / tải lại trang). Màu
 nút “🎨 Màu người chơi” — chỉ tắt trên máy mình (nhớ trong localStorage), cả hai chế độ. Ghi chú bút chì chỉ lưu ở máy mình; bàn phím: 1–9, mũi tên, N (ghi chú), Backspace.
 Cả đội hình mất kết nối 60 giây thì dừng ván.
 
+**Cờ Tướng** (slug `xiangqi`). Hai ghế như caro, phòng giới hạn người xem. `lineup[0]` cầm quân Đỏ (đi trước, ở
+dưới), đổi bên mỗi ván; bên cầm quân Đen thấy bàn lật lại để quân mình ở dưới. Hai người lần lượt nối nước `[từ ô, tới ô]`
+vào `g:<ván>`, mọi máy tự dựng lại ván bằng `replay` (luật thuần trong `lib/games/xiangqi.ts`, nhớ kết quả theo nhật ký).
+Luật: Tướng / Sĩ trong cung, Tượng không qua sông và bị cản mắt, Mã bị cản chân, Pháo ăn qua đúng một ngòi, Tốt qua sông
+được đi ngang, hai Tướng không được đối mặt trên cột trống, không được đi nước để Tướng mình bị chiếu. Bên tới lượt hết
+nước đi là thua — bị chiếu (chiếu bí) hay không (bí nước). Thế cờ (bàn + lượt) lặp lại lần thứ ba: bên nào mọi nước trong
+vòng lặp đều chiếu thì thua (chiếu dai), còn lại hoà; hoà cả khi 60 nước mỗi bên không ăn quân hoặc hai bên hết Xe, Mã,
+Pháo, Tốt. Xin hoà ghi `v:<ván>:<uid>` kèm số nước lúc xin — hai bên cùng xin ở một nước là hoà, đi tiếp là lời xin hết
+hiệu lực; xin thua `x:<ván>:<uid>`; mất kết nối 30 giây giữa ván bị xử thua. Bảng thắng / hoà cộng dồn như caro. Biên bản
+ghi kiểu Việt Nam (P2-5, M8.7, X1/1, Xt.4). Mở ván có cảnh *Khai cuộc* toàn màn hình (hai người chơi lao vào từ hai phía,
+nhắc ai cầm quân gì), hết ván có cảnh chiến thắng kèm pháo giấy (người thua không có pháo giấy) hoặc cảnh hoà cờ, mỗi lần
+chiếu tướng đóng dấu "Chiếu tướng!" lên bàn — chỉ diễn khi khoảnh khắc xảy ra ngay trước mắt, vào phòng / tải lại trang
+không diễn lại. Chữ trên quân (chữ Hán hay tên tiếng Việt) chọn trên từng máy, nhớ trong localStorage.
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -153,7 +169,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

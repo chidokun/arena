@@ -110,7 +110,7 @@ test("bốc cặp từ: tránh mã đã dùng; dùng hết thì bốc lại từ
 
 test("tuỳ chọn lạ thì về mặc định; chủ phòng cũng chơi thì không được tự phá hoà", () => {
   assert.deepEqual(normOptions(null), DEFAULT_OPTIONS);
-  const o = normOptions({ undercovers: 9, whites: 7, tie: "host", hostPlays: true, white: "x" });
+  const o = normOptions({ undercovers: 10, whites: 7, tie: "host", hostPlays: true, white: "x" });
   assert.equal(o.undercovers, DEFAULT_OPTIONS.undercovers);
   assert.equal(o.whites, 1);
   assert.equal(o.white, true);
@@ -119,14 +119,21 @@ test("tuỳ chọn lạ thì về mặc định; chủ phòng cũng chơi thì k
   assert.equal(normOptions({ white: false }).white, false);
 });
 
-test("đội hình: bật / tắt phe Trắng, lỗi khi phe Dân không đông hơn", () => {
+test("đội hình: bật / tắt phe Trắng, Gián Điệp tự động kém phe Dân 2 người, lỗi khi phe Dân không đông hơn", () => {
   assert.equal(autoUndercovers(3), 1);
-  assert.equal(autoUndercovers(8), 2);
+  assert.equal(autoUndercovers(8), 3);
+  assert.equal(autoUndercovers(8, 1), 2);
   const noWhite = { ...DEFAULT_OPTIONS, white: false };
   assert.deepEqual(castFor(3, noWhite), { cast: { civilian: 2, undercover: 1, white: 0 } });
-  assert.deepEqual(castFor(5, DEFAULT_OPTIONS).cast, { civilian: 3, undercover: 1, white: 1 });
+  assert.deepEqual(castFor(5, noWhite).cast, { civilian: 4, undercover: 1, white: 0 });
+  assert.deepEqual(castFor(6, noWhite).cast, { civilian: 4, undercover: 2, white: 0 });
+  assert.deepEqual(castFor(8, DEFAULT_OPTIONS).cast, { civilian: 5, undercover: 2, white: 1 });
+  assert.deepEqual(castFor(6, DEFAULT_OPTIONS).cast, { civilian: 4, undercover: 1, white: 1 });
   assert.deepEqual(castFor(10, { ...DEFAULT_OPTIONS, whites: 2 }).cast, { civilian: 5, undercover: 3, white: 2 });
-  assert.match(castFor(4, DEFAULT_OPTIONS).error ?? "", /tắt phe Trắng/);
+  assert.deepEqual(castFor(20, noWhite).cast, { civilian: 11, undercover: 9, white: 0 });
+  assert.equal(castFor(4, DEFAULT_OPTIONS).error, undefined);
+  assert.match(castFor(3, DEFAULT_OPTIONS).error ?? "", /tắt phe Trắng/);
+  assert.match(castFor(6, { ...noWhite, undercovers: 3 }).error ?? "", /quá nhiều/);
   assert.equal(castFor(4, noWhite).error, undefined);
   assert.ok(castFor(2, noWhite).error);
   assert.ok(castFor(21, DEFAULT_OPTIONS).error);

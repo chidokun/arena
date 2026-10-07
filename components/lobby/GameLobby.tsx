@@ -124,6 +124,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const wolf = room.game === "werewolf";
   const spy = room.game === "undercover";
   const sudoku = room.game === "sudoku";
+  const xiangqi = room.game === "xiangqi";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -154,6 +155,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <UcChips room={room} />
         ) : sudoku ? (
           <SudokuChips room={room} />
+        ) : xiangqi ? (
+          <XiangqiChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -187,6 +190,20 @@ function CaroChips({ room }: { room: RoomAd }) {
         ▦ {size}×{size}
       </span>
       {Boolean(room.opts?.blockTwoEnds) && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
+    </>
+  );
+}
+
+function XiangqiChips({ room }: { room: RoomAd }) {
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-coral-soft px-2.5 py-1">🔴 Đỏ đi trước · đổi bên mỗi ván</span>
     </>
   );
 }
@@ -299,6 +316,7 @@ function CreateForm({ slug }: { slug: string }) {
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
   const sudoku = slug === "sudoku";
+  const xiangqi = slug === "xiangqi";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -322,7 +340,8 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (sudoku) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
-        } else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
+        } else if (xiangqi) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
     >
@@ -332,7 +351,14 @@ function CreateForm({ slug }: { slug: string }) {
         </label>
         <input id="cr-name" className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
       </div>
-      {sudoku ? (
+      {xiangqi ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
+            🀄 Hai người chơi, quân Đỏ đi trước và đổi bên sau mỗi ván. Chiếu bí hoặc khiến đối phương hết nước đi là thắng; chiếu dai (lặp thế cờ mà nước nào cũng chiếu) bị xử thua.
+          </p>
+        </>
+      ) : sudoku ? (
         <>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Mức đề</legend>
@@ -407,24 +433,7 @@ function CreateForm({ slug }: { slug: string }) {
         </>
       ) : (
         <>
-          <div>
-            <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
-              <span>Số người tối đa trong phòng</span>
-              <span className="text-pen tabular-nums">{cap} người</span>
-            </label>
-            <input
-              id="cr-cap"
-              type="range"
-              min={Math.max(game.capacity.min, seats)}
-              max={game.capacity.max}
-              value={cap}
-              onChange={(e) => setCap(Number(e.target.value))}
-              className="w-full accent-[var(--pen)]"
-            />
-            <p className="mt-1 text-[13px] text-ink-3">
-              Gồm {seats} người chơi và {cap - seats} người xem.
-            </p>
-          </div>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
             <div className="grid grid-cols-2 gap-2">
@@ -448,6 +457,21 @@ function CreateForm({ slug }: { slug: string }) {
         Tạo phòng & vào ngay
       </button>
     </form>
+  );
+}
+
+function CapacityField({ cap, setCap, min, max, seats }: { cap: number; setCap: (n: number) => void; min: number; max: number; seats: number }) {
+  return (
+    <div>
+      <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
+        <span>Số người tối đa trong phòng</span>
+        <span className="text-pen tabular-nums">{cap} người</span>
+      </label>
+      <input id="cr-cap" type="range" min={min} max={max} value={cap} onChange={(e) => setCap(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
+      <p className="mt-1 text-[13px] text-ink-3">
+        Gồm {seats} người chơi và {cap - seats} người xem.
+      </p>
+    </div>
   );
 }
 

@@ -80,6 +80,18 @@ export const GAMES: GameDef[] = [
     emoji: "🔢",
   },
   {
+    slug: "xiangqi",
+    name: "Cờ Tướng",
+    tagline: "Chiếu tướng, bắt Tướng — trí tuệ ngàn năm",
+    description:
+      "Hai người cầm quân Đỏ và Đen trên bàn 9×10 với Xe, Pháo, Mã, Tượng, Sĩ, Tướng và Tốt; Đỏ đi trước, đổi bên mỗi ván. Chiếu bí hoặc khiến đối phương hết nước đi là thắng. Có biên bản nước đi kiểu Việt Nam, luật chiếu dai, xin hoà và xin thua.",
+    seats: { min: 2, max: 2 },
+    capacity: { min: 2, max: 16, default: 8 },
+    available: true,
+    hue: "coral",
+    emoji: "🀄",
+  },
+  {
     slug: "connect-four",
     name: "Thả Cờ 4",
     tagline: "Thả quân, nối bốn, hạ đối thủ",

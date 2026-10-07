@@ -55,7 +55,7 @@ export type UcOptions = {
 
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 20;
-export const MAX_UNDERCOVERS = 5;
+export const MAX_UNDERCOVERS = 9;
 export const MAX_WHITES = 2;
 export const GUESS_TEXT = 60;
 export const CLUE_TEXT = 80;
@@ -104,22 +104,25 @@ export function normOptions(o: unknown): UcOptions {
   };
 }
 
-/** Số Gián Điệp tự động: tới 6 người 1, 7–9 người 2, 10–13 người 3, từ 14 người 4. */
-export const autoUndercovers = (n: number) => (n <= 6 ? 1 : n <= 9 ? 2 : n <= 13 ? 3 : 4);
+/**
+ * Số Gián Điệp tự động: nhiều nhất có thể mà vẫn ít hơn phe Dân ít nhất 2 người (phe Trắng tính riêng),
+ * vd 6 người không có phe Trắng là 4 Dân / 2 Gián Điệp.
+ */
+export const autoUndercovers = (n: number, whites = 0) => Math.max(1, Math.floor((n - whites - 2) / 2));
 
 export type Cast = Record<Role, number>;
 
 /** Đội hình cho n người chơi; `error` nếu không chia được. */
 export function castFor(n: number, opts: UcOptions): { cast: Cast; error?: string } {
-  const undercover = opts.undercovers || autoUndercovers(n);
   const white = opts.white ? opts.whites : 0;
+  const undercover = opts.undercovers || autoUndercovers(n, white);
   const cast: Cast = { civilian: Math.max(0, n - undercover - white), undercover, white };
   if (n < MIN_PLAYERS) return { cast, error: `Cần ít nhất ${MIN_PLAYERS} người sẵn sàng` };
   if (n > MAX_PLAYERS) return { cast, error: `Tối đa ${MAX_PLAYERS} người chơi` };
-  if (cast.civilian <= undercover + white)
+  if (cast.civilian <= undercover)
     return {
       cast,
-      error: `${undercover} Gián Điệp${white ? ` và ${white} phe Trắng` : ""} là quá nhiều cho ${n} người — phe Dân phải đông hơn${white ? " (tắt phe Trắng hoặc thêm người)" : ""}`,
+      error: `${undercover} Gián Điệp${white ? ` và ${white} phe Trắng` : ""} là quá nhiều cho ${n} người — phe Dân phải đông hơn Gián Điệp${white ? " (tắt phe Trắng hoặc thêm người)" : ""}`,
     };
   return { cast };
 }
