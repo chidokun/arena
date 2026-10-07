@@ -24,8 +24,8 @@ export const LOCK_MS = 5000;
 
 export const LEVELS: Record<Level, { name: string; emoji: string; text: string }> = {
   easy: { name: "Dễ", emoji: "🌱", text: "Nhiều số cho sẵn, chỉ cần dò hàng – cột – khối." },
-  medium: { name: "Vừa", emoji: "🌿", text: "Ít số hơn, phải tìm chỗ duy nhất của từng số." },
-  hard: { name: "Khó", emoji: "🔥", text: "Rất ít số cho sẵn, cần ghi chú và suy luận sâu." },
+  medium: { name: "Vừa", emoji: "🌿", text: "Ít số hơn, đôi khi phải tìm chỗ duy nhất của một số trong hàng – cột – khối." },
+  hard: { name: "Khó", emoji: "🔥", text: "Ít số cho sẵn, thường phải tìm chỗ duy nhất của từng số — nên dùng ghi chú." },
 };
 export const LEVEL_KEYS = Object.keys(LEVELS) as Level[];
 
@@ -241,14 +241,15 @@ export type Puzzle = {
 
 /**
  * Mỗi mức khoét bớt ô theo cặp đối xứng tâm tới khi còn `clues` số, chỉ khoét khi đề vẫn giải được theo cách của mức:
- * dễ — chỉ cần ô còn một ứng viên; vừa — thêm số chỉ còn một chỗ trong nhóm; khó — chỉ cần duy nhất một lời giải.
+ * dễ — chỉ cần ô còn một ứng viên; vừa, khó — thêm số chỉ còn một chỗ trong hàng / cột / khối. Mức nào cũng giải
+ * được bằng suy luận "ô đơn", không phải đoán.
  */
 const CARVE: Record<Level, { clues: number; ok: (g: readonly number[]) => boolean }> = {
-  easy: { clues: 38, ok: (g) => solvesBySingles(g, false) },
-  medium: { clues: 30, ok: (g) => solvesBySingles(g, true) },
-  hard: { clues: 24, ok: (g) => countSolutions(g) === 1 },
+  easy: { clues: 46, ok: (g) => solvesBySingles(g, false) },
+  medium: { clues: 38, ok: (g) => solvesBySingles(g, true) },
+  hard: { clues: 30, ok: (g) => solvesBySingles(g, true) },
 };
-/** Đề khó mà giải được chỉ bằng "ô đơn" thì sinh lại (tối đa vài lần) cho đúng độ khó. */
+/** Đề khó mà chỉ cần "ô còn một ứng viên" là giải xong thì sinh lại (tối đa vài lần) cho đúng độ khó. */
 const HARD_TRIES = 6;
 
 function carve(solution: readonly number[], level: Level, rand: () => number): number[] {
@@ -279,7 +280,7 @@ export function makePuzzle(seed: number, level: Level): Puzzle {
     search(solution, 1, rand, solution);
     const givens = carve(solution, level, rand);
     best = { givens, solution };
-    if (level !== "hard" || !solvesBySingles(givens, true)) break;
+    if (level !== "hard" || !solvesBySingles(givens, false)) break;
   }
   return { ...best!, empties: best!.givens.filter((d) => !d).length };
 }

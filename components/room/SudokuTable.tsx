@@ -87,7 +87,7 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
 
       {g && <Cinema view={view} match={g} now={now} win={scenes.win} onClose={scenes.close} />}
       {scenes.party.length > 0 && (
-        <div className="loto-party" aria-hidden="true">
+        <div className="loto-party sd-party" aria-hidden="true">
           {scenes.party.map((b) => (
             <span key={b.key} style={{ left: `${b.left}%`, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ["--rot" as string]: `${b.rot}deg` }}>
               {b.emoji}
@@ -122,7 +122,7 @@ function useScenes(g: SudokuMatch | undefined) {
     seen.current = key;
     setWin(key);
     setParty(
-      Array.from({ length: 26 }, (_, i) => ({
+      Array.from({ length: 40 }, (_, i) => ({
         key: `${key}:${i}`,
         left: Math.random() * 96,
         delay: Math.random() * 700,
@@ -422,8 +422,8 @@ function cellFrame(i: number) {
 
 type Burst = { key: string; cell: number; color: string; bits: { dx: number; dy: number; rot: number; delay: number; w: number; h: number; tone: string }[] };
 
-const BURST_MS = 1100;
-const BURST_BITS = 18;
+const BURST_MS = 1400;
+const BURST_BITS = 26;
 
 /**
  * Pháo giấy nổ từ ô vừa có người khác giải đúng (màu của người đó). Chỉ diễn các nước mới thấy khi đang ở trong phòng;
@@ -445,16 +445,16 @@ function useBursts(g: SudokuMatch, active: boolean) {
         color,
         bits: Array.from({ length: BURST_BITS }, (_, j) => {
           const angle = ((j + Math.random() * 0.6) / BURST_BITS) * Math.PI * 2;
-          const dist = 30 + Math.random() * 46;
+          const dist = 44 + Math.random() * 70;
           const round = Math.random() < 0.35;
           return {
             dx: Math.round(Math.cos(angle) * dist),
             // Rơi xuống một chút như có trọng lực.
-            dy: Math.round(Math.sin(angle) * dist + 14),
+            dy: Math.round(Math.sin(angle) * dist + 22),
             rot: Math.round(Math.random() * 720 - 360),
             delay: Math.round(Math.random() * 90),
-            w: round ? 8 : 6,
-            h: round ? 8 : 12,
+            w: round ? 12 : 9,
+            h: round ? 12 : 18,
             tone: j % 3 === 0 ? "#ffd84d" : j % 3 === 1 ? color : "#ffffff",
           };
         }),

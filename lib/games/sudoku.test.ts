@@ -51,12 +51,13 @@ test("đề hợp lệ, duy nhất lời giải, khớp với lời giải", () 
   }
 });
 
-test("mức càng khó càng ít số cho sẵn; dễ và vừa giải được bằng ô đơn", () => {
+test("mức càng khó càng ít số cho sẵn; mức nào cũng giải được bằng ô đơn", () => {
   const clues = (level: "easy" | "medium" | "hard") => 81 - makePuzzle(7, level).empties;
   assert.ok(clues("easy") > clues("medium"));
   assert.ok(clues("medium") > clues("hard"));
   assert.ok(solvesBySingles(makePuzzle(7, "easy").givens, false));
   assert.ok(solvesBySingles(makePuzzle(7, "medium").givens, true));
+  assert.ok(solvesBySingles(makePuzzle(7, "hard").givens, true), "khó cũng không phải đoán");
 });
 
 test("normOptions bỏ giá trị lạ", () => {

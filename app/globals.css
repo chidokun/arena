@@ -816,14 +816,20 @@
     inset: 0;
     pointer-events: none;
   }
+  /* Tô sáng khi chọn ô nằm đè lên màu tô của người chơi; số luôn nằm trên lớp tô sáng. */
+  .sd-cell > span:not(.sd-notes) {
+    position: relative;
+    z-index: 1;
+  }
   .sd-cell.is-peer::before {
-    background: color-mix(in srgb, var(--pen) 9%, transparent);
+    background: color-mix(in srgb, var(--ink-3) 24%, transparent);
   }
   .sd-cell.is-same::before {
-    background: color-mix(in srgb, var(--pen) 22%, transparent);
+    background: color-mix(in srgb, var(--ink-3) 58%, var(--board));
+    box-shadow: inset 0 0 0 2px var(--ink-2);
   }
   .sd-cell.is-sel::before {
-    background: color-mix(in srgb, var(--pen) 16%, transparent);
+    background: color-mix(in srgb, var(--pen) 30%, var(--board));
     box-shadow: inset 0 0 0 3px var(--pen);
   }
   .sd-cell.is-given {
@@ -855,6 +861,7 @@
   }
   .sd-notes {
     position: absolute;
+    z-index: 1;
     inset: 6%;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -888,12 +895,13 @@
       radial-gradient(circle at 15% 85%, color-mix(in srgb, #12b981 40%, transparent), transparent 45%),
       rgba(17, 13, 38, 0.95);
   }
+  /* Cảnh chiến thắng: vàng rực như cảnh trời sáng của ma sói */
   .ww-cine.sd-cine.is-win {
     cursor: pointer;
+    color: #2b1d00;
     background:
-      radial-gradient(circle at 50% 30%, rgba(255, 216, 77, 0.5), transparent 55%),
-      radial-gradient(circle at 85% 85%, rgba(255, 90, 95, 0.35), transparent 45%),
-      rgba(27, 18, 56, 0.95);
+      radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.85), rgba(255, 216, 77, 0.55) 18%, transparent 46%),
+      linear-gradient(180deg, #ffd9a0 0%, #ffeccc 45%, #fff8e6 100%);
   }
   .sd-trophy {
     font-size: 96px;
@@ -901,7 +909,9 @@
     animation: stamp 700ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   }
   .sd-win-avatar {
-    box-shadow: 0 0 0 4px #ffd84d;
+    box-shadow:
+      0 0 0 4px #ffb020,
+      0 4px 0 6px #2b1d00;
     animation: pop-in 500ms 200ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   }
   .sd-cine-score {
@@ -909,7 +919,7 @@
     font-size: 72px;
     font-weight: 800;
     line-height: 1;
-    color: #ffd84d;
+    color: #e8590c;
     animation: rise-in 700ms 300ms ease-out both;
   }
   .sd-cine-score small {
@@ -918,11 +928,20 @@
   .sd-cine-next {
     margin-top: 6px;
     padding: 8px 18px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    border: 2px solid #2b1d00;
     border-radius: 999px;
+    background: rgba(255, 255, 255, 0.6);
     font-size: 17px;
     font-weight: 800;
     animation: rise-in 700ms 900ms ease-out both;
+  }
+  /* Pháo giấy toàn màn hình khi thắng: to hơn lô tô, nổi trên cảnh chiến thắng (z-index 60). */
+  .loto-party.sd-party {
+    z-index: 65;
+  }
+  .loto-party.sd-party span {
+    top: -72px;
+    font-size: 48px;
   }
   /* Pháo giấy nổ từ ô vừa có người khác giải đúng */
   .sd-burst {
@@ -935,20 +954,20 @@
   .sd-burst::before {
     content: "";
     position: absolute;
-    left: -18px;
-    top: -18px;
-    width: 36px;
-    height: 36px;
-    border: 3px solid var(--c);
+    left: -30px;
+    top: -30px;
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--c);
     border-radius: 999px;
-    animation: sd-ring 600ms ease-out both;
+    animation: sd-ring 700ms ease-out both;
   }
   .sd-burst i {
     position: absolute;
     left: 0;
     top: 0;
-    border: 1px solid rgba(29, 22, 72, 0.35);
-    animation: sd-burst 1100ms cubic-bezier(0.15, 0.7, 0.3, 1) both;
+    border: 1.5px solid rgba(29, 22, 72, 0.4);
+    animation: sd-burst 1400ms cubic-bezier(0.15, 0.7, 0.3, 1) both;
   }
   .sd-pad {
     display: grid;

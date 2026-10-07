@@ -110,9 +110,9 @@ giây thì bị loại (lộ phe).
 **Sudoku Tranh Đấu** (slug `sudoku`). 1–10 người chơi (bấm *Vào chơi* để vào ghế), phòng không giới hạn người xem.
 Chủ phòng chọn *mức đề* và *chế độ* trước mỗi ván. Bắt đầu ván, chủ phòng chốt đội hình (người trong ghế đang online)
 và `meta.sd` (seed, mức, chế độ); mọi máy tự sinh cùng một đề từ seed: bàn đầy sinh bằng quay lui xáo số, rồi khoét
-từng cặp ô đối xứng tâm khi đề vẫn giải được theo cách của mức — *Dễ* (38 số) chỉ cần ô còn một ứng viên, *Vừa* (30 số)
-thêm số chỉ còn một chỗ trong hàng / cột / khối, *Khó* (~27 số) chỉ cần duy nhất một lời giải và ưu tiên đề không giải
-được bằng hai mẹo trên. Đề lộ sau cảnh đếm ngược 5‑4‑3‑2‑1 toàn màn hình (tính trên giờ máy từng người, kẹp theo giờ
+từng cặp ô đối xứng tâm khi đề vẫn giải được theo cách của mức — *Dễ* (46 số) chỉ cần ô còn một ứng viên, *Vừa* (38 số)
+và *Khó* (30 số) thêm số chỉ còn một chỗ trong hàng / cột / khối (đề khó ưu tiên đề phải dùng mẹo này); mức nào cũng
+giải được không cần đoán. Đề lộ sau cảnh đếm ngược 5‑4‑3‑2‑1 toàn màn hình (tính trên giờ máy từng người, kẹp theo giờ
 chủ phòng), kèm lời nhắc theo chế độ. Người chơi
 chỉ nối nước điền của mình vào `m:<ván>:<uid>` (ô, số); máy nào cũng có lời giải nên phản hồi đúng / sai ngay, còn
 thứ tự do máy chủ phòng phân xử: xét các nước mới theo thứ tự mình thấy rồi ghi bàn chung `g:<ván>` (nước được tính,
