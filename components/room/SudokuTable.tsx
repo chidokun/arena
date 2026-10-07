@@ -420,6 +420,26 @@ function cellFrame(i: number) {
   return `sd-cell ${c === 2 || c === 5 ? "bx-r" : ""} ${c === 8 ? "end-r" : ""} ${r === 2 || r === 5 ? "bx-b" : ""} ${r === 8 ? "end-b" : ""}`;
 }
 
+const TINT_KEY = "arena:sudoku:tint";
+
+/** Có tô ô bằng màu người chơi không — mặc định có; tắt / bật chỉ áp dụng cho máy này (nhớ trong localStorage). */
+function useTintPref() {
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(TINT_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const set = (v: boolean) => {
+    setOn(v);
+    try {
+      localStorage.setItem(TINT_KEY, v ? "1" : "0");
+    } catch {}
+  };
+  return [on, set] as const;
+}
+
 type Burst = { key: string; cell: number; color: string; bits: { dx: number; dy: number; rot: number; delay: number; w: number; h: number; tone: string }[] };
 
 const BURST_MS = 1400;
@@ -512,6 +532,7 @@ function Play({ view, session, match: g, now }: { view: View; session: SudokuRoo
   const player = g.me >= 0;
   const [sel, setSel] = useState(-1);
   const [noting, setNoting] = useState(false);
+  const [tinted, setTinted] = useTintPref();
   const [notes, setNotes] = useState<number[]>(() => new Array<number>(CELLS).fill(0));
   const [flash, setFlash] = useState<{ cell: number; digit: number; key: number } | null>(null);
   const counting = live && (!now || now < g.opensAt);
@@ -593,7 +614,7 @@ function Play({ view, session, match: g, now }: { view: View; session: SudokuRoo
       i !== sel && selValue && shown === selValue && !wrong ? "is-same" : "",
     ].join(" ");
     // Ô đã có người giải: cùng giải đề là người giữ ô; đối kháng là người giải nhanh nhất (kể cả khi mình chưa giải).
-    const tint = owner >= 0 && !given && !counting ? tintOf(owner) : undefined;
+    const tint = tinted && owner >= 0 && !given && !counting ? tintOf(owner) : undefined;
     const who = owner >= 0 ? g.lineup[owner] : undefined;
     const label = `Hàng ${rowOf(i) + 1}, cột ${colOf(i) + 1}: ${counting ? "ẩn" : shown ? shown : "trống"}${who && !given && !counting ? ` — ${who.uid === view.me ? "bạn" : (who.member?.name ?? "ai đó")} giải ${g.mode === "race" ? "nhanh nhất" : ""}` : ""}`;
     const marks = !v && !counting && notes[i] ? DIGITS.filter((d) => notes[i] & (1 << d) && !board.some((x, j) => x === d && sees(i, j))) : [];
@@ -633,35 +654,48 @@ function Play({ view, session, match: g, now }: { view: View; session: SudokuRoo
         )}
       </div>
       {player && live && (
-        <>
-          <div className="sd-pad" role="group" aria-label="Bàn phím số">
-            {DIGITS.map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={`sd-key ${noting ? "is-note" : ""}`}
-                onClick={() => enter(d)}
-                disabled={!canPlay || !left(d) || (!noting && !open(sel))}
-                aria-label={`${noting ? "Ghi chú" : "Điền"} số ${d}, còn ${left(d)}`}
-              >
-                {d}
-                <small>{left(d) || "✓"}</small>
-              </button>
-            ))}
-          </div>
-          <div className="mx-auto flex w-full max-w-[560px] flex-wrap items-center gap-2">
+        <div className="sd-pad" role="group" aria-label="Bàn phím số">
+          {DIGITS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`sd-key ${noting ? "is-note" : ""}`}
+              onClick={() => enter(d)}
+              disabled={!canPlay || !left(d) || (!noting && !open(sel))}
+              aria-label={`${noting ? "Ghi chú" : "Điền"} số ${d}, còn ${left(d)}`}
+            >
+              {d}
+              <small>{left(d) || "✓"}</small>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="mx-auto flex w-full max-w-[560px] flex-wrap items-center gap-2">
+        {player && live && (
+          <>
             <button type="button" className={`btn btn-sm ${noting ? "btn-sun" : ""}`} onClick={() => setNoting((x) => !x)} aria-pressed={noting} title="Phím N">
               ✏️ Ghi chú: {noting ? "bật" : "tắt"}
             </button>
             <button type="button" className="btn btn-sm" onClick={erase} disabled={!open(sel) || !notes[sel]} title="Phím Backspace">
               🧽 Xoá ghi chú
             </button>
-            <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
-              {locked ? `🔒 Khoá tay ${Math.ceil((g.lockedUntil - now) / 1000)}s` : sel < 0 ? "Chọn một ô rồi bấm số" : "Phím 1–9 · mũi tên · N"}
-            </span>
-          </div>
-        </>
-      )}
+          </>
+        )}
+        <button
+          type="button"
+          className={`btn btn-sm ${tinted ? "btn-sun" : ""}`}
+          onClick={() => setTinted(!tinted)}
+          aria-pressed={tinted}
+          title={g.mode === "race" ? "Tô ô đã có người giải bằng màu người giải nhanh nhất" : "Tô mỗi ô bằng màu người giữ ô"}
+        >
+          🎨 Màu người chơi: {tinted ? "hiện" : "ẩn"}
+        </button>
+        {player && live && (
+          <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
+            {locked ? `🔒 Khoá tay ${Math.ceil((g.lockedUntil - now) / 1000)}s` : sel < 0 ? "Chọn một ô rồi bấm số" : "Phím 1–9 · mũi tên · N"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

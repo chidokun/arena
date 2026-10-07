@@ -125,7 +125,8 @@ Ai giải xong trước thắng ngay (cảnh chiến thắng, nhắc người c�
 xong để xếp hạng; chủ phòng ghi giờ xong của từng người vào bàn chung. Ván kết thúc khi mọi người xong, hoặc khi những
 người chưa xong đều mất kết nối 20 giây (chủ phòng dừng ván lúc này thì người về nhất vẫn thắng). Ở cả hai chế độ,
 khi người khác giải đúng một ô thì pháo giấy màu của người đó nổ ra từ ô ấy (mỗi máy tự diễn theo các nước mới trong bàn
-chung, không phát lại nước cũ khi vào phòng / tải lại trang). Ghi chú bút chì chỉ lưu ở máy mình; bàn phím: 1–9, mũi tên, N (ghi chú), Backspace.
+chung, không phát lại nước cũ khi vào phòng / tải lại trang). Màu tô người chơi trên bàn mặc định hiện; ai không muốn thì tự tắt bằng
+nút “🎨 Màu người chơi” — chỉ tắt trên máy mình (nhớ trong localStorage), cả hai chế độ. Ghi chú bút chì chỉ lưu ở máy mình; bàn phím: 1–9, mũi tên, N (ghi chú), Backspace.
 Cả đội hình mất kết nối 60 giây thì dừng ván.
 
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
