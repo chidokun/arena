@@ -3,6 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
+import {
+  CLAIM_OPTIONS,
+  claimLabel,
+  DEFAULT_OPTIONS as XQ_DEFAULTS,
+  MAX_PLAYERS as XQ_MAX,
+  MIN_PLAYERS as XQ_MIN,
+  normOptions as xqOptions,
+  type ClaimMs,
+} from "@/lib/games/xiangqi-role";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
@@ -125,12 +135,29 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const spy = room.game === "undercover";
   const sudoku = room.game === "sudoku";
   const xiangqi = room.game === "xiangqi";
+  const dodge = room.game === "dodge";
+  const xiangqiRole = room.game === "xiangqi-role";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
   const status = playing
-    ? { label: loto ? "Đang kêu số" : wolf || spy ? "Đang chơi" : sudoku ? "Đang giải" : "Đang đấu", color: "var(--coral)" }
+    ? {
+        label: loto
+          ? "Đang kêu số"
+          : wolf || spy
+            ? "Đang chơi"
+            : sudoku
+              ? "Đang giải"
+              : dodge
+                ? "Đang né bão"
+                : xiangqiRole
+                  ? "Đang nhập vai"
+                  : xiangqi
+                    ? "Đang đấu tướng"
+                    : "Đang đấu",
+        color: "var(--coral)",
+      }
     : room.status === "ended"
       ? { label: "Vừa xong ván", color: "var(--grape)" }
       : { label: "Đang chờ", color: "var(--lime)" };
@@ -157,6 +184,10 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <SudokuChips room={room} />
         ) : xiangqi ? (
           <XiangqiChips room={room} />
+        ) : dodge ? (
+          <DodgeChips room={room} />
+        ) : xiangqiRole ? (
+          <XiangqiRoleChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -276,6 +307,31 @@ function SudokuChips({ room }: { room: RoomAd }) {
   );
 }
 
+function DodgeChips({ room }: { room: RoomAd }) {
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-coral-soft px-2.5 py-1">🌩️ Real-time</span>
+    </>
+  );
+}
+
+function XiangqiRoleChips({ room }: { room: RoomAd }) {
+  const opts = xqOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        ♟️ {room.players}/{room.seats} role
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ Claim {claimLabel(opts.claimMs)}</span>
+    </>
+  );
+}
+
 function JoinByCode({ slug }: { slug: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -312,11 +368,14 @@ function CreateForm({ slug }: { slug: string }) {
   const [hostPlays, setHostPlays] = useState(UC_DEFAULTS.hostPlays);
   const [level, setLevel] = useState<Level>(SD_DEFAULTS.level);
   const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
+  const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
   const sudoku = slug === "sudoku";
   const xiangqi = slug === "xiangqi";
+  const dodge = slug === "dodge";
+  const xiangqiRole = slug === "xiangqi-role";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -341,6 +400,8 @@ function CreateForm({ slug }: { slug: string }) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (xiangqi) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
+        else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
         else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
       }}
@@ -356,6 +417,28 @@ function CreateForm({ slug }: { slug: string }) {
           <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
             🀄 Hai người chơi, quân Đỏ đi trước và đổi bên sau mỗi ván. Chiếu bí hoặc khiến đối phương hết nước đi là thắng; chiếu dai (lặp thế cờ mà nước nào cũng chiếu) bị xử thua.
+          </p>
+        </>
+      ) : dodge ? (
+        <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
+          🌩️ Từ {DG_MIN} đến {DG_MAX} người chơi. Runner tự chạy trái→phải, nhảy né hố/gai; người còn lại nấp bốn cạnh bắn truy cản. Ai sống lâu hơn
+          thắng; bắn trúng thì lên làm người chạy.
+        </p>
+      ) : xiangqiRole ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian claim token</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {CLAIM_OPTIONS.map((ms) => (
+                <button key={ms} type="button" onClick={() => setClaimMs(ms)} aria-pressed={claimMs === ms} className={`btn !px-2 ${claimMs === ms ? "btn-sun" : ""}`}>
+                  {claimLabel(ms)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            ♟️ Từ {XQ_MIN} đến {XQ_MAX} người — mỗi phe 5 role: Tướng·Sĩ·Tượng (1 người), Xe, Pháo, Mã, Tốt. Claim {claimLabel(claimMs)}:
+            1 người → tự đi; ≥2 → Tướng chọn. Role trống do bot. Chat riêng theo phe.
           </p>
         </>
       ) : sudoku ? (
