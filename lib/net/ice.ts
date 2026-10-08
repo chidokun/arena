@@ -9,9 +9,13 @@
  *   trang và gọi lại định kỳ trước khi hết hạn.
  * - NEXT_PUBLIC_TURN_URLS (cách nhau dấu phẩy) + NEXT_PUBLIC_TURN_USERNAME + NEXT_PUBLIC_TURN_CREDENTIAL:
  *   thông tin đăng nhập tĩnh (vd. ExpressTURN, coturn tự dựng).
- * Dùng cả hai thì không phải chọn tay: trình duyệt xin relay ở mọi máy chủ rồi ICE tự chọn cặp ứng viên
- * thông được và tốt nhất. Máy chủ từ API đứng trước nên được ưu tiên; máy chủ tĩnh là dự phòng khi API lỗi
- * hoặc máy chủ kia hết quota. STUN công cộng (Google, Cloudflare) đã có sẵn trong Trystero.
+ * Thứ tự ưu tiên: P2P (STUN công cộng có sẵn trong Trystero) > relay từ API (Cloudflare) > relay tĩnh
+ * (ExpressTURN). Không phải chọn tay — trình duyệt xin ứng viên ở mọi nơi rồi ICE chọn cặp thông được có
+ * priority cao nhất, và đổi sang cặp tốt hơn khi nó thông:
+ * - Ứng viên host/srflx (P2P) luôn có priority cao hơn mọi ứng viên relay (quy tắc ICE, RFC 8445).
+ * - Giữa các máy chủ TURN, Chrome cho máy chủ đứng trước trong danh sách priority cao hơn (đã đo thực tế),
+ *   nên `prioritize` xếp máy chủ API trước máy chủ tĩnh. Máy chủ tĩnh vì vậy chỉ được dùng khi Cloudflare
+ *   không thông, API lỗi, hoặc hết quota.
  * Không đặt gì thì chỉ có STUN.
  *
  * Thử TURN trên một máy: thêm `?relay` vào URL để ép mọi kết nối đi qua TURN (giữ trong tab đến khi đóng).
@@ -117,6 +121,14 @@ async function fetchServers(url: string): Promise<IceServer[] | null> {
   }
 }
 
+/**
+ * Danh sách TURN cuối cùng theo thứ tự ưu tiên: máy chủ từ API (Cloudflare) trước, máy chủ tĩnh (ExpressTURN)
+ * sau. Thứ tự này quyết định priority của ứng viên relay — đừng đảo.
+ */
+export function prioritize(fromApi: IceServer[], fixed: IceServer[]): IceServer[] {
+  return turnOnly([...fromApi, ...fixed]);
+}
+
 let current: IceServer[] = [];
 let serversPromise: Promise<IceServer[]> | null = null;
 
@@ -124,7 +136,7 @@ let serversPromise: Promise<IceServer[]> | null = null;
 async function refresh(api: string | undefined, keep: IceServer[]): Promise<IceServer[]> {
   const fetched = api ? await fetchServers(api) : [];
   // Lỗi tạm thời thì giữ credential API cũ (vẫn còn hạn) thay vì chỉ còn máy chủ tĩnh.
-  current = fetched ? turnOnly([...fetched, ...staticServers()]) : keep.length ? keep : turnOnly(staticServers());
+  current = fetched ? prioritize(fetched, staticServers()) : keep.length ? keep : prioritize([], staticServers());
   if (api) setTimeout(() => void refresh(api, current), fetched ? API_REFRESH_MS : API_RETRY_MS);
   return current;
 }

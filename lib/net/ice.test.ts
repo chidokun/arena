@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { turnOnly, turnOnAnswer } from "./ice.ts";
+import { prioritize, turnOnly, turnOnAnswer } from "./ice.ts";
 
 test("mỗi máy chủ chỉ giữ một URL UDP và một URL TCP/TLS, ưu tiên cổng 443", () => {
   const cloudflare = {
@@ -36,4 +36,26 @@ test("bỏ máy chủ chỉ có STUN, giữ nguyên URL không ghi transport", (
 
 test("ngoài trình duyệt (không có WebRTC) thì không tạo lớp RTCPeerConnection riêng", () => {
   assert.equal(turnOnAnswer(() => []), undefined);
+});
+
+test("relay Cloudflare (API) đứng trước ExpressTURN (tĩnh) để được ưu tiên hơn", () => {
+  const cloudflare = {
+    urls: ["stun:stun.cloudflare.com:3478", "turn:turn.cloudflare.com:443?transport=udp", "turns:turn.cloudflare.com:443?transport=tcp"],
+    username: "cf",
+    credential: "cf",
+  };
+  const express = {
+    urls: ["turn:free.expressturn.com:3478", "turn:free.expressturn.com:3478?transport=tcp"],
+    username: "ex",
+    credential: "ex",
+  };
+  assert.deepEqual(
+    prioritize([cloudflare], [express]).map((s) => s.username),
+    ["cf", "ex"],
+  );
+  // API lỗi thì chỉ còn máy chủ tĩnh.
+  assert.deepEqual(
+    prioritize([], [express]).map((s) => s.username),
+    ["ex"],
+  );
 });
