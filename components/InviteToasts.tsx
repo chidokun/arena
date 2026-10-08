@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { GAMES, roomHref } from "@/lib/games/registry";
+import { getGames, roomHref } from "@/lib/games/registry";
 import type { Invite } from "@/lib/net/lobby";
 import { Avatar } from "./Avatar";
 import { useNet } from "./NetProvider";
@@ -27,7 +27,7 @@ export function InviteToasts() {
   return (
     <div className="fixed right-4 bottom-4 left-4 z-50 grid justify-items-end gap-3 sm:left-auto" role="status" aria-live="polite">
       {toasts.map((t) => {
-        const game = GAMES.find((g) => g.slug === t.game);
+        const game = getGames().find((g) => g.slug === t.game);
         return (
           <div key={t.key} className="card flex w-full max-w-sm items-start gap-3 p-4" style={{ animation: "pop-in 220ms ease" }}>
             <Avatar p={t.from} size={40} />

@@ -4,11 +4,15 @@
  * không thông kênh, mỗi bên chỉ thấy mỗi mình. TURN chuyển tiếp lưu lượng giúp hai bên trong trường hợp đó.
  *
  * Cấu hình lúc build (site tĩnh nên giá trị được nhúng thẳng vào bundle):
+ * - NEXT_PUBLIC_TURN_API: URL trả về mảng RTCIceServer (hoặc `{ iceServers }`) dạng JSON — ở đây là Worker
+ *   arena-turn-api (github.com/chidokun/arena-turn-api) cấp credential Cloudflare TURN ngắn hạn. Gọi khi tải
+ *   trang và gọi lại định kỳ trước khi hết hạn.
  * - NEXT_PUBLIC_TURN_URLS (cách nhau dấu phẩy) + NEXT_PUBLIC_TURN_USERNAME + NEXT_PUBLIC_TURN_CREDENTIAL:
  *   thông tin đăng nhập tĩnh (vd. ExpressTURN, coturn tự dựng).
- * - NEXT_PUBLIC_TURN_API: URL trả về mảng RTCIceServer dạng JSON, gọi một lần mỗi lần tải trang
- *   (vd. Metered: https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>).
- * Có thể dùng cả hai; không đặt gì thì chỉ có STUN như cũ.
+ * Dùng cả hai thì không phải chọn tay: trình duyệt xin relay ở mọi máy chủ rồi ICE tự chọn cặp ứng viên
+ * thông được và tốt nhất. Máy chủ từ API đứng trước nên được ưu tiên; máy chủ tĩnh là dự phòng khi API lỗi
+ * hoặc máy chủ kia hết quota. STUN công cộng (Google, Cloudflare) đã có sẵn trong Trystero.
+ * Không đặt gì thì chỉ có STUN.
  *
  * Thử TURN trên một máy: thêm `?relay` vào URL để ép mọi kết nối đi qua TURN (giữ trong tab đến khi đóng).
  *
@@ -22,6 +26,10 @@
 export type IceServer = { urls: string | string[]; username?: string; credential?: string };
 
 const API_TIMEOUT_MS = 4000;
+/** Credential từ Worker sống 24 giờ; xin lại sớm để tab mở lâu không cầm credential hết hạn. */
+const API_REFRESH_MS = 6 * 3600_000;
+/** Lấy credential lỗi thì thử lại sau khoảng này (trong lúc đó vẫn còn máy chủ tĩnh). */
+const API_RETRY_MS = 60_000;
 const RELAY_KEY = "arena:relay";
 
 function staticServers(): IceServer[] {
@@ -64,8 +72,8 @@ export function turnOnly(list: IceServer[]): IceServer[] {
  * RTCPeerConnection chỉ thêm máy chủ TURN khi nhận offer (tức là phía trả lời), ngay trước khi bắt đầu thu thập
  * ứng viên ICE. Kết nối chào hàng trong pool của Trystero vì vậy không chiếm allocation nào.
  */
-export function turnOnAnswer(turn: IceServer[]): typeof RTCPeerConnection | undefined {
-  if (!turn.length || typeof RTCPeerConnection === "undefined") return undefined;
+export function turnOnAnswer(getTurn: () => IceServer[]): typeof RTCPeerConnection | undefined {
+  if (typeof RTCPeerConnection === "undefined") return undefined;
   return class extends RTCPeerConnection {
     private turnAdded = false;
 
@@ -76,7 +84,8 @@ export function turnOnAnswer(turn: IceServer[]): typeof RTCPeerConnection | unde
       fail: RTCPeerConnectionErrorCallback,
     ): Promise<void>;
     override setRemoteDescription(desc: RTCSessionDescriptionInit, ok?: VoidFunction, fail?: RTCPeerConnectionErrorCallback) {
-      if (!this.turnAdded && desc?.type === "offer" && !this.localDescription) {
+      const turn = getTurn();
+      if (!this.turnAdded && turn.length && desc?.type === "offer" && !this.localDescription) {
         this.turnAdded = true;
         try {
           const cfg = this.getConfiguration();
@@ -90,34 +99,44 @@ export function turnOnAnswer(turn: IceServer[]): typeof RTCPeerConnection | unde
   };
 }
 
-async function fetchServers(url: string): Promise<IceServer[]> {
+/** Danh sách máy chủ từ API, hoặc `null` khi lỗi. */
+async function fetchServers(url: string): Promise<IceServer[] | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data: unknown = await res.json();
     const list = Array.isArray(data) ? data : (data as { iceServers?: unknown })?.iceServers;
     return Array.isArray(list) ? list.filter(isIceServer) : [];
   } catch (e) {
     console.warn("[arena] không lấy được thông tin TURN", e);
-    return [];
+    return null;
   } finally {
     clearTimeout(timer);
   }
 }
 
+let current: IceServer[] = [];
 let serversPromise: Promise<IceServer[]> | null = null;
 
-/** Danh sách máy chủ TURN (đã nhớ đệm cho cả trang). */
+/** Lấy (lại) danh sách từ API rồi hẹn lần lấy sau: đều đặn khi thành công, sớm hơn khi lỗi. */
+async function refresh(api: string | undefined, keep: IceServer[]): Promise<IceServer[]> {
+  const fetched = api ? await fetchServers(api) : [];
+  // Lỗi tạm thời thì giữ credential API cũ (vẫn còn hạn) thay vì chỉ còn máy chủ tĩnh.
+  current = fetched ? turnOnly([...fetched, ...staticServers()]) : keep.length ? keep : turnOnly(staticServers());
+  if (api) setTimeout(() => void refresh(api, current), fetched ? API_REFRESH_MS : API_RETRY_MS);
+  return current;
+}
+
+/** Danh sách máy chủ TURN lúc mở trang (chờ lần lấy đầu tiên). */
 export function turnServers(): Promise<IceServer[]> {
-  serversPromise ??= (async () => {
-    const api = process.env.NEXT_PUBLIC_TURN_API;
-    const fetched = api ? await fetchServers(api) : [];
-    return turnOnly([...staticServers(), ...fetched]);
-  })();
+  serversPromise ??= refresh(process.env.NEXT_PUBLIC_TURN_API, []);
   return serversPromise;
 }
+
+/** Danh sách máy chủ TURN mới nhất (đã làm mới credential nếu có). */
+export const currentTurn = () => current;
 
 /** `?relay` trên URL: ép đi qua TURN để kiểm tra cấu hình ngay trên một máy. */
 export function forceRelay(): boolean {

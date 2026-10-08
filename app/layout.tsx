@@ -1,12 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { GamesProvider } from "@/components/GamesProvider";
 import { InviteToasts } from "@/components/InviteToasts";
 import { LogoMark } from "@/components/Logo";
+import { MaintenanceDialog } from "@/components/Maintenance";
 import { NetBadge } from "@/components/NetBadge";
 import { NetProvider } from "@/components/NetProvider";
 import { ProfileButton } from "@/components/ProfileButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { body, display } from "@/lib/fonts";
+import { loadGames } from "@/lib/games/registry";
 import "./globals.css";
 
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
@@ -24,7 +27,8 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const games = await loadGames();
   return (
     <html lang="vi" className={`${body.variable} ${display.variable}`} suppressHydrationWarning>
       <head>
@@ -37,42 +41,45 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Bỏ qua tới nội dung
         </a>
-        <NetProvider>
-          <header className="sticky top-0 z-40 border-b-2 border-edge bg-[color-mix(in_srgb,var(--surface)_90%,transparent)] backdrop-blur-md">
-            <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-2 px-4 sm:gap-3 sm:px-6">
-              <Link href="/" className="flex items-center gap-2.5 no-underline">
-                <LogoMark />
-                <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
-              </Link>
-              <nav aria-label="Điều hướng chính" className="ml-3 hidden lg:flex">
-                <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                  Trò chơi
+        <GamesProvider games={games}>
+          <NetProvider>
+            <header className="sticky top-0 z-40 border-b-2 border-edge bg-[color-mix(in_srgb,var(--surface)_90%,transparent)] backdrop-blur-md">
+              <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-2 px-4 sm:gap-3 sm:px-6">
+                <Link href="/" className="flex items-center gap-2.5 no-underline">
+                  <LogoMark />
+                  <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
                 </Link>
-                <Link href="/games/caro/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                  Cờ Caro
-                </Link>
-                <Link href="/games/loto/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                  Lô Tô
-                </Link>
-                <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                  Ma Sói
-                </Link>
-                <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                  Truy tìm Gián Điệp
-                </Link>
-              </nav>
-              <div className="flex-1" />
-              <NetBadge />
-              <ThemeToggle />
-              <ProfileButton />
-            </div>
-          </header>
+                <nav aria-label="Điều hướng chính" className="ml-3 hidden lg:flex">
+                  <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Trò chơi
+                  </Link>
+                  <Link href="/games/caro/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Cờ Caro
+                  </Link>
+                  <Link href="/games/loto/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Lô Tô
+                  </Link>
+                  <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Ma Sói
+                  </Link>
+                  <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Truy tìm Gián Điệp
+                  </Link>
+                </nav>
+                <div className="flex-1" />
+                <NetBadge />
+                <ThemeToggle />
+                <ProfileButton />
+              </div>
+            </header>
 
-          <main id="noi-dung" className="flex-1">
-            {children}
-          </main>
-          <InviteToasts />
-        </NetProvider>
+            <main id="noi-dung" className="flex-1">
+              {children}
+            </main>
+            <InviteToasts />
+            <MaintenanceDialog />
+          </NetProvider>
+        </GamesProvider>
 
         <footer className="mt-20 border-t-2 border-edge bg-surface">
           <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-4 py-8 text-sm text-ink-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">

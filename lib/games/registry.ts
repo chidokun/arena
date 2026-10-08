@@ -1,5 +1,8 @@
 /** Danh mục game. Slug (đường dẫn) dùng tiếng Anh, nội dung hiển thị tiếng Việt. */
 
+/** LIVE: đang mở chơi · MAINTENANCE: có trang nhưng tạm khoá, vào là bị đưa về trang chủ · DEVELOPMENT: sắp ra mắt, chưa có trang. */
+export type GameStatus = "LIVE" | "MAINTENANCE" | "DEVELOPMENT";
+
 export type GameDef = {
   slug: string;
   name: string;
@@ -9,7 +12,7 @@ export type GameDef = {
   seats: { min: number; max: number };
   /** Số người tối đa trong phòng (người chơi + người xem) mà chủ phòng có thể đặt; 0 là không giới hạn. */
   capacity: { min: number; max: number; default: number };
-  available: boolean;
+  status: GameStatus;
   /** Màu chủ đạo của thẻ game. */
   hue: "coral" | "sky" | "lime" | "grape" | "sun";
   emoji: string;
@@ -17,145 +20,110 @@ export type GameDef = {
   host?: string;
 };
 
-export const GAMES: GameDef[] = [
-  {
-    slug: "caro",
-    name: "Cờ Caro",
-    tagline: "Năm quân thẳng hàng là thắng",
-    description:
-      "Hai người lần lượt đặt X và O trên bàn 15×15. Ai xếp được 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo trước thì thắng. Chủ phòng chọn có áp dụng luật chặn hai đầu hay không.",
-    seats: { min: 2, max: 2 },
-    capacity: { min: 2, max: 16, default: 8 },
-    available: true,
-    hue: "coral",
-    emoji: "⭕",
-  },
-  {
-    slug: "loto",
-    name: "Lô Tô",
-    tagline: "Kêu số rộn ràng, đủ năm số một hàng là Kinh!",
-    description:
-      "Bộ 10 màu, mỗi màu 2 tờ bù trừ nhau đủ 90 số. Mỗi người chọn 1–2 tờ; chủ phòng tự động kêu số ngẫu nhiên từ 1 đến 90, tờ của bạn tự đánh dấu. Bốn số cùng hàng thì Hò — đủ năm số một hàng là Kinh!",
-    seats: { min: 1, max: 20 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "sun",
-    emoji: "🧧",
-  },
-  {
-    slug: "werewolf",
-    name: "Ma Sói",
-    tagline: "Đêm Sói cắn, ngày cả làng treo cổ",
-    description:
-      "Người tạo phòng là Quản trò — mặc định chơi cùng, hoặc chỉ xem và điều khiển; máy của họ tự chia vai bí mật: Ma Sói, Dân Làng, Tiên Tri, Bảo Vệ, Phù Thủy, Thợ Săn, Cupid, Bán Sói, Minion. Đêm xuống quản trò gọi lần lượt từng vai: Sói chọn người để cắn, các vai đặc biệt dùng năng lực; ngày lên cả làng tranh luận và bỏ phiếu treo cổ. Dân thắng khi hết Sói — Sói thắng khi đông bằng phần còn lại.",
-    seats: { min: 4, max: 16 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "grape",
-    emoji: "🐺",
-    host: "Quản trò",
-  },
-  {
-    slug: "undercover",
-    name: "Truy tìm Gián Điệp",
-    tagline: "Cùng một chủ đề, khác một từ khoá — ai là gián điệp?",
-    description:
-      "Máy chủ phòng bốc một cặp từ na ná nhau trong bộ 1000 cặp và phát bí mật: phe Dân nhận từ chung, phe Gián Điệp nhận từ kia, phe Trắng không có từ nào. Lật bài xem từ, lần lượt từng người mô tả từ khoá theo thứ tự, thảo luận rồi ai cũng có thể gọi biểu quyết loại người đáng ngờ nhất — người bị loại lộ phe, phe Trắng bị loại còn được đoán từ khoá để lật ngược thế cờ.",
-    seats: { min: 3, max: 20 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "sky",
-    emoji: "🕵️",
-  },
-  {
-    slug: "sudoku",
-    name: "Sudoku Tranh Đấu",
-    tagline: "Cùng một đề — ai nhanh tay, nhanh trí hơn?",
-    description:
-      "Cả phòng nhận cùng một đề Sudoku 9×9 mức Dễ, Vừa hoặc Khó. Cùng giải đề: mọi người điền chung một bàn, điền đúng một ô trước người khác được 1 điểm, sai bị trừ — nhiều điểm nhất thắng. Đối kháng: mỗi người tự giải đề của mình, ô người khác đã giải được tô màu người nhanh nhất — ai giải xong trước thắng, người còn lại giải tiếp để xếp hạng.",
-    seats: { min: 1, max: 10 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "lime",
-    emoji: "🔢",
-  },
-  {
-    slug: "xiangqi",
-    name: "Cờ Tướng",
-    tagline: "Chiếu tướng, bắt Tướng — trí tuệ ngàn năm",
-    description:
-      "Hai người cầm quân Đỏ và Đen trên bàn 9×10 với Xe, Pháo, Mã, Tượng, Sĩ, Tướng và Tốt; Đỏ đi trước, đổi bên mỗi ván. Chiếu bí hoặc khiến đối phương hết nước đi là thắng. Có biên bản nước đi kiểu Việt Nam, luật chiếu dai, xin hoà và xin thua.",
-    seats: { min: 2, max: 2 },
-    capacity: { min: 2, max: 16, default: 8 },
-    available: true,
-    hue: "coral",
-    emoji: "🀄",
-  },
-  {
-    slug: "dodge",
-    name: "Né Bão",
-    tagline: "Chạy trái→phải — né hố, gai và đạn truy cản",
-    description:
-      "Người chạy tự chạy liên tục từ trái sang phải, nhảy để né hố và gai trên đường. Người còn lại nấp bốn cạnh, trượt đổi góc và bắn đạn truy cản. Trúng đạn thì người bắn lên làm runner; vướng chướng ngại thì người kế tiếp. Ai sống lâu hơn thắng — chủ phòng dừng để chốt bảng xếp hạng.",
-    seats: { min: 2, max: 8 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "coral",
-    emoji: "🌩️",
-  },
-  {
-    slug: "xiangqi-role",
-    name: "Cờ Tướng Nhập Vai",
-    tagline: "Mỗi người một role — claim lượt, chiếu bí cùng phe",
-    description:
-      "Mỗi phe 5 role: Tướng·Sĩ·Tượng (một người), Xe, Pháo, Mã, Tốt — tối đa 10 người. Ai claim trước được đi; hết giờ thì cung (Tướng·Sĩ·Tượng) nhận token. Luật cờ tướng giữ nguyên; role trống do bot. Chat riêng theo phe.",
-    seats: { min: 2, max: 10 },
-    capacity: { min: 0, max: 0, default: 0 },
-    available: true,
-    hue: "sun",
-    emoji: "♟️",
-  },
-  {
-    slug: "connect-four",
-    name: "Thả Cờ 4",
-    tagline: "Thả quân, nối bốn, hạ đối thủ",
-    description: "Thả quân xuống cột, ai nối được bốn quân trước thì thắng.",
-    seats: { min: 2, max: 2 },
-    capacity: { min: 2, max: 16, default: 8 },
-    available: false,
-    hue: "sky",
-    emoji: "🔵",
-  },
-  {
-    slug: "battleship",
-    name: "Bắn Tàu",
-    tagline: "Giấu hạm đội, đoán toạ độ",
-    description: "Bày tàu bí mật rồi thay phiên bắn vào hải đồ của đối phương.",
-    seats: { min: 2, max: 2 },
-    capacity: { min: 2, max: 16, default: 8 },
-    available: false,
-    hue: "lime",
-    emoji: "🚢",
-  },
-  {
-    slug: "draw-guess",
-    name: "Vẽ Đoán",
-    tagline: "Một người vẽ, cả phòng đoán",
-    description: "Lần lượt vẽ từ khoá bí mật, người khác gõ đáp án nhanh nhất để ghi điểm.",
-    seats: { min: 2, max: 8 },
-    capacity: { min: 2, max: 16, default: 10 },
-    available: false,
-    hue: "grape",
-    emoji: "🎨",
-  },
-];
+const HUES: readonly GameDef["hue"][] = ["coral", "sky", "lime", "grape", "sun"];
 
+/** Danh mục game lấy từ API. */
+export const GAMES_URL = "https://arena-api.nguyentuan.dev/games.json";
+
+const range = (v: unknown, keys: string[]) => typeof v === "object" && v !== null && keys.every((k) => typeof (v as Record<string, unknown>)[k] === "number");
+
+/** Đổi JSON của API thành danh sách GameDef; ném lỗi nếu sai cấu trúc để build dừng thay vì xuất trang hỏng. Trạng thái lạ coi như DEVELOPMENT. */
+export function parseGames(json: unknown): GameDef[] {
+  const list = (json as { games?: unknown })?.games;
+  if (!Array.isArray(list)) throw new Error(`${GAMES_URL}: thiếu mảng "games"`);
+  return list.map((raw: Record<string, unknown>, i) => {
+    const bad = (field: string) => new Error(`${GAMES_URL}: games[${i}] (${String(raw?.slug)}) sai trường "${field}"`);
+    for (const f of ["slug", "name", "tagline", "description", "emoji", "status"]) if (typeof raw?.[f] !== "string") throw bad(f);
+    if (!range(raw.seats, ["min", "max"])) throw bad("seats");
+    if (!range(raw.capacity, ["min", "max", "default"])) throw bad("capacity");
+    if (!HUES.includes(raw.hue as GameDef["hue"])) throw bad("hue");
+    if (raw.host !== undefined && typeof raw.host !== "string") throw bad("host");
+    const status = raw.status === "LIVE" || raw.status === "MAINTENANCE" ? raw.status : "DEVELOPMENT";
+    return { ...raw, status } as GameDef;
+  });
+}
+
+/** Game có trang (lobby/phòng) được xuất lúc build. */
+export const routable = (g: GameDef) => g.status !== "DEVELOPMENT";
+
+/**
+ * Ghép danh mục mới tải lúc chạy vào danh mục lúc build. Chỉ game đã có trang mới đổi được trạng thái
+ * (LIVE ⇄ MAINTENANCE); game chưa có trang giữ nguyên, game bị hạ về DEVELOPMENT coi như bảo trì.
+ */
+export function mergeGames(built: GameDef[], fresh: GameDef[]): GameDef[] {
+  return built.map((g) => {
+    const f = fresh.find((x) => x.slug === g.slug);
+    if (!f || !routable(g)) return g;
+    return { ...f, status: routable(f) ? f.status : "MAINTENANCE" };
+  });
+}
+
+const fetchGames = (cache: RequestCache) =>
+  fetch(GAMES_URL, { cache }).then((res) => {
+    if (!res.ok) throw new Error(`Không tải được ${GAMES_URL}: HTTP ${res.status}`);
+    return res.json().then(parseGames);
+  });
+
+let loading: Promise<GameDef[]> | undefined;
+
+/** Tải danh mục game (chỉ gọi một lần mỗi tiến trình). Chạy lúc build trong Server Component, kết quả nhúng sẵn vào trang tĩnh. */
+export function loadGames() {
+  return (loading ??= fetchGames("force-cache")
+    .then((games) => {
+      seedGames(games);
+      return games;
+    })
+    .catch((e) => {
+      loading = undefined;
+      throw e;
+    }));
+}
+
+let state = { games: [] as GameDef[], synced: false };
+const listeners = new Set<() => void>();
+
+function update(next: Partial<typeof state>) {
+  state = { ...state, ...next };
+  listeners.forEach((f) => f());
+}
+
+/** Nạp danh mục lúc build cho các hàm đồng bộ bên dưới (một lần) — phía client do GamesProvider gọi trước khi các component con đọc. */
+export function seedGames(games: GameDef[]) {
+  if (!state.games.length) state = { ...state, games };
+}
+
+export const getGames = () => state.games;
+/** Đã hỏi API lúc chạy ít nhất một lần (thành công hay không) — trước đó trạng thái chỉ là bản lúc build. */
+export const isSynced = () => state.synced;
+export const subscribeGames = (f: () => void) => {
+  listeners.add(f);
+  return () => void listeners.delete(f);
+};
+
+let refreshing: Promise<void> | undefined;
+let refreshedAt = 0;
+
+/** Hỏi lại API (trình duyệt) để cập nhật trạng thái bảo trì mà không cần build lại; tối đa một lần mỗi phút. */
+export function refreshGames() {
+  if (refreshing) return refreshing;
+  if (Date.now() - refreshedAt < 60_000) return Promise.resolve();
+  return (refreshing = fetchGames("no-cache")
+    .then((fresh) => update({ games: mergeGames(state.games, fresh) }))
+    .catch((e) => console.warn("Không cập nhật được danh mục game:", e))
+    .finally(() => {
+      refreshing = undefined;
+      refreshedAt = Date.now();
+      if (!state.synced) update({ synced: true });
+    }));
+}
+
+/** Game có trang (đang chơi được hoặc đang bảo trì). */
 export function getGame(slug: string) {
-  return GAMES.find((g) => g.slug === slug && g.available);
+  return state.games.find((g) => g.slug === slug && routable(g));
 }
 
 /** Tên gọi người tạo phòng của một game: "Chủ phòng", hoặc "Quản trò" (ma sói). */
-export const hostTitle = (slug: string | undefined) => GAMES.find((g) => g.slug === slug)?.host ?? "Chủ phòng";
+export const hostTitle = (slug: string | undefined) => state.games.find((g) => g.slug === slug)?.host ?? "Chủ phòng";
 
 export const gameHref = (slug: string) => `/games/${slug}/`;
 export const roomHref = (slug: string, id: string) => `/games/${slug}/room/?id=${encodeURIComponent(id)}`;

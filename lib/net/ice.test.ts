@@ -34,6 +34,6 @@ test("bỏ máy chủ chỉ có STUN, giữ nguyên URL không ghi transport", (
   );
 });
 
-test("không có TURN thì không cần lớp RTCPeerConnection riêng", () => {
-  assert.equal(turnOnAnswer([]), undefined);
+test("ngoài trình duyệt (không có WebRTC) thì không tạo lớp RTCPeerConnection riêng", () => {
+  assert.equal(turnOnAnswer(() => []), undefined);
 });
