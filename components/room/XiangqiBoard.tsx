@@ -62,8 +62,8 @@ const MARKERS: [number, number][] = [
   ]),
 ];
 
-/** Lưới bàn cờ (đối xứng nên không cần lật theo bên cầm quân). */
-const Grid = memo(function Grid({ script }: { script: Script }) {
+/** Lưới bàn cờ (đối xứng nên không cần lật theo bên cầm quân). Dùng chung Cờ Tướng / Nhập vai. */
+export const XiangqiGrid = memo(function XiangqiGrid({ script }: { script: Script }) {
   const x = (c: number) => M + c * C;
   const y = (r: number) => M + r * C;
   const lines = [];
@@ -185,7 +185,7 @@ export function XiangqiBoard({
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className={`xq ${canPlay ? "can-play" : ""}`} role="group" aria-label={`Bàn cờ tướng${canPlay ? " — đến lượt bạn" : ""}`}>
       <rect width={W} height={H} rx={12} className="xq-bg" onClick={() => setPicked(null)} />
-      <Grid script={script} />
+      <XiangqiGrid script={script} />
       {lastFrom >= 0 && (
         <>
           <circle cx={px(lastFrom)} cy={py(lastFrom)} r={7} className="xq-from" />

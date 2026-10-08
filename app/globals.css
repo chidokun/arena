@@ -420,6 +420,13 @@
     stroke: var(--pen);
     stroke-width: 3;
   }
+  /* Role board: green ring around pieces you control (hidden while selected). */
+  .xq-mine {
+    fill: none;
+    stroke: var(--lime);
+    stroke-width: 2.8;
+    pointer-events: none;
+  }
   .xq-piece:focus-visible,
   .xq-target:focus-visible {
     outline: none;

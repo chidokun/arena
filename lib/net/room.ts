@@ -12,6 +12,7 @@
  *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
  *   m:<round>:<uid> — sudoku: nhật ký nước điền của từng người; chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
+ *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
@@ -19,11 +20,14 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom) qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom)
+ * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
+import type { DodgePublic } from "../games/dodge";
 import type { SudokuRound } from "../games/sudoku";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
+import type { XqRolePublic } from "../games/xiangqi-role";
 import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
@@ -76,6 +80,10 @@ export type Meta = {
   uc?: UcPublic;
   /** Sudoku: đề và chế độ của ván gần nhất, chốt lúc bắt đầu. */
   sd?: SudokuRound;
+  /** Né bão: runner, cạnh nấp, điểm sống — chủ phòng cập nhật khi đổi lượt / dừng. */
+  dg?: DodgePublic;
+  /** Cờ tướng nhập vai: ownership + board + turn phase (chủ phòng ghi). */
+  xqr?: XqRolePublic;
   /** Undercover: mã các cặp từ đã chơi trong phòng (ghi khi hết ván) — không bốc lại. */
   ucUsed?: number[];
   ack: Record<string, number>;
@@ -166,7 +174,7 @@ const MAX_REACT_PASSES = 8;
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
 const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:"];
+const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;

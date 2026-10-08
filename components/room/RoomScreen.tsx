@@ -5,11 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { gameHref, getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import { useNet, useWhere } from "../NetProvider";
 import { CaroTable } from "./CaroTable";
+import { DodgeTable } from "./DodgeTable";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
+import { XiangqiRoleTable } from "./XiangqiRoleTable";
 import { XiangqiTable } from "./XiangqiTable";
 import { useRoomSession, useRoomView } from "./useRoom";
 
@@ -94,5 +96,7 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "undercover") return <UndercoverTable id={id} slug={slug} session={session} />;
   if (session.game === "sudoku") return <SudokuTable id={id} slug={slug} session={session} />;
   if (session.game === "xiangqi") return <XiangqiTable id={id} slug={slug} session={session} />;
+  if (session.game === "dodge") return <DodgeTable id={id} slug={slug} session={session} />;
+  if (session.game === "xiangqi-role") return <XiangqiRoleTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

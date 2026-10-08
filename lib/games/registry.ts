@@ -92,6 +92,30 @@ export const GAMES: GameDef[] = [
     emoji: "🀄",
   },
   {
+    slug: "dodge",
+    name: "Né Bão",
+    tagline: "Chạy trái→phải — né hố, gai và đạn truy cản",
+    description:
+      "Người chạy tự chạy liên tục từ trái sang phải, nhảy để né hố và gai trên đường. Người còn lại nấp bốn cạnh, trượt đổi góc và bắn đạn truy cản. Trúng đạn thì người bắn lên làm runner; vướng chướng ngại thì người kế tiếp. Ai sống lâu hơn thắng — chủ phòng dừng để chốt bảng xếp hạng.",
+    seats: { min: 2, max: 8 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "coral",
+    emoji: "🌩️",
+  },
+  {
+    slug: "xiangqi-role",
+    name: "Cờ Tướng Nhập Vai",
+    tagline: "Mỗi người một role — claim lượt, chiếu bí cùng phe",
+    description:
+      "Mỗi phe 5 role: Tướng·Sĩ·Tượng (một người), Xe, Pháo, Mã, Tốt — tối đa 10 người. Ai claim trước được đi; hết giờ thì cung (Tướng·Sĩ·Tượng) nhận token. Luật cờ tướng giữ nguyên; role trống do bot. Chat riêng theo phe.",
+    seats: { min: 2, max: 10 },
+    capacity: { min: 0, max: 0, default: 0 },
+    available: true,
+    hue: "sun",
+    emoji: "♟️",
+  },
+  {
     slug: "connect-four",
     name: "Thả Cờ 4",
     tagline: "Thả quân, nối bốn, hạ đối thủ",
