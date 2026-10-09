@@ -143,9 +143,14 @@ export type ChatMsg = {
   shout?: boolean;
   /** Undercover: mô tả từ khoá của người chơi, chép vào khung chat (tô tím). */
   clue?: boolean;
+  /** Vẽ đoán: kết quả chấm một lời đoán — sai (tô tím), gần đúng (chỉ người đoán thấy), đúng (tô xanh). */
+  guess?: GuessMark;
   /** Chỉ hiện trên máy mình, không gửi lại cho người mới vào (vẽ đoán: lời đoán của chính mình — có thể là đáp án). */
   local?: boolean;
 };
+
+export type GuessMark = "wrong" | "near" | "right";
+const GUESS_MARKS: readonly GuessMark[] = ["wrong", "near", "right"];
 
 export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "left" | "elsewhere";
 
@@ -631,7 +636,7 @@ export abstract class RoomSession<G = unknown> {
     if (!msg || typeof msg.uid !== "string" || (!msg.text && !msg.sticker)) return;
     // Id lạ (bản cũ/mới hơn, hoặc bị chế) thì bỏ: id sticker được dùng để dựng đường dẫn ảnh.
     if (msg.sticker !== undefined && !isStickerId(msg.sticker)) return;
-    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300) });
+    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined });
   }
 
   protected pushChat(msg: ChatMsg) {

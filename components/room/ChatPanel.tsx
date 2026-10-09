@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChatMsg, RoomSession } from "@/lib/net/room";
+import type { ChatMsg, GuessMark, RoomSession } from "@/lib/net/room";
 import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
 import { StickerArt } from "./Sticker";
@@ -14,9 +14,12 @@ const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional
 const PICTO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /** Tin chỉ gồm sticker hoặc vài emoji gõ tay: hiện to, không bong bóng. */
-const isIcon = (m: ChatMsg) => !m.system && !m.shout && !m.clue && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
+const isIcon = (m: ChatMsg) => !m.system && !m.shout && !m.clue && !m.guess && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
 
 type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
+
+/** Nhãn của tin kết quả lời đoán (vẽ đoán). */
+const GUESS_TAG: Record<GuessMark, string> = { wrong: "❌ Đã đoán sai", near: "🔥 Gần đúng rồi!", right: "✅ Đã đoán đúng" };
 
 /** Gộp các tin icon/sticker liên tiếp của cùng một người (cách nhau dưới 2 phút) vào một dòng. */
 function toRows(chat: ChatMsg[]): Row[] {
@@ -149,6 +152,11 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
                     ) : r.m.clue ? (
                       <p className="chat-clue inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]">
                         <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">✍️ Mô tả</span>
+                        {r.m.text}
+                      </p>
+                    ) : r.m.guess ? (
+                      <p className={`chat-guess is-${r.m.guess} inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]`}>
+                        <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">{GUESS_TAG[r.m.guess]}</span>
                         {r.m.text}
                       </p>
                     ) : r.m.shout ? (

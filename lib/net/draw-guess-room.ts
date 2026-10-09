@@ -9,13 +9,14 @@
  *                      đáp án khi đã đoán đúng.
  *   v:<ván>:<uid>    — người vẽ chọn từ thứ mấy (chỉ số — vô nghĩa với ai không có bộ từ).
  *   a:<ván>:<uid>    — các lời đoán của mình trong lượt, niêm phong gửi chủ phòng.
- *   g:<ván>          — lời đoán sai của lượt hiện tại, chủ phòng công khai; mọi máy chép vào khung chat.
+ *   g:<ván>          — lời đoán sai của lượt hiện tại, chủ phòng công khai; mọi máy chép vào khung chat (ô tím).
  *   d:<ván>:<lượt>.<trang>:<uid> — tranh của người vẽ: các thao tác (nét, đổ màu, hoàn tác, xoá), `PAGE` thao tác mỗi
  *                      trang — trang đầy không đổi nữa nên mỗi lần vẽ chỉ gửi lại trang cuối. Hết lượt thì mọi máy dọn.
  *
  * Nét đang vẽ dở đi theo kênh rumor `ink` (chỉ phần điểm mới, vài chục lần mỗi giây) để người xem thấy nét chạy ngay;
- * vẽ xong nét mới ghi vào trang. Lời đoán gõ trong khung chat: đang lượt vẽ thì tin của người đoán là lời đoán (máy mình
- * hiện ngay, máy người khác thấy khi chủ phòng chấm sai); người đã biết đáp án không nhắn được tin có đáp án.
+ * vẽ xong nét mới ghi vào trang. Lời đoán chỉ gửi từ ô đoán dưới tranh, khung chat chỉ để thảo luận; chấm xong mỗi máy tự
+ * chép kết quả vào khung chat như tin của người đoán: sai — ô tím kèm lời đoán; đúng — ô xanh, chỉ người đoán thấy chữ;
+ * gần đúng — chỉ người đoán thấy. Người đã đoán đúng bị khoá chat tới hết lượt vẽ; người vẽ không nhắn được tin có đáp án.
  *
  * Bí mật của lượt chỉ nằm trên máy chủ phòng (sessionStorage — tải lại trang vẫn giữ); chủ phòng mất kết nối thì người
  * kế nhiệm dừng lượt đang dở (không có đáp án) rồi điều hành tiếp từ lượt sau.
@@ -485,6 +486,12 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.pushChat({ id, ...msg() });
   }
 
+  /** Tên, avatar, màu của một người để đứng tên tin trong khung chat. */
+  private author(uid: string) {
+    const p = this.gossip.get<Member>(`p:${uid}`);
+    return { uid, name: p?.name ?? "Ai đó", avatar: p?.avatar ?? "", color: p?.color ?? "" };
+  }
+
   private say(id: string, text: string) {
     this.once(id, () => ({ uid: "", name: "", avatar: "", color: "", at: Date.now(), text, system: true }));
   }
@@ -498,21 +505,25 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     const t = pub.turn;
     const who = (u: string) => (u === this.me ? "Bạn" : this.nameOf(u));
     if (this.said.key !== `${r}:${t}`) this.said = { key: `${r}:${t}`, ids: new Set() };
-    // Lời đoán sai: chép vào khung chat như tin của người đoán (lời đoán của mình đã hiện sẵn, cùng id).
+    const mine = this.mine.round === r && this.mine.turn === t ? this.mine.list : [];
+    // Kết quả chấm chép vào khung chat như tin của người đoán. Sai: công khai cả lời đoán (ô tím).
     const feed = this.gossip.get<Feed>(`g:${r}`);
     if (feed && feed.turn === t && Array.isArray(feed.list))
       for (const f of feed.list) {
         if (!f || typeof f.u !== "string" || typeof f.t !== "string") continue;
-        this.once(`dw-g:${r}:${t}:${f.u}:${f.i}`, () => {
-          const p = this.gossip.get<Member>(`p:${f.u}`);
-          return { uid: f.u, name: p?.name ?? "Ai đó", avatar: p?.avatar ?? "", color: p?.color ?? "", at: Date.now(), text: f.t.slice(0, GUESS_LEN) };
-        });
+        this.once(`dw-g:${r}:${t}:${f.u}:${f.i}`, () => ({ ...this.author(f.u), at: Date.now(), text: f.t.slice(0, GUESS_LEN), guess: "wrong" }));
       }
-    for (const h of pub.hits) this.say(`dw-hit:${r}:${t}:${h.u}`, h.u === this.me ? `🎉 Bạn đoán đúng rồi! +${h.p} điểm` : `✅ ${who(h.u)} đã đoán đúng! +${h.p}`);
-    // Lời đoán gần đúng: chỉ máy mình biết.
-    const mine = this.mine.round === r && this.mine.turn === t ? this.mine.list : [];
+    // Đúng: người khác chỉ thấy điểm, không thấy chữ (ô xanh); máy mình hiện cả lời đoán nên không gửi lại cho ai.
+    for (const h of pub.hits)
+      this.once(`dw-hit:${r}:${t}:${h.u}`, () => ({
+        ...this.author(h.u),
+        at: Date.now(),
+        guess: "right",
+        ...(h.u === this.me ? { text: `${mine[h.i] ? `“${mine[h.i]}” · ` : ""}+${h.p} điểm`, local: true } : { text: `🎉 +${h.p} điểm` }),
+      }));
+    // Gần đúng: chỉ máy mình biết.
     for (const i of this.privateOf(m, pub)?.near ?? (m.host === this.me && this.secret?.turn === t ? (this.secret.near[this.me] ?? []) : []))
-      if (mine[i] !== undefined) this.say(`dw-near:${r}:${t}:${i}`, `🔥 “${mine[i]}” gần đúng rồi!`);
+      if (mine[i] !== undefined) this.once(`dw-near:${r}:${t}:${i}`, () => ({ ...this.author(this.me), at: Date.now(), text: mine[i], guess: "near", local: true }));
     // Chuyển giai đoạn rao sau cùng: ai vừa đoán đúng hiện trước câu lộ đáp án.
     const key = `${r}:${t}:${pub.phase}`;
     if (key !== this.heard) {
@@ -522,7 +533,7 @@ export class DrawGuessRoom extends RoomSession<DwView> {
         const lap = pub.rounds > 1 && t % n === 0 ? `🔁 Vòng ${t / n + 1}/${pub.rounds} · ` : "";
         this.say(`dw-pick:${r}:${t}`, `${lap}✏️ Lượt ${t + 1}/${totalTurns(pub)}: ${pub.drawer === this.me ? "tới lượt bạn vẽ — chọn một từ!" : `${who(pub.drawer)} đang chọn từ…`}`);
       } else if (pub.phase === "draw") {
-        this.say(`dw-draw:${r}:${t}`, pub.drawer === this.me ? "🖌️ Bắt đầu vẽ! Đừng viết chữ lên tranh nhé." : `🖌️ ${who(pub.drawer)} bắt đầu vẽ — gõ đáp án vào khung chat!`);
+        this.say(`dw-draw:${r}:${t}`, pub.drawer === this.me ? "🖌️ Bắt đầu vẽ! Đừng viết chữ lên tranh nhé." : `🖌️ ${who(pub.drawer)} bắt đầu vẽ — gõ đáp án vào ô đoán dưới tranh!`);
       } else if (pub.phase === "show" && pub.last) {
         const l = pub.last;
         const word = l.word ? `“${l.word}”` : "";
@@ -620,7 +631,10 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.react();
   }
 
-  /** Gửi một lời đoán (đang lượt vẽ, mình là người đoán chưa đoán đúng). Trả về false nếu không gửi được. */
+  /**
+   * Gửi một lời đoán từ ô đoán (đang lượt vẽ, mình là người đoán chưa đoán đúng). Kết quả hiện trong khung chat khi chủ
+   * phòng chấm xong. Trả về false nếu không gửi được.
+   */
   guess(text: string): boolean {
     const live = this.livePub();
     const t = text.trim().slice(0, GUESS_LEN);
@@ -632,29 +646,30 @@ export class DrawGuessRoom extends RoomSession<DwView> {
       this.say(`dw-max:${m.round}:${pub.turn}`, `✋ Mỗi lượt đoán tối đa ${GUESS_MAX} lần`);
       return false;
     }
-    const i = this.mine.list.length;
     this.mine = { ...this.mine, list: [...this.mine.list, t] };
     try {
       sessionStorage.setItem(mineKey(this.id), JSON.stringify(this.mine));
     } catch {}
-    const p = this.gossip.get<Member>(`p:${this.me}`);
-    this.pushChat({ id: `dw-g:${m.round}:${pub.turn}:${this.me}:${i}`, uid: this.me, name: p?.name ?? "", avatar: p?.avatar ?? "", color: p?.color ?? "", at: Date.now(), text: t, local: true });
     this.flushGuesses(m);
     this.react();
     return true;
   }
 
-  /** Đang lượt vẽ: tin của người đoán là lời đoán; người đã biết đáp án không được nhắn đáp án. */
+  /** Người đoán đúng bị khoá chat tới hết lượt vẽ (kể cả sticker) — tránh vô tình làm lộ đáp án. */
+  chatLocked() {
+    const live = this.livePub();
+    return !!live && live.pub.phase === "draw" && live.pub.hits.some((h) => h.u === this.me);
+  }
+
+  /**
+   * Khung chat chỉ để thảo luận (lời đoán gửi qua `guess`). Người đã đoán đúng bị khoá chat tới hết lượt vẽ; người vẽ
+   * không được nhắn đáp án.
+   */
   send(content: { text: string } | { sticker: StickerId }) {
+    if (this.chatLocked()) return;
     const live = this.livePub();
     if ("text" in content && live && (live.pub.phase === "pick" || live.pub.phase === "draw")) {
-      const { m, pub } = live;
-      const guesser = pub.phase === "draw" && pub.order.includes(this.me) && pub.drawer !== this.me && !pub.hits.some((h) => h.u === this.me);
-      if (guesser) {
-        this.guess(content.text);
-        return;
-      }
-      const { word, choices } = this.wordFor(m, pub);
+      const { word, choices } = this.wordFor(live.m, live.pub);
       if ((word ? [word] : (choices ?? [])).some((w) => leaks(content.text, w))) {
         this.system("🤫 Tin nhắn có đáp án nên chưa được gửi — đừng làm lộ đáp án nhé!");
         return;

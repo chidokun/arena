@@ -69,7 +69,7 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
         }
       : undefined;
 
-  const placeholder = !live || !g ? undefined : guessing(g) ? "Gõ đáp án rồi Enter…" : g.word && g.pub.phase !== "show" ? "Nhắn gì đó — đừng lộ đáp án!" : undefined;
+  const placeholder = !live || !g ? undefined : guessing(g) ? "Thảo luận — đoán ở ô dưới tranh nhé" : g.word && g.pub.phase !== "show" ? "Nhắn gì đó — đừng lộ đáp án!" : undefined;
 
   return (
     <RoomLayout
@@ -78,7 +78,13 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
       side={
         <>
           <PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />
-          <ChatPanel session={session} chat={view.chat} me={view.me} placeholder={placeholder} />
+          <ChatPanel
+            session={session}
+            chat={view.chat}
+            me={view.me}
+            placeholder={placeholder}
+            locked={live && g?.hit && g.pub.phase === "draw" ? "🤐 Bạn đã đoán đúng — khoá chat tới hết lượt để không lộ đáp án." : undefined}
+          />
         </>
       }
     >
@@ -215,12 +221,12 @@ function ActionBar({ view, session, now }: { view: View; session: DrawGuessRoom;
         tone = "var(--sun-soft)";
         message = (
           <>
-            🎉 Bạn đã đoán đúng{g.word ? <> <b>“{g.word}”</b></> : ""} (+{g.hit.p})! Chờ mọi người nhé.
+            🎉 Bạn đã đoán đúng{g.word ? <> <b>“{g.word}”</b></> : ""} (+{g.hit.p})! Khung chat tạm khoá tới hết lượt — chờ mọi người nhé.
           </>
         );
       } else if (g.role === "guesser") {
         tone = "var(--lime-soft)";
-        message = <>🤔 {drawer} đang vẽ gì vậy? Gõ đáp án vào ô dưới tranh hoặc khung chat — không cần dấu.</>;
+        message = <>🤔 {drawer} đang vẽ gì vậy? Gõ đáp án vào ô đoán dưới tranh — không cần dấu. Khung chat chỉ để thảo luận.</>;
       } else message = <>👀 Bạn đang xem {drawer} vẽ — {hits}/{total} người đã đoán ra.</>;
     } else if (pub.phase === "show") {
       tone = "var(--grape-soft)";
@@ -304,7 +310,8 @@ function Rules({ view, session }: { view: View; session: DrawGuessRoom }) {
         ))}
       </div>
       <p className="text-[13.5px] text-ink-2">
-        Mỗi vòng ai cũng vẽ một lượt: chọn 1 trong 3 từ (dễ · vừa · khó), người khác gõ đáp án — không cần dấu, bỏ được chữ “con”, “cái”… ở đầu. Đoán càng sớm càng
+        Mỗi vòng ai cũng vẽ một lượt: chọn 1 trong 3 từ (dễ · vừa · khó), người khác gõ đáp án vào ô đoán dưới tranh — không cần dấu, bỏ được chữ “con”, “cái”… ở
+        đầu; khung chat chỉ để thảo luận, ai đoán đúng thì bị khoá chat tới hết lượt. Đoán càng sớm càng
         nhiều điểm (60–300); người vẽ được 50 điểm cho mỗi người đoán ra.
         {!host && " Chủ phòng chỉnh luật cho ván tới."}
       </p>
@@ -518,7 +525,6 @@ const GUESS_LABEL: Record<GuessState, string> = { wait: "đang chấm", wrong: "
 
 /** Dưới tranh: ô đoán cho người đoán, khung đáp án người đoán thấy cho người vẽ. */
 function Prompt({ view, session, match: g }: { view: View; session: DrawGuessRoom; match: DwMatch }) {
-  const [text, setText] = useState("");
   const pub = g.pub;
   if (pub.phase !== "draw") return null;
   if (g.role === "drawer")
@@ -534,9 +540,24 @@ function Prompt({ view, session, match: g }: { view: View; session: DrawGuessRoo
         🎉 Bạn đã đoán ra{g.word ? <> “{g.word}”</> : ""}! +{g.hit.p} điểm
       </p>
     );
+  return <GuessBox key={`${g.round}:${pub.turn}`} view={view} session={session} match={g} />;
+}
+
+/**
+ * Ô đoán — nơi duy nhất gửi lời đoán (khung chat chỉ để thảo luận). Vào lượt vẽ thì tự đặt con trỏ vào ô trên máy có
+ * chuột, trừ khi đang gõ ở chỗ khác; điện thoại thì không, để bàn phím ảo không che tranh.
+ */
+function GuessBox({ view, session, match: g }: { view: View; session: DrawGuessRoom; match: DwMatch }) {
+  const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    const busy = document.activeElement && document.activeElement !== document.body;
+    if (el && !busy && window.matchMedia("(pointer: fine)").matches) el.focus({ preventScroll: true });
+  }, []);
   const recent = g.guesses.slice(-6);
   return (
-    <div className="grid gap-2">
+    <div className="dw-guessbox card grid gap-2 p-3">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -547,11 +568,25 @@ function Prompt({ view, session, match: g }: { view: View; session: DrawGuessRoo
         <label htmlFor="dw-guess" className="sr-only">
           Đáp án bạn đoán
         </label>
-        <input id="dw-guess" className="field" placeholder={`Đoán xem ${nameIn(view, pub.drawer)} vẽ gì…`} value={text} maxLength={40} onChange={(e) => setText(e.target.value)} autoComplete="off" />
+        <input
+          ref={inputRef}
+          id="dw-guess"
+          className="field"
+          placeholder="🎯 Gõ đáp án…"
+          aria-describedby="dw-guess-hint"
+          value={text}
+          maxLength={40}
+          onChange={(e) => setText(e.target.value)}
+          autoComplete="off"
+          enterKeyHint="send"
+        />
         <button type="submit" className="btn btn-pen" disabled={!text.trim()}>
           Đoán
         </button>
       </form>
+      <p id="dw-guess-hint" className="sr-only">
+        Đoán xem {nameIn(view, g.pub.drawer)} đang vẽ gì — không cần dấu. Kết quả hiện trong khung chat.
+      </p>
       {recent.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label="Lời đoán của bạn">
           {recent.map((x, i) => (

@@ -639,6 +639,10 @@
   .dw-size.is-on span {
     background: #1d1648;
   }
+  .dw-guessbox {
+    border-color: var(--pen);
+    box-shadow: 0 4px 0 var(--pen);
+  }
   .dw-guess {
     padding: 2px 10px;
     border: 1.5px solid var(--rule);
@@ -2351,6 +2355,31 @@
   }
   .chat-clue > span {
     color: var(--grape);
+  }
+  /* Vẽ đoán: kết quả chấm lời đoán trong khung chat */
+  .chat-guess {
+    color: var(--ink);
+  }
+  .chat-guess.is-wrong {
+    border-color: var(--grape);
+    background: var(--grape-soft);
+  }
+  .chat-guess.is-wrong > span {
+    color: var(--grape);
+  }
+  .chat-guess.is-near {
+    border-color: var(--sun);
+    background: var(--sun-soft);
+  }
+  .chat-guess.is-near > span {
+    color: color-mix(in srgb, var(--sun) 55%, var(--ink));
+  }
+  .chat-guess.is-right {
+    border-color: var(--lime);
+    background: var(--lime-soft);
+  }
+  .chat-guess.is-right > span {
+    color: color-mix(in srgb, var(--lime) 75%, var(--ink));
   }
   .uc-deck-word {
     max-width: 100%;

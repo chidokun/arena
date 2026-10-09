@@ -175,16 +175,17 @@ lận. Hạm đội đối phương lộ ra (viền vàng nét đứt). Bảng t
 **Vẽ Đoán** (slug `draw-guess`). 2–8 người chơi (bấm *Vào chơi*), phòng giới hạn người xem. Ván gồm 1–4 vòng, mỗi vòng
 ai cũng vẽ một lượt theo thứ tự xáo lúc bắt đầu. Một lượt: người vẽ chọn 1 trong 3 từ bí mật (dễ / vừa / khó — bộ 380 từ
 trong `draw-guess-words.ts`, mã từ = mức × 1000 + số thứ tự nên chỉ thêm vào cuối mỗi mức; phòng nhớ từ đã chơi trong
-`meta.dwUsed`), 15 giây không chọn thì bốc thay; rồi vẽ trong 60–120 giây. Người khác gõ đáp án vào ô dưới tranh hoặc khung
-chat: không phân biệt dấu, hoa thường, khoảng trắng; được bỏ loại từ đứng đầu ("mèo" ≡ "con mèo"), lời đoán được thêm tiếng
-hay nói kèm ("người nông dân", "xe ô tô"). Đoán đúng được 60–300 điểm tuỳ thời gian còn lại, người vẽ +50 mỗi người đoán ra;
+`meta.dwUsed`), 15 giây không chọn thì bốc thay; rồi vẽ trong 60–120 giây. Người khác gõ đáp án vào ô đoán dưới tranh (khung
+chat chỉ để thảo luận): không phân biệt dấu, hoa thường, khoảng trắng; được bỏ loại từ đứng đầu ("mèo" ≡ "con mèo"), lời đoán
+được thêm tiếng hay nói kèm ("người nông dân", "xe ô tô"). Đoán đúng được 60–300 điểm tuỳ thời gian còn lại, người vẽ +50 mỗi người đoán ra;
 cả bàn đoán ra hoặc hết giờ thì lộ đáp án 6 giây rồi sang lượt sau. Gợi ý (tuỳ chọn) mở dần chữ cái ở 50% / 65% / 80% thời
 gian. Hết các lượt, nhiều điểm nhất thắng (đồng hạng được). Máy chủ phòng điều hành (`tick` thuần trong
 `lib/games/draw-guess.ts`): đáp án chỉ nằm trên máy chủ phòng (sessionStorage), bộ từ niêm phong gửi riêng người vẽ
 (`s:<ván>:<uid>`); người đoán niêm phong các lời đoán gửi chủ phòng (`a:<ván>:<uid>`), chủ phòng chấm — sai thì công khai vào
-`g:<ván>` (mọi máy chép vào khung chat như tin của người đoán), gần đúng (sai 1–2 ký tự) thì báo riêng người đó, đúng thì ghi
-vào `meta.dw.hits`; lời đoán đúng không bao giờ lộ ra. Người đã biết đáp án (người vẽ, người đã đoán ra) không nhắn được tin
-có đáp án. Tranh là danh sách thao tác (nét, đổ màu, hoàn tác, xoá; toạ độ trong khổ 800 × 600) chia trang
+`g:<ván>`, gần đúng (sai 1–2 ký tự) thì báo riêng người đó, đúng thì ghi vào `meta.dw.hits`; lời đoán đúng không bao giờ lộ ra.
+Mỗi máy tự chép kết quả chấm vào khung chat như tin của người đoán (`ChatMsg.guess`): sai — ô tím "Đã đoán sai" kèm lời đoán;
+đúng — ô xanh "Đã đoán đúng" kèm điểm (chỉ người đoán thấy chữ); gần đúng — ô vàng, chỉ người đoán thấy. Người đã đoán đúng bị
+khoá chat (cả sticker) tới hết lượt vẽ; người vẽ không nhắn được tin có đáp án. Tranh là danh sách thao tác (nét, đổ màu, hoàn tác, xoá; toạ độ trong khổ 800 × 600) chia trang
 `d:<ván>:<lượt>.<trang>:<uid>`, 8 thao tác mỗi trang — vẽ xong một nét chỉ gửi lại trang cuối; nét đang vẽ dở phát theo
 rumor `ink` (20 lần/giây, chỉ phần điểm mới) nên người xem thấy nét chạy ngay; hết lượt mọi máy dọn tranh cũ. Người vẽ vắng
 mặt lúc tới lượt thì bỏ lượt, im lặng 15 giây giữa lượt thì dừng lượt; còn dưới 2 người chơi (mất kết nối 60 giây) thì dừng
