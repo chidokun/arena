@@ -51,6 +51,7 @@ import { Dialog } from "../Dialog";
 import { HUE } from "../home/hue";
 import { useLobbyView, useNet, useWhere } from "../NetProvider";
 import { Spinner } from "../Spinner";
+import { RulesButton } from "./RulesButton";
 
 export function GameLobby({ slug }: { slug: string }) {
   const game = getGame(slug)!;
@@ -80,10 +81,13 @@ export function GameLobby({ slug }: { slug: string }) {
           <h1 className="font-display text-4xl font-extrabold tracking-tight">{game.name}</h1>
           <p className="mt-2 max-w-[70ch] text-[15.5px] text-ink-2">{game.description}</p>
         </div>
-        <div className="flex w-full flex-none flex-col gap-2.5 sm:w-60">
-          <button type="button" className="btn btn-pen h-12 w-full px-6 text-base" onClick={() => setCreating(true)}>
-            + Tạo phòng
-          </button>
+        <div className="flex w-full flex-none flex-col gap-2.5 sm:w-80">
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-pen h-12 min-w-0 flex-1 px-4 text-base" onClick={() => setCreating(true)}>
+              + Tạo phòng
+            </button>
+            <RulesButton game={game} />
+          </div>
           <JoinByCode slug={slug} />
         </div>
       </header>

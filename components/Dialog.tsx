@@ -9,6 +9,7 @@ export function Dialog({
   title,
   children,
   dismissable = true,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
@@ -16,6 +17,8 @@ export function Dialog({
   children: React.ReactNode;
   /** false: bắt buộc làm xong mới đóng — không có nút đóng, Esc và bấm ra ngoài không đóng. */
   dismissable?: boolean;
+  /** Lớp thêm cho <dialog>, vd. "is-wide" cho hộp thoại rộng hơn. */
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -27,7 +30,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className="sheet"
+      className={className ? `sheet ${className}` : "sheet"}
       aria-label={title}
       onCancel={(e) => {
         if (!dismissable) e.preventDefault();
