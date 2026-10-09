@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -31,6 +31,7 @@ lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, 
 lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của mình, máy chủ phòng phân xử thứ tự và ghi bàn chung
 lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
 lib/net/connect-four-room.ts phòng thả cờ 4: nước đi (số cột), xin thua, xử thua người rớt mạng
+lib/net/battleship-room.ts phòng bắn tàu: cam kết hạm đội, phát bắn và tự trả lời, công bố + đối chiếu khi hết ván
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
@@ -40,6 +41,7 @@ lib/games/undercover-words.ts bộ 1000 cặp từ khoá
 lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed theo mức, phân xử nước điền, dựng lại điểm từ bàn chung)
 lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
 lib/games/connect-four.ts luật thả cờ 4 thuần (quân rơi xuống ô trống thấp nhất, nối 4 thắng, đầy bàn hoà)
+lib/games/battleship.ts luật bắn tàu thuần (hạm đội hợp lệ, trả lời phát bắn, dựng lại ván, cam kết SHA-256, đối chiếu)
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -153,6 +155,20 @@ quân rơi xuống ô trống thấp nhất; mọi máy tự dựng lại ván b
 tiếp (ngang, dọc, chéo) là thắng — một nước nối nhiều chuỗi thì tô sáng tất cả; đầy bàn là hoà. Xin thua `x:<ván>:<uid>`;
 mất kết nối 30 giây giữa ván bị xử thua. Bảng thắng / hoà cộng dồn như caro. Quân mới rơi từ trên xuống lọt sau khung.
 
+**Bắn Tàu** (slug `battleship`). Hai ghế như caro, phòng giới hạn người xem, hải đồ 10 × 10 (cột A–J, hàng 1–10), mỗi
+bên 5 tàu: Tàu sân bay 5 ô, Thiết giáp hạm 4, Tuần dương hạm 3, Tàu ngầm 3, Khu trục hạm 2 (thẳng hàng, không chồng nhau,
+được chạm nhau). Luật phòng chọn lúc tạo: *trúng được bắn tiếp* (mặc định) hay *mỗi phát một lượt*. `lineup[0]` bắn
+trước, đổi mỗi ván. Ván có hai giai đoạn: *bày tàu* — bấm tàu để nhấc, bấm ô để đặt, R / chuột phải / nút để xoay
+(quanh ô đang nắm), bày ngẫu nhiên (các tàu không chạm nhau); bản nháp nhớ trong sessionStorage. Bấm *Sẵn sàng* là chốt:
+máy cất sơ đồ + muối 16 byte ngẫu nhiên trong sessionStorage và chỉ công bố cam kết `f:<ván>:<uid>` = SHA-256(muối +
+sơ đồ). Đủ hai cam kết thì *giao chiến*: người tới lượt nối phát `{ c }` vào `g:<ván>`; máy bên bị bắn thấy phát đang chờ
+thì tự trả lời từ sơ đồ của mình — trượt, trúng, hay chìm (kèm vị trí tàu chìm, như "bạn đã bắn chìm tàu sân bay của
+tôi"). Ai cũng dựng lại ván bằng `replay` (`lib/games/battleship.ts`); nhật ký dừng ở mục sai đầu tiên (bắn lại ô cũ, khai
+chìm tàu chưa trúng hết…). Đánh chìm cả 5 tàu là thắng; mỗi lần chìm tàu mọi máy rao trong khung chat (chỉ diễn biến
+mới). Hết ván (kể cả xin thua `x:<ván>:<uid>`, rớt mạng 30 giây bị xử thua), máy hai người tự công bố hạm đội + muối vào
+`f:<ván>:<uid>`; mọi máy tính lại cam kết và đối chiếu từng câu trả lời: khớp thì hiện "chơi đẹp", lệch thì gắn cờ gian
+lận. Hạm đội đối phương lộ ra (viền vàng nét đứt). Bảng thắng cộng dồn như caro.
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -177,7 +193,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4 (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4, bắn tàu (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```
@@ -185,9 +201,17 @@ npm run build   # xuất trang tĩnh ra out/
 Deploy: đẩy lên nhánh `main`, workflow `.github/workflows/deploy.yml` build và đăng lên GitHub Pages;
 `public/CNAME` trỏ tên miền `arena.nguyentuan.dev`.
 
+**Danh mục game.** Tên, mô tả, số ghế… và trạng thái của từng game nằm ở [arena-api](https://arena-api.nguyentuan.dev/games.json)
+(build nhúng sẵn một bản, trình duyệt hỏi lại lúc chạy). Game nào có trang thì do code quyết định: mọi slug trong
+`BUILT_GAMES` (`lib/games/registry.ts`) có mục trên API đều được xuất trang sảnh + phòng, *bất kể trạng thái*. Trạng thái
+chỉ điều khiển hiển thị lúc chạy — `LIVE` vào chơi được, `MAINTENANCE` (bảo trì) và `DEVELOPMENT` (sắp ra mắt) bị chặn ở
+`MaintenanceGate` — nên đổi trạng thái theo chiều nào cũng không cần build lại. Slug có trên API mà chưa có code thì luôn
+hiện "sắp ra mắt", dù API ghi gì.
+
 ## Thêm game mới
 
-1. Khai báo trong `lib/games/registry.ts` (`available: true`).
+1. Thêm mục vào `games.json` của arena-api (để `DEVELOPMENT` tới khi muốn mở) và thêm slug vào `BUILT_GAMES` trong
+   `lib/games/registry.ts`. Deploy xong thì bật `LIVE` trên arena-api là mở — không cần build lại.
 2. Viết luật thuần trong `lib/games/<game>.ts` (dựng lại trạng thái tất định từ nhật ký) kèm unit test.
 3. Viết lớp phòng `lib/net/<game>-room.ts` kế thừa `RoomSession`: bắt buộc `begin` (chốt đội hình khi bắt đầu ván),
    `outcome` (kết quả suy ra từ nhật ký), `gameView`, `resultText`; tuỳ chọn `applyIntent`, `hostPlay`, `tidy`,

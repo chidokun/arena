@@ -1,6 +1,11 @@
-/** Danh mục game. Slug (đường dẫn) dùng tiếng Anh, nội dung hiển thị tiếng Việt. */
+/**
+ * Danh mục game. Slug (đường dẫn) dùng tiếng Anh, nội dung hiển thị tiếng Việt.
+ *
+ * Game nào có trang là việc của bản build (`BUILT_GAMES` — có code thì có trang); tên, mô tả và trạng thái lấy từ API,
+ * trạng thái chỉ quyết định lúc chạy có cho vào hay không — đổi trạng thái không cần build lại.
+ */
 
-/** LIVE: đang mở chơi · MAINTENANCE: có trang nhưng tạm khoá, vào là bị đưa về trang chủ · DEVELOPMENT: sắp ra mắt, chưa có trang. */
+/** LIVE: đang mở chơi · MAINTENANCE: tạm khoá, vào là bị đưa về trang chủ · DEVELOPMENT: sắp ra mắt, cũng khoá như bảo trì. */
 export type GameStatus = "LIVE" | "MAINTENANCE" | "DEVELOPMENT";
 
 export type GameDef = {
@@ -43,19 +48,20 @@ export function parseGames(json: unknown): GameDef[] {
   });
 }
 
-/** Game có trang (lobby/phòng) được xuất lúc build. */
-export const routable = (g: GameDef) => g.status !== "DEVELOPMENT";
-
 /**
- * Ghép danh mục mới tải lúc chạy vào danh mục lúc build. Chỉ game đã có trang mới đổi được trạng thái
- * (LIVE ⇄ MAINTENANCE); game chưa có trang giữ nguyên, game bị hạ về DEVELOPMENT coi như bảo trì.
+ * Game có code (luật, lớp phòng, bàn chơi) trong bản build này: mỗi game có trang sảnh + phòng, bất kể trạng thái
+ * trên API. Thêm game mới thì thêm slug vào đây (và nhánh tương ứng trong `RoomScreen` / `useRoom`).
  */
+export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "undercover", "sudoku", "xiangqi", "dodge", "xiangqi-role", "connect-four", "battleship"];
+
+export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
+
+/** Game chưa có code trong bản build này luôn là "sắp ra mắt", dù API ghi gì — không có trang để vào. */
+export const withPages = (games: GameDef[]) => games.map((g): GameDef => (hasPage(g.slug) ? g : { ...g, status: "DEVELOPMENT" }));
+
+/** Ghép danh mục mới tải lúc chạy vào danh mục lúc build: game đã có trong bản build lấy bản mới (tên, mô tả, trạng thái…). */
 export function mergeGames(built: GameDef[], fresh: GameDef[]): GameDef[] {
-  return built.map((g) => {
-    const f = fresh.find((x) => x.slug === g.slug);
-    if (!f || !routable(g)) return g;
-    return { ...f, status: routable(f) ? f.status : "MAINTENANCE" };
-  });
+  return withPages(built.map((g) => fresh.find((x) => x.slug === g.slug) ?? g));
 }
 
 const fetchGames = (cache: RequestCache) =>
@@ -69,7 +75,8 @@ let loading: Promise<GameDef[]> | undefined;
 /** Tải danh mục game (chỉ gọi một lần mỗi tiến trình). Chạy lúc build trong Server Component, kết quả nhúng sẵn vào trang tĩnh. */
 export function loadGames() {
   return (loading ??= fetchGames("force-cache")
-    .then((games) => {
+    .then((fresh) => {
+      const games = withPages(fresh);
       seedGames(games);
       return games;
     })
@@ -103,7 +110,7 @@ export const subscribeGames = (f: () => void) => {
 let refreshing: Promise<void> | undefined;
 let refreshedAt = 0;
 
-/** Hỏi lại API (trình duyệt) để cập nhật trạng thái bảo trì mà không cần build lại; tối đa một lần mỗi phút. */
+/** Hỏi lại API (trình duyệt) để cập nhật trạng thái (mở / bảo trì / sắp ra mắt) mà không cần build lại; tối đa một lần mỗi phút. */
 export function refreshGames() {
   if (refreshing) return refreshing;
   if (Date.now() - refreshedAt < 60_000) return Promise.resolve();
@@ -117,9 +124,9 @@ export function refreshGames() {
     }));
 }
 
-/** Game có trang (đang chơi được hoặc đang bảo trì). */
+/** Game có trang, ở trạng thái nào cũng được — chặn hay không là việc của `MaintenanceGate`. */
 export function getGame(slug: string) {
-  return state.games.find((g) => g.slug === slug && routable(g));
+  return state.games.find((g) => g.slug === slug && hasPage(g.slug));
 }
 
 /** Tên gọi người tạo phòng của một game: "Chủ phòng", hoặc "Quản trò" (ma sói). */

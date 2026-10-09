@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mergeGames, parseGames } from "./registry.ts";
+import { BUILT_GAMES, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
 
 const caro = {
   slug: "caro",
@@ -22,22 +22,36 @@ test("giữ LIVE/MAINTENANCE, trạng thái lạ coi như DEVELOPMENT", () => {
   assert.equal(games[1].host, "Quản trò");
 });
 
-test("trạng thái lúc chạy chỉ đổi được game đã có trang", () => {
-  const built = parseGames({
-    games: [caro, { ...caro, slug: "a", status: "MAINTENANCE" }, { ...caro, slug: "b", status: "DEVELOPMENT" }, { ...caro, slug: "c" }],
-  });
+test("game có code thì có trang, bất kể trạng thái trên API", () => {
+  assert.ok(hasPage("caro"));
+  assert.ok(hasPage("battleship"));
+  assert.equal(hasPage("draw-guess"), false);
+  assert.equal(new Set(BUILT_GAMES).size, BUILT_GAMES.length);
+});
+
+test("game chưa có code luôn là sắp ra mắt", () => {
+  const games = withPages(parseGames({ games: [caro, { ...caro, slug: "draw-guess", status: "LIVE" }] }));
+  assert.deepEqual(games.map((g) => g.status), ["LIVE", "DEVELOPMENT"]);
+});
+
+test("trạng thái lúc chạy đổi được mọi game đã có trang, kể cả từ sắp ra mắt", () => {
+  const built = withPages(
+    parseGames({
+      games: [caro, { ...caro, slug: "battleship", status: "DEVELOPMENT" }, { ...caro, slug: "xiangqi" }, { ...caro, slug: "draw-guess", status: "DEVELOPMENT" }],
+    }),
+  );
   const fresh = parseGames({
     games: [
       { ...caro, status: "MAINTENANCE", name: "Caro mới" },
-      { ...caro, slug: "a", status: "LIVE" },
-      { ...caro, slug: "b", status: "LIVE" },
-      { ...caro, slug: "c", status: "DEVELOPMENT" },
+      { ...caro, slug: "battleship", status: "LIVE" },
+      { ...caro, slug: "xiangqi", status: "DEVELOPMENT" },
+      { ...caro, slug: "draw-guess", status: "LIVE" },
     ],
   });
   const merged = mergeGames(built, fresh);
-  assert.deepEqual(merged.map((g) => g.status), ["MAINTENANCE", "LIVE", "DEVELOPMENT", "MAINTENANCE"]);
+  assert.deepEqual(merged.map((g) => g.status), ["MAINTENANCE", "LIVE", "DEVELOPMENT", "DEVELOPMENT"]);
   assert.equal(merged[0].name, "Caro mới");
-  assert.equal(mergeGames(built, [])[0], built[0]);
+  assert.deepEqual(mergeGames(built, []), built);
 });
 
 test("sai cấu trúc thì ném lỗi", () => {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
 import {
   CLAIM_OPTIONS,
@@ -138,6 +139,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const dodge = room.game === "dodge";
   const xiangqiRole = room.game === "xiangqi-role";
   const c4 = room.game === "connect-four";
+  const bs = room.game === "battleship";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -158,7 +160,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                     ? "Đang đấu tướng"
                     : c4
                       ? "Đang thả cờ"
-                      : "Đang đấu",
+                      : bs
+                        ? "Đang giao chiến"
+                        : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -193,6 +197,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <XiangqiRoleChips room={room} />
         ) : c4 ? (
           <ConnectFourChips room={room} />
+        ) : bs ? (
+          <BattleshipChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -240,6 +246,24 @@ function ConnectFourChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-sky-soft px-2.5 py-1">▦ 7×6 · nối 4</span>
+    </>
+  );
+}
+
+function BattleshipChips({ room }: { room: RoomAd }) {
+  const { chain } = bsOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-lime-soft px-2.5 py-1">
+        ▦ {BS_SIZE}×{BS_SIZE} · {BS_FLEET.length} tàu
+      </span>
+      {chain && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🎯 Trúng bắn tiếp</span>}
     </>
   );
 }
@@ -388,6 +412,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [level, setLevel] = useState<Level>(SD_DEFAULTS.level);
   const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
   const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
+  const [chain, setChain] = useState(BS_DEFAULTS.chain);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -396,6 +421,7 @@ function CreateForm({ slug }: { slug: string }) {
   const dodge = slug === "dodge";
   const xiangqiRole = slug === "xiangqi-role";
   const c4 = slug === "connect-four";
+  const bs = slug === "battleship";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -420,6 +446,7 @@ function CreateForm({ slug }: { slug: string }) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (xiangqi || c4) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
         else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
@@ -445,6 +472,21 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
             🔵 Hai người chơi lần lượt thả quân vào bàn 7 cột × 6 hàng — quân rơi xuống ô trống thấp nhất. Ai nối được 4 quân liên tiếp theo hàng ngang,
             dọc hoặc chéo trước thì thắng; đầy bàn là hoà. Quân Đỏ đi trước, đổi người đi trước sau mỗi ván.
+          </p>
+        </>
+      ) : bs ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Luật bắn</legend>
+            <div className="grid gap-2">
+              <Choice on={chain} onClick={() => setChain(true)} title="Trúng được bắn tiếp" text="Bắn trúng (kể cả làm chìm tàu) thì được bắn thêm phát nữa; trượt mới đổi lượt." />
+              <Choice on={!chain} onClick={() => setChain(false)} title="Mỗi phát một lượt" text="Trúng hay trượt cũng đổi lượt — luật cổ điển." />
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
+            🚢 Hai người chơi, mỗi người bí mật bày {BS_FLEET.length} tàu ({BS_FLEET.map((s) => s.len).join("–")} ô) trên hải đồ {BS_SIZE}×{BS_SIZE}, rồi thay phiên gọi toạ độ để bắn.
+            Ai đánh chìm hết hạm đội đối phương trước thì thắng. Sơ đồ được niêm phong bằng mã băm và công bố khi hết ván để đối chiếu.
           </p>
         </>
       ) : dodge ? (

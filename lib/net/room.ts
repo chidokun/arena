@@ -4,7 +4,7 @@
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
  *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4 là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
- *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
+ *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin).
  *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
@@ -13,6 +13,7 @@
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
  *   m:<round>:<uid> — sudoku: nhật ký nước điền của từng người; chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
  *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
+ *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
@@ -20,7 +21,8 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom)
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
+ * BattleshipRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { DodgePublic } from "../games/dodge";
@@ -45,8 +47,8 @@ export type Result = {
   loser?: string;
   /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
-  /** Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree";
+  /** Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu: "sunk" là đánh chìm hết hạm đội. */
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -172,9 +174,9 @@ const CHAT_LIMIT = 120;
 const MAX_REACT_PASSES = 8;
 
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
-const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:"];
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:"];
+const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
