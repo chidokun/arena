@@ -38,6 +38,7 @@ import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
 import { Gossip, Liveness, type Rumor } from "./gossip";
+import { joinProgress, type JoinProgress } from "./join";
 import type { Lobby, RoomAd } from "./lobby";
 import { ViewStore } from "./view-store";
 import { openChannel, Redialer, type Channel } from "./wire";
@@ -128,6 +129,7 @@ export type Member = Profile & {
 };
 
 export type { StickerId };
+export type { JoinPeer, JoinProgress } from "./join";
 
 export type ChatMsg = {
   id: string;
@@ -171,6 +173,8 @@ export type RoomView<G = unknown> = {
   /** Phần riêng của game (bàn cờ, tờ lô tô…); có khi đã có meta. */
   game?: G;
   chat: ChatMsg[];
+  /** Chỉ có lúc đang vào phòng (`connecting`). */
+  joining?: JoinProgress;
 };
 
 export type CreateRoom = { name: string; cap: number; seats: number; opts: Record<string, unknown> };
@@ -617,6 +621,19 @@ export abstract class RoomSession<G = unknown> {
       pending: null,
       chat: this.chat,
     };
+    if (this.phase === "connecting")
+      base.joining = joinProgress({
+        me: this.me,
+        room: this.id,
+        host: m?.host ?? this.lobby.roomAd(this.id)?.host,
+        lobby: this.lobby.store.get().users,
+        // Bản ghi còn trong snapshot (tải lại trang) có thể của người đã đi; chỉ tính người còn nhịp tim.
+        members: members.filter((p) => this.live.alive(p.uid)),
+        peers: this.channel.peers(),
+        kicked: m?.kicked,
+        synced: !!m,
+        unreachable: this.channel.unreachable(),
+      });
     if (!m || m.game !== this.game) return base;
     base.seats = m.players.map(seatOf);
     base.mySeat = m.players.indexOf(this.me);

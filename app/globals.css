@@ -291,6 +291,58 @@
     line-height: 1;
   }
 
+  /* Màn hình vào phòng: thanh tiến độ kết nối và hàng người đang bắt tay */
+  .join-bar {
+    height: 12px;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sunken);
+  }
+  .join-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--lime);
+    transition: width 400ms ease;
+  }
+  .join-bar.is-unknown > span {
+    width: 35%;
+    background: var(--pen);
+    animation: join-sweep 1.3s ease-in-out infinite;
+  }
+  .join-peer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .join-peer.is-waiting .avatar {
+    opacity: 0.5;
+    animation: sd-wait 900ms ease-in-out infinite alternate;
+  }
+  .join-peer .join-mark {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sun);
+    color: var(--on-pen);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .join-peer.is-linked .join-mark {
+    background: var(--lime);
+  }
+  .join-peer.is-waiting .join-mark {
+    animation: sd-wait 600ms ease-in-out infinite alternate;
+  }
+
   /* Hộp thoại native */
   dialog.sheet {
     margin: auto;
@@ -2603,6 +2655,14 @@
   }
   to {
     transform: rotateY(0);
+  }
+}
+@keyframes join-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
   }
 }
 @keyframes pop-in {

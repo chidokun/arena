@@ -9,6 +9,7 @@ import { CaroTable } from "./CaroTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
 import { DrawGuessTable } from "./DrawGuessTable";
+import { Joining } from "./Joining";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
@@ -40,12 +41,7 @@ export function RoomScreen({ slug }: { slug: string }) {
         {back}
       </Notice>
     );
-  if (!view || view.phase === "connecting")
-    return (
-      <Notice emoji="📡" title={ad ? `Đang vào “${ad.name}”…` : `Đang tìm phòng #${id}…`} spin>
-        Đang kết nối trực tiếp với những người trong phòng. Việc này thường mất vài giây.
-      </Notice>
-    );
+  if (!view || view.phase === "connecting") return <Joining id={id} ad={ad} progress={view?.joining} />;
   if (view.phase === "notfound")
     return (
       <Notice emoji="🏚️" title="Không tìm thấy phòng">
