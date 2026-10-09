@@ -6,6 +6,14 @@ import { useState } from "react";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
 import {
+  DEFAULT_OPTIONS as DW_DEFAULTS,
+  MAX_PLAYERS as DW_MAX,
+  MIN_PLAYERS as DW_MIN,
+  normOptions as dwOptions,
+  ROUND_CHOICES as DW_ROUNDS,
+  TIME_CHOICES as DW_TIMES,
+} from "@/lib/games/draw-guess";
+import {
   CLAIM_OPTIONS,
   claimLabel,
   DEFAULT_OPTIONS as XQ_DEFAULTS,
@@ -140,6 +148,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const xiangqiRole = room.game === "xiangqi-role";
   const c4 = room.game === "connect-four";
   const bs = room.game === "battleship";
+  const draw = room.game === "draw-guess";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -162,7 +171,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                       ? "Đang thả cờ"
                       : bs
                         ? "Đang giao chiến"
-                        : "Đang đấu",
+                        : draw
+                          ? "Đang vẽ"
+                          : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -199,6 +210,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <ConnectFourChips room={room} />
         ) : bs ? (
           <BattleshipChips room={room} />
+        ) : draw ? (
+          <DrawGuessChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -264,6 +277,23 @@ function BattleshipChips({ room }: { room: RoomAd }) {
         ▦ {BS_SIZE}×{BS_SIZE} · {BS_FLEET.length} tàu
       </span>
       {chain && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🎯 Trúng bắn tiếp</span>}
+    </>
+  );
+}
+
+function DrawGuessChips({ room }: { room: RoomAd }) {
+  const opts = dwOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-grape-soft px-2.5 py-1">
+        🔁 {opts.rounds} vòng · ⏱ {opts.time}s
+      </span>
     </>
   );
 }
@@ -413,6 +443,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
   const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
   const [chain, setChain] = useState(BS_DEFAULTS.chain);
+  const [rounds, setRounds] = useState(DW_DEFAULTS.rounds);
+  const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -422,6 +454,7 @@ function CreateForm({ slug }: { slug: string }) {
   const xiangqiRole = slug === "xiangqi-role";
   const c4 = slug === "connect-four";
   const bs = slug === "battleship";
+  const draw = slug === "draw-guess";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -447,6 +480,7 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (xiangqi || c4) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
+        else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
         else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
         else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
@@ -487,6 +521,42 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
             🚢 Hai người chơi, mỗi người bí mật bày {BS_FLEET.length} tàu ({BS_FLEET.map((s) => s.len).join("–")} ô) trên hải đồ {BS_SIZE}×{BS_SIZE}, rồi thay phiên gọi toạ độ để bắn.
             Ai đánh chìm hết hạm đội đối phương trước thì thắng. Sơ đồ được niêm phong bằng mã băm và công bố khi hết ván để đối chiếu.
+          </p>
+        </>
+      ) : draw ? (
+        <>
+          <CapacityField
+            cap={cap}
+            setCap={setCap}
+            min={Math.max(game.capacity.min, DW_MIN)}
+            max={game.capacity.max}
+            seats={DW_MAX}
+            note={cap > DW_MAX ? `Tối đa ${DW_MAX} người chơi và ${cap - DW_MAX} người xem.` : `Tối đa ${cap} người chơi, không còn chỗ xem.`}
+          />
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Số vòng</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {DW_ROUNDS.map((n) => (
+                <button key={n} type="button" onClick={() => setRounds(n)} aria-pressed={rounds === n} className={`btn !px-2 ${rounds === n ? "btn-sun" : ""}`}>
+                  {n} vòng
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">Mỗi vòng ai cũng vẽ một lượt.</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian vẽ mỗi lượt</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {DW_TIMES.map((t) => (
+                <button key={t} type="button" onClick={() => setDrawTime(t)} aria-pressed={drawTime === t} className={`btn !px-2 ${drawTime === t ? "btn-sun" : ""}`}>
+                  {t} giây
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-grape-soft p-3 text-[13.5px] text-ink-2">
+            🎨 Từ {DW_MIN} đến {DW_MAX} người chơi. Tới lượt thì chọn 1 trong 3 từ bí mật (dễ · vừa · khó) rồi vẽ; người khác gõ đáp án, ai đoán ra càng sớm càng nhiều điểm,
+            người vẽ cũng được điểm theo số người đoán ra. Số vòng, thời gian vẽ và gợi ý chữ cái đổi được trong phòng trước mỗi ván.
           </p>
         </>
       ) : dodge ? (
@@ -613,7 +683,7 @@ function CreateForm({ slug }: { slug: string }) {
   );
 }
 
-function CapacityField({ cap, setCap, min, max, seats }: { cap: number; setCap: (n: number) => void; min: number; max: number; seats: number }) {
+function CapacityField({ cap, setCap, min, max, seats, note }: { cap: number; setCap: (n: number) => void; min: number; max: number; seats: number; note?: string }) {
   return (
     <div>
       <label htmlFor="cr-cap" className="mb-1.5 flex justify-between text-sm font-bold">
@@ -621,9 +691,7 @@ function CapacityField({ cap, setCap, min, max, seats }: { cap: number; setCap: 
         <span className="text-pen tabular-nums">{cap} người</span>
       </label>
       <input id="cr-cap" type="range" min={min} max={max} value={cap} onChange={(e) => setCap(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
-      <p className="mt-1 text-[13px] text-ink-3">
-        Gồm {seats} người chơi và {cap - seats} người xem.
-      </p>
+      <p className="mt-1 text-[13px] text-ink-3">{note ?? `Gồm ${seats} người chơi và ${cap - seats} người xem.`}</p>
     </div>
   );
 }

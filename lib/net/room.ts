@@ -4,16 +4,19 @@
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
  *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4 là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
- *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu.
+ *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
+ *                     đoán sai của lượt đang vẽ, chủ phòng công khai.
  *   x:<round>:<uid> — người chơi xin thua.
- *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin).
- *   a:<round>:<uid> — ma sói: hành động ban đêm, niêm phong gửi riêng quản trò (chủ phòng).
- *   s:<round>:<uid> — ma sói, undercover: bí mật quản trò gửi riêng từng người (vai, từ khoá…), niêm phong.
+ *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
+ *                     vẽ đoán: người vẽ chọn từ thứ mấy.
+ *   a:<round>:<uid> — ma sói: hành động ban đêm; vẽ đoán: các lời đoán trong lượt — niêm phong gửi riêng chủ phòng.
+ *   s:<round>:<uid> — ma sói, undercover, vẽ đoán: bí mật chủ phòng gửi riêng từng người (vai, từ khoá…), niêm phong.
  *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
  *   m:<round>:<uid> — sudoku: nhật ký nước điền của từng người; chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
  *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
  *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
+ *   d:<round>:<lượt>.<trang>:<uid> — vẽ đoán: tranh của người vẽ trong lượt, chia trang thao tác (nét, đổ màu, hoàn tác…).
  *
  * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
  * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
@@ -22,10 +25,11 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom)
+ * BattleshipRoom, DrawGuessRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { DodgePublic } from "../games/dodge";
+import type { DwPublic } from "../games/draw-guess";
 import type { SudokuRound } from "../games/sudoku";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
@@ -47,8 +51,11 @@ export type Result = {
   loser?: string;
   /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
-  /** Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu: "sunk" là đánh chìm hết hạm đội. */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk";
+  /**
+   * Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu:
+   * "sunk" là đánh chìm hết hạm đội. Vẽ đoán: "points" là hết các lượt, nhiều điểm nhất thắng (`winners`).
+   */
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -88,6 +95,10 @@ export type Meta = {
   xqr?: XqRolePublic;
   /** Undercover: mã các cặp từ đã chơi trong phòng (ghi khi hết ván) — không bốc lại. */
   ucUsed?: number[];
+  /** Vẽ đoán: phần công khai của ván gần nhất (thứ tự vẽ, lượt, giai đoạn, ai đoán đúng, điểm). */
+  dw?: DwPublic;
+  /** Vẽ đoán: mã các từ đã chơi trong phòng — không bốc lại. */
+  dwUsed?: number[];
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
@@ -132,6 +143,8 @@ export type ChatMsg = {
   shout?: boolean;
   /** Undercover: mô tả từ khoá của người chơi, chép vào khung chat (tô tím). */
   clue?: boolean;
+  /** Chỉ hiện trên máy mình, không gửi lại cho người mới vào (vẽ đoán: lời đoán của chính mình — có thể là đáp án). */
+  local?: boolean;
 };
 
 export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "left" | "elsewhere";
@@ -174,9 +187,9 @@ const CHAT_LIMIT = 120;
 const MAX_REACT_PASSES = 8;
 
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
-const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:"];
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:", "d:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:"];
+const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:", "d:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
@@ -315,7 +328,7 @@ export abstract class RoomSession<G = unknown> {
     this.gossip.onRumor((r) => this.onRumor(r));
     this.channel.onPeerJoin((peer) => {
       // Gửi lịch sử chat cho người mới; họ tự khử trùng lặp theo id.
-      const hist = this.chat.filter((m) => !m.system).slice(-60);
+      const hist = this.chat.filter((m) => !m.system && !m.local).slice(-60);
       this.gossip.replay(
         hist.map((m) => ({ id: m.id, t: "chat", p: m })),
         peer,

@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/`, `/games/draw-guess/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -32,6 +32,7 @@ lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của 
 lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
 lib/net/connect-four-room.ts phòng thả cờ 4: nước đi (số cột), xin thua, xử thua người rớt mạng
 lib/net/battleship-room.ts phòng bắn tàu: cam kết hạm đội, phát bắn và tự trả lời, công bố + đối chiếu khi hết ván
+lib/net/draw-guess-room.ts phòng vẽ đoán: máy chủ phòng điều hành, từ khoá và lời đoán niêm phong, tranh chia trang + nét dở qua rumor
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
@@ -42,6 +43,8 @@ lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed 
 lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
 lib/games/connect-four.ts luật thả cờ 4 thuần (quân rơi xuống ô trống thấp nhất, nối 4 thắng, đầy bàn hoà)
 lib/games/battleship.ts luật bắn tàu thuần (hạm đội hợp lệ, trả lời phát bắn, dựng lại ván, cam kết SHA-256, đối chiếu)
+lib/games/draw-guess.ts luật vẽ đoán thuần (chọn từ → vẽ → lộ đáp án, chấm lời đoán không dấu, gợi ý chữ cái, điểm, thao tác vẽ)
+lib/games/draw-guess-words.ts bộ 380 từ khoá vẽ đoán, ba mức dễ / vừa / khó
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -169,6 +172,26 @@ mới). Hết ván (kể cả xin thua `x:<ván>:<uid>`, rớt mạng 30 giây b
 `f:<ván>:<uid>`; mọi máy tính lại cam kết và đối chiếu từng câu trả lời: khớp thì hiện "chơi đẹp", lệch thì gắn cờ gian
 lận. Hạm đội đối phương lộ ra (viền vàng nét đứt). Bảng thắng cộng dồn như caro.
 
+**Vẽ Đoán** (slug `draw-guess`). 2–8 người chơi (bấm *Vào chơi*), phòng giới hạn người xem. Ván gồm 1–4 vòng, mỗi vòng
+ai cũng vẽ một lượt theo thứ tự xáo lúc bắt đầu. Một lượt: người vẽ chọn 1 trong 3 từ bí mật (dễ / vừa / khó — bộ 380 từ
+trong `draw-guess-words.ts`, mã từ = mức × 1000 + số thứ tự nên chỉ thêm vào cuối mỗi mức; phòng nhớ từ đã chơi trong
+`meta.dwUsed`), 15 giây không chọn thì bốc thay; rồi vẽ trong 60–120 giây. Người khác gõ đáp án vào ô dưới tranh hoặc khung
+chat: không phân biệt dấu, hoa thường, khoảng trắng; được bỏ loại từ đứng đầu ("mèo" ≡ "con mèo"), lời đoán được thêm tiếng
+hay nói kèm ("người nông dân", "xe ô tô"). Đoán đúng được 60–300 điểm tuỳ thời gian còn lại, người vẽ +50 mỗi người đoán ra;
+cả bàn đoán ra hoặc hết giờ thì lộ đáp án 6 giây rồi sang lượt sau. Gợi ý (tuỳ chọn) mở dần chữ cái ở 50% / 65% / 80% thời
+gian. Hết các lượt, nhiều điểm nhất thắng (đồng hạng được). Máy chủ phòng điều hành (`tick` thuần trong
+`lib/games/draw-guess.ts`): đáp án chỉ nằm trên máy chủ phòng (sessionStorage), bộ từ niêm phong gửi riêng người vẽ
+(`s:<ván>:<uid>`); người đoán niêm phong các lời đoán gửi chủ phòng (`a:<ván>:<uid>`), chủ phòng chấm — sai thì công khai vào
+`g:<ván>` (mọi máy chép vào khung chat như tin của người đoán), gần đúng (sai 1–2 ký tự) thì báo riêng người đó, đúng thì ghi
+vào `meta.dw.hits`; lời đoán đúng không bao giờ lộ ra. Người đã biết đáp án (người vẽ, người đã đoán ra) không nhắn được tin
+có đáp án. Tranh là danh sách thao tác (nét, đổ màu, hoàn tác, xoá; toạ độ trong khổ 800 × 600) chia trang
+`d:<ván>:<lượt>.<trang>:<uid>`, 8 thao tác mỗi trang — vẽ xong một nét chỉ gửi lại trang cuối; nét đang vẽ dở phát theo
+rumor `ink` (20 lần/giây, chỉ phần điểm mới) nên người xem thấy nét chạy ngay; hết lượt mọi máy dọn tranh cũ. Người vẽ vắng
+mặt lúc tới lượt thì bỏ lượt, im lặng 15 giây giữa lượt thì dừng lượt; còn dưới 2 người chơi (mất kết nối 60 giây) thì dừng
+ván. Chủ phòng đổi giữa lượt thì lượt đó bị huỷ (đáp án nằm trên máy chủ cũ), ván tiếp tục từ lượt sau; đang chọn từ / đang
+vẽ thì không nhường chủ phòng được. Mỗi máy chụp tranh các lượt đã lộ đáp án vào *Triển lãm* cuối trang (chỉ trên máy mình,
+tải lại trang là mất; lưu được ảnh).
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -193,7 +216,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4, bắn tàu (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4, bắn tàu, vẽ đoán (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

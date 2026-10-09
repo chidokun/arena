@@ -25,19 +25,20 @@ test("giữ LIVE/MAINTENANCE, trạng thái lạ coi như DEVELOPMENT", () => {
 test("game có code thì có trang, bất kể trạng thái trên API", () => {
   assert.ok(hasPage("caro"));
   assert.ok(hasPage("battleship"));
-  assert.equal(hasPage("draw-guess"), false);
+  assert.ok(hasPage("draw-guess"));
+  assert.equal(hasPage("word-chain"), false);
   assert.equal(new Set(BUILT_GAMES).size, BUILT_GAMES.length);
 });
 
 test("game chưa có code luôn là sắp ra mắt", () => {
-  const games = withPages(parseGames({ games: [caro, { ...caro, slug: "draw-guess", status: "LIVE" }] }));
+  const games = withPages(parseGames({ games: [caro, { ...caro, slug: "word-chain", status: "LIVE" }] }));
   assert.deepEqual(games.map((g) => g.status), ["LIVE", "DEVELOPMENT"]);
 });
 
 test("trạng thái lúc chạy đổi được mọi game đã có trang, kể cả từ sắp ra mắt", () => {
   const built = withPages(
     parseGames({
-      games: [caro, { ...caro, slug: "battleship", status: "DEVELOPMENT" }, { ...caro, slug: "xiangqi" }, { ...caro, slug: "draw-guess", status: "DEVELOPMENT" }],
+      games: [caro, { ...caro, slug: "battleship", status: "DEVELOPMENT" }, { ...caro, slug: "xiangqi" }, { ...caro, slug: "word-chain", status: "DEVELOPMENT" }],
     }),
   );
   const fresh = parseGames({
@@ -45,7 +46,7 @@ test("trạng thái lúc chạy đổi được mọi game đã có trang, kể 
       { ...caro, status: "MAINTENANCE", name: "Caro mới" },
       { ...caro, slug: "battleship", status: "LIVE" },
       { ...caro, slug: "xiangqi", status: "DEVELOPMENT" },
-      { ...caro, slug: "draw-guess", status: "LIVE" },
+      { ...caro, slug: "word-chain", status: "LIVE" },
     ],
   });
   const merged = mergeGames(built, fresh);

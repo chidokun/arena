@@ -40,8 +40,11 @@ function Icon({ m }: { m: ChatMsg }) {
   return <StickerArt id={m.sticker} size={120} className="pop-in" />;
 }
 
-/** `locked`: lý do tạm không cho gửi tin (ma sói: ban đêm, người đã chết) — vẫn đọc được. */
-export function ChatPanel({ session, chat, me, locked }: { session: RoomSession; chat: ChatMsg[]; me: string; locked?: string }) {
+/**
+ * `locked`: lý do tạm không cho gửi tin (ma sói: ban đêm, người đã chết) — vẫn đọc được. `placeholder`: gợi ý trong ô nhập
+ * (vẽ đoán: đang lượt vẽ thì tin của người đoán là lời đoán).
+ */
+export function ChatPanel({ session, chat, me, locked, placeholder }: { session: RoomSession; chat: ChatMsg[]; me: string; locked?: string; placeholder?: string }) {
   const [text, setText] = useState("");
   const [packOpen, setPackOpen] = useState(false);
   const rows = useMemo(() => toRows(chat), [chat]);
@@ -232,7 +235,7 @@ export function ChatPanel({ session, chat, me, locked }: { session: RoomSession;
               <input
                 id="chat-input"
                 className="field !min-h-[42px]"
-                placeholder="Nhắn gì đó…"
+                placeholder={placeholder ?? "Nhắn gì đó…"}
                 value={text}
                 maxLength={300}
                 onChange={(e) => setText(e.target.value)}
