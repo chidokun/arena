@@ -3,7 +3,7 @@
  *
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
- *   g:<round>       — nhật ký của ván: caro, cờ tướng là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
+ *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4 là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), lô tô là dãy số chủ phòng đã kêu.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin).
@@ -20,7 +20,7 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom)
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { DodgePublic } from "../games/dodge";

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { gameHref, getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import { useNet, useWhere } from "../NetProvider";
 import { CaroTable } from "./CaroTable";
+import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
 import { LotoTable } from "./LotoTable";
 import { Notice } from "./RoomLayout";
@@ -98,5 +99,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "xiangqi") return <XiangqiTable id={id} slug={slug} session={session} />;
   if (session.game === "dodge") return <DodgeTable id={id} slug={slug} session={session} />;
   if (session.game === "xiangqi-role") return <XiangqiRoleTable id={id} slug={slug} session={session} />;
+  if (session.game === "connect-four") return <ConnectFourTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

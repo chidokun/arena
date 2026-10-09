@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -30,6 +30,7 @@ lib/net/werewolf-room.ts  phòng ma sói: máy chủ phòng làm quản trò, b�
 lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, từ khoá niêm phong giữa từng người và máy chủ phòng
 lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của mình, máy chủ phòng phân xử thứ tự và ghi bàn chung
 lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
+lib/net/connect-four-room.ts phòng thả cờ 4: nước đi (số cột), xin thua, xử thua người rớt mạng
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
 lib/games/loto.ts     luật lô tô thuần (sinh bộ tờ từ seed, dựng lại ván từ dãy số đã kêu)
@@ -38,6 +39,7 @@ lib/games/undercover.ts luật undercover thuần (phát từ → thảo luận 
 lib/games/undercover-words.ts bộ 1000 cặp từ khoá
 lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed theo mức, phân xử nước điền, dựng lại điểm từ bàn chung)
 lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
+lib/games/connect-four.ts luật thả cờ 4 thuần (quân rơi xuống ô trống thấp nhất, nối 4 thắng, đầy bàn hoà)
 ```
 
 **Gossip store.** Mỗi bản ghi mang phiên bản `(c, w)` = (đồng hồ Lamport, uid người ghi); bản mới hơn thắng.
@@ -145,6 +147,12 @@ nhắc ai cầm quân gì), hết ván có cảnh chiến thắng kèm pháo gi�
 chiếu tướng đóng dấu "Chiếu tướng!" lên bàn — chỉ diễn khi khoảnh khắc xảy ra ngay trước mắt, vào phòng / tải lại trang
 không diễn lại. Chữ trên quân (chữ Hán hay tên tiếng Việt) chọn trên từng máy, nhớ trong localStorage.
 
+**Thả Cờ 4** (slug `connect-four`). Hai ghế như caro, phòng giới hạn người xem, bàn 7 cột × 6 hàng. `lineup[0]` cầm
+quân Đỏ đi trước, `lineup[1]` cầm quân Vàng; đổi người đi trước mỗi ván. Hai người lần lượt nối *số cột* vào `g:<ván>`,
+quân rơi xuống ô trống thấp nhất; mọi máy tự dựng lại ván bằng `replay` (`lib/games/connect-four.ts`). Nối 4 quân liên
+tiếp (ngang, dọc, chéo) là thắng — một nước nối nhiều chuỗi thì tô sáng tất cả; đầy bàn là hoà. Xin thua `x:<ván>:<uid>`;
+mất kết nối 30 giây giữa ván bị xử thua. Bảng thắng / hoà cộng dồn như caro. Quân mới rơi từ trên xuống lọt sau khung.
+
 **Sống / chết.** Mỗi peer ghi giờ máy mình vào bản ghi hiện diện mỗi 2–3 giây; peer khác lấy *giờ cục bộ* lúc thấy
 nhịp tim tăng để xét còn sống hay không (không phụ thuộc lệch giờ). Chủ phòng im lặng quá 20 giây thì người kế nhiệm
 (người chơi theo thứ tự ghế, rồi người vào sớm nhất) tiếp quản. Người chơi caro mất kết nối 30 giây giữa ván bị xử thua; người chơi ma sói mất kết nối 60 giây thì coi như bỏ làng (chết).
@@ -169,7 +177,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4 (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

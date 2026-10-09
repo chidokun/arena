@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Profile } from "@/lib/identity";
 import { CaroRoom } from "@/lib/net/caro-room";
+import { ConnectFourRoom } from "@/lib/net/connect-four-room";
 import { DodgeRoom } from "@/lib/net/dodge-room";
 import type { Lobby } from "@/lib/net/lobby";
 import { LotoRoom } from "@/lib/net/loto-room";
@@ -13,7 +14,7 @@ import { WerewolfRoom } from "@/lib/net/werewolf-room";
 import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -40,7 +41,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                   ? DodgeRoom.open(id, uid, profile, lobby)
                   : game === "xiangqi-role"
                     ? XiangqiRoleRoom.open(id, uid, profile, lobby)
-                    : CaroRoom.open(id, uid, profile, lobby);
+                    : game === "connect-four"
+                      ? ConnectFourRoom.open(id, uid, profile, lobby)
+                      : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }
