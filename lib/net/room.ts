@@ -179,6 +179,9 @@ export type RoomView<G = unknown> = {
 
 export type CreateRoom = { name: string; cap: number; seats: number; opts: Record<string, unknown> };
 
+/** Nhịp đếm ngược 3‑2‑1 lúc mở ván; game có đồng hồ do chủ phòng giữ thì lùi mốc chạy thật lại bấy nhiêu. */
+export const START_COUNTDOWN_MS = 3000;
+
 const HEARTBEAT_MS = 2000;
 const MEMBER_TIMEOUT_MS = 9000;
 // Đủ dài để chủ phòng tải lại trang (kết nối lại qua relay mất vài giây) mà không bị tiếp quản.

@@ -87,8 +87,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <LogoMark className="h-6 w-6" /> Arena
             </p>
             <p className="max-w-[62ch]">
-              Chạy hoàn toàn trên trình duyệt: các máy nối trực tiếp qua WebRTC, trạng thái phòng được đồng bộ bằng giao thức gossip. Không máy chủ
-              game, không lưu dữ liệu.
+              Nền tảng mini game P2P miễn phí dành cho hội bạn thân. Những ván đấu đối kháng nho nhỏ để cả nhóm thêm gần nhau, thêm nhiều
+              chuyện để cười.
             </p>
           </div>
         </footer>

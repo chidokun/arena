@@ -20,6 +20,15 @@ function Mark({ v, cx, cy, fresh }: { v: number; cx: number; cy: number; fresh: 
   );
 }
 
+/** Quân X / O đứng riêng (huy hiệu trong các cảnh mở ván, hết ván). */
+export function MarkIcon({ v, size = 32, className }: { v: 1 | 2; size?: number; className?: string }) {
+  return (
+    <svg viewBox={`0 0 ${C} ${C}`} width={size} height={size} className={className} aria-label={v === 1 ? "X" : "O"}>
+      <Mark v={v} cx={C / 2} cy={C / 2} fresh={false} />
+    </svg>
+  );
+}
+
 /** Bàn caro SVG: mỗi ô là một hình chữ nhật bấm được; đánh dấu nước cuối và chuỗi thắng. */
 export const CaroBoard = memo(function CaroBoard({
   state,

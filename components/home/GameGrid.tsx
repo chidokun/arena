@@ -6,25 +6,28 @@ import { countFor } from "@/lib/net/lobby";
 import { useGames } from "../GamesProvider";
 import { showMaintenance } from "../Maintenance";
 import { useLobbyView, useWhere } from "../NetProvider";
+import { Spinner } from "../Spinner";
 import { HUE } from "./hue";
 
 export function LiveStats() {
   useWhere({});
   const view = useLobbyView();
+  // Chưa nối được ai thì sảnh chưa có dữ liệu thật — hiện vòng quay thay vì số 0 / "–" gây hiểu nhầm.
+  const ready = view.connected;
   return (
     <div className="flex flex-wrap gap-3">
-      <Stat value={view.users.length || "–"} label="đang online" tone="var(--lime)" />
-      <Stat value={view.rooms.length || "–"} label="phòng đang mở" tone="var(--sun)" />
-      <Stat value={view.rooms.filter((r) => r.status === "playing").length || "–"} label="ván đang đấu" tone="var(--coral)" />
+      <Stat value={ready ? view.users.length : null} label="đang online" tone="var(--lime)" />
+      <Stat value={ready ? view.rooms.length : null} label="phòng đang mở" tone="var(--sun)" />
+      <Stat value={ready ? view.rooms.filter((r) => r.status === "playing").length : null} label="ván đang đấu" tone="var(--coral)" />
     </div>
   );
 }
 
-function Stat({ value, label, tone }: { value: number | string; label: string; tone: string }) {
+function Stat({ value, label, tone }: { value: number | null; label: string; tone: string }) {
   return (
-    <div className="card flex items-baseline gap-2 px-4 py-2.5" style={{ borderRadius: 14 }}>
-      <span className="font-display text-2xl font-extrabold tabular-nums" style={{ color: tone }}>
-        {value}
+    <div className="card flex items-center gap-2 px-4 py-2.5" style={{ borderRadius: 14 }}>
+      <span className="grid min-w-[1ch] place-items-center font-display text-2xl leading-8 font-extrabold tabular-nums" style={{ color: tone }}>
+        {value ?? <Spinner />}
       </span>
       <span className="text-sm font-semibold text-ink-2">{label}</span>
     </div>
@@ -38,14 +41,14 @@ export function GameGrid() {
     <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {games.map((g) => (
         <li key={g.slug}>
-          <GameCard game={g} counts={countFor(view, g.slug)} />
+          <GameCard game={g} counts={view.connected ? countFor(view, g.slug) : null} />
         </li>
       ))}
     </ul>
   );
 }
 
-function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; players: number } }) {
+function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; players: number } | null }) {
   const hue = HUE[game.hue];
   const body = (
     <>
@@ -71,8 +74,12 @@ function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; pl
         <div className="mt-auto flex items-center gap-4 pt-4 text-sm font-bold">
           {game.status === "LIVE" ? (
             <>
-              <span title="Số phòng đang mở">🏠 {counts.rooms} phòng</span>
-              <span title="Số người đang ở game này">🙋 {counts.players} người</span>
+              <span className="inline-flex items-center gap-1" title="Số phòng đang mở">
+                🏠 {counts ? counts.rooms : <Spinner className="text-ink-3" />} phòng
+              </span>
+              <span className="inline-flex items-center gap-1" title="Số người đang ở game này">
+                🙋 {counts ? counts.players : <Spinner className="text-ink-3" />} người
+              </span>
             </>
           ) : (
             <span className="text-ink-3">{game.status === "MAINTENANCE" ? "Đang bảo trì, quay lại sau nha…" : "Đang phát triển…"}</span>

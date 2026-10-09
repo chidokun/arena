@@ -8,11 +8,16 @@ import { ConfirmButton } from "../ConfirmButton";
 import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<BsView>;
+
+const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
+/** Phát bắn chìm chiếc tàu cuối: chờ một nhịp cho hiệu ứng nổ kịp diễn rồi mới vào cảnh chiến thắng. */
+const SUNK_PAUSE_MS = 1300;
 
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const view = useRoomView(session)!;
@@ -26,6 +31,9 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
   const seated = view.mySeat >= 0;
   // Thanh đối đầu: trong ván theo thứ tự bắn; khi chờ thì theo ghế.
   const slots = g ? g.sides.map((s) => s.seat) : [view.seats[0], view.seats[1]];
+  // Đếm ngược khi hai bên bày xong và vào trận (chưa ai khai hoả); trong lúc đếm chưa được bắn.
+  const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
+  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   const busy = (i: 0 | 1) => live && (g.phase === "setup" ? !g.sides[i].ready : g.turn === i);
 
   return (
@@ -59,11 +67,68 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
       <ActionBar view={view} session={session} />
 
       <div ref={boardRef} className="relative mt-4">
-        {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} />}
+        {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
         <Flyers flyers={flyers} />
       </div>
       {!seated && !(g && g.me >= 0) && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+
+      {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
+      {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
+  );
+}
+
+const RING = ["#ff5a5f", "#2f7bff"] as const;
+
+const fighter = (g: BsMatch, i: 0 | 1, me: string) => {
+  const seat = g.sides[i].seat;
+  return (
+    <Fighter
+      p={seat.member}
+      name={seat.uid === me ? "Bạn" : (seat.member?.name ?? "Ai đó")}
+      sub={i === 0 ? "Khai hoả trước" : "Bắn sau"}
+      ring={RING[i]}
+      badge={<span style={{ color: RING[i] }}>⚓</span>}
+      side={i === 0 ? "left" : "right"}
+    />
+  );
+};
+
+/** Cảnh vào trận: hai hạm đội đã bày xong, đếm ngược 3‑2‑1 rồi khai hoả. */
+function CountdownScene({ match: g, me, n }: { match: BsMatch; me: string; n: number }) {
+  const first = g.sides[0].seat;
+  const tip = g.me === 0 ? "Bạn khai hoả trước — ngắm cho chuẩn nhé!" : g.me === 1 ? "Đối thủ khai hoả trước — giữ vững hạm đội nhé!" : `${first.member?.name ?? "Ai đó"} khai hoả trước — cùng xem nhé!`;
+  return (
+    <CountdownCine eyebrow={`🚢 Bắn Tàu · Ván ${g.round} · Hạm đội sẵn sàng`} n={n} tip={tip}>
+      <Duel left={fighter(g, 0, me)} right={fighter(g, 1, me)} />
+    </CountdownCine>
+  );
+}
+
+/** Cảnh hết ván: người thắng (vàng rực) — bấm để đóng. */
+function EndScene({ match: g, me, onClose }: { match: BsMatch; me: string; onClose: () => void }) {
+  const r = g.result!;
+  if (!r.winner) return <DrawCine people={g.sides.map((s, k) => ({ uid: s.seat.uid, p: s.seat.member, ring: RING[k] }))} title="Hoà!" sub={`Ván ${g.round} hoà`} onClose={onClose} />;
+  const k = g.sides.findIndex((s) => s.seat.uid === r.winner) as 0 | 1;
+  const seat = g.sides[k]?.seat;
+  const shots = g.sides[1 - k]?.marks.filter((v) => v >= 0).length ?? 0;
+  const why =
+    r.reason === "resign"
+      ? "Đối thủ xin thua"
+      : r.reason === "leave"
+        ? "Đối thủ rời trận"
+        : r.reason === "kick"
+          ? "Đối thủ bị mời ra"
+          : `Đánh chìm toàn bộ ${FLEET.length} tàu sau ${shots} phát bắn`;
+  return (
+    <WinCine
+      winners={[{ uid: r.winner, p: seat?.member, badge: <span style={{ color: RING[k] }}>⚓</span> }]}
+      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
+      sub={why}
+      note={r.loser === me ? `${r.reason === "sunk" ? "Hạm đội của bạn đã chìm" : "Bạn thua ván này"} — ván sau phục thù nhé!` : undefined}
+      onClose={onClose}
+    />
   );
 }
 
@@ -199,7 +264,7 @@ function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
 // ---------- giao chiến ----------
 
 /** Hai hải đồ: người chơi thấy hải đồ đối phương (để bắn) trước, hạm đội mình sau; người xem thấy theo thứ tự bắn. */
-function Waters({ view, session }: { view: View; session: BattleshipRoom }) {
+function Waters({ view, session, locked }: { view: View; session: BattleshipRoom; locked: boolean }) {
   const g = view.game!.match;
   const m = view.meta!;
   if (!g)
@@ -225,7 +290,7 @@ function Waters({ view, session }: { view: View; session: BattleshipRoom }) {
       {g.phase === "battle" && <LastShot g={g} view={view} />}
       <div className="grid gap-4 md:grid-cols-2">
         {order.map((i) => (
-          <Side key={i} i={i} g={g} view={view} session={session} />
+          <Side key={i} i={i} g={g} view={view} session={session} locked={locked} />
         ))}
       </div>
     </>
@@ -244,7 +309,7 @@ function LastShot({ g, view }: { g: BsMatch; view: View }) {
   );
 }
 
-function Side({ i, g, view, session }: { i: 0 | 1; g: BsMatch; view: View; session: BattleshipRoom }) {
+function Side({ i, g, view, session, locked }: { i: 0 | 1; g: BsMatch; view: View; session: BattleshipRoom; locked: boolean }) {
   const side = g.sides[i];
   const mine = g.me === i;
   const foeOfMine = g.me >= 0 && !mine;
@@ -259,7 +324,7 @@ function Side({ i, g, view, session }: { i: 0 | 1; g: BsMatch; view: View; sessi
   const ships = fleetDraws(side.sunk, side.fleet, mine ? "steel" : "reveal", last?.r === 2 ? last.k : -1);
   const alive = FLEET.length - side.sunk.length;
   const fog = setup && !(mine && side.ready);
-  const fire = foeOfMine && g.myTurn;
+  const fire = foeOfMine && g.myTurn && !locked;
 
   return (
     <section

@@ -7,6 +7,7 @@ import type { ChatMsg, RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { DrawBoard, Toolbar, type Tool } from "./DrawBoard";
 import { Balloon, PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
@@ -57,7 +58,9 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
   const now = useNow(live);
   const [tool, setTool] = useState<Tool>({ kind: "pen", color: 1, size: 1 });
   const [shots, setShots] = useState<Shot[]>([]);
-  const scenes = useScenes(g);
+  const end = useEndScene(g?.result?.reason === "points" && g.result.winners?.length ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
+  // Mở ván: chủ phòng lùi lượt chọn từ đầu tiên lại một nhịp đếm ngược 3‑2‑1.
+  const count = useCountdown(live && g && g.pub.turn === 0 && g.pub.phase === "pick" ? g.round : 0, { endsAt: g?.pub.since });
   const shown = live && g ? { rounds: g.pub.rounds, time: g.pub.time / 1000, hints: g.pub.hints } : opts;
 
   const last = g?.pub.last;
@@ -113,79 +116,41 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
 
       {g && <Gallery view={view} shots={shots.filter((s) => s.round === g.round)} />}
 
-      {g && scenes.win !== null && <WinScene view={view} match={g} onClose={scenes.close} />}
-      {scenes.party.length > 0 && (
-        <div className="loto-party sd-party" aria-hidden="true">
-          {scenes.party.map((b) => (
-            <span key={b.key} style={{ left: `${b.left}%`, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ["--rot" as string]: `${b.rot}deg` }}>
-              {b.emoji}
-            </span>
-          ))}
-        </div>
-      )}
+      {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
+      {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
   );
 }
 
-/** Cảnh chiến thắng và pháo giấy khi ván vừa kết thúc ngay trước mắt (vào phòng / tải lại trang thì không diễn lại). */
-function useScenes(g: DwMatch | undefined) {
-  const [win, setWin] = useState<number | null>(null);
-  const [party, setParty] = useState<{ key: string; left: number; delay: number; dur: number; rot: number; emoji: string }[]>([]);
-  const key = g?.result?.reason === "points" && g.result.winners?.length ? g.round : 0;
-  const seen = useRef(key);
-  useEffect(() => {
-    if (!key || key === seen.current) {
-      seen.current = key;
-      return;
-    }
-    seen.current = key;
-    setWin(key);
-    setParty(
-      Array.from({ length: 40 }, (_, i) => ({
-        key: `${key}:${i}`,
-        left: Math.random() * 96,
-        delay: Math.random() * 700,
-        dur: 2200 + Math.random() * 1600,
-        rot: Math.round(Math.random() * 540 - 270),
-        emoji: CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
-      })),
-    );
-    const a = setTimeout(() => setParty([]), 4800);
-    const b = setTimeout(() => setWin((w) => (w === key ? null : w)), WIN_SCENE_MS);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [key]);
-  return { win: g && win === g.round ? win : null, party, close: () => setWin(null) };
+/** Cảnh mở ván: những người chơi theo thứ tự vẽ, đếm ngược 3‑2‑1 rồi người vẽ đầu tiên chọn từ. */
+function CountdownScene({ view, match: g, n }: { view: View; match: DwMatch; n: number }) {
+  const drawer = g.pub.drawer;
+  const people = g.lineup.map((s, i) => ({ uid: s.uid, p: s.member, name: nameIn(view, s.uid), ring: s.uid === drawer ? "#ffc23d" : "#be97ff", badge: s.uid === drawer ? "✏️" : `${i + 1}` }));
+  const tip = drawer === view.me ? "Bạn vẽ trước — chuẩn bị chọn từ nhé!" : `${nameIn(view, drawer)} vẽ trước — đoán cho nhanh nhé!`;
+  return (
+    <CountdownCine eyebrow={`🎨 Vẽ Đoán · Ván ${g.round} · ${g.pub.rounds} vòng`} n={n} tip={tip}>
+      <Crowd people={people} />
+    </CountdownCine>
+  );
 }
 
+/** Cảnh chiến thắng khi ván vừa kết thúc ngay trước mắt (vào phòng / tải lại trang thì không diễn lại). */
 function WinScene({ view, match: g, onClose }: { view: View; match: DwMatch; onClose: () => void }) {
   const winners = g.result?.winners ?? [];
   const top = standings(g.pub)[0]?.score ?? 0;
   const iWon = winners.includes(view.me);
   return (
-    <div className="ww-cine sd-cine is-win" role="dialog" aria-modal="true" aria-label="Chiến thắng" onClick={onClose}>
-      <div className="ww-cine-body grid justify-items-center gap-4 text-center">
-        <span className="sd-trophy" aria-hidden="true">
-          🏆
-        </span>
-        <div className="flex flex-wrap justify-center gap-3">
-          {winners.map((u) => {
-            const p = g.lineup.find((s) => s.uid === u)?.member;
-            return p ? <Avatar key={u} p={p} size={72} className="sd-win-avatar" /> : null;
-          })}
-        </div>
-        <p className="ww-cine-title !text-[34px] sm:!text-[42px]">
-          {iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${winners.map((u) => nameIn(view, u)).join(", ")} ${winners.length > 1 ? "đồng hạng nhất!" : "chiến thắng!"}`}
-        </p>
-        <p className="sd-cine-score">
-          {top} <small>điểm</small>
-        </p>
-        <p className="text-[15px] font-bold opacity-85">Họa sĩ kiêm thám tử xuất sắc nhất phòng 🎨</p>
-      </div>
-      <p className="ww-cine-skip">Bấm để đóng</p>
-    </div>
+    <WinCine
+      winners={winners.map((u) => ({ uid: u, p: g.lineup.find((s) => s.uid === u)?.member }))}
+      title={iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${winners.map((u) => nameIn(view, u)).join(", ")} ${winners.length > 1 ? "đồng hạng nhất!" : "chiến thắng!"}`}
+      onClose={onClose}
+    >
+      <p className="cine-score">
+        {top} <small>điểm</small>
+      </p>
+      <p className="text-[15px] font-bold opacity-85">Họa sĩ kiêm thám tử xuất sắc nhất phòng 🎨</p>
+    </WinCine>
   );
 }
 

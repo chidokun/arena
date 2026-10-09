@@ -8,6 +8,7 @@ import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { LotoSheet, SheetDots, sheetStyle } from "./LotoSheet";
 import { Balloon, PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
@@ -45,6 +46,9 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
   const playing = m.status === "playing";
   const taken = g.owner.filter(Boolean).length;
   const last = g.state.draws.at(-1);
+  // Mở ván: đếm ngược 3‑2‑1 tới lúc kêu số đầu tiên. Hết ván có người kinh: cảnh chiến thắng (pháo giấy đã có sẵn lúc kinh).
+  const count = useCountdown(playing && g.round === m.round && !g.state.draws.length && !g.paused ? g.round : 0);
+  const end = useEndScene(g.result?.reason === "kinh" && g.result.round === g.round ? g.round : 0, { cheer: false });
 
   return (
     <RoomLayout
@@ -88,16 +92,46 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
       </div>
 
       {playing && !callerInView && last && <FloatingBall n={last} paused={g.paused} />}
-      {confetti.length > 0 && (
-        <div className="loto-party" aria-hidden="true">
-          {confetti.map((b) => (
-            <span key={b.key} style={{ left: `${b.left}%`, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ["--rot" as string]: `${b.rot}deg` }}>
-              {b.emoji}
-            </span>
-          ))}
-        </div>
-      )}
+      {count > 0 && <CountdownScene view={view} n={count} />}
+      {g.result && end.shown && <EndScene view={view} onClose={end.close} />}
+      <Party bits={confetti} />
     </RoomLayout>
+  );
+}
+
+/** Cảnh mở ván: những người cầm tờ (kèm số tờ), đếm ngược 3‑2‑1 tới số đầu tiên. */
+function CountdownScene({ view, n }: { view: View; n: number }) {
+  const g = view.game!;
+  const people = Object.entries(g.dealt)
+    .filter(([, ids]) => ids.length)
+    .map(([uid, ids]) => {
+      const p = g.people[uid]?.member;
+      return { uid, p, name: uid === view.me ? "Bạn" : (p?.name ?? "Ai đó"), ring: SHEET_COLORS[Math.floor(ids[0] / 2)]?.hex, badge: ids.length > 1 ? `${ids.length}🎫` : "🎫" };
+    });
+  const mine = g.dealt[view.me]?.length ?? 0;
+  return (
+    <CountdownCine eyebrow={`🧧 Lô Tô · Ván ${g.round}`} n={n} tip={mine ? `Bạn cầm ${mine} tờ — dò số cho kỹ, đủ 5 số một hàng là Kinh!` : "Sắp kêu số đầu tiên — cùng xem ai kinh trước nhé!"}>
+      <Crowd people={people} />
+    </CountdownCine>
+  );
+}
+
+/** Cảnh kinh: người (hoặc những người kinh trùng) thắng ván — bấm để đóng. */
+function EndScene({ view, onClose }: { view: View; onClose: () => void }) {
+  const g = view.game!;
+  const winners = g.result!.winners ?? [];
+  const iWon = winners.includes(view.me);
+  const names = winners.map((u) => (u === view.me ? "Bạn" : (g.people[u]?.member?.name ?? "Ai đó"))).join(", ");
+  const last = g.state.draws.at(-1);
+  return (
+    <WinCine
+      trophy="🧧"
+      winners={winners.map((u) => ({ uid: u, p: g.people[u]?.member, badge: "🎫" }))}
+      title={winners.length > 1 ? `Kinh trùng! ${names}` : iWon ? "Bạn kinh rồi!" : `${names} kinh!`}
+      sub={`Kinh ở số ${last ?? "?"} — sau ${g.state.draws.length} số`}
+      note={!iWon && g.dealt[view.me]?.length ? "Ván sau may mắn hơn nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 

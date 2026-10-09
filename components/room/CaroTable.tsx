@@ -2,14 +2,19 @@
 
 import { useRef } from "react";
 import { emptyState } from "@/lib/games/caro";
-import type { CaroRoom, CaroView } from "@/lib/net/caro-room";
-import type { RoomView } from "@/lib/net/room";
+import type { CaroMatch, CaroRoom, CaroView } from "@/lib/net/caro-room";
+import type { RoomView, SeatView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
-import { CaroBoard } from "./CaroBoard";
+import { CaroBoard, MarkIcon } from "./CaroBoard";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+
+const CHEERS = ["🎉", "🏆", "✨", "🎊", "❌", "⭕"];
+/** Thắng bằng chuỗi 5 thì chờ một nhịp cho mọi người kịp thấy đường thắng trên bàn rồi mới diễn. */
+const LINE_PAUSE_MS = 1100;
 
 export function CaroTable({ id, slug, session }: { id: string; slug: string; session: CaroRoom }) {
   const view = useRoomView(session)!;
@@ -18,6 +23,9 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
   const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
+  const live = m.status === "playing" && g?.round === m.round && !g.result;
+  const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
+  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "line" ? LINE_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
 
   const showGame = !!g && (m.status !== "waiting" || g.state.count > 0);
   const state = showGame ? g!.state : emptyState(opts.size);
@@ -75,7 +83,7 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
 
       <div className="relative mt-4">
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
-          <CaroBoard state={state} canPlay={!!g?.myTurn} myMark={g?.myMark ?? 0} onPlay={(x, y) => session.move(x, y)} />
+          <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={(x, y) => session.move(x, y)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && (
@@ -87,7 +95,59 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
         )}
       </div>
       {!seated && !inLineup && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+
+      {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
+      {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
+  );
+}
+
+const fighter = (seat: SeatView | undefined, mark: 1 | 2, me: string, side: "left" | "right") => (
+  <Fighter
+    p={seat?.member}
+    name={seat?.uid === me ? "Bạn" : (seat?.member?.name ?? "Ai đó")}
+    sub={mark === 1 ? "Quân X · đi trước" : "Quân O"}
+    ring={mark === 1 ? "#ff5a5f" : "#2f7bff"}
+    badge={<MarkIcon v={mark} size={24} />}
+    side={side}
+  />
+);
+
+/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
+function CountdownScene({ match: g, me, n }: { match: CaroMatch; me: string; n: number }) {
+  const tip = g.myMark === 1 ? "Bạn cầm X — đi trước nhé!" : g.myMark === 2 ? "Bạn cầm O — chờ X đi trước nhé!" : "X đi trước — cùng xem ván cờ nhé!";
+  return (
+    <CountdownCine eyebrow={`⭕ Cờ Caro · Ván ${g.round}`} n={n} tip={tip}>
+      <Duel left={fighter(g.lineup[0], 1, me, "left")} right={fighter(g.lineup[1], 2, me, "right")} />
+    </CountdownCine>
+  );
+}
+
+/** Cảnh hết ván: người thắng (vàng rực như Sudoku) hoặc hoà — bấm để đóng. */
+function EndScene({ match: g, me, onClose }: { match: CaroMatch; me: string; onClose: () => void }) {
+  const r = g.result!;
+  if (!r.winner)
+    return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: k ? "#2f7bff" : "#ff5a5f" }))} title="Hoà cờ!" sub={`Ván ${g.round} hoà — kín bàn sau ${g.state.count} nước`} onClose={onClose} />;
+  const k = g.lineup.findIndex((s) => s.uid === r.winner);
+  const seat = g.lineup[k];
+  const mark = (k + 1) as 1 | 2;
+  const why =
+    r.reason === "resign"
+      ? "Đối thủ xin thua"
+      : r.reason === "leave"
+        ? "Đối thủ rời trận"
+        : r.reason === "kick"
+          ? "Đối thủ bị mời ra"
+          : `${g.state.line.length} quân liên tiếp sau ${g.state.count} nước`;
+  return (
+    <WinCine
+      winners={[{ uid: r.winner, p: seat?.member, badge: <MarkIcon v={mark} size={22} /> }]}
+      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
+      sub={`Quân ${mark === 1 ? "X" : "O"} · ${why}`}
+      note={r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 

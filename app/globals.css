@@ -1378,23 +1378,6 @@
     font-size: 18px;
   }
 
-  /* Pháo giấy khi kinh */
-  .loto-party {
-    position: fixed;
-    inset: 0;
-    z-index: 45;
-    overflow: hidden;
-    pointer-events: none;
-  }
-  .loto-party span {
-    position: absolute;
-    top: -48px;
-    font-size: 32px;
-    animation-name: confetti;
-    animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1);
-    animation-fill-mode: both;
-  }
-
   /* ---------- Sudoku ---------- */
   .sd-board {
     position: relative;
@@ -1517,61 +1500,6 @@
     line-height: 1;
     color: var(--pen);
     animation: count-pop 900ms ease-out both;
-  }
-  .ww-cine.sd-cine {
-    cursor: default;
-    background:
-      radial-gradient(circle at 50% 28%, color-mix(in srgb, #6c47ff 55%, transparent), transparent 55%),
-      radial-gradient(circle at 15% 85%, color-mix(in srgb, #12b981 40%, transparent), transparent 45%),
-      rgba(17, 13, 38, 0.95);
-  }
-  /* Cảnh chiến thắng: vàng rực như cảnh trời sáng của ma sói */
-  .ww-cine.sd-cine.is-win {
-    cursor: pointer;
-    color: #2b1d00;
-    background:
-      radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.85), rgba(255, 216, 77, 0.55) 18%, transparent 46%),
-      linear-gradient(180deg, #ffd9a0 0%, #ffeccc 45%, #fff8e6 100%);
-  }
-  .sd-trophy {
-    font-size: 96px;
-    line-height: 1;
-    animation: stamp 700ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-  }
-  .sd-win-avatar {
-    box-shadow:
-      0 0 0 4px #ffb020,
-      0 4px 0 6px #2b1d00;
-    animation: pop-in 500ms 200ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-  }
-  .sd-cine-score {
-    font-family: var(--font-display), var(--font-body), sans-serif;
-    font-size: 72px;
-    font-weight: 800;
-    line-height: 1;
-    color: #e8590c;
-    animation: rise-in 700ms 300ms ease-out both;
-  }
-  .sd-cine-score small {
-    font-size: 26px;
-  }
-  .sd-cine-next {
-    margin-top: 6px;
-    padding: 8px 18px;
-    border: 2px solid #2b1d00;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.6);
-    font-size: 17px;
-    font-weight: 800;
-    animation: rise-in 700ms 900ms ease-out both;
-  }
-  /* Pháo giấy toàn màn hình khi thắng: to hơn lô tô, nổi trên cảnh chiến thắng (z-index 60). */
-  .loto-party.sd-party {
-    z-index: 65;
-  }
-  .loto-party.sd-party span {
-    top: -72px;
-    font-size: 48px;
   }
   /* Pháo giấy nổ từ ô vừa có người khác giải đúng */
   .sd-burst {
@@ -2023,52 +1951,98 @@
     background: var(--sun);
     color: #2b1d00;
   }
-  /* ---------- Cờ tướng: cảnh mở ván và hoà cờ ---------- */
-  .ww-cine.xq-cine {
+  /* ---------- Cảnh diễn dùng chung (components/room/Cine.tsx) ---------- */
+  .cine {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px 56px;
+    overflow-y: auto;
+    color: #f1eeff;
+    cursor: default;
+    animation: cine-in 360ms ease-out;
+  }
+  .cine.is-skippable {
     cursor: pointer;
+  }
+  /* Đối đầu: đỏ một góc, xanh một góc */
+  .cine.is-duel {
+    background:
+      radial-gradient(circle at 10% 88%, rgba(255, 90, 95, 0.5), transparent 50%),
+      radial-gradient(circle at 90% 12%, rgba(47, 123, 255, 0.5), transparent 50%),
+      linear-gradient(135deg, #2a1030 0%, #150f2e 55%, #0b1a3a 100%);
+  }
+  .cine.is-grape {
+    background:
+      radial-gradient(circle at 50% 28%, color-mix(in srgb, #6c47ff 55%, transparent), transparent 55%),
+      radial-gradient(circle at 15% 85%, color-mix(in srgb, #12b981 40%, transparent), transparent 45%),
+      rgba(17, 13, 38, 0.95);
+  }
+  .cine.is-red {
     background:
       radial-gradient(circle at 50% 30%, rgba(255, 194, 61, 0.38), transparent 48%),
       radial-gradient(circle at 10% 90%, rgba(200, 29, 37, 0.55), transparent 50%),
       linear-gradient(135deg, #7a0f1d 0%, #300a14 52%, #110d26 100%);
   }
-  .ww-cine.xq-cine.is-draw {
+  /* Chiến thắng: vàng rực như cảnh trời sáng của ma sói */
+  .cine.is-gold {
+    color: #2b1d00;
+    background:
+      radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.85), rgba(255, 216, 77, 0.55) 18%, transparent 46%),
+      linear-gradient(180deg, #ffd9a0 0%, #ffeccc 45%, #fff8e6 100%);
+  }
+  .cine.is-lilac {
     color: #1d1648;
     background:
       radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.85), rgba(190, 151, 255, 0.5) 20%, transparent 50%),
       linear-gradient(180deg, #e4d8ff 0%, #f2ecff 50%, #fbf9ff 100%);
   }
-  .xq-duel {
+  .cine-body {
+    display: grid;
+    width: min(760px, 100%);
+    justify-items: center;
+    text-align: center;
+  }
+  .cine-title {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    animation: rise-in 700ms ease-out both;
+  }
+  .cine-skip {
+    position: fixed;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 700;
+    opacity: 0.55;
+  }
+  .cine-count {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 160px;
+    font-weight: 800;
+    line-height: 1;
+    color: #ffc23d;
+    text-shadow: 0 6px 0 #050312;
+    animation: count-pop 900ms ease-out both;
+  }
+  .cine.is-grape .cine-count {
+    color: inherit;
+    text-shadow: none;
+  }
+  .cine-duel {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: clamp(12px, 5vw, 48px);
   }
-  .xq-fighter {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    align-items: center;
-  }
-  .xq-fighter.is-red {
-    animation: xq-slide-l 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-  }
-  .xq-fighter.is-black {
-    animation: xq-slide-r 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-  }
-  .xq-fighter-avatar {
-    box-shadow: 0 0 0 4px #ffc23d, 0 4px 0 6px #050312;
-  }
-  .xq-fighter.is-black .xq-fighter-avatar {
-    box-shadow: 0 0 0 4px #f1eeff, 0 4px 0 6px #050312;
-  }
-  .xq-fighter-piece {
-    position: absolute;
-    right: -14px;
-    bottom: -10px;
-    filter: drop-shadow(0 3px 0 rgba(5, 3, 18, 0.7));
-    animation: stamp 500ms 550ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-  }
-  .xq-vs {
+  .cine-vs {
     font-family: var(--font-display), var(--font-body), sans-serif;
     font-size: clamp(36px, 9vw, 64px);
     font-weight: 800;
@@ -2077,7 +2051,77 @@
     text-shadow: 0 4px 0 #050312;
     animation: stamp 600ms 450ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   }
-  .xq-open {
+  .cine-fighter {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+  }
+  .cine-fighter.from-left {
+    animation: cine-slide-l 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .cine-fighter.from-right {
+    animation: cine-slide-r 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  /* Viền màu theo quân / phe, đặt qua biến --ring ở thẻ cha */
+  .cine-avatar {
+    box-shadow:
+      0 0 0 4px var(--ring, #ffc23d),
+      0 4px 0 6px #050312;
+  }
+  .cine-badge {
+    position: absolute;
+    right: -14px;
+    bottom: -10px;
+    display: grid;
+    place-items: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 4px;
+    border: 3px solid #050312;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 3px 0 #050312;
+    color: #2b1d00;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+    animation: stamp 500ms 550ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .cine-badge.is-plain {
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    filter: drop-shadow(0 3px 0 rgba(5, 3, 18, 0.7));
+  }
+  .cine-crowd {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px 22px;
+    max-width: 640px;
+  }
+  .cine-crowd > li {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    animation: pop-in 500ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .cine-crowd .cine-badge {
+    right: -10px;
+    bottom: -8px;
+    min-width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .cine-crowd .cine-badge.is-plain {
+    min-width: 0;
+    height: auto;
+  }
+  .cine-stamp {
     padding: 6px 28px;
     border: 3px solid #050312;
     border-radius: 18px;
@@ -2089,16 +2133,66 @@
     font-weight: 800;
     line-height: 1.1;
     transform: rotate(-3deg);
-    animation: xq-open 800ms 900ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+    animation: cine-stamp 800ms 900ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   }
-  .xq-tip {
+  .cine-tip {
     font-size: 18px;
     font-weight: 800;
     animation: rise-in 700ms 1400ms ease-out both;
   }
-  .xq-draw-avatar {
-    box-shadow: 0 0 0 4px #be97ff, 0 4px 0 6px #1d1648;
+  .cine-trophy {
+    font-size: 96px;
+    line-height: 1;
+    animation: stamp 700ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .cine-win-avatar {
+    box-shadow:
+      0 0 0 4px #ffb020,
+      0 4px 0 6px #2b1d00;
     animation: pop-in 500ms 200ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .cine-draw-avatar {
+    box-shadow:
+      0 0 0 4px var(--ring, #be97ff),
+      0 4px 0 6px #1d1648;
+    animation: pop-in 500ms 200ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .cine-score {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 72px;
+    font-weight: 800;
+    line-height: 1;
+    color: #e8590c;
+    animation: rise-in 700ms 300ms ease-out both;
+  }
+  .cine-score small {
+    font-size: 26px;
+  }
+  .cine-next {
+    margin-top: 6px;
+    padding: 8px 18px;
+    border: 2px solid #2b1d00;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.6);
+    font-size: 17px;
+    font-weight: 800;
+    animation: rise-in 700ms 900ms ease-out both;
+  }
+  /* Pháo giấy toàn màn hình, nổi trên các cảnh (z-index 60). */
+  .cine-party {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .cine-party span {
+    position: absolute;
+    top: -72px;
+    font-size: 48px;
+    animation-name: confetti;
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1);
+    animation-fill-mode: both;
   }
 
   .ww-pick-num:disabled {
@@ -2505,19 +2599,19 @@
   }
 }
 
-@keyframes xq-slide-l {
+@keyframes cine-slide-l {
   from {
     opacity: 0;
     transform: translateX(-60vw) rotate(-12deg);
   }
 }
-@keyframes xq-slide-r {
+@keyframes cine-slide-r {
   from {
     opacity: 0;
     transform: translateX(60vw) rotate(12deg);
   }
 }
-@keyframes xq-open {
+@keyframes cine-stamp {
   from {
     opacity: 0;
     transform: rotate(-3deg) scale(2.4);
@@ -2967,6 +3061,22 @@
   border-radius: 999px;
   background: var(--lime);
   animation: pulse-dot 1.6s ease-out infinite;
+}
+@keyframes arena-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Vòng quay chờ, cỡ theo font-size và màu theo currentColor của chỗ đặt. */
+.spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 999px;
+  border: 0.14em solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  animation: arena-spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

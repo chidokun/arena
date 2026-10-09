@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { docSo, kinhLine, waitingLine } from "@/lib/games/loto";
 import type { LotoRoom } from "@/lib/net/loto-room";
+import { burst, type Bit } from "./Cine";
 
 const VOICE_KEY = "arena:loto-voice";
 
@@ -104,27 +105,16 @@ export function useVoice(session: LotoRoom, isHost: boolean) {
 
 const CONFETTI = ["🧧", "🎉", "🎊", "✨", "🌸", "🏮", "💰"];
 
-export type Confetti = { key: string; left: number; delay: number; dur: number; rot: number; emoji: string };
-
 /** Pháo giấy khi có người kinh — chỉ khi đang xem trực tiếp, tải lại trang không bắn lại. */
 export function useConfetti(session: LotoRoom) {
-  const [bits, setBits] = useState<Confetti[]>([]);
+  const [bits, setBits] = useState<Bit[]>([]);
   useEffect(
     () =>
       session.onCall((c) => {
         if (!c.kinh.length) return;
-        const burst = `${c.round}:${c.count}`;
-        setBits(
-          Array.from({ length: 24 }, (_, i) => ({
-            key: `${burst}:${i}`,
-            left: Math.random() * 96,
-            delay: Math.random() * 700,
-            dur: 2200 + Math.random() * 1600,
-            rot: Math.round(Math.random() * 540 - 270),
-            emoji: CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
-          })),
-        );
-        setTimeout(() => setBits((b) => (b[0]?.key.startsWith(`${burst}:`) ? [] : b)), 4800);
+        const key = `${c.round}:${c.count}`;
+        setBits(burst(key, CONFETTI, 24));
+        setTimeout(() => setBits((b) => (b[0]?.key.startsWith(`${key}:`) ? [] : b)), 4800);
       }),
     [session],
   );

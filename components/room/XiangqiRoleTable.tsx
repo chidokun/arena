@@ -17,6 +17,7 @@ import {
 import type { XqRoleMatch, XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import type { RoomView } from "@/lib/net/room";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Crowd, Party, useCountdown, useEndScene, Vs, WinCine, type CrowdItem } from "./Cine";
 import { PeoplePanel } from "./People";
 import { RoomLayout, StatusChip } from "./RoomLayout";
 import { PieceIcon } from "./XiangqiBoard";
@@ -45,6 +46,10 @@ function roleFace(roleId: number) {
   return faceValue(kind, r.side);
 }
 
+const SIDE_NAME: Record<Side, string> = { red: "Đỏ", black: "Đen" };
+const SIDE_RING: Record<Side, string> = { red: "#ff5a5f", black: "#f1eeff" };
+const CHEERS = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
+
 const QUICK = ["Chờ", "Tấn công", "Phòng thủ", "Đừng đi", "Nước hay", "Cứu", "Tôi có kế hoạch", "Canh quân này"];
 
 export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: string; session: XiangqiRoleRoom }) {
@@ -55,6 +60,11 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
   const match = g.match;
   const playing = m.status === "playing";
   const ended = m.status === "ended";
+  // Đếm ngược trước lượt claim đầu tiên (chủ phòng đã lùi hạn claim lại một nhịp đếm).
+  const opening = playing && !!match && match.round === m.round && match.pub.turn === 1 && match.pub.phase === "claim" && !match.pub.lastMove;
+  const count = useCountdown(opening ? match!.round : 0, { endsAt: match ? match.pub.claimDeadline - g.opts.claimMs : undefined });
+  const won = match?.pub.winner;
+  const end = useEndScene(won && match?.pub.phase === "ended" ? match.round : 0, { cheer: !match?.mySide || match.mySide === won, emojis: CHEERS });
 
   return (
     <RoomLayout
@@ -119,7 +129,65 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
           </aside>
         </div>
       )}
+
+      {match && count > 0 && <CountdownScene match={match} members={view.members} me={view.me} n={count} />}
+      {match?.pub.winner && end.shown && <EndScene match={match} members={view.members} me={view.me} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
+  );
+}
+
+/** Người giữ từng role của một phe (role không ai giữ là Bot), kèm quân đại diện của role. */
+function teamOf(match: XqRoleMatch, side: Side, members: RoomView["members"], me: string): CrowdItem[] {
+  return ROLES.filter((r) => r.side === side).map((r) => {
+    const uid = match.pub.owners[r.id] ?? "";
+    const p = uid ? members.find((x) => x.uid === uid) : undefined;
+    return {
+      uid: uid || `bot:${r.id}`,
+      p,
+      name: uid === me ? "Bạn" : uid ? (p?.name ?? "Ai đó") : "🤖 Bot",
+      ring: SIDE_RING[side],
+      badge: <PieceIcon v={roleFace(r.id)} script="han" size={30} />,
+      plainBadge: true,
+    };
+  });
+}
+
+/** Cảnh mở ván: hai phe năm role đối đầu, đếm ngược 3‑2‑1 rồi mở lượt claim đầu tiên. */
+function CountdownScene({ match, members, me, n }: { match: XqRoleMatch; members: RoomView["members"]; me: string; n: number }) {
+  const team = (side: Side) => (
+    <div className="grid max-w-[300px] justify-items-center gap-3">
+      <b className="font-display text-xl font-extrabold" style={{ color: side === "red" ? "#ff8a8d" : "#f1eeff" }}>
+        Phe {SIDE_NAME[side]}
+      </b>
+      <Crowd people={teamOf(match, side, members, me)} />
+    </div>
+  );
+  const tip = match.mySide ? `Bạn ở phe ${SIDE_NAME[match.mySide]}${match.mySide === "red" ? " — đi trước, chuẩn bị claim lượt nhé!" : " — chờ phe Đỏ đi trước nhé!"}` : "Phe Đỏ đi trước — cùng xem nhé!";
+  return (
+    <CountdownCine eyebrow={`♟️ Cờ Tướng Nhập Vai · Ván ${match.round}`} n={n} tip={tip}>
+      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+        {team("red")}
+        <Vs />
+        {team("black")}
+      </div>
+    </CountdownCine>
+  );
+}
+
+/** Cảnh hết ván: phe chiếu bí thắng — những người chơi của phe thắng (vàng rực); bấm để đóng. */
+function EndScene({ match, members, me, onClose }: { match: XqRoleMatch; members: RoomView["members"]; me: string; onClose: () => void }) {
+  const side = match.pub.winner!;
+  const people = teamOf(match, side, members, me).filter((x) => x.p);
+  const mine = match.mySide;
+  return (
+    <WinCine
+      winners={people.map((x) => ({ uid: x.uid, p: x.p, badge: x.badge, plainBadge: true }))}
+      title={mine === side ? "Phe bạn chiến thắng!" : `Phe ${SIDE_NAME[side]} chiến thắng!`}
+      sub={`Chiếu bí sau ${match.pub.turn} nước`}
+      note={mine && mine !== side ? "Phe bạn thua ván này — ván sau phục thù nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 

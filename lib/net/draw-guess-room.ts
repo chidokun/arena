@@ -52,7 +52,7 @@ import { TIERS } from "../games/draw-guess-words";
 import type { Profile } from "../identity";
 import type { Rumor } from "./gossip";
 import type { Lobby, RoomAd } from "./lobby";
-import { RoomSession, type ChatMsg, type Member, type Meta, type Result, type SeatView, type StickerId } from "./room";
+import { RoomSession, START_COUNTDOWN_MS, type ChatMsg, type Member, type Meta, type Result, type SeatView, type StickerId } from "./room";
 import { Keyring, type KeyStore } from "./seal";
 import type { Channel } from "./wire";
 
@@ -409,6 +409,8 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     const players = m.players.filter((u) => this.isOnline(u));
     if (!this.keys || players.length < MIN_PLAYERS || players.some((u) => !this.keyOf(u))) return false;
     const s = newMatch(m.round, players, normOptions(m.opts), m.dwUsed ?? [], { now: Date.now(), rand: Math.random, online: (u) => this.isOnline(u) });
+    // Lượt chọn từ đầu tiên mở sau nhịp đếm ngược 3‑2‑1 trên máy mọi người.
+    if (s.pub.phase === "pick") s.pub = { ...s.pub, since: s.pub.since + START_COUNTDOWN_MS, until: s.pub.until + START_COUNTDOWN_MS };
     m.lineup = s.pub.order;
     m.dw = s.pub;
     this.saveSecret(s.secret);
@@ -559,7 +561,8 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     const key = `${pub.round}:${pub.turn}:${pub.phase}:${pub.since}`;
     if (this.stageSeen.key !== key) this.stageSeen = { key, at: Date.now() };
     const at = this.stageSeen.at;
-    return at >= pub.since - 3000 && at <= pub.until + 3000 ? pub.until : at + (pub.until - pub.since);
+    // Lượt đầu có `since` ở tương lai một nhịp đếm ngược, nên nới cận dưới thêm bấy nhiêu.
+    return at >= pub.since - 3000 - START_COUNTDOWN_MS && at <= pub.until + 3000 ? pub.until : at + (pub.until - pub.since);
   }
 
   /** Từ khoá mình đang biết trong lượt (người vẽ, chủ phòng có bộ từ, người đã đoán đúng). */

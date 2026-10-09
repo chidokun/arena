@@ -50,6 +50,7 @@ import { Avatar } from "../Avatar";
 import { Dialog } from "../Dialog";
 import { HUE } from "../home/hue";
 import { useLobbyView, useNet, useWhere } from "../NetProvider";
+import { Spinner } from "../Spinner";
 
 export function GameLobby({ slug }: { slug: string }) {
   const game = getGame(slug)!;
@@ -57,6 +58,8 @@ export function GameLobby({ slug }: { slug: string }) {
   const view = useLobbyView();
   const rooms = view.rooms.filter((r) => r.game === slug);
   const here = view.users.filter((u) => u.game === slug);
+  // Chưa nối được ai thì danh sách phòng / người chưa phải dữ liệu thật — ẩn số đếm, hiện trạng thái đang tìm.
+  const ready = view.connected;
   const [creating, setCreating] = useState(false);
   const hue = HUE[game.hue];
 
@@ -89,11 +92,20 @@ export function GameLobby({ slug }: { slug: string }) {
         <section aria-labelledby="rooms-h">
           <div className="mb-4 flex items-center justify-between">
             <h2 id="rooms-h" className="font-display text-2xl font-extrabold">
-              Phòng đang mở <span className="text-ink-3">({rooms.length})</span>
+              Phòng đang mở {ready && <span className="text-ink-3">({rooms.length})</span>}
             </h2>
-            {!view.connected && <span className="text-sm text-ink-3">Đang dò tìm phòng qua mạng P2P…</span>}
+            {!ready && rooms.length > 0 && <span className="text-sm text-ink-3">Đang dò tìm phòng qua mạng P2P…</span>}
           </div>
-          {rooms.length === 0 ? (
+          {rooms.length === 0 && !ready ? (
+            <div className="card grid place-items-center gap-3 px-6 py-14 text-center" style={{ borderStyle: "dashed", boxShadow: "none" }}>
+              <Spinner label={null} className="text-5xl text-ink-3" />
+              <p className="font-display text-xl font-extrabold">Đang tìm phòng…</p>
+              <p className="max-w-[46ch] text-[15px] text-ink-2">Đang dò tìm phòng qua mạng P2P, chờ chút nhé — hoặc cứ tạo phòng rồi gửi link cho bạn bè.</p>
+              <button type="button" className="btn btn-pen mt-2" onClick={() => setCreating(true)}>
+                Tạo phòng
+              </button>
+            </div>
+          ) : rooms.length === 0 ? (
             <div className="card grid place-items-center gap-3 px-6 py-14 text-center" style={{ borderStyle: "dashed", boxShadow: "none" }}>
               <span className="text-5xl" aria-hidden="true">
                 🏟️
@@ -117,17 +129,24 @@ export function GameLobby({ slug }: { slug: string }) {
 
         <aside aria-labelledby="here-h" className="card h-max p-5">
           <h2 id="here-h" className="flex items-center gap-2 font-display text-lg font-extrabold">
-            <span className="live-dot" aria-hidden="true" /> Đang ở {game.name} ({here.length})
+            {ready ? <span className="live-dot" aria-hidden="true" /> : <Spinner label={null} className="text-sun" />} Đang ở {game.name}
+            {ready && ` (${here.length})`}
           </h2>
-          <ul className="mt-3 grid gap-2.5">
-            {here.slice(0, 30).map((u) => (
-              <li key={u.uid} className="flex items-center gap-2.5">
-                <Avatar p={u} size={30} />
-                <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold">{u.name}</span>
-                <span className="text-xs text-ink-3">{u.room ? "trong phòng" : "ở sảnh"}</span>
-              </li>
-            ))}
-          </ul>
+          {ready ? (
+            <ul className="mt-3 grid gap-2.5">
+              {here.slice(0, 30).map((u) => (
+                <li key={u.uid} className="flex items-center gap-2.5">
+                  <Avatar p={u} size={30} />
+                  <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold">{u.name}</span>
+                  <span className="text-xs text-ink-3">{u.room ? "trong phòng" : "ở sảnh"}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 flex items-center gap-2.5 py-1 text-[14.5px] font-semibold text-ink-3">
+              <Spinner label="Đang tìm người chơi…" className="text-xl" /> Đang tìm người chơi…
+            </p>
+          )}
         </aside>
       </div>
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { CELLS, clock, colOf, LEVEL_KEYS, LEVELS, MODE_KEYS, MODES, rowOf, sees } from "@/lib/games/sudoku";
+import { CELLS, clock, colOf, COUNTDOWN_MS, LEVEL_KEYS, LEVELS, MODE_KEYS, MODES, rowOf, sees } from "@/lib/games/sudoku";
 import type { ChatMsg, RoomView } from "@/lib/net/room";
 import type { SudokuMatch, SudokuRoom, SudokuView } from "@/lib/net/sudoku-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { Balloon, PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
@@ -50,7 +51,9 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
   const now = useNow(live);
-  const scenes = useScenes(g);
+  // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc lộ đề.
+  const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
+  const end = useEndScene(winKey(g), { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const shown = live && g ? g : opts;
 
   return (
@@ -85,16 +88,8 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
         <Flyers flyers={flyers} />
       </div>
 
-      {g && <Cinema view={view} match={g} now={now} win={scenes.win} onClose={scenes.close} />}
-      {scenes.party.length > 0 && (
-        <div className="loto-party sd-party" aria-hidden="true">
-          {scenes.party.map((b) => (
-            <span key={b.key} style={{ left: `${b.left}%`, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ["--rot" as string]: `${b.rot}deg` }}>
-              {b.emoji}
-            </span>
-          ))}
-        </div>
-      )}
+      {g && <Cinema match={g} count={count} win={end.shown} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
   );
 }
@@ -105,64 +100,23 @@ const WIN_SCENE_MS = 6500;
 const rankOf = (g: SudokuMatch, k: number) => g.state.finished.indexOf(k) + 1;
 
 /**
- * Cảnh chiến thắng và pháo giấy khi khoảnh khắc thắng diễn ra ngay trước mắt — cùng giải đề: lúc hoàn tất bàn;
- * đối kháng: lúc người đầu tiên giải xong (ván vẫn tiếp tục). Vào phòng khi đã có người thắng thì không diễn lại.
+ * Khoảnh khắc thắng của ván — cùng giải đề: lúc hoàn tất bàn; đối kháng: lúc người đầu tiên giải xong (ván vẫn tiếp tục).
+ * Trả về số ván, 0 nếu chưa ai thắng.
  */
-function useScenes(g: SudokuMatch | undefined) {
-  const [win, setWin] = useState<number | null>(null);
-  const [party, setParty] = useState<{ key: string; left: number; delay: number; dur: number; rot: number; emoji: string }[]>([]);
-  const won = !!g && (g.mode === "race" ? g.state.winners.length > 0 : g.result?.reason === "solve" && !!g.result.winners?.length);
-  const key = won ? g!.round : 0;
-  const seen = useRef(key);
-  useEffect(() => {
-    if (!key || key === seen.current) {
-      seen.current = key;
-      return;
-    }
-    seen.current = key;
-    setWin(key);
-    setParty(
-      Array.from({ length: 40 }, (_, i) => ({
-        key: `${key}:${i}`,
-        left: Math.random() * 96,
-        delay: Math.random() * 700,
-        dur: 2200 + Math.random() * 1600,
-        rot: Math.round(Math.random() * 540 - 270),
-        emoji: CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
-      })),
-    );
-    const a = setTimeout(() => setParty([]), 4800);
-    const b = setTimeout(() => setWin((w) => (w === key ? null : w)), WIN_SCENE_MS);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [key]);
-  return { win: g && win === g.round ? win : null, party, close: () => setWin(null) };
-}
+const winKey = (g?: SudokuMatch) => (g && (g.mode === "race" ? g.state.winners.length > 0 : g.result?.reason === "solve" && !!g.result.winners?.length) ? g.round : 0);
 
 /** Lớp phủ toàn màn hình: đếm ngược 5‑4‑3‑2‑1 trước khi lộ đề, và cảnh chiến thắng (bấm để đóng). */
-function Cinema({ view, match: g, now, win, onClose }: { view: View; match: SudokuMatch; now: number; win: number | null; onClose: () => void }) {
-  const counting = isLive(view) && (!now || now < g.opensAt);
-  if (counting) {
-    const n = now ? Math.min(5, Math.max(1, Math.ceil((g.opensAt - now) / 1000))) : 5;
+function Cinema({ match: g, count, win, onClose }: { match: SudokuMatch; count: number; win: boolean; onClose: () => void }) {
+  if (count > 0)
     return (
-      <div className="ww-cine sd-cine" role="dialog" aria-modal="true" aria-label="Đếm ngược">
-        <div className="ww-cine-body grid justify-items-center gap-4 text-center">
-          <p className="text-[15px] font-bold tracking-wide uppercase opacity-80">
-            {MODES[g.mode].emoji} {MODES[g.mode].name} · {LEVELS[g.level].emoji} {LEVELS[g.level].name}
-          </p>
-          <span key={n} className="ww-count-big" aria-live="assertive">
-            {n}
-          </span>
-          <p className="ww-cine-title !text-[26px] sm:!text-[30px]">
-            {g.mode === "coop" ? "Cùng nhau giải để hoàn tất ván Sudoku nhé..." : "Hãy giải nhanh nhất để chiến thắng nhé..."}
-          </p>
-        </div>
-      </div>
+      <CountdownCine
+        tone="grape"
+        eyebrow={`${MODES[g.mode].emoji} ${MODES[g.mode].name} · ${LEVELS[g.level].emoji} ${LEVELS[g.level].name}`}
+        n={count}
+        title={g.mode === "coop" ? "Cùng nhau giải để hoàn tất ván Sudoku nhé..." : "Hãy giải nhanh nhất để chiến thắng nhé..."}
+      />
     );
-  }
-  if (win == null) return null;
+  if (!win) return null;
   const race = g.mode === "race";
   const winners = race ? g.state.winners : g.state.winners.length ? g.state.winners : g.lineup.flatMap((s, k) => (g.result?.winners?.includes(s.uid) ? [k] : []));
   if (!winners.length) return null;
@@ -171,41 +125,28 @@ function Cinema({ view, match: g, now, win, onClose }: { view: View; match: Sudo
   const first = winners[0];
   const time = race ? g.fin[first] : g.time;
   return (
-    <div className="ww-cine sd-cine is-win" role="dialog" aria-modal="true" aria-label="Chiến thắng" onClick={onClose}>
-      <div className="ww-cine-body grid justify-items-center gap-4 text-center">
-        <span className="sd-trophy" aria-hidden="true">
-          🏆
-        </span>
-        <div className="flex flex-wrap justify-center gap-3">
-          {winners.map((k) => {
-            const p = g.lineup[k].member;
-            return p ? <Avatar key={k} p={p} size={72} className="sd-win-avatar" /> : null;
-          })}
-        </div>
-        <p className="ww-cine-title !text-[34px] sm:!text-[42px]">{iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${names} chiến thắng!`}</p>
-        {race ? (
-          <>
-            <p className="text-[17px] font-bold opacity-90">
-              Giải xong đầu tiên{time != null ? ` sau ${clock(time)}` : ""}
-              {g.state.wrong[first] ? ` · sai ${g.state.wrong[first]} lần` : " · không sai lần nào"}
-            </p>
-            {!g.state.over && (
-              <p className="sd-cine-next">{rankOf(g, g.me) || g.me < 0 ? "Mọi người tiếp tục để hoàn tất ván nhé..." : "Hãy tiếp tục để hoàn tất ván nhé..."}</p>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="sd-cine-score">
-              {g.state.score[first]} <small>điểm</small>
-            </p>
-            <p className="text-[15px] font-bold opacity-85">
-              {winners.length > 1 ? "Đồng hạng nhất · " : ""}Cả phòng hoàn tất ván Sudoku{time != null ? ` trong ${clock(time)}` : ""}
-            </p>
-          </>
-        )}
-      </div>
-      <p className="ww-cine-skip">Bấm để đóng</p>
-    </div>
+    <WinCine
+      winners={winners.map((k) => ({ uid: g.lineup[k].uid, p: g.lineup[k].member }))}
+      title={iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${names} chiến thắng!`}
+      sub={
+        race
+          ? `Giải xong đầu tiên${time != null ? ` sau ${clock(time)}` : ""}${g.state.wrong[first] ? ` · sai ${g.state.wrong[first]} lần` : " · không sai lần nào"}`
+          : undefined
+      }
+      note={race && !g.state.over ? (rankOf(g, g.me) || g.me < 0 ? "Mọi người tiếp tục để hoàn tất ván nhé..." : "Hãy tiếp tục để hoàn tất ván nhé...") : undefined}
+      onClose={onClose}
+    >
+      {!race && (
+        <>
+          <p className="cine-score">
+            {g.state.score[first]} <small>điểm</small>
+          </p>
+          <p className="text-[15px] font-bold opacity-85">
+            {winners.length > 1 ? "Đồng hạng nhất · " : ""}Cả phòng hoàn tất ván Sudoku{time != null ? ` trong ${clock(time)}` : ""}
+          </p>
+        </>
+      )}
+    </WinCine>
   );
 }
 

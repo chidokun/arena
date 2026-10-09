@@ -25,10 +25,10 @@ import {
   type Sheet,
 } from "../games/loto";
 import type { RoomAd } from "./lobby";
-import { RoomSession, type Member, type Meta, type Result, type SeatView } from "./room";
+import { RoomSession, START_COUNTDOWN_MS, type Member, type Meta, type Result, type SeatView } from "./room";
 
-/** Số đầu tiên của ván được kêu sớm hơn một nhịp, vừa đủ để mọi người nhìn lại tờ. */
-export const FIRST_CALL_MS = 2500;
+/** Số đầu tiên của ván được kêu ngay khi hết nhịp đếm ngược 3‑2‑1 lúc mở ván (vừa đủ để mọi người nhìn lại tờ). */
+export const FIRST_CALL_MS = START_COUNTDOWN_MS;
 
 export type LotoView = {
   opts: LotoOptions;

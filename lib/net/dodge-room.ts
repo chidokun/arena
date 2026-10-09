@@ -25,7 +25,7 @@ import {
   type Platform,
   type World,
 } from "../games/dodge";
-import { RoomSession, type Member, type Meta, type Result, type SeatView } from "./room";
+import { RoomSession, START_COUNTDOWN_MS, type Member, type Meta, type Result, type SeatView } from "./room";
 
 const RUNNER_GONE_MS = 8000;
 const ABANDON_MS = 60000;
@@ -108,6 +108,8 @@ export class DodgeRoom extends RoomSession<DodgeView> {
     }
     this.ensureSim(m);
     if (!this.world) return;
+    // Mở ván: đứng yên tới hết nhịp đếm ngược 3‑2‑1 (stint đầu bắt đầu ở tương lai).
+    if (Date.now() < m.dg.stintStarted) return;
 
     const inputs: Record<string, DodgeInput | undefined> = {};
     for (const uid of m.lineup) {
@@ -177,12 +179,13 @@ export class DodgeRoom extends RoomSession<DodgeView> {
       const mem = this.gossip.get<{ pick?: number[] }>(`p:${uid}`);
       edges[uid] = edgeOfPick(mem?.pick) ?? EDGES[lineup.indexOf(uid) % EDGES.length];
     }
-    const now = Date.now();
+    // Người chạy xuất phát sau nhịp đếm ngược 3‑2‑1 — tới lúc đó chưa tính giờ sống.
+    const go = Date.now() + START_COUNTDOWN_MS;
     m.dg = {
       runner,
       edges,
       scores: Object.fromEntries(lineup.map((u) => [u, 0])),
-      stintStarted: now,
+      stintStarted: go,
       seed,
     };
     this.world = createWorld(seed, runner);

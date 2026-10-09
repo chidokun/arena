@@ -38,7 +38,7 @@ import {
   type XqRoleOptions,
   type XqRolePublic,
 } from "../games/xiangqi-role";
-import { RoomSession, type ChatMsg, type Member, type Meta, type Result, type SeatView } from "./room";
+import { RoomSession, START_COUNTDOWN_MS, type ChatMsg, type Member, type Meta, type Result, type SeatView } from "./room";
 
 export type TeamChatMsg = ChatMsg & { side: Side };
 
@@ -146,7 +146,8 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
       if (free) humans[free.id] = uid;
     }
     m.lineup = online;
-    m.xqr = startMatch(fillOwners(humans), Date.now(), this.claimMsOf(m));
+    // Lượt claim đầu mở sau nhịp đếm ngược 3‑2‑1 trên máy mọi người.
+    m.xqr = startMatch(fillOwners(humans), Date.now() + START_COUNTDOWN_MS, this.claimMsOf(m));
     return true;
   }
 

@@ -15,10 +15,11 @@ import {
   WORLD_W,
   type Edge,
 } from "@/lib/games/dodge";
-import type { DodgeRoom, DodgeView } from "@/lib/net/dodge-room";
+import type { DodgeMatch, DodgeRoom, DodgeView } from "@/lib/net/dodge-room";
 import type { RoomView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useRoomView } from "./useRoom";
@@ -26,6 +27,7 @@ import { useBalloons, useRoomView } from "./useRoom";
 type View = RoomView<DodgeView>;
 
 const EDGE_EMOJI: Record<Edge, string> = { top: "⬆️", right: "➡️", bottom: "⬇️", left: "⬅️" };
+const CHEERS = ["🎉", "🏆", "✨", "🎊", "🌩️", "🏃"];
 
 export function DodgeTable({ id, slug, session }: { id: string; slug: string; session: DodgeRoom }) {
   const view = useRoomView(session)!;
@@ -33,6 +35,9 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
   const g = view.game?.match;
   const balloons = useBalloons(session);
   const live = m.status === "playing" && !!g;
+  // Mở ván: chủ phòng cho người chạy xuất phát sau nhịp đếm ngược (stint đầu bắt đầu ở tương lai, chưa đổi người chạy lần nào).
+  const count = useCountdown(live && g.round === m.round && g.pub.lastStintMs == null ? g.round : 0, { endsAt: g?.pub.stintStarted });
+  const end = useEndScene(g?.result?.winners?.length ? g.round : 0, { emojis: CHEERS });
 
   return (
     <RoomLayout
@@ -54,11 +59,51 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
       <ActionBar view={view} session={session} />
       {g?.result && <ResultCard view={view} />}
       <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
-        <Arena view={view} session={session} live={live} />
+        <Arena view={view} session={session} live={live && !count} />
         <Scoreboard view={view} />
       </div>
       {!live && <HowTo />}
+
+      {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
+      {g?.result && end.shown && <EndScene view={view} match={g} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
+  );
+}
+
+/** Cảnh mở ván: người chạy và những người nấp bốn cạnh, đếm ngược 3‑2‑1 rồi xuất phát. */
+function CountdownScene({ view, match: g, n }: { view: View; match: DodgeMatch; n: number }) {
+  const people = g.lineup.map((s) => {
+    const runner = s.uid === g.pub.runner;
+    const edge = g.pub.edges[s.uid];
+    return { uid: s.uid, p: s.member, name: nameOf(view, s.uid), ring: runner ? "#7ee081" : "#ff8a5c", badge: runner ? "🏃" : edge ? EDGE_EMOJI[edge] : "🔫" };
+  });
+  const tip = g.iAmRunner
+    ? "Bạn chạy trước — Space / W / ↑ để nhảy né!"
+    : g.myEdge && g.lineup.some((s) => s.uid === view.me)
+      ? `Bạn nấp ở ${EDGE_LABEL[g.myEdge]} — chuẩn bị ngắm bắn!`
+      : `${nameOf(view, g.pub.runner)} chạy trước — cùng xem nhé!`;
+  return (
+    <CountdownCine eyebrow={`🌩️ Né Bão · Ván ${g.round}`} n={n} tip={tip}>
+      <Crowd people={people} />
+    </CountdownCine>
+  );
+}
+
+/** Cảnh hết trận: người sống lâu nhất (hoặc những người đồng hạng) — bấm để đóng. */
+function EndScene({ view, match: g, onClose }: { view: View; match: DodgeMatch; onClose: () => void }) {
+  const winners = g.result!.winners ?? [];
+  const iWon = winners.includes(view.me);
+  const best = g.liveScores[winners[0]] ?? 0;
+  const names = winners.map((u) => nameOf(view, u)).join(", ");
+  return (
+    <WinCine
+      winners={winners.map((u) => ({ uid: u, p: g.lineup.find((s) => s.uid === u)?.member ?? view.members.find((p) => p.uid === u), badge: "🏃" }))}
+      title={winners.length > 1 ? `${names} đồng hạng nhất!` : iWon ? "Bạn sống lâu nhất!" : `${names} sống lâu nhất!`}
+      sub={`Trụ được ${formatMs(best)} giữa cơn bão`}
+      note={!iWon && g.lineup.some((s) => s.uid === view.me) ? "Ván sau trụ lâu hơn nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 

@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { emptyState, type End, type Side, type XqState } from "@/lib/games/xiangqi";
 import type { Result, RoomView, SeatView } from "@/lib/net/room";
 import type { XiangqiRoom, XqMatch, XqView } from "@/lib/net/xiangqi-room";
-import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
+import { Cine, DrawCine, Duel, Eyebrow, Fighter, Party, Stamp, Tip, useEndScene, useMoment, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
@@ -20,7 +20,6 @@ const SIDE_TONE = { 1: "#d62828", 2: "#2b2540" } as const;
 const CONFETTI = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
 
 const INTRO_MS = 4200;
-const END_MS = 7000;
 const CHECK_MS = 1500;
 
 /** Lý do thắng / hoà theo cách ván kết thúc. */
@@ -158,7 +157,7 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
             <XiangqiBoard
               key={`${g?.round ?? 0}:${flip}`}
               state={state}
-              canPlay={!!g?.myTurn && !scenes.intro}
+              canPlay={!!g?.myTurn && !scenes.intro.shown}
               mySide={g?.mySide ?? 0}
               flip={flip}
               script={script}
@@ -183,17 +182,9 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
       </div>
       {!seated && !inLineup && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
 
-      {g && scenes.intro === g.round && <IntroScene match={g} me={view.me} script={script} onClose={scenes.close} />}
-      {g && scenes.end === g.round && g.result && <EndScene match={g} me={view.me} script={script} onClose={scenes.close} />}
-      {scenes.party.length > 0 && (
-        <div className="loto-party sd-party" aria-hidden="true">
-          {scenes.party.map((b) => (
-            <span key={b.key} style={{ left: `${b.left}%`, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ["--rot" as string]: `${b.rot}deg` }}>
-              {b.emoji}
-            </span>
-          ))}
-        </div>
-      )}
+      {g && scenes.intro.shown && <IntroScene match={g} me={view.me} script={script} onClose={scenes.intro.close} />}
+      {g?.result && scenes.end.shown && <EndScene match={g} me={view.me} script={script} onClose={scenes.end.close} />}
+      <Party bits={scenes.end.party} />
     </RoomLayout>
   );
 }
@@ -206,86 +197,24 @@ function useScenes(view: View) {
   const m = view.meta!;
   const g = view.game?.match;
   const live = m.status === "playing" && g?.round === m.round && !g.result;
-  const startKey = live && g!.state.count === 0 ? g!.round : 0;
-  const endKey = g?.result ? g.round : 0;
-  const checkKey = live && g!.state.check ? `${g!.round}:${g!.state.count}` : "";
-  const loser = g?.result?.loser === view.me;
-
-  const [intro, setIntro] = useState(0);
-  const [end, setEnd] = useState(0);
-  const [check, setCheck] = useState("");
-  const [party, setParty] = useState<{ key: string; left: number; delay: number; dur: number; rot: number; emoji: string }[]>([]);
-  const seen = useRef({ start: startKey, end: endKey, check: checkKey });
-
-  useEffect(() => {
-    const prev = seen.current.start;
-    seen.current.start = startKey;
-    if (!startKey || startKey === prev) return;
-    setIntro(startKey);
-    setEnd(0);
-    const t = setTimeout(() => setIntro((v) => (v === startKey ? 0 : v)), INTRO_MS);
-    return () => clearTimeout(t);
-  }, [startKey]);
-
-  useEffect(() => {
-    const prev = seen.current.end;
-    seen.current.end = endKey;
-    if (!endKey || endKey === prev) return;
-    setEnd(endKey);
-    setIntro(0);
-    setCheck("");
-    setParty(
-      Array.from({ length: 40 }, (_, i) => ({
-        key: `${endKey}:${i}`,
-        left: Math.random() * 96,
-        delay: Math.random() * 700,
-        dur: 2200 + Math.random() * 1600,
-        rot: Math.round(Math.random() * 540 - 270),
-        emoji: CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
-      })),
-    );
-    const a = setTimeout(() => setParty([]), 4800);
-    const b = setTimeout(() => setEnd((v) => (v === endKey ? 0 : v)), END_MS);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [endKey]);
-
-  useEffect(() => {
-    const prev = seen.current.check;
-    seen.current.check = checkKey;
-    if (!checkKey || checkKey === prev) return;
-    setCheck(checkKey);
-    const t = setTimeout(() => setCheck((v) => (v === checkKey ? "" : v)), CHECK_MS);
-    return () => clearTimeout(t);
-  }, [checkKey]);
-
-  return {
-    intro,
-    end,
-    check: !!check && check === checkKey,
-    // Người thua không bị bắn pháo giấy vào mặt.
-    party: loser ? [] : party,
-    close: () => {
-      setIntro(0);
-      setEnd(0);
-    },
-  };
+  const intro = useMoment(live && g!.state.count === 0 ? g!.round : 0, INTRO_MS);
+  const end = useEndScene(g?.result ? g.round : 0, { cheer: g?.result?.loser !== view.me, emojis: CONFETTI });
+  const check = useMoment(live && g!.state.check ? `${g!.round}:${g!.state.count}` : "", CHECK_MS);
+  return { intro, end, check: check.shown };
 }
 
-/** Một bên trong cảnh mở ván: avatar, quân Tướng của bên đó, tên. */
-function Fighter({ seat, side, me, script }: { seat: SeatView; side: Side; me: string; script: Script }) {
-  const p = seat.member;
+/** Một bên trong cảnh đối đầu: avatar viền theo phe, quân Tướng của bên đó, tên. */
+function fighter(seat: SeatView, side: Side, me: string, script: Script) {
   return (
-    <div className={`xq-fighter ${side === 1 ? "is-red" : "is-black"}`}>
-      <span className="relative">
-        {p ? <Avatar p={p} size={88} className="xq-fighter-avatar" /> : <span className="xq-fighter-avatar avatar" style={{ width: 88, height: 88 }} />}
-        <PieceIcon v={side === 1 ? 1 : -1} script={script} size={44} className="xq-fighter-piece" />
-      </span>
-      <b className="mt-3 max-w-[160px] truncate font-display text-xl font-extrabold">{seat.uid === me ? "Bạn" : (p?.name ?? "Ai đó")}</b>
-      <span className="text-[13.5px] font-bold opacity-80">Quân {SIDE_NAME[side]}{side === 1 ? " · đi trước" : ""}</span>
-    </div>
+    <Fighter
+      p={seat.member}
+      name={seat.uid === me ? "Bạn" : (seat.member?.name ?? "Ai đó")}
+      sub={`Quân ${SIDE_NAME[side]}${side === 1 ? " · đi trước" : ""}`}
+      ring={side === 1 ? "#ffc23d" : "#f1eeff"}
+      badge={<PieceIcon v={side === 1 ? 1 : -1} script={script} size={44} />}
+      plainBadge
+      side={side === 1 ? "left" : "right"}
+    />
   );
 }
 
@@ -294,69 +223,39 @@ function IntroScene({ match: g, me, script, onClose }: { match: XqMatch; me: str
   const tip =
     g.mySide === 1 ? "Bạn cầm quân Đỏ — đi trước nhé!" : g.mySide === 2 ? "Bạn cầm quân Đen — chờ Đỏ đi trước nhé!" : "Quân Đỏ đi trước — cùng xem ván cờ nhé!";
   return (
-    <div className="ww-cine xq-cine" role="dialog" aria-modal="true" aria-label="Khai cuộc" onClick={onClose}>
-      <div className="ww-cine-body grid justify-items-center gap-6 text-center">
-        <p className="text-[15px] font-bold tracking-wide uppercase opacity-80">🀄 Cờ Tướng · Ván {g.round}</p>
-        <div className="xq-duel">
-          <Fighter seat={g.lineup[0]} side={1} me={me} script={script} />
-          <span className="xq-vs" aria-hidden="true">
-            VS
-          </span>
-          <Fighter seat={g.lineup[1]} side={2} me={me} script={script} />
-        </div>
-        <p className="xq-open">Khai cuộc!</p>
-        <p className="xq-tip">{tip}</p>
-      </div>
-      <p className="ww-cine-skip">Bấm để vào bàn</p>
-    </div>
+    <Cine tone="red" label="Khai cuộc" onClose={onClose} skip="Bấm để vào bàn" gap={6}>
+      <Eyebrow>🀄 Cờ Tướng · Ván {g.round}</Eyebrow>
+      <Duel left={fighter(g.lineup[0], 1, me, script)} right={fighter(g.lineup[1], 2, me, script)} />
+      <Stamp>Khai cuộc!</Stamp>
+      <Tip>{tip}</Tip>
+    </Cine>
   );
 }
 
-/** Cảnh hết ván: người thắng (vàng rực như Sudoku) hoặc hoà cờ — bấm để đóng. */
+/** Cảnh hết ván: người thắng (vàng rực) hoặc hoà cờ — bấm để đóng. */
 function EndScene({ match: g, me, script, onClose }: { match: XqMatch; me: string; script: Script; onClose: () => void }) {
   const r = g.result!;
   const why = reasonOf(r, g.state.end);
   if (!r.winner)
     return (
-      <div className="ww-cine xq-cine is-draw" role="dialog" aria-modal="true" aria-label="Hoà cờ" onClick={onClose}>
-        <div className="ww-cine-body grid justify-items-center gap-4 text-center">
-          <span className="sd-trophy" aria-hidden="true">
-            🤝
-          </span>
-          <div className="flex justify-center gap-3">
-            {g.lineup.map((s, k) => (s.member ? <Avatar key={s.uid} p={s.member} size={64} className={`xq-draw-avatar ${k ? "is-black" : "is-red"}`} /> : null))}
-          </div>
-          <p className="ww-cine-title !text-[38px] sm:!text-[44px]">Hoà cờ!</p>
-          {why && <p className="text-[17px] font-bold opacity-90">Ván {g.round} hoà — {why}</p>}
-        </div>
-        <p className="ww-cine-skip">Bấm để đóng</p>
-      </div>
+      <DrawCine
+        people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: SIDE_TONE[(k + 1) as Side] }))}
+        title="Hoà cờ!"
+        sub={why ? `Ván ${g.round} hoà — ${why}` : undefined}
+        onClose={onClose}
+      />
     );
   const k = g.lineup.findIndex((s) => s.uid === r.winner);
   const seat = g.lineup[k];
   const side = (k + 1) as Side;
-  const iWon = r.winner === me;
-  const iLost = r.loser === me;
   return (
-    <div className="ww-cine sd-cine is-win" role="dialog" aria-modal="true" aria-label="Chiến thắng" onClick={onClose}>
-      <div className="ww-cine-body grid justify-items-center gap-4 text-center">
-        <span className="sd-trophy" aria-hidden="true">
-          🏆
-        </span>
-        <span className="relative">
-          {seat?.member && <Avatar p={seat.member} size={84} className="sd-win-avatar" />}
-          <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} className="xq-fighter-piece" />
-        </span>
-        <p className="ww-cine-title !text-[34px] sm:!text-[42px]">{iWon ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}</p>
-        <p className="text-[17px] font-bold opacity-90">
-          Quân {SIDE_NAME[side]}
-          {why ? ` · ${why[0].toUpperCase()}${why.slice(1)}` : ""}
-          {r.reason === "mate" && g.state.end === "mate" ? ` sau ${g.state.count} nước` : ""}
-        </p>
-        {iLost && <p className="sd-cine-next">Bạn thua ván này — ván sau phục thù nhé!</p>}
-      </div>
-      <p className="ww-cine-skip">Bấm để đóng</p>
-    </div>
+    <WinCine
+      winners={[{ uid: r.winner, p: seat?.member, badge: <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} />, plainBadge: true }]}
+      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
+      sub={`Quân ${SIDE_NAME[side]}${why ? ` · ${why[0].toUpperCase()}${why.slice(1)}` : ""}${r.reason === "mate" && g.state.end === "mate" ? ` sau ${g.state.count} nước` : ""}`}
+      note={r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 

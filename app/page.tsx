@@ -19,7 +19,7 @@ export default function Home() {
               Đấu trường mini <span className="text-pen">cho hội bạn</span> ngay trên trình duyệt
             </h1>
             <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
-              Mở phòng, gửi link, vào chơi. Các trình duyệt nối thẳng với nhau qua WebRTC, chat và ném sticker trong lúc đấu.
+              Không cần cài app, không cần đăng ký. Chỉ cần mở phòng và gửi link cho bạn bè, vừa đấu vừa thả sticker trêu nhau ngay.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/games/caro/" className="btn btn-pen h-12 px-6 text-base no-underline">

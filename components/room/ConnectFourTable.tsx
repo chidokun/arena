@@ -2,15 +2,20 @@
 
 import { useRef } from "react";
 import { emptyState } from "@/lib/games/connect-four";
-import type { ConnectFourRoom, C4View } from "@/lib/net/connect-four-room";
-import type { RoomView } from "@/lib/net/room";
+import type { C4Match, ConnectFourRoom, C4View } from "@/lib/net/connect-four-room";
+import type { RoomView, SeatView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { C4_NAME, C4_TONE, ConnectFourBoard } from "./ConnectFourBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+
+const CHEERS = ["🎉", "🏆", "✨", "🎊", "🔴", "🟡"];
+/** Thắng bằng chuỗi 4 thì chờ một nhịp cho quân kịp rơi và đường thắng kịp sáng rồi mới diễn. */
+const LINE_PAUSE_MS = 1300;
 
 export function ConnectFourTable({ id, slug, session }: { id: string; slug: string; session: ConnectFourRoom }) {
   const view = useRoomView(session)!;
@@ -19,6 +24,9 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
   const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
+  const live = m.status === "playing" && g?.round === m.round && !g.result;
+  const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
+  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "line" ? LINE_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
 
   const showGame = !!g && (m.status !== "waiting" || g.state.count > 0);
   const state = showGame ? g!.state : emptyState();
@@ -75,7 +83,7 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
 
       <div className="relative mx-auto mt-4 max-w-[560px]">
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
-          <ConnectFourBoard state={state} canPlay={!!g?.myTurn} myMark={g?.myMark ?? 0} onDrop={(col) => session.drop(col)} />
+          <ConnectFourBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onDrop={(col) => session.drop(col)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && (
@@ -87,7 +95,61 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
         )}
       </div>
       {!seated && !inLineup && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+
+      {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
+      {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
+      <Party bits={end.party} />
     </RoomLayout>
+  );
+}
+
+/** Huy hiệu quân: một viên tròn màu Đỏ / Vàng. */
+const Disc = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-full border-2 border-[#050312]" style={{ background: C4_TONE[v] }} />;
+
+const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" | "right") => (
+  <Fighter
+    p={seat?.member}
+    name={seat?.uid === me ? "Bạn" : (seat?.member?.name ?? "Ai đó")}
+    sub={`Quân ${C4_NAME[v]}${v === 1 ? " · đi trước" : ""}`}
+    ring={C4_TONE[v]}
+    badge={<Disc v={v} />}
+    side={side}
+  />
+);
+
+/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
+function CountdownScene({ match: g, me, n }: { match: C4Match; me: string; n: number }) {
+  const tip = g.myMark ? `Bạn cầm quân ${C4_NAME[g.myMark]} — ${g.myMark === 1 ? "thả trước nhé!" : "chờ Đỏ thả trước nhé!"}` : "Quân Đỏ thả trước — cùng xem nhé!";
+  return (
+    <CountdownCine eyebrow={`🔵 Thả Cờ 4 · Ván ${g.round}`} n={n} tip={tip}>
+      <Duel left={fighter(g.lineup[0], 1, me, "left")} right={fighter(g.lineup[1], 2, me, "right")} />
+    </CountdownCine>
+  );
+}
+
+/** Cảnh hết ván: người thắng (vàng rực) hoặc đầy bàn hoà — bấm để đóng. */
+function EndScene({ match: g, me, onClose }: { match: C4Match; me: string; onClose: () => void }) {
+  const r = g.result!;
+  if (!r.winner) return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: C4_TONE[(k + 1) as 1 | 2] }))} title="Hoà!" sub={`Ván ${g.round} — đầy bàn mà chưa ai nối được 4`} onClose={onClose} />;
+  const k = g.lineup.findIndex((s) => s.uid === r.winner);
+  const seat = g.lineup[k];
+  const v = (k + 1) as 1 | 2;
+  const why =
+    r.reason === "resign"
+      ? "Đối thủ xin thua"
+      : r.reason === "leave"
+        ? "Đối thủ rời trận"
+        : r.reason === "kick"
+          ? "Đối thủ bị mời ra"
+          : `Nối 4 quân sau ${g.state.count} nước`;
+  return (
+    <WinCine
+      winners={[{ uid: r.winner, p: seat?.member, badge: <Disc v={v} /> }]}
+      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
+      sub={`Quân ${C4_NAME[v]} · ${why}`}
+      note={r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined}
+      onClose={onClose}
+    />
   );
 }
 
