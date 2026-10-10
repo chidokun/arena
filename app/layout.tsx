@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Link from "next/link";
+import { AdblockWall } from "@/components/AdblockWall";
 import { GamesProvider } from "@/components/GamesProvider";
 import { InviteToasts } from "@/components/InviteToasts";
 import { LogoMark } from "@/components/Logo";
@@ -82,6 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </main>
             <InviteToasts />
             <MaintenanceDialog />
+            <AdblockWall />
           </NetProvider>
         </GamesProvider>
 

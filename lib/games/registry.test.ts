@@ -26,6 +26,7 @@ test("game có code thì có trang, bất kể trạng thái trên API", () => {
   assert.ok(hasPage("caro"));
   assert.ok(hasPage("battleship"));
   assert.ok(hasPage("draw-guess"));
+  assert.ok(hasPage("mandarin-square"));
   assert.equal(hasPage("word-chain"), false);
   assert.equal(new Set(BUILT_GAMES).size, BUILT_GAMES.length);
 });

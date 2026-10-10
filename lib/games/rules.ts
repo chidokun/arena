@@ -69,6 +69,53 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "mandarin-square": {
+    intro: "Ô ăn quan cho 2 người: bốc quân rải quanh bàn, cách một ô trống là ăn — hết quan thì thu quân, ai nhiều điểm hơn là thắng.",
+    sections: [
+      {
+        emoji: "🪨",
+        title: "Bàn chơi",
+        items: [
+          "Mỗi bên 5 ô dân, mỗi ô 5 quân dân. Hai đầu bàn là hai ô quan, mỗi ô một quân quan.",
+          "Dân 1 điểm, quan 10 điểm — cả bàn 70 điểm. Dãy ô dân của bạn luôn nằm phía dưới bàn.",
+        ],
+      },
+      {
+        emoji: "🕹️",
+        title: "Cách rải",
+        items: [
+          "Tới lượt, chọn một ô dân bên mình còn quân rồi chọn chiều ◀ ▶: bốc hết quân trong ô, rải lần lượt mỗi ô một quân (rải cả vào ô quan).",
+          "Rải hết mà ô kế tiếp là ô dân có quân: bốc ô đó lên rải tiếp theo cùng chiều.",
+          "Ô kế tiếp là ô quan còn quân, hoặc hai ô liền nhau đều trống: mất lượt.",
+        ],
+      },
+      {
+        emoji: "🍽️",
+        title: "Ăn quân",
+        items: [
+          "Rải hết mà ô kế tiếp trống: ăn cả ô ngay sau nó (dân lẫn quan).",
+          "Ăn xong, nếu lại một ô trống rồi một ô có quân thì ăn tiếp — cứ thế ăn liền mạch.",
+          "Quan non (tuỳ chọn): ô quan còn quân quan mà dưới 5 dân thì chưa được ăn — rải tới đó là mất lượt.",
+        ],
+      },
+      {
+        emoji: "🔄",
+        title: "Hết dân",
+        items: [
+          "Tới lượt mà 5 ô bên mình đều trống: lấy 5 quân trong kho rải lại mỗi ô một quân. Kho không đủ thì vay — điểm bị trừ âm.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Cả hai ô quan đều hết quân là hết ván: dân còn lại trên dãy bên nào thì về bên đó.",
+          "Ai nhiều điểm hơn thì thắng, bằng điểm là hoà. Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua.",
+        ],
+      },
+    ],
+  },
+
   battleship: {
     intro: "Bắn tàu cho 2 người: giấu hạm đội của mình trên hải đồ, rồi thay phiên gọi toạ độ để săn tàu đối phương.",
     sections: [

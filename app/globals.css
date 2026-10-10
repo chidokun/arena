@@ -503,6 +503,146 @@
     }
   }
 
+  /* ---------- Bàn ô ăn quan ---------- */
+  .ms {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .ms .ms-count,
+  .ms .ms-non {
+    font-size: 17px;
+    font-weight: 800;
+    fill: var(--ink-3);
+    stroke: var(--board);
+    stroke-width: 4px;
+    paint-order: stroke;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+  .ms .ms-non {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ms .ms-hit {
+    fill: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  .ms .ms-sq:hover .ms-hit,
+  .ms .ms-hit:focus-visible,
+  .ms .ms-sq.is-sel .ms-hit {
+    fill: var(--board-hover);
+  }
+  .ms .ms-hit:focus-visible {
+    stroke: var(--pen);
+    stroke-width: 3;
+  }
+  /* Mũi tên chọn chiều: ẩn và không bấm được cho tới khi chọn ô (hoặc rê chuột lên ô) — chạm nhầm trên điện thoại không rải luôn. */
+  .ms .ms-arrow {
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    outline: none;
+    transition: opacity 120ms;
+  }
+  .ms .ms-arrow rect {
+    fill: transparent;
+  }
+  .ms .ms-arrow circle {
+    fill: var(--pen);
+    stroke: var(--edge);
+    stroke-width: 2.5;
+  }
+  .ms .ms-arrow path {
+    fill: var(--on-pen);
+  }
+  .ms .ms-arrow:hover circle,
+  .ms .ms-arrow:focus-visible circle {
+    fill: var(--coral);
+  }
+  .ms .ms-sq.is-sel .ms-arrow,
+  .ms .ms-sq:focus-within .ms-arrow {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  @media (hover: hover) {
+    .ms .ms-sq:hover .ms-arrow {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+  .ms .ms-preview {
+    fill: color-mix(in srgb, var(--pen) 14%, transparent);
+    stroke: var(--pen);
+    stroke-width: 2;
+    stroke-dasharray: 6 5;
+    pointer-events: none;
+  }
+  .ms .ms-last {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 2;
+    stroke-dasharray: 5 5;
+    pointer-events: none;
+  }
+  .ms .ms-last-dir {
+    fill: var(--ink-3);
+    pointer-events: none;
+  }
+  .ms .ms-focus {
+    fill: color-mix(in srgb, var(--sun) 30%, transparent);
+    stroke: var(--sun);
+    stroke-width: 3;
+    pointer-events: none;
+  }
+  .ms .ms-eat {
+    fill: color-mix(in srgb, var(--coral) 28%, transparent);
+    stroke: var(--coral);
+    stroke-width: 4;
+    pointer-events: none;
+    animation: ms-eat 700ms ease-out both;
+  }
+  .ms .ms-hand {
+    pointer-events: none;
+    transition: transform 140ms ease-out;
+  }
+  .ms .ms-hand circle {
+    fill: var(--ink);
+    stroke: var(--surface);
+    stroke-width: 3;
+  }
+  .ms .ms-hand text {
+    fill: var(--surface);
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .ms .ms-pop {
+    font-size: 30px;
+    font-weight: 900;
+    stroke: var(--edge);
+    stroke-width: 1.5;
+    paint-order: stroke;
+    pointer-events: none;
+    animation: ms-pop 700ms ease-out both;
+  }
+  .ms .ms-turn {
+    animation: glow 1.1s ease-in-out infinite alternate;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ms .ms-eat,
+    .ms .ms-pop,
+    .ms .ms-turn {
+      animation: none;
+    }
+    .ms .ms-hand {
+      transition: none;
+    }
+  }
+
   /* ---------- Hải đồ bắn tàu ---------- */
   .bs {
     display: block;
@@ -2904,6 +3044,30 @@
   }
   100% {
     transform: translateY(0);
+  }
+}
+@keyframes ms-eat {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+@keyframes ms-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px);
   }
 }
 @keyframes c4-dot {

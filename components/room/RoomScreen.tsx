@@ -11,6 +11,7 @@ import { DodgeTable } from "./DodgeTable";
 import { DrawGuessTable } from "./DrawGuessTable";
 import { Joining } from "./Joining";
 import { LotoTable } from "./LotoTable";
+import { MandarinSquareTable } from "./MandarinSquareTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
 import { UndercoverTable } from "./UndercoverTable";
@@ -100,5 +101,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "connect-four") return <ConnectFourTable id={id} slug={slug} session={session} />;
   if (session.game === "battleship") return <BattleshipTable id={id} slug={slug} session={session} />;
   if (session.game === "draw-guess") return <DrawGuessTable id={id} slug={slug} session={session} />;
+  if (session.game === "mandarin-square") return <MandarinSquareTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }
