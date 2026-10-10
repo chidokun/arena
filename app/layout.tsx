@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import Link from "next/link";
 import { GamesProvider } from "@/components/GamesProvider";
 import { InviteToasts } from "@/components/InviteToasts";
@@ -11,6 +12,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { body, display } from "@/lib/fonts";
 import { loadGames } from "@/lib/games/registry";
 import "./globals.css";
+
+// Mã đo lường GA4 là công khai (nằm sẵn trong HTML); chỉ gắn ở bản build để lượt chạy `next dev` không lẫn vào số liệu.
+const GA_ID = process.env.NODE_ENV === "production" ? "G-ZMN01YP9MV" : null;
 
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
 
@@ -93,6 +97,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </footer>
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }
