@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/`, `/games/draw-guess/`, `/games/mandarin-square/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/`, `/games/draw-guess/`, `/games/oanquan/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -32,7 +32,7 @@ lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của 
 lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
 lib/net/connect-four-room.ts phòng thả cờ 4: nước đi (số cột), xin thua, xử thua người rớt mạng
 lib/net/battleship-room.ts phòng bắn tàu: cam kết hạm đội, phát bắn và tự trả lời, công bố + đối chiếu khi hết ván
-lib/net/mandarin-square-room.ts phòng ô ăn quan: nước đi (±số ô, dấu là chiều rải), xin thua, xử thua người rớt mạng
+lib/net/oanquan-room.ts phòng ô ăn quan: nước đi (±số ô, dấu là chiều rải), xin thua, xử thua người rớt mạng
 lib/net/draw-guess-room.ts phòng vẽ đoán: máy chủ phòng điều hành, từ khoá và lời đoán niêm phong, tranh chia trang + nét dở qua rumor
 lib/net/seal.ts       niêm phong bản ghi bí mật: ECDH P-256 + AES-GCM, độn cùng cỡ
 lib/games/caro.ts     luật caro thuần (dựng lại ván tất định từ nhật ký nước đi)
@@ -44,7 +44,7 @@ lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed 
 lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
 lib/games/connect-four.ts luật thả cờ 4 thuần (quân rơi xuống ô trống thấp nhất, nối 4 thắng, đầy bàn hoà)
 lib/games/battleship.ts luật bắn tàu thuần (hạm đội hợp lệ, trả lời phát bắn, dựng lại ván, cam kết SHA-256, đối chiếu)
-lib/games/mandarin-square.ts luật ô ăn quan thuần (rải, bốc tiếp, ăn liền mạch, quan non, hết dân rải lại, hết quan thu quân; diễn biến từng bước để diễn lại)
+lib/games/oanquan.ts luật ô ăn quan thuần (rải, bốc tiếp, ăn liền mạch, quan non, hết dân rải lại, hết quan thu quân; diễn biến từng bước để diễn lại)
 lib/games/draw-guess.ts luật vẽ đoán thuần (chọn từ → vẽ → lộ đáp án, chấm lời đoán không dấu, gợi ý chữ cái, điểm, thao tác vẽ)
 lib/games/draw-guess-words.ts bộ 380 từ khoá vẽ đoán, ba mức dễ / vừa / khó
 ```
@@ -174,7 +174,7 @@ mới). Hết ván (kể cả xin thua `x:<ván>:<uid>`, rớt mạng 30 giây b
 `f:<ván>:<uid>`; mọi máy tính lại cam kết và đối chiếu từng câu trả lời: khớp thì hiện "chơi đẹp", lệch thì gắn cờ gian
 lận. Hạm đội đối phương lộ ra (viền vàng nét đứt). Bảng thắng cộng dồn như caro.
 
-**Ô Ăn Quan** (slug `mandarin-square`). Hai ghế như caro, phòng giới hạn người xem. Vòng 12 ô: ô quan 0 và 6 ở hai đầu
+**Ô Ăn Quan** (slug `oanquan`). Hai ghế như caro, phòng giới hạn người xem. Vòng 12 ô: ô quan 0 và 6 ở hai đầu
 (mỗi ô một quân quan, 10 điểm), `lineup[0]` giữ dãy ô dân 1–5 và đi trước, `lineup[1]` giữ dãy 7–11 (mỗi ô 5 dân, 1 điểm);
 đổi người đi trước mỗi ván. Nước đi là *±số ô* nối vào `g:<ván>` — dấu là chiều rải (dương: chỉ số tăng). Bốc hết dân trong
 ô, rải mỗi ô một quân (kể cả ô quan); rải hết mà ô kế là ô dân có quân thì bốc rải tiếp, là ô quan còn quân thì mất lượt,
@@ -182,9 +182,11 @@ trống thì ăn ô ngay sau nó, rồi cứ cách một ô trống lại có qu
 *cấm ăn quan non* (mặc định bật): ô quan còn quân quan mà dưới 5 dân thì không ăn được — tới đó là mất lượt. Tới lượt mà dãy
 mình hết dân thì tự lấy 5 quân trong kho rải lại (thiếu thì vay — điểm âm). Hai ô quan đều hết quân thì thu dân còn lại về
 bên sở hữu dãy, ai nhiều điểm hơn thắng, bằng điểm hoà (quá 400 nước cũng thu quân đếm điểm). Mọi máy tự dựng lại ván bằng
-`replay` (`lib/games/mandarin-square.ts`); mỗi nước kèm diễn biến từng bước (`steps`: bốc, thả, ăn, rải lại, thu quân) nên
+`replay` (`lib/games/oanquan.ts`); mỗi nước kèm diễn biến từng bước (`steps`: bốc, thả, ăn, rải lại, thu quân) nên
 khi có nước mới, bàn chơi dựng bàn trước nước đó rồi diễn lại từng bước (tay cầm quân, ô bị ăn, điểm bay lên) — vào giữa
-ván hoặc bật giảm chuyển động thì không diễn. Bàn lật để người chơi luôn thấy dãy mình ở dưới. Chọn nước: chạm một ô bên
+ván hoặc bật giảm chuyển động thì không diễn. Quân dân là 5 viên ngọc (`public/oanquan/gem-*.webp`), mỗi quân một màu
+chọn ngẫu nhiên tất định theo ván + ô + thứ tự; quân quan là avatar ông quan (`quan-1.webp` ở ô 0, `quan-2.webp` ở ô 6) — kho
+quân hiện đúng avatar quan mà mỗi bên đã ăn (`Board.quanBy`). Bàn lật để người chơi luôn thấy dãy mình ở dưới. Chọn nước: chạm một ô bên
 mình rồi chạm nửa trái / phải của ô (có chuột thì rê lên ô là hiện mũi tên, kèm gợi ý các ô sẽ nhận quân). Xin thua
 `x:<ván>:<uid>`; mất kết nối 30 giây giữa ván bị xử thua. Bảng thắng / hoà cộng dồn như caro.
 

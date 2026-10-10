@@ -25,7 +25,7 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, MandarinSquareRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { DodgePublic } from "../games/dodge";

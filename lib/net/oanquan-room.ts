@@ -3,16 +3,16 @@
  * bằng `replay` nên không cần ai "phán" thắng thua. Người đi trước (giữ dãy ô 1–5) đổi mỗi ván.
  * Người chơi mất kết nối quá lâu giữa ván bị xử thua.
  */
-import { normOptions, replay, type Move, type MsOptions, type MsState } from "../games/mandarin-square";
+import { normOptions, replay, type Move, type OaqOptions, type OaqState } from "../games/oanquan";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
 const FORFEIT_MS = 30000;
 
-export type MsMatch = {
+export type OaqMatch = {
   round: number;
   /** Nhật ký nước đi — bàn chơi dựng lại bàn trước nước cuối để diễn cảnh rải quân. */
   moves: Move[];
-  state: MsState;
+  state: OaqState;
   /** lineup[0] giữ dãy ô 1–5 và đi trước, lineup[1] giữ dãy ô 7–11. */
   lineup: SeatView[];
   mySide: 0 | 1 | 2;
@@ -20,17 +20,17 @@ export type MsMatch = {
   result?: Result;
 };
 
-export type MsView = {
-  opts: MsOptions;
+export type OaqView = {
+  opts: OaqOptions;
   /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
-  match?: MsMatch;
+  match?: OaqMatch;
   /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
 
-export class MandarinSquareRoom extends RoomSession<MsView> {
-  readonly game = "mandarin-square";
+export class OAnQuanRoom extends RoomSession<OaqView> {
+  readonly game = "oanquan";
 
   private movesOf(m: Meta): Move[] {
     const list = this.gossip.get<{ moves?: unknown }>(`g:${m.round}`)?.moves;
@@ -84,7 +84,7 @@ export class MandarinSquareRoom extends RoomSession<MsView> {
     }
   }
 
-  protected gameView(m: Meta, seatOf: (uid: string) => SeatView): MsView {
+  protected gameView(m: Meta, seatOf: (uid: string) => SeatView): OaqView {
     const tally = { opts: normOptions(m.opts), wins: m.wins ?? {}, draws: m.draws ?? 0 };
     if (!(m.round > 0 && m.lineup.length === 2)) return tally;
     const g = this.gameOf(m);

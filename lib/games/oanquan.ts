@@ -22,15 +22,15 @@ export const MAX_MOVES = 400;
 /** Chặn một lượt rải vòng vô tận. */
 const MAX_DROPS = 5000;
 
-export type MsOptions = {
+export type OaqOptions = {
   /** Cấm ăn quan non: ô quan còn quân quan mà dưới `QUAN_NON` dân thì chưa ăn được — tới đó là mất lượt. */
   quanNon: boolean;
 };
 
-export const DEFAULT_OPTIONS: MsOptions = { quanNon: true };
+export const DEFAULT_OPTIONS: OaqOptions = { quanNon: true };
 
-export function normOptions(raw: unknown): MsOptions {
-  const o = (raw ?? {}) as Partial<MsOptions>;
+export function normOptions(raw: unknown): OaqOptions {
+  const o = (raw ?? {}) as Partial<OaqOptions>;
   return { quanNon: typeof o.quanNon === "boolean" ? o.quanNon : DEFAULT_OPTIONS.quanNon };
 }
 
@@ -46,6 +46,8 @@ export type Board = {
   got: [number, number, number];
   /** Số quan đã ăn của bên 1 / bên 2. */
   quans: [number, number, number];
+  /** Bên đã ăn quân quan ở ô 0 / ô 6 (0: chưa ai ăn). */
+  quanBy: [0 | 1 | 2, 0 | 1 | 2];
   /** Quân đang cầm trên tay — chỉ khác 0 giữa lúc diễn lại nước đi. */
   hand: number;
 };
@@ -63,7 +65,7 @@ export type Step =
   /** Hết quan: thu dân còn lại trên bàn về bên sở hữu ô. */
   | { k: "sweep" };
 
-export type MsState = Board & {
+export type OaqState = Board & {
   /** Số nước hợp lệ đã áp dụng. */
   count: number;
   /** Lượt kế tiếp: 1 hoặc 2. */
@@ -90,13 +92,13 @@ export const hasQuan = (b: Board, i: number) => isQuan(i) && b.quan[qi(i)];
 export const isQuanNon = (b: Board, i: number) => hasQuan(b, i) && b.dan[i] < QUAN_NON;
 export const score = (b: Board, p: 1 | 2) => b.got[p] + b.quans[p] * QUAN_VALUE;
 
-export function initialState(): MsState {
+export function initialState(): OaqState {
   const dan = Array.from({ length: SQUARES }, (_, i) => (isQuan(i) ? 0 : DAN_START));
-  return { dan, quan: [true, true], got: [0, 0, 0], quans: [0, 0, 0], hand: 0, count: 0, turn: 1, over: false, winner: 0, draw: false, last: 0, steps: [] };
+  return { dan, quan: [true, true], got: [0, 0, 0], quans: [0, 0, 0], quanBy: [0, 0], hand: 0, count: 0, turn: 1, over: false, winner: 0, draw: false, last: 0, steps: [] };
 }
 
 export function cloneBoard(b: Board): Board {
-  return { dan: [...b.dan], quan: [b.quan[0], b.quan[1]], got: [...b.got], quans: [...b.quans], hand: b.hand };
+  return { dan: [...b.dan], quan: [b.quan[0], b.quan[1]], got: [...b.got], quans: [...b.quans], quanBy: [b.quanBy[0], b.quanBy[1]], hand: b.hand };
 }
 
 /** Áp một bước diễn biến lên bàn (sửa trực tiếp `b`). */
@@ -115,6 +117,7 @@ export function applyStep(b: Board, s: Step) {
       b.dan[s.at] = 0;
       if (hasQuan(b, s.at)) {
         b.quan[qi(s.at)] = false;
+        b.quanBy[qi(s.at)] = s.p;
         b.quans[s.p]++;
       }
       break;
@@ -132,14 +135,14 @@ export function applyStep(b: Board, s: Step) {
   }
 }
 
-export function legal(s: MsState, mv: Move) {
+export function legal(s: OaqState, mv: Move) {
   if (s.over || !Number.isInteger(mv) || mv === 0) return false;
   const at = Math.abs(mv);
   return ownerOf(at) === s.turn && s.dan[at] > 0;
 }
 
 /** Rải một nước của bên `p` rồi ăn nếu được; trả về diễn biến. */
-function sow(b: Board, mv: Move, p: 1 | 2, opts: MsOptions): Step[] {
+function sow(b: Board, mv: Move, p: 1 | 2, opts: OaqOptions): Step[] {
   const steps: Step[] = [];
   const go = (s: Step) => {
     applyStep(b, s);
@@ -177,7 +180,7 @@ function sow(b: Board, mv: Move, p: 1 | 2, opts: MsOptions): Step[] {
 }
 
 /** Áp một nước lên ván (sửa trực tiếp `s`); trả về false nếu nước không hợp lệ. */
-export function play(s: MsState, mv: Move, opts: MsOptions = DEFAULT_OPTIONS): boolean {
+export function play(s: OaqState, mv: Move, opts: OaqOptions = DEFAULT_OPTIONS): boolean {
   if (!legal(s, mv)) return false;
   const steps = sow(s, mv, s.turn, opts);
   const go = (st: Step) => {
@@ -207,7 +210,7 @@ export function play(s: MsState, mv: Move, opts: MsOptions = DEFAULT_OPTIONS): b
  * Dựng lại ván từ nhật ký nước đi. Tất định: mọi peer có cùng nhật ký sẽ ra cùng kết quả, nên không cần ai "phán"
  * thắng thua. Gặp nước không hợp lệ (ô bên kia, ô trống, sau khi đã hết ván) thì dừng lại.
  */
-export function replay(moves: readonly Move[], opts: MsOptions = DEFAULT_OPTIONS): MsState {
+export function replay(moves: readonly Move[], opts: OaqOptions = DEFAULT_OPTIONS): OaqState {
   const s = initialState();
   for (const mv of moves) if (!play(s, mv, opts)) break;
   return s;

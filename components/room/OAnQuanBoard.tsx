@@ -13,10 +13,10 @@ import {
   SQUARES,
   type Board,
   type Move,
-  type MsOptions,
-  type MsState,
+  type OaqOptions,
+  type OaqState,
   type Step,
-} from "@/lib/games/mandarin-square";
+} from "@/lib/games/oanquan";
 
 /** Cạnh một ô dân, bề ngang ô quan (nửa hình bầu dục) và lề khung. */
 const C = 100;
@@ -25,10 +25,15 @@ const P = 12;
 const W = 2 * P + 2 * Q + 5 * C;
 const H = 2 * P + 2 * C;
 
-export const MS_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
+export const OAQ_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 
-/** Màu sỏi dân: vài sắc đá trung tính, đọc rõ trên nền bàn sáng lẫn tối. */
-const PEBBLES = ["#a3adb8", "#c9b99c", "#8996a5", "#bba68b", "#adb0c2", "#d1c3ad"];
+const base = process.env.BASE_PATH ?? "";
+/** Quân dân: các viên ngọc cắt từ ảnh trong public/oanquan, mỗi viên chọn ngẫu nhiên (tất định theo ván, ô, thứ tự). */
+export const GEMS = ["red", "blue", "green", "yellow", "purple"].map((c) => `${base}/oanquan/gem-${c}.webp`);
+/** Quân quan: avatar ông quan — ô 0 là quan nghiêm, ô 6 là quan cười. */
+export const QUAN_ART = [`${base}/oanquan/quan-1.webp`, `${base}/oanquan/quan-2.webp`];
+/** Viên ngọc đại diện cho từng bên (ứng màu bên: đỏ / xanh). */
+export const SIDE_GEM = { 1: GEMS[0], 2: GEMS[1] } as const;
 const GOLDEN = 2.399963;
 
 type Spot = { x: number; y: number; quan: boolean; side: "l" | "r" | null; top: boolean; col: number };
@@ -43,40 +48,52 @@ function spotOf(i: number, flip: boolean): Spot {
   return { x: P + Q + col * C + C / 2, y: P + (top ? 0 : C) + C / 2, quan: false, side: null, top, col };
 }
 
-/** Toạ độ sỏi thứ `k` trong ô `i` — rải hình hoa hướng dương, lệch góc theo ô cho đỡ đều tăm tắp. */
+/** Chỗ xếp dân trong ô quan: vành ngoài trước (giữa ô là avatar quan che), xếp theo hoa hướng dương. */
+const QUAN_SLOTS = Array.from({ length: 45 }, (_, j) => j)
+  .filter((j) => Math.sqrt((j + 0.5) / 45) > 0.45)
+  .reverse()
+  .map((j) => ({ r: Math.sqrt((j + 0.5) / 45), a: j * GOLDEN }));
+
+/** Toạ độ quân dân thứ `k` trong ô `i` — rải hình hoa hướng dương, lệch góc theo ô cho đỡ đều tăm tắp. */
 function pebbleAt(i: number, k: number, quan: boolean) {
   if (quan) {
-    // Chừa giữa ô cho quân quan, dân xếp vòng quanh.
-    const j = k + 7;
-    const r = Math.sqrt(j / 38);
-    const a = j * GOLDEN + i;
-    return { dx: Math.cos(a) * r * Q * 0.42, dy: Math.sin(a) * r * C * 0.78 };
+    const { r, a } = QUAN_SLOTS[k % QUAN_SLOTS.length];
+    return { dx: Math.cos(a + i) * r * Q * 0.42, dy: Math.sin(a + i) * r * C * 0.82 };
   }
-  const r = Math.sqrt((k + 0.5) / 26) * 38;
+  // Vài viên đầu đã tản ra gần hết ô; từ viên thứ 9 xếp vòng quanh mép.
+  const r = Math.min(37, Math.sqrt((k + 0.5) / 9) * 36);
   const a = k * GOLDEN + i * 1.7;
   return { dx: Math.cos(a) * r, dy: Math.sin(a) * r };
 }
 
 const MAX_SHOWN = { dan: 26, quan: 30 };
+const GEM = 25;
 
-function Pebbles({ i, n, x, y, quan }: { i: number; n: number; x: number; y: number; quan: boolean }) {
+/** Băm tất định (ván, ô, thứ tự quân) → số nguyên không âm: quân giữ nguyên màu và góc xoay giữa các lần vẽ. */
+function hash(seed: number, i: number, k: number) {
+  let h = (Math.imul(seed, 374761393) + Math.imul(i, 668265263) + Math.imul(k, 2246822519)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+function Pebbles({ i, n, x, y, quan, seed }: { i: number; n: number; x: number; y: number; quan: boolean; seed: number }) {
   const shown = Math.min(n, quan ? MAX_SHOWN.quan : MAX_SHOWN.dan);
   return (
     <>
       {Array.from({ length: shown }, (_, k) => {
         const { dx, dy } = pebbleAt(i, k, quan);
-        const h = (i * 31 + k * 17) % 97;
+        const h = hash(seed, i, k);
+        const cx = x + dx;
+        const cy = y + dy;
         return (
-          <ellipse
+          <image
             key={k}
-            cx={x + dx}
-            cy={y + dy}
-            rx={7.5}
-            ry={6.2}
-            transform={`rotate(${(h * 37) % 180} ${x + dx} ${y + dy})`}
-            fill={PEBBLES[h % PEBBLES.length]}
-            stroke="var(--edge)"
-            strokeWidth={1.6}
+            href={GEMS[h % GEMS.length]}
+            x={cx - GEM / 2}
+            y={cy - GEM / 2}
+            width={GEM}
+            height={GEM}
+            transform={`rotate(${(h >>> 4) % 360} ${cx} ${cy})`}
           />
         );
       })}
@@ -84,13 +101,10 @@ function Pebbles({ i, n, x, y, quan }: { i: number; n: number; x: number; y: num
   );
 }
 
-function QuanStone({ x, y, grad }: { x: number; y: number; grad: string }) {
-  return (
-    <g>
-      <ellipse cx={x} cy={y + 2} rx={24} ry={19} fill={`url(#${grad})`} stroke="var(--edge)" strokeWidth={2.5} />
-      <ellipse cx={x - 8} cy={y - 6} rx={8} ry={4.5} fill="white" opacity={0.45} transform={`rotate(-20 ${x - 8} ${y - 6})`} />
-    </g>
-  );
+const QUAN_SIZE = 78;
+
+function QuanStone({ i, x, y }: { i: number; x: number; y: number }) {
+  return <image href={QUAN_ART[i === 0 ? 0 : 1]} x={x - QUAN_SIZE / 2} y={y - QUAN_SIZE / 2 - 8} width={QUAN_SIZE} height={QUAN_SIZE} className="oaq-quan" />;
 }
 
 /** Ô dân / ô quan (hình nền + viền), không gồm quân. */
@@ -107,9 +121,9 @@ function Cell({ s, mine }: { s: Spot; mine: boolean }) {
 /** Số quân dân của ô: ô dân ở góc ngoài (gần mép bàn), ô quan ở ngay dưới viên quan. */
 function CountTag({ s, n }: { s: Spot; n: number }) {
   const x = s.quan ? s.x : s.x + C / 2 - 9;
-  const y = s.quan ? s.y + 46 : s.top ? s.y - C / 2 + 19 : s.y + C / 2 - 9;
+  const y = s.quan ? s.y + 50 : s.top ? s.y - C / 2 + 19 : s.y + C / 2 - 9;
   return (
-    <text x={x} y={y} textAnchor={s.quan ? "middle" : "end"} className="ms-count">
+    <text x={x} y={y} textAnchor={s.quan ? "middle" : "end"} className="oaq-count">
       {n}
     </text>
   );
@@ -139,7 +153,7 @@ function durations(steps: Step[]) {
  * Khi ván có thêm đúng một nước (lúc đang mở bàn), diễn lại nước đó từng bước trên bàn trước nước cuối: bốc, thả từng
  * quân, ăn, rải quân, thu quân. Trả về khung đang diễn; null là không diễn (vào giữa ván, đổi ván, giảm chuyển động).
  */
-export function useSowing(round: number, moves: readonly Move[], state: MsState, opts: MsOptions) {
+export function useSowing(round: number, moves: readonly Move[], state: OaqState, opts: OaqOptions) {
   const count = moves.length;
   const key = `${round}:${count}`;
   const [seen, setSeen] = useState({ round, count });
@@ -179,23 +193,26 @@ export function useSowing(round: number, moves: readonly Move[], state: MsState,
  * Bàn ô ăn quan SVG: 2 dãy × 5 ô dân, hai ô quan bán nguyệt ở hai đầu. Người chơi chạm một ô dân bên mình (dãy dưới) có
  * quân rồi chạm nửa trái / phải của ô (mũi tên ◀ / ▶) để chọn chiều rải; có chuột thì rê lên ô là hiện mũi tên, bấm thẳng luôn.
  */
-export const MandarinSquareBoard = memo(function MandarinSquareBoard({
+export const OAnQuanBoard = memo(function OAnQuanBoard({
   board,
   state,
   frame,
   opts,
   side,
+  seed,
   live,
   canPlay,
   onSow,
 }: {
   /** Bàn đang hiện — khung đang diễn hoặc bàn sau nước cuối. */
   board: Board;
-  state: MsState;
+  state: OaqState;
   frame: Frame | null;
-  opts: MsOptions;
+  opts: OaqOptions;
   /** Bên của người xem: 2 thì lật bàn cho dãy 7–11 nằm dưới. */
   side: 0 | 1 | 2;
+  /** Hạt giống chọn màu ngọc (số ván) — mỗi ván một kiểu rải màu. */
+  seed: number;
   /** Đang trong ván: vạch màu báo bên tới lượt. */
   live: boolean;
   canPlay: boolean;
@@ -205,7 +222,6 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
   const mine = side || 1;
   const [sel, setSel] = useState(-1);
   const [aim, setAim] = useState<Move>(0);
-  const grad = `ms-quan-${flip ? "f" : "n"}`;
   const selected = canPlay && board.dan[sel] > 0 && ownerOf(sel) === mine ? sel : -1;
   const preview = new Set(canPlay && aim ? firstPass(board, aim) : []);
   const focus = frame?.step && frame.step.k !== "scatter" && frame.step.k !== "sweep" ? frame.step.at : -1;
@@ -228,19 +244,19 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
     cells.push(<Cell key={i} s={s} mine={own} />);
     stones.push(
       <g key={i}>
-        {quan && hasQuan(board, i) && <QuanStone x={s.x} y={s.y} grad={grad} />}
-        <Pebbles i={i} n={board.dan[i]} x={s.x} y={s.y} quan={quan} />
+        <Pebbles i={i} n={board.dan[i]} x={s.x} y={s.y} quan={quan} seed={seed} />
+        {quan && hasQuan(board, i) && <QuanStone i={i} x={s.x} y={s.y} />}
         <CountTag s={s} n={board.dan[i]} />
         {quan && opts.quanNon && isQuanNon(board, i) && (
-          <text x={s.x} y={s.y + 63} textAnchor="middle" className="ms-non">
+          <text x={s.x} y={s.y + 66} textAnchor="middle" className="oaq-non">
             quan non
           </text>
         )}
       </g>,
     );
-    if (preview.has(i)) marks.push(<SpotRing key={`p${i}`} s={s} className="ms-preview" />);
-    if (i === lastAt) marks.push(<SpotRing key={`l${i}`} s={s} className="ms-last" />);
-    if (i === focus) marks.push(<SpotRing key={`f${frame!.i}`} s={s} className={frame!.step!.k === "eat" ? "ms-eat" : "ms-focus"} />);
+    if (preview.has(i)) marks.push(<SpotRing key={`p${i}`} s={s} className="oaq-preview" />);
+    if (i === lastAt) marks.push(<SpotRing key={`l${i}`} s={s} className="oaq-last" />);
+    if (i === focus) marks.push(<SpotRing key={`f${frame!.i}`} s={s} className={frame!.step!.k === "eat" ? "oaq-eat" : "oaq-focus"} />);
   }
 
   // Ô dân bên mình bấm được: vùng bấm + hai mũi tên chọn chiều.
@@ -254,7 +270,7 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
         const x = s.x + dir * (C / 2 - 19);
         return (
           <g
-            className="ms-arrow"
+            className="oaq-arrow"
             role="button"
             tabIndex={selected === i ? 0 : -1}
             aria-label={`Rải ô ${s.col + 1} sang ${dir === 1 ? "phải" : "trái"}`}
@@ -277,9 +293,9 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
         );
       };
       hits.push(
-        <g key={i} className={`ms-sq ${selected === i ? "is-sel" : ""}`}>
+        <g key={i} className={`oaq-sq ${selected === i ? "is-sel" : ""}`}>
           <rect
-            className="ms-hit"
+            className="oaq-hit"
             x={s.x - C / 2}
             y={s.y - C / 2}
             width={C}
@@ -311,7 +327,7 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
     const s = spotOf(focus, flip);
     const y = s.top || s.quan ? s.y + 30 : s.y - 30;
     hand = (
-      <g className="ms-hand" style={{ transform: `translate(${s.x}px, ${y}px)` }}>
+      <g className="oaq-hand" style={{ transform: `translate(${s.x}px, ${y}px)` }}>
         <circle r={17} />
         <text y={6} textAnchor="middle">
           {board.hand}
@@ -324,26 +340,20 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
     const st = frame.step;
     const s = spotOf(st.at, flip);
     pop = (
-      <text key={frame.i} x={s.x} y={s.y - 10} textAnchor="middle" className="ms-pop" style={{ fill: MS_TONE[st.p] }}>
+      <text key={frame.i} x={s.x} y={s.y - 10} textAnchor="middle" className="oaq-pop" style={{ fill: OAQ_TONE[st.p] }}>
         +{st.n + (st.quan ? 10 : 0)}
       </text>
     );
   }
 
-  const turnTone = MS_TONE[state.turn];
+  const turnTone = OAQ_TONE[state.turn];
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className={`ms ${canPlay ? "can-play" : ""}`}
+      className={`oaq ${canPlay ? "can-play" : ""}`}
       aria-label={`Bàn ô ăn quan${canPlay ? " — đến lượt bạn: chọn một ô dân bên mình rồi chọn chiều rải" : ""}`}
       onPointerLeave={() => setAim(0)}
     >
-      <defs>
-        <radialGradient id={grad} cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stopColor="color-mix(in srgb, var(--grape) 55%, white)" />
-          <stop offset="100%" stopColor="color-mix(in srgb, var(--grape) 70%, black)" />
-        </radialGradient>
-      </defs>
       {cells}
       {/* Dãy bên đang tới lượt có vạch màu ở mép ngoài. */}
       {live && (
@@ -354,7 +364,7 @@ export const MandarinSquareBoard = memo(function MandarinSquareBoard({
           height={5}
           rx={2.5}
           fill={turnTone}
-          className="ms-turn"
+          className="oaq-turn"
         />
       )}
       {marks}
@@ -382,6 +392,6 @@ function LastArrow({ s, dir }: { s: Spot; dir: number }) {
   const y = s.top ? s.y - C / 2 + 14 : s.y + C / 2 - 14;
   const x = s.x - C / 2 + 18;
   return (
-    <path className="ms-last-dir" d={dir > 0 ? `M ${x - 6} ${y - 6} L ${x + 6} ${y} L ${x - 6} ${y + 6} Z` : `M ${x + 6} ${y - 6} L ${x - 6} ${y} L ${x + 6} ${y + 6} Z`} />
+    <path className="oaq-last-dir" d={dir > 0 ? `M ${x - 6} ${y - 6} L ${x + 6} ${y} L ${x - 6} ${y + 6} Z` : `M ${x + 6} ${y - 6} L ${x - 6} ${y} L ${x + 6} ${y + 6} Z`} />
   );
 }

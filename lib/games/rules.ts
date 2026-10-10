@@ -69,7 +69,7 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
-  "mandarin-square": {
+  "oanquan": {
     intro: "Ô ăn quan cho 2 người: bốc quân rải quanh bàn, cách một ô trống là ăn — hết quan thì thu quân, ai nhiều điểm hơn là thắng.",
     sections: [
       {

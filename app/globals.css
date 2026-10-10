@@ -504,7 +504,7 @@
   }
 
   /* ---------- Bàn ô ăn quan ---------- */
-  .ms {
+  .oaq {
     display: block;
     width: 100%;
     height: auto;
@@ -512,8 +512,8 @@
     user-select: none;
     -webkit-user-select: none;
   }
-  .ms .ms-count,
-  .ms .ms-non {
+  .oaq .oaq-count,
+  .oaq .oaq-non {
     font-size: 17px;
     font-weight: 800;
     fill: var(--ink-3);
@@ -523,122 +523,122 @@
     stroke-linejoin: round;
     pointer-events: none;
   }
-  .ms .ms-non {
+  .oaq .oaq-non {
     font-size: 13px;
     font-weight: 700;
   }
-  .ms .ms-hit {
+  .oaq .oaq-hit {
     fill: transparent;
     cursor: pointer;
     outline: none;
   }
-  .ms .ms-sq:hover .ms-hit,
-  .ms .ms-hit:focus-visible,
-  .ms .ms-sq.is-sel .ms-hit {
+  .oaq .oaq-sq:hover .oaq-hit,
+  .oaq .oaq-hit:focus-visible,
+  .oaq .oaq-sq.is-sel .oaq-hit {
     fill: var(--board-hover);
   }
-  .ms .ms-hit:focus-visible {
+  .oaq .oaq-hit:focus-visible {
     stroke: var(--pen);
     stroke-width: 3;
   }
   /* Mũi tên chọn chiều: ẩn và không bấm được cho tới khi chọn ô (hoặc rê chuột lên ô) — chạm nhầm trên điện thoại không rải luôn. */
-  .ms .ms-arrow {
+  .oaq .oaq-arrow {
     opacity: 0;
     pointer-events: none;
     cursor: pointer;
     outline: none;
     transition: opacity 120ms;
   }
-  .ms .ms-arrow rect {
+  .oaq .oaq-arrow rect {
     fill: transparent;
   }
-  .ms .ms-arrow circle {
+  .oaq .oaq-arrow circle {
     fill: var(--pen);
     stroke: var(--edge);
     stroke-width: 2.5;
   }
-  .ms .ms-arrow path {
+  .oaq .oaq-arrow path {
     fill: var(--on-pen);
   }
-  .ms .ms-arrow:hover circle,
-  .ms .ms-arrow:focus-visible circle {
+  .oaq .oaq-arrow:hover circle,
+  .oaq .oaq-arrow:focus-visible circle {
     fill: var(--coral);
   }
-  .ms .ms-sq.is-sel .ms-arrow,
-  .ms .ms-sq:focus-within .ms-arrow {
+  .oaq .oaq-sq.is-sel .oaq-arrow,
+  .oaq .oaq-sq:focus-within .oaq-arrow {
     opacity: 1;
     pointer-events: auto;
   }
   @media (hover: hover) {
-    .ms .ms-sq:hover .ms-arrow {
+    .oaq .oaq-sq:hover .oaq-arrow {
       opacity: 1;
       pointer-events: auto;
     }
   }
-  .ms .ms-preview {
+  .oaq .oaq-preview {
     fill: color-mix(in srgb, var(--pen) 14%, transparent);
     stroke: var(--pen);
     stroke-width: 2;
     stroke-dasharray: 6 5;
     pointer-events: none;
   }
-  .ms .ms-last {
+  .oaq .oaq-last {
     fill: none;
     stroke: var(--ink-3);
     stroke-width: 2;
     stroke-dasharray: 5 5;
     pointer-events: none;
   }
-  .ms .ms-last-dir {
+  .oaq .oaq-last-dir {
     fill: var(--ink-3);
     pointer-events: none;
   }
-  .ms .ms-focus {
+  .oaq .oaq-focus {
     fill: color-mix(in srgb, var(--sun) 30%, transparent);
     stroke: var(--sun);
     stroke-width: 3;
     pointer-events: none;
   }
-  .ms .ms-eat {
+  .oaq .oaq-eat {
     fill: color-mix(in srgb, var(--coral) 28%, transparent);
     stroke: var(--coral);
     stroke-width: 4;
     pointer-events: none;
-    animation: ms-eat 700ms ease-out both;
+    animation: oaq-eat 700ms ease-out both;
   }
-  .ms .ms-hand {
+  .oaq .oaq-hand {
     pointer-events: none;
     transition: transform 140ms ease-out;
   }
-  .ms .ms-hand circle {
+  .oaq .oaq-hand circle {
     fill: var(--ink);
     stroke: var(--surface);
     stroke-width: 3;
   }
-  .ms .ms-hand text {
+  .oaq .oaq-hand text {
     fill: var(--surface);
     font-size: 17px;
     font-weight: 800;
   }
-  .ms .ms-pop {
+  .oaq .oaq-pop {
     font-size: 30px;
     font-weight: 900;
     stroke: var(--edge);
     stroke-width: 1.5;
     paint-order: stroke;
     pointer-events: none;
-    animation: ms-pop 700ms ease-out both;
+    animation: oaq-pop 700ms ease-out both;
   }
-  .ms .ms-turn {
+  .oaq .oaq-turn {
     animation: glow 1.1s ease-in-out infinite alternate;
   }
   @media (prefers-reduced-motion: reduce) {
-    .ms .ms-eat,
-    .ms .ms-pop,
-    .ms .ms-turn {
+    .oaq .oaq-eat,
+    .oaq .oaq-pop,
+    .oaq .oaq-turn {
       animation: none;
     }
-    .ms .ms-hand {
+    .oaq .oaq-hand {
       transition: none;
     }
   }
@@ -3046,7 +3046,7 @@
     transform: translateY(0);
   }
 }
-@keyframes ms-eat {
+@keyframes oaq-eat {
   0% {
     opacity: 0;
   }
@@ -3057,7 +3057,7 @@
     opacity: 0.35;
   }
 }
-@keyframes ms-pop {
+@keyframes oaq-pop {
   0% {
     opacity: 0;
     transform: translateY(8px);

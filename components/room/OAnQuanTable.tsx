@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef } from "react";
-import { initialState, QUAN_VALUE, score, TOTAL, type Board } from "@/lib/games/mandarin-square";
-import type { MandarinSquareRoom, MsMatch, MsView } from "@/lib/net/mandarin-square-room";
+import { initialState, QUAN_VALUE, score, TOTAL, type Board } from "@/lib/games/oanquan";
+import type { OAnQuanRoom, OaqMatch, OaqView } from "@/lib/net/oanquan-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { MandarinSquareBoard, MS_TONE, useSowing } from "./MandarinSquareBoard";
+import { OAnQuanBoard, OAQ_TONE, QUAN_ART, SIDE_GEM, useSowing } from "./OAnQuanBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useBalloons, useFlyers, useRoomView } from "./useRoom";
@@ -16,7 +16,7 @@ import { useBalloons, useFlyers, useRoomView } from "./useRoom";
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🪨", "🐚"];
 const START = initialState();
 
-export function MandarinSquareTable({ id, slug, session }: { id: string; slug: string; session: MandarinSquareRoom }) {
+export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; session: OAnQuanRoom }) {
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { match: g, wins, draws, opts } = view.game!;
@@ -49,7 +49,7 @@ export function MandarinSquareTable({ id, slug, session }: { id: string; slug: s
         seat={seat}
         mark={showGame ? p : undefined}
         badge={showGame ? String(score(board, p)) : undefined}
-        tone={showGame ? MS_TONE[p] : undefined}
+        tone={showGame ? OAQ_TONE[p] : undefined}
         active={playing && state.turn === p && !state.over}
         isHost={seat?.uid === m.host}
         balloon={seat ? balloons[seat.uid] : undefined}
@@ -88,12 +88,13 @@ export function MandarinSquareTable({ id, slug, session }: { id: string; slug: s
       <div className="relative mx-auto mt-4 max-w-[760px]">
         {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} />}
         <div ref={boardRef} className="card my-2 overflow-hidden p-2 sm:p-3" style={{ background: "var(--sunken)" }}>
-          <MandarinSquareBoard
+          <OAnQuanBoard
             board={board}
             state={state}
             frame={frame}
             opts={opts}
             side={side}
+            seed={g?.round ?? 0}
             live={live}
             canPlay={!!g?.myTurn && !count && !frame}
             onSow={(at, dir) => session.sow(at, dir)}
@@ -124,36 +125,46 @@ function Store({ board, p, seat, me }: { board: Board; p: 1 | 2; seat?: SeatView
   const quans = board.quans[p];
   const name = seat?.uid === me ? "Bạn" : (seat?.member?.name ?? "Ai đó");
   return (
-    <div className="flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm font-semibold" style={{ background: `color-mix(in srgb, ${MS_TONE[p]} 12%, var(--surface))` }}>
-      <span className="h-3 w-3 flex-none rounded-full border-2 border-edge" style={{ background: MS_TONE[p] }} aria-hidden="true" />
+    <div className="flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm font-semibold" style={{ background: `color-mix(in srgb, ${OAQ_TONE[p]} 12%, var(--surface))` }}>
+      <span className="h-3 w-3 flex-none rounded-full border-2 border-edge" style={{ background: OAQ_TONE[p] }} aria-hidden="true" />
       <span className="min-w-0 truncate">
         Kho của <b>{name}</b>
       </span>
       <span className="ml-auto flex flex-none items-center gap-2 tabular-nums text-ink-2">
-        <span title="Quân dân đã ăn (rải quân khi hết dân thì trừ đi, vay thì âm)">🪨 {dan}</span>
-        {quans > 0 && <span title={`Mỗi quan ${QUAN_VALUE} điểm`}>🟣 {quans} quan</span>}
+        <span className="flex items-center gap-1" title="Quân dân đã ăn (rải quân khi hết dân thì trừ đi, vay thì âm)">
+          <Art src={SIDE_GEM[p]} size={18} /> {dan}
+        </span>
+        {([0, 1] as const).map((q) =>
+          board.quanBy[q] === p ? <Art key={q} src={QUAN_ART[q]} size={28} title={`Quan ${QUAN_VALUE} điểm`} /> : null,
+        )}
         <b className="font-display text-lg text-ink">{dan + quans * QUAN_VALUE}đ</b>
       </span>
     </div>
   );
 }
 
-/** Huy hiệu bên: viên sỏi màu của bên đó. */
-const Pebble = ({ p }: { p: 1 | 2 }) => <span className="block h-[20px] w-[24px] rounded-[50%] border-2 border-[#050312]" style={{ background: MS_TONE[p] }} />;
+/** Ảnh quân (ngọc / avatar quan) trong giao diện HTML. */
+function Art({ src, size, title }: { src: string; size: number; title?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- site xuất tĩnh, ảnh đã thu nhỏ sẵn
+  return <img src={src} alt="" title={title} width={size} height={size} draggable={false} className="flex-none object-contain select-none" style={{ width: size, height: size }} />;
+}
+
+/** Huy hiệu bên: viên ngọc màu của bên đó. */
+const Pebble = ({ p }: { p: 1 | 2 }) => <Art src={SIDE_GEM[p]} size={26} />;
 
 const fighter = (seat: SeatView | undefined, p: 1 | 2, me: string, side: "left" | "right") => (
   <Fighter
     p={seat?.member}
     name={seat?.uid === me ? "Bạn" : (seat?.member?.name ?? "Ai đó")}
     sub={p === 1 ? "Đi trước" : "Đi sau"}
-    ring={MS_TONE[p]}
+    ring={OAQ_TONE[p]}
     badge={<Pebble p={p} />}
     side={side}
   />
 );
 
 /** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
-function CountdownScene({ match: g, me, n }: { match: MsMatch; me: string; n: number }) {
+function CountdownScene({ match: g, me, n }: { match: OaqMatch; me: string; n: number }) {
   const tip = g.mySide ? (g.mySide === 1 ? "Bạn đi trước — chọn một ô dân bên mình để rải nhé!" : "Đối thủ đi trước — chờ một chút nhé!") : "Cùng xem hai bên tranh quan nhé!";
   return (
     <CountdownCine eyebrow={`🪨 Ô Ăn Quan · Ván ${g.round}`} n={n} tip={tip}>
@@ -163,12 +174,12 @@ function CountdownScene({ match: g, me, n }: { match: MsMatch; me: string; n: nu
 }
 
 /** Cảnh hết ván: người thắng hoặc hoà — bấm để đóng. */
-function EndScene({ match: g, me, onClose }: { match: MsMatch; me: string; onClose: () => void }) {
+function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onClose: () => void }) {
   const r = g.result!;
   const a = score(g.state, 1);
   const b = score(g.state, 2);
   if (!r.winner)
-    return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: MS_TONE[(k + 1) as 1 | 2] }))} title="Hoà!" sub={`Ván ${g.round} — mỗi bên ${TOTAL / 2} điểm`} onClose={onClose} />;
+    return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: OAQ_TONE[(k + 1) as 1 | 2] }))} title="Hoà!" sub={`Ván ${g.round} — mỗi bên ${TOTAL / 2} điểm`} onClose={onClose} />;
   const k = g.lineup.findIndex((s) => s.uid === r.winner);
   const seat = g.lineup[k];
   const p = (k + 1) as 1 | 2;
@@ -192,7 +203,7 @@ function EndScene({ match: g, me, onClose }: { match: MsMatch; me: string; onClo
 }
 
 /** Nút hành động chính tuỳ vai trò: vào ghế / rời ghế / bắt đầu / xin thua / ván mới. */
-function ActionBar({ view, session, animating }: { view: RoomView<MsView>; session: MandarinSquareRoom; animating: boolean }) {
+function ActionBar({ view, session, animating }: { view: RoomView<OaqView>; session: OAnQuanRoom; animating: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const seated = view.mySeat >= 0;
@@ -209,7 +220,7 @@ function ActionBar({ view, session, animating }: { view: RoomView<MsView>; sessi
     } else if (g.mySide) {
       message = g.myTurn ? (
         <>
-          🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: MS_TONE[g.mySide] }}>bên mình</b> (dãy dưới) rồi chọn chiều rải ◀ ▶
+          🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: OAQ_TONE[g.mySide] }}>bên mình</b> (dãy dưới) rồi chọn chiều rải ◀ ▶
         </>
       ) : (
         <>⏳ Chờ đối thủ rải quân…</>

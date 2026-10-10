@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyStep, cloneBoard, initialState, legal, play, replay, score, TOTAL, type MsState } from "./mandarin-square.ts";
+import { applyStep, cloneBoard, initialState, legal, play, replay, score, TOTAL, type OaqState } from "./oanquan.ts";
 
 /** Tổng điểm còn trên bàn + đã ăn — luôn bằng TOTAL. */
-const total = (s: MsState) => s.dan.reduce((a, b) => a + b, 0) + (s.quan[0] ? 10 : 0) + (s.quan[1] ? 10 : 0) + score(s, 1) + score(s, 2);
+const total = (s: OaqState) => s.dan.reduce((a, b) => a + b, 0) + (s.quan[0] ? 10 : 0) + (s.quan[1] ? 10 : 0) + score(s, 1) + score(s, 2);
 
 test("bàn mới: 10 ô dân mỗi ô 5 quân, hai ô quan, bên 1 đi trước", () => {
   const s = initialState();
@@ -49,6 +49,7 @@ test("quan non: cấm ăn thì mất lượt, cho ăn thì ăn cả quan", () =>
   const allowed = replay([-1], { quanNon: false });
   assert.equal(allowed.quan[0], false);
   assert.equal(allowed.quans[1], 1);
+  assert.deepEqual(allowed.quanBy, [1, 0]);
   assert.equal(score(allowed, 1), 11);
   assert.equal(total(allowed), TOTAL);
 });

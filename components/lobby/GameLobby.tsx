@@ -23,7 +23,7 @@ import {
   type ClaimMs,
 } from "@/lib/games/xiangqi-role";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
-import { DEFAULT_OPTIONS as MS_DEFAULTS, normOptions as msOptions, QUAN_NON } from "@/lib/games/mandarin-square";
+import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
   DEFAULT_OPTIONS as SD_DEFAULTS,
@@ -173,7 +173,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const c4 = room.game === "connect-four";
   const bs = room.game === "battleship";
   const draw = room.game === "draw-guess";
-  const ms = room.game === "mandarin-square";
+  const oaq = room.game === "oanquan";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -198,7 +198,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                         ? "Đang giao chiến"
                         : draw
                           ? "Đang vẽ"
-                          : ms
+                          : oaq
                             ? "Đang rải quân"
                             : "Đang đấu",
         color: "var(--coral)",
@@ -239,8 +239,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <BattleshipChips room={room} />
         ) : draw ? (
           <DrawGuessChips room={room} />
-        ) : ms ? (
-          <MandarinSquareChips room={room} />
+        ) : oaq ? (
+          <OAnQuanChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -292,8 +292,8 @@ function ConnectFourChips({ room }: { room: RoomAd }) {
   );
 }
 
-function MandarinSquareChips({ room }: { room: RoomAd }) {
-  const { quanNon } = msOptions(room.opts);
+function OAnQuanChips({ room }: { room: RoomAd }) {
+  const { quanNon } = oaqOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
@@ -489,7 +489,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [chain, setChain] = useState(BS_DEFAULTS.chain);
   const [rounds, setRounds] = useState(DW_DEFAULTS.rounds);
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
-  const [quanNon, setQuanNon] = useState(MS_DEFAULTS.quanNon);
+  const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -500,7 +500,7 @@ function CreateForm({ slug }: { slug: string }) {
   const c4 = slug === "connect-four";
   const bs = slug === "battleship";
   const draw = slug === "draw-guess";
-  const ms = slug === "mandarin-square";
+  const oaq = slug === "oanquan";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -526,7 +526,7 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (xiangqi || c4) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
-        else if (ms) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
+        else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
         else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
@@ -555,7 +555,7 @@ function CreateForm({ slug }: { slug: string }) {
             dọc hoặc chéo trước thì thắng; đầy bàn là hoà. Quân Đỏ đi trước, đổi người đi trước sau mỗi ván.
           </p>
         </>
-      ) : ms ? (
+      ) : oaq ? (
         <>
           <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <fieldset>
