@@ -17,7 +17,7 @@ type View = RoomView<BsView>;
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
 /** Phát bắn chìm chiếc tàu cuối: chờ một nhịp cho hiệu ứng nổ kịp diễn rồi mới vào cảnh chiến thắng. */
-const SUNK_PAUSE_MS = 1300;
+const SUNK_PAUSE_MS = 2200;
 
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const view = useRoomView(session)!;

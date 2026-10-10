@@ -195,6 +195,8 @@ const NOT_FOUND_MS = 20000;
 const NOT_FOUND_ADVERTISED_MS = 60000;
 const DROP_SEAT_MS = 15000;
 const CHAT_LIMIT = 120;
+// Tin chat đang trên đường lúc người gửi vừa bị cấm (vừa chết, trời vừa tối…) thì vẫn nhận.
+const MUTE_GRACE_MS = 2500;
 // Chặn vòng lặp react() tự gọi lại vô hạn nếu một hook cứ ghi mãi.
 const MAX_REACT_PASSES = 8;
 
@@ -239,6 +241,8 @@ export abstract class RoomSession<G = unknown> {
   private phase: Phase = "connecting";
   private chat: ChatMsg[] = [];
   private chatFns = new Set<(m: ChatMsg) => void>();
+  /** Lúc máy mình thấy từng người bắt đầu bị cấm chat (`muted`). */
+  private mutedSince = new Map<string, number>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private prevOnline = new Set<string>();
   private lastStatus = "";
@@ -334,10 +338,11 @@ export abstract class RoomSession<G = unknown> {
         }
         if (k === "meta") this.onMeta();
       }
+      this.trackMutes();
       this.schedulePersist();
       this.react();
     });
-    this.gossip.onRumor((r) => this.onRumor(r));
+    this.gossip.onRumor((r, _from, replayed) => this.onRumor(r, replayed));
     this.channel.onPeerJoin((peer) => {
       // Gửi lịch sử chat cho người mới; họ tự khử trùng lặp theo id.
       const hist = this.chat.filter((m) => !m.system && !m.local).slice(-60);
@@ -380,6 +385,9 @@ export abstract class RoomSession<G = unknown> {
 
   /** Một người bị kick (đã bị gỡ khỏi ghế); caro thì kết thúc ván nếu người đó đang đấu. */
   protected onKick?(m: Meta, uid: string): void;
+
+  /** Người này đang bị cấm chat theo luật game (ma sói: người chết, ban đêm…): máy họ không gửi, máy khác bỏ tin. */
+  protected muted?(uid: string): boolean;
 
   /** Mỗi nhịp, ở mọi máy: theo dõi diễn biến để rao, nhắn hệ thống… */
   protected watch?(m: Meta): void;
@@ -650,13 +658,34 @@ export abstract class RoomSession<G = unknown> {
 
   // ---------- chat ----------
 
-  private onRumor(r: Rumor) {
+  private onRumor(r: Rumor, replayed: boolean) {
     if (r.t !== "chat") return;
     const msg = r.p as ChatMsg;
     if (!msg || typeof msg.uid !== "string" || (!msg.text && !msg.sticker)) return;
+    if (!this.chatAllowed(msg, replayed)) return;
     // Id lạ (bản cũ/mới hơn, hoặc bị chế) thì bỏ: id sticker được dùng để dựng đường dẫn ảnh.
     if (msg.sticker !== undefined && !isStickerId(msg.sticker)) return;
     this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined });
+  }
+
+  private trackMutes() {
+    if (!this.muted) return;
+    const now = Date.now();
+    for (const { uid } of this.members()) {
+      if (!this.muted(uid)) this.mutedSince.delete(uid);
+      else if (!this.mutedSince.has(uid)) this.mutedSince.set(uid, now);
+    }
+  }
+
+  /**
+   * Chặn ở máy nhận (máy gửi bị sửa vẫn không lọt): người đang bị cấm thì bỏ tin, trừ tin đang trên đường lúc họ vừa
+   * bị cấm. Lịch sử chat gửi lại cho người mới vào thì xét theo giờ gửi — tin nói lúc còn được nói vẫn giữ.
+   */
+  private chatAllowed(msg: ChatMsg, replayed: boolean) {
+    if (!this.muted?.(msg.uid)) return true;
+    const since = this.mutedSince.get(msg.uid);
+    if (replayed) return typeof msg.at === "number" && msg.at < (since ?? Date.now());
+    return since !== undefined && Date.now() - since < MUTE_GRACE_MS;
   }
 
   protected pushChat(msg: ChatMsg) {
@@ -679,7 +708,7 @@ export abstract class RoomSession<G = unknown> {
   }
 
   send(content: { text: string } | { sticker: StickerId }) {
-    if (this.phase !== "ready") return;
+    if (this.phase !== "ready" || this.muted?.(this.me)) return;
     const { name, avatar, color } = this.profile;
     const body: ChatMsg = { id: "", uid: this.me, name, avatar, color, at: Date.now(), ...content };
     if ("text" in content) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CELLS, colName, coord, FLEET, shipCells, SIZE, type Ship } from "@/lib/games/battleship";
 
 /** Cạnh một ô, lề nhãn toạ độ (trên, trái) và lề phải / dưới. */
@@ -18,6 +18,16 @@ export const BS_TONE = { 0: "var(--coral)", 1: "var(--sky)" } as const;
 const SEA = "color-mix(in srgb, var(--sky) 13%, var(--surface))";
 const SEA_LINE = "color-mix(in srgb, var(--sky) 30%, var(--surface))";
 const STEEL = "color-mix(in srgb, var(--ink-2) 58%, var(--surface))";
+const FLOOD = "color-mix(in srgb, var(--sky) 45%, transparent)";
+const SMOKE = "color-mix(in srgb, var(--ink-2) 70%, var(--surface))";
+const PAPER = ["var(--coral)", "var(--sun)", "var(--lime)", "var(--sky)", "var(--grape)", "var(--pen)"];
+
+/** Số giả ngẫu nhiên trong [0, 1) theo chỉ số — hiệu ứng giống nhau ở mọi lần vẽ. */
+const rnd = (i: number) => {
+  const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+const vars = (v: Record<string, string>) => v as React.CSSProperties;
 
 /**
  * Cách vẽ một tàu: `steel` tàu của mình, `sunk` tàu đã chìm, `reveal` tàu đối phương lộ ra lúc hết ván,
@@ -50,17 +60,14 @@ function ShipShape({ k, ship, tone, fresh }: ShipDraw) {
   const y = top(ship.at) + 4;
   const h = HULL[tone];
   return (
-    <g
-      className={fresh ? "bs-sink" : undefined}
-      opacity={h.opacity}
-      transform={ship.v ? `translate(${x + b} ${y}) rotate(90)` : `translate(${x} ${y})`}
-      pointerEvents="none"
-    >
-      <path d={hullPath(len)} fill={h.fill} stroke={h.stroke} strokeWidth={2.5} strokeDasharray={h.dash} />
-      {(tone === "steel" || tone === "sunk") &&
-        Array.from({ length: len - 1 }, (_, i) => (
-          <circle key={i} cx={i * C + C / 2 - 2} cy={b / 2} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />
-        ))}
+    <g opacity={h.opacity} transform={ship.v ? `translate(${x + b} ${y}) rotate(90)` : `translate(${x} ${y})`} pointerEvents="none">
+      <g className={fresh ? "bs-sink" : undefined}>
+        <path d={hullPath(len)} fill={h.fill} stroke={h.stroke} strokeWidth={2.5} strokeDasharray={h.dash} />
+        {(tone === "steel" || tone === "sunk") &&
+          Array.from({ length: len - 1 }, (_, i) => <circle key={i} cx={i * C + C / 2 - 2} cy={b / 2} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />)}
+        {/* Tàu chìm: nước biển tràn lên thân. */}
+        {tone === "sunk" && <path className={fresh ? "bs-flood" : undefined} d={hullPath(len)} fill={FLOOD} opacity={0.6} />}
+      </g>
     </g>
   );
 }
@@ -72,22 +79,133 @@ const BURST = Array.from({ length: 16 }, (_, i) => {
   return `${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`;
 }).join(" ");
 
-function Mark({ c, hit, fresh }: { c: number; hit: boolean; fresh: boolean }) {
+/** Tia lửa văng ra khi trúng: góc (độ) và tầm bay (px). */
+const SPARKS = Array.from({ length: 10 }, (_, i) => ({ a: i * 36 + (rnd(i) - 0.5) * 20, d: 26 + rnd(i + 30) * 18 }));
+/** Cụm khói bốc lên sau tiếng nổ: lệch ngang (px), bán kính, độ trễ (ms). */
+const PUFFS = [
+  { x: -10, r: 9, t: 60 },
+  { x: 8, r: 10, t: 170 },
+  { x: -3, r: 12, t: 300 },
+  { x: 5, r: 8, t: 480 },
+  { x: -6, r: 7, t: 650 },
+];
+
+/** Phát trúng vừa bắn: chớp lửa, sóng xung kích, tia lửa văng, khói cuồn cuộn bốc lên. */
+function Blast() {
+  return (
+    <>
+      <circle className="bs-fx bs-flash" r={24} fill="var(--sun)" />
+      <circle className="bs-fx bs-splash" r={14} fill="none" stroke="var(--coral)" strokeWidth={3.5} />
+      {SPARKS.map((p, i) => (
+        <line
+          key={i}
+          className="bs-fx bs-spark"
+          style={vars({ "--a": `${p.a.toFixed(1)}deg`, "--d": `${p.d.toFixed(1)}px` })}
+          x2={10}
+          stroke={i % 2 ? "var(--sun)" : "var(--coral)"}
+          strokeWidth={4}
+          strokeLinecap="round"
+        />
+      ))}
+      {PUFFS.map((p, i) => (
+        <circle key={i} className="bs-fx bs-puff" style={vars({ "--dx": `${p.x}px`, animationDelay: `${p.t}ms` })} cy={-4} r={p.r} fill={SMOKE} />
+      ))}
+    </>
+  );
+}
+
+function Mark({ c, hit, fresh, burning }: { c: number; hit: boolean; fresh: boolean; burning: boolean }) {
   const x = left(c) + C / 2;
   const y = top(c) + C / 2;
   if (hit)
     return (
       <g transform={`translate(${x} ${y})`} pointerEvents="none">
+        {fresh && <Blast />}
         <g className={fresh ? "bs-boom" : undefined}>
           <polygon points={BURST} fill="var(--coral)" stroke="var(--edge)" strokeWidth={1.5} strokeLinejoin="round" />
           <circle r={4} fill="var(--sun)" />
         </g>
+        {/* Tàu trúng mà chưa chìm: khói vẫn bốc lên nghi ngút. */}
+        {burning &&
+          [0, 1].map((j) => <circle key={j} className="bs-fx bs-wisp" style={{ animationDelay: `${(fresh ? 1400 : (c * 373) % 2600) + j * 1300}ms` }} cx={-3 + j * 6} cy={-10} r={6} fill={SMOKE} />)}
       </g>
     );
   return (
     <g transform={`translate(${x} ${y})`} pointerEvents="none">
       {fresh && <circle className="bs-splash" r={8} fill="none" stroke="var(--sky)" strokeWidth={2.5} />}
       <circle r={4.5} fill="var(--ink-3)" opacity={0.75} />
+    </g>
+  );
+}
+
+/** Pháo giấy bắn tung lên khi tàu chìm: hướng bay (px), độ xoay, cỡ, màu, độ trễ. */
+const CONFETTI = Array.from({ length: 28 }, (_, i) => {
+  const a = -Math.PI / 2 + (rnd(i + 3) - 0.5) * 2.4;
+  const v = 70 + rnd(i + 57) * 90;
+  return {
+    dx: (Math.cos(a) * v).toFixed(1),
+    dy: (Math.sin(a) * v).toFixed(1),
+    r: Math.round((rnd(i + 91) - 0.5) * 1080),
+    w: 4 + rnd(i + 7) * 3,
+    h: 7 + rnd(i + 13) * 5,
+    fill: PAPER[i % PAPER.length],
+    t: 250 + Math.round(rnd(i + 21) * 220),
+  };
+});
+
+/** Tàu vừa bị đánh chìm: nổ dây chuyền dọc thân, sóng loang, bọt nước sủi lên và pháo giấy bắn tung. */
+function SinkFx({ k, ship }: ShipDraw) {
+  const cells = shipCells(k, ship) ?? [];
+  if (!cells.length) return null;
+  const len = cells.length;
+  const cx = (left(cells[0]) + left(cells[len - 1])) / 2 + C / 2;
+  const cy = (top(cells[0]) + top(cells[len - 1])) / 2 + C / 2;
+  const rx = ((ship.v ? 1 : len) * C) / 2;
+  const ry = ((ship.v ? len : 1) * C) / 2;
+  return (
+    <g pointerEvents="none">
+      {cells.map((c, i) => (
+        <g key={c} transform={`translate(${left(c) + C / 2} ${top(c) + C / 2})`}>
+          <g className="bs-fx bs-chain" style={{ animationDelay: `${i * 110}ms` }}>
+            <circle r={18} fill="var(--sun)" opacity={0.85} />
+            <polygon points={BURST} transform="scale(1.35)" fill="var(--coral)" stroke="var(--edge)" strokeWidth={1.2} strokeLinejoin="round" />
+          </g>
+        </g>
+      ))}
+      {[380, 700, 1020].map((t) => (
+        <ellipse key={t} className="bs-fx bs-ripple" style={{ animationDelay: `${t}ms` }} cx={cx} cy={cy} rx={rx} ry={ry} fill="none" stroke="var(--sky)" strokeWidth={2.5} />
+      ))}
+      {Array.from({ length: len * 2 }, (_, i) => {
+        const c = cells[i % len];
+        return (
+          <circle
+            key={i}
+            className="bs-fx bs-bubble"
+            style={{ animationDelay: `${650 + Math.round(rnd(i + 40) * 900)}ms` }}
+            cx={left(c) + 8 + rnd(i + 11) * (C - 16)}
+            cy={top(c) + 8 + rnd(i + 23) * (C - 16)}
+            r={2.5 + rnd(i + 5) * 2.5}
+            fill="none"
+            stroke="var(--sky)"
+            strokeWidth={1.8}
+          />
+        );
+      })}
+      <g transform={`translate(${cx} ${cy})`}>
+        {CONFETTI.map((p, i) => (
+          <rect
+            key={i}
+            className="bs-fx bs-confetti"
+            style={vars({ "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--r": `${p.r}deg`, animationDelay: `${p.t}ms` })}
+            x={-p.w / 2}
+            y={-p.h / 2}
+            width={p.w}
+            height={p.h}
+            rx={1.5}
+            fill={p.fill}
+          />
+        ))}
+      </g>
     </g>
   );
 }
@@ -166,6 +284,19 @@ export function SeaBoard({
   const aiming = active && !!aim && open(cursor);
   const marked: number[] = [];
   if (marks) for (let c = 0; c < CELLS; c++) if (marks[c] >= 0) marked.push(c);
+  const wrecked = new Set(ships.flatMap((s) => (s.tone === "sunk" ? (shipCells(s.k, s.ship) ?? []) : [])));
+  const sinking = ships.filter((s) => s.fresh);
+
+  // Phát trúng vừa bắn làm hải đồ rung lên; đánh chìm thì rung mạnh hơn.
+  const quakeRef = useRef<SVGGElement>(null);
+  const jolt = fresh && last >= 0 && marks?.[last] === 1 ? (sinking.length ? "bs-quake-lg" : "bs-quake") : "";
+  useEffect(() => {
+    const el = quakeRef.current;
+    if (!el || !jolt) return;
+    el.classList.remove("bs-quake", "bs-quake-lg");
+    void el.getBoundingClientRect();
+    el.classList.add(jolt);
+  }, [last, jolt]);
 
   return (
     <svg
@@ -186,65 +317,70 @@ export function SeaBoard({
           : undefined
       }
     >
-      <rect x={M} y={M} width={SIZE * C} height={SIZE * C} rx={8} fill={SEA} />
-      {aiming && (
-        <g fill="var(--board-hover)" pointerEvents="none">
-          <rect x={M} y={top(cursor)} width={SIZE * C} height={C} />
-          <rect x={left(cursor)} y={M} width={C} height={SIZE * C} />
+      <g ref={quakeRef}>
+        <rect x={M} y={M} width={SIZE * C} height={SIZE * C} rx={8} fill={SEA} />
+        {aiming && (
+          <g fill="var(--board-hover)" pointerEvents="none">
+            <rect x={M} y={top(cursor)} width={SIZE * C} height={C} />
+            <rect x={left(cursor)} y={M} width={C} height={SIZE * C} />
+          </g>
+        )}
+        <g stroke={SEA_LINE} strokeWidth={1.5} pointerEvents="none">
+          {Array.from({ length: SIZE - 1 }, (_, i) => (
+            <g key={i}>
+              <line x1={M + (i + 1) * C} y1={M} x2={M + (i + 1) * C} y2={M + SIZE * C} />
+              <line x1={M} y1={M + (i + 1) * C} x2={M + SIZE * C} y2={M + (i + 1) * C} />
+            </g>
+          ))}
         </g>
-      )}
-      <g stroke={SEA_LINE} strokeWidth={1.5} pointerEvents="none">
-        {Array.from({ length: SIZE - 1 }, (_, i) => (
-          <g key={i}>
-            <line x1={M + (i + 1) * C} y1={M} x2={M + (i + 1) * C} y2={M + SIZE * C} />
-            <line x1={M} y1={M + (i + 1) * C} x2={M + SIZE * C} y2={M + (i + 1) * C} />
-          </g>
-        ))}
-      </g>
-      <rect x={M} y={M} width={SIZE * C} height={SIZE * C} rx={8} fill="none" stroke="var(--edge)" strokeWidth={2.5} pointerEvents="none" />
-      <g fontSize={13} fontWeight={800} fill="var(--ink-3)" textAnchor="middle" pointerEvents="none">
-        {Array.from({ length: SIZE }, (_, i) => (
-          <g key={i}>
-            <text x={M + i * C + C / 2} y={M - 9}>
-              {colName(i)}
-            </text>
-            <text x={M / 2 - 1} y={M + i * C + C / 2 + 4.5}>
-              {i + 1}
-            </text>
-          </g>
-        ))}
-      </g>
+        <rect x={M} y={M} width={SIZE * C} height={SIZE * C} rx={8} fill="none" stroke="var(--edge)" strokeWidth={2.5} pointerEvents="none" />
+        <g fontSize={13} fontWeight={800} fill="var(--ink-3)" textAnchor="middle" pointerEvents="none">
+          {Array.from({ length: SIZE }, (_, i) => (
+            <g key={i}>
+              <text x={M + i * C + C / 2} y={M - 9}>
+                {colName(i)}
+              </text>
+              <text x={M / 2 - 1} y={M + i * C + C / 2 + 4.5}>
+                {i + 1}
+              </text>
+            </g>
+          ))}
+        </g>
 
-      {ships.map((s) => (
-        <ShipShape key={`${s.k}:${s.tone}`} {...s} />
-      ))}
-      {last >= 0 && <rect x={left(last) + 2} y={top(last) + 2} width={C - 4} height={C - 4} rx={7} fill="none" stroke="var(--pen)" strokeWidth={2.5} pointerEvents="none" />}
-      {marked.map((c) => (
-        <Mark key={c} c={c} hit={marks![c] === 1} fresh={fresh && c === last} />
-      ))}
-      {pending >= 0 && <Reticle c={pending} tone="var(--sun)" className="bs-pending" />}
-      {aiming && cursor !== pending && <Reticle c={cursor} tone={aim} />}
-      {active && !aim && cursor >= 0 && (
-        <rect x={left(cursor) + 1.5} y={top(cursor) + 1.5} width={C - 3} height={C - 3} rx={7} fill="none" stroke="var(--pen)" strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
-      )}
-
-      {active &&
-        Array.from({ length: CELLS }, (_, c) => (
-          <rect
-            key={c}
-            className={`bs-cell ${open(c) ? "is-open" : ""}`}
-            x={left(c)}
-            y={top(c)}
-            width={C}
-            height={C}
-            aria-label={coord(c)}
-            onPointerEnter={() => point(c)}
-            onClick={() => {
-              point(c);
-              if (open(c)) onCell!(c);
-            }}
-          />
+        {ships.map((s) => (
+          <ShipShape key={`${s.k}:${s.tone}`} {...s} />
         ))}
+        {last >= 0 && <rect x={left(last) + 2} y={top(last) + 2} width={C - 4} height={C - 4} rx={7} fill="none" stroke="var(--pen)" strokeWidth={2.5} pointerEvents="none" />}
+        {marked.map((c) => (
+          <Mark key={c} c={c} hit={marks![c] === 1} fresh={fresh && c === last} burning={!wrecked.has(c)} />
+        ))}
+        {sinking.map((s) => (
+          <SinkFx key={s.k} {...s} />
+        ))}
+        {pending >= 0 && <Reticle c={pending} tone="var(--sun)" className="bs-pending" />}
+        {aiming && cursor !== pending && <Reticle c={cursor} tone={aim} />}
+        {active && !aim && cursor >= 0 && (
+          <rect x={left(cursor) + 1.5} y={top(cursor) + 1.5} width={C - 3} height={C - 3} rx={7} fill="none" stroke="var(--pen)" strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
+        )}
+
+        {active &&
+          Array.from({ length: CELLS }, (_, c) => (
+            <rect
+              key={c}
+              className={`bs-cell ${open(c) ? "is-open" : ""}`}
+              x={left(c)}
+              y={top(c)}
+              width={C}
+              height={C}
+              aria-label={coord(c)}
+              onPointerEnter={() => point(c)}
+              onClick={() => {
+                point(c);
+                if (open(c)) onCell!(c);
+              }}
+            />
+          ))}
+      </g>
     </svg>
   );
 }

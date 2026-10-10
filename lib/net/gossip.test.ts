@@ -118,6 +118,23 @@ test("rumor đi tới mọi peer đúng một lần", () => {
   assert.deepEqual(got, { b: 1, c: 1, d: 1 });
 });
 
+test("rumor gửi lại (replay) được đánh dấu, tin vừa phát thì không", () => {
+  const ids = ["a", "b"];
+  const net = network(ids, []);
+  const g = Object.fromEntries(ids.map((id) => [id, new Gossip(id, net.wires.get(id)!)]));
+  const got: [string, boolean][] = [];
+  g.b.onRumor((r, _from, replayed) => got.push([r.id, replayed]));
+  net.connect("a", "b");
+  net.flush();
+  const live = g.a.broadcast("chat", { text: "mới" });
+  g.a.replay([{ id: "x:1", t: "chat", p: { text: "cũ" } }], "b");
+  net.flush();
+  assert.deepEqual(got, [
+    [live.id, false],
+    ["x:1", true],
+  ]);
+});
+
 test("liveness: im lặng quá hạn thì chết, rời thì chết ngay", () => {
   let now = 1_000_000;
   const l = new Liveness(5000, () => now);

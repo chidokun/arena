@@ -155,11 +155,11 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
   return null;
 }
 
-/** Lý do khoá ô chat: ban đêm cả làng ngủ, người chết không được nói, người xem biết hết vai. */
+/** Lý do khoá ô chat: ban đêm cả làng ngủ, người chết không được nói, người xem biết hết vai. Khớp `WerewolfRoom.muted`. */
 function chatLock(view: View) {
   const g = view.game!;
   if (!g.playing) return undefined;
-  if (!g.me.inGame) return g.seeAll && !view.isHost ? "👀 Bạn đang xem và thấy hết vai — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
+  if (!g.me.inGame) return !view.isHost ?"👀 Bạn đang xem và thấy hết vai — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
   if (!g.me.alive) return "💀 Bạn đã chết — người chết không được nói nữa.";
   if (isNight(g)) return "🌙 Ban đêm cả làng ngủ — chờ trời sáng rồi trò chuyện.";
 }

@@ -294,6 +294,15 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     if (m.status !== "playing" && !normOptions(m.opts).hostPlays) m.players = m.players.filter((u) => u !== m.host);
   }
 
+  /** Trong ván: người chết không được nói, ban đêm cả làng ngủ, người xem (thấy hết vai) giữ im lặng — trừ quản trò. */
+  protected muted(uid: string) {
+    const m = this.meta();
+    const pub = m?.ww;
+    if (!m || m.status !== "playing" || !pub || m.round <= 0 || pub.round !== m.round) return false;
+    if (!m.lineup.includes(uid)) return uid !== m.host;
+    return !pub.alive.includes(uid) || pub.stage === "night" || pub.stage === "dawn";
+  }
+
   protected applyIntent(m: Meta, p: Member) {
     if (p.uid === m.host && !normOptions(m.opts).hostPlays) return;
     super.applyIntent(m, p);

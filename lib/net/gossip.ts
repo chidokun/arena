@@ -71,7 +71,7 @@ export class Gossip {
   private rumorSeq = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private changeFns = new Set<(keys: string[], remote: boolean) => void>();
-  private rumorFns = new Set<(r: Rumor, from: string | null) => void>();
+  private rumorFns = new Set<(r: Rumor, from: string | null, replayed: boolean) => void>();
   private readonly fanout: number;
   private readonly intervalMs: number;
   private readonly accept: (e: Entry) => boolean;
@@ -238,7 +238,8 @@ export class Gossip {
     for (const r of list) this.wire.send("rum", { ...r, h: RUMOR_HOPS, d: 1 } satisfies RumorMsg, to);
   }
 
-  onRumor(fn: (r: Rumor, from: string | null) => void) {
+  /** `replayed`: tin cũ được gửi lại (`replay`), không phải tin vừa phát. */
+  onRumor(fn: (r: Rumor, from: string | null, replayed: boolean) => void) {
     this.rumorFns.add(fn);
     return () => this.rumorFns.delete(fn);
   }
@@ -253,7 +254,7 @@ export class Gossip {
     if (!m || typeof m.id !== "string" || typeof m.t !== "string" || this.seen.has(m.id)) return;
     this.markSeen(m.id);
     const r: Rumor = { id: m.id, t: m.t, p: m.p };
-    for (const fn of this.rumorFns) fn(r, from);
+    for (const fn of this.rumorFns) fn(r, from, !!m.d);
     const h = m.h ?? RUMOR_HOPS;
     if (!m.d && h < RUMOR_HOPS) {
       const targets = this.wire.peers().filter((p) => p !== from);
