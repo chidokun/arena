@@ -81,6 +81,22 @@ export function useLobbyView(): LobbyView {
   );
 }
 
+/**
+ * Số người online, null khi chưa nối được ai. Trả về số (không phải cả `LobbyView`) để component chỉ vẽ lại khi con số
+ * đổi — view của sảnh đổi theo nhịp tim của từng người online, tức nhiều lần mỗi giây khi đông người.
+ */
+export function useLobbyOnline(): number | null {
+  const { lobby } = useNet();
+  return useSyncExternalStore(
+    lobby?.store.subscribe ?? noop,
+    () => {
+      const v = lobby?.store.get();
+      return v?.connected ? v.users.length : null;
+    },
+    () => null,
+  );
+}
+
 /** Tin chat công cộng (kênh sảnh). */
 export function usePublicChat(): ChatMsg[] {
   const { lobby } = useNet();

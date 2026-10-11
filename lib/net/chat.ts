@@ -17,14 +17,38 @@ export const TEXT_MAX = 300;
 /** Mỗi người tối đa CHAT_RATE tin / CHAT_RATE_WINDOW_MS (máy gửi tự giữ, máy nhận bỏ phần vượt). */
 export const CHAT_RATE = 10;
 export const CHAT_RATE_WINDOW_MS = 10_000;
+/** Chat công cộng: tin cũ hơn mốc này bị bỏ (khi nhận, khi gửi lại cho người mới, khi khôi phục sau F5). */
+export const PUBLIC_TTL_MS = 60 * 60_000;
 
-/** Dựng lại tin từ rumor: bỏ cờ đặc biệt (hệ thống, rao…), bỏ tin mạo danh (id rumor luôn bắt đầu bằng uid người phát). */
-export function readPublicMsg(r: Rumor): ChatMsg | null {
-  const m = r.p as Partial<ChatMsg> | null;
+/**
+ * Tin công cộng trên đường truyền. Đồng hồ các máy có thể lệch nhau, nên không gửi giờ tuyệt đối mà gửi tuổi của tin
+ * (`age`, ms tính từ lúc gửi theo đồng hồ máy đang chuyển tin): tin vừa phát có tuổi 0, tin gửi lại thì tuổi = bây giờ − giờ
+ * nhận. Máy nhận quy về đồng hồ của mình: `at = bây giờ − age` — hạn 1 giờ và giờ hiển thị đều theo đồng hồ máy mình.
+ */
+export type PublicWire = Omit<ChatMsg, "id" | "at"> & { age: number };
+
+/** Đóng gói tin (có `at` theo đồng hồ máy mình) để gửi đi. */
+export function toPublicWire(m: ChatMsg, now = Date.now()): PublicWire {
+  const w: PublicWire = { uid: m.uid, name: m.name, avatar: m.avatar, color: m.color, age: Math.max(0, now - m.at) };
+  if (m.sticker) w.sticker = m.sticker;
+  else w.text = m.text;
+  return w;
+}
+
+/** Tin còn trong hạn (theo đồng hồ máy mình). */
+export const isFresh = (m: ChatMsg, now = Date.now()) => now - m.at <= PUBLIC_TTL_MS;
+
+/**
+ * Dựng lại tin từ rumor: bỏ cờ đặc biệt (hệ thống, rao…), bỏ tin mạo danh (id rumor luôn bắt đầu bằng uid người phát),
+ * bỏ tin quá hạn; quy giờ gửi về đồng hồ máy mình.
+ */
+export function readPublicMsg(r: Rumor, now = Date.now()): ChatMsg | null {
+  const m = r.p as Partial<PublicWire> | null;
   if (!m || typeof m !== "object" || typeof m.uid !== "string" || !m.uid || !r.id.startsWith(`${m.uid}:`)) return null;
-  if (typeof m.at !== "number" || !Number.isFinite(m.at)) return null;
+  if (typeof m.age !== "number" || !Number.isFinite(m.age) || m.age > PUBLIC_TTL_MS) return null;
   const str = (s: unknown, n: number) => (typeof s === "string" ? s.slice(0, n) : "");
-  const msg: ChatMsg = { id: r.id, uid: m.uid, name: str(m.name, 40), avatar: str(m.avatar, 16), color: str(m.color, 32), at: m.at };
+  const at = now - Math.max(0, m.age);
+  const msg: ChatMsg = { id: r.id, uid: m.uid, name: str(m.name, 40), avatar: str(m.avatar, 16), color: str(m.color, 32), at };
   if (m.sticker !== undefined) {
     if (!isStickerId(m.sticker)) return null;
     msg.sticker = m.sticker;

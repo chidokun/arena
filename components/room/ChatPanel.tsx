@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TEXT_MAX } from "@/lib/net/chat";
 import type { ChatMsg, GuessMark, RoomSession } from "@/lib/net/room";
 import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
-import { useLobbyView, useNet, usePublicChat } from "../NetProvider";
+import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
 import { Flyers } from "./RoomLayout";
 import { StickerArt } from "./Sticker";
@@ -48,6 +48,63 @@ function Icon({ m }: { m: ChatMsg }) {
     );
   return <StickerArt id={m.sticker} size={120} className="pop-in" />;
 }
+
+/**
+ * Danh sách tin, tách riêng và `memo` để gõ phím trong ô nhập hay các cập nhật khác của khung chat (số người online,
+ * bàn chơi đổi trạng thái…) không vẽ lại cả trăm tin — chỉ vẽ lại khi danh sách tin đổi.
+ */
+const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: string; empty: string }) {
+  return (
+    <>
+    {rows.length === 0 && <li className="py-8 text-center text-sm text-ink-3">{empty}</li>}
+    {rows.map((r) =>
+      r.m.system ? (
+        <li key={r.m.id} className="text-center text-[12.5px] font-semibold text-ink-3">
+          — {r.m.text} —
+        </li>
+      ) : (
+        <li key={r.m.id} className={`flex items-end gap-2 ${r.m.uid === me ? "flex-row-reverse" : ""}`}>
+          <Avatar p={r.m} size={28} />
+          <div className={`${r.kind === "icons" ? "max-w-[86%]" : "max-w-[78%]"} ${r.m.uid === me ? "text-right" : ""}`}>
+            <p className="px-1 text-[11.5px] font-semibold text-ink-3">
+              {r.m.uid === me ? "Bạn" : r.m.name} · {time(r.m.at)}
+            </p>
+            {r.kind === "icons" ? (
+              <div className={`flex flex-wrap items-end gap-1.5 ${r.m.uid === me ? "justify-end" : ""}`}>
+                {r.items.map((m) => (
+                  <Icon key={m.id} m={m} />
+                ))}
+              </div>
+            ) : r.m.clue ? (
+              <p className="chat-clue inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]">
+                <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">✍️ Mô tả</span>
+                {r.m.text}
+              </p>
+            ) : r.m.guess ? (
+              <p className={`chat-guess is-${r.m.guess} inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]`}>
+                <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">{GUESS_TAG[r.m.guess]}</span>
+                {r.m.text}
+              </p>
+            ) : r.m.shout ? (
+              <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">
+                {r.m.text}
+              </p>
+            ) : (
+              <p
+                className={`inline-block rounded-2xl border-2 border-edge px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere] ${
+                  r.m.uid === me ? "rounded-br-md bg-pen text-on-pen" : "rounded-bl-md bg-sunken"
+                }`}
+              >
+                {r.m.text}
+              </p>
+            )}
+          </div>
+        </li>
+      ),
+    )}
+    </>
+  );
+});
 
 type Content = { text: string } | { sticker: StickerId };
 
@@ -281,52 +338,7 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
           className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
           aria-live="polite"
         >
-          {ch.chat.length === 0 && <li className="py-8 text-center text-sm text-ink-3">{ch.empty}</li>}
-          {rows.map((r) =>
-            r.m.system ? (
-              <li key={r.m.id} className="text-center text-[12.5px] font-semibold text-ink-3">
-                — {r.m.text} —
-              </li>
-            ) : (
-              <li key={r.m.id} className={`flex items-end gap-2 ${r.m.uid === me ? "flex-row-reverse" : ""}`}>
-                <Avatar p={r.m} size={28} />
-                <div className={`${r.kind === "icons" ? "max-w-[86%]" : "max-w-[78%]"} ${r.m.uid === me ? "text-right" : ""}`}>
-                  <p className="px-1 text-[11.5px] font-semibold text-ink-3">
-                    {r.m.uid === me ? "Bạn" : r.m.name} · {time(r.m.at)}
-                  </p>
-                  {r.kind === "icons" ? (
-                    <div className={`flex flex-wrap items-end gap-1.5 ${r.m.uid === me ? "justify-end" : ""}`}>
-                      {r.items.map((m) => (
-                        <Icon key={m.id} m={m} />
-                      ))}
-                    </div>
-                  ) : r.m.clue ? (
-                    <p className="chat-clue inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]">
-                      <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">✍️ Mô tả</span>
-                      {r.m.text}
-                    </p>
-                  ) : r.m.guess ? (
-                    <p className={`chat-guess is-${r.m.guess} inline-block rounded-2xl border-2 px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]`}>
-                      <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">{GUESS_TAG[r.m.guess]}</span>
-                      {r.m.text}
-                    </p>
-                  ) : r.m.shout ? (
-                    <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">
-                      {r.m.text}
-                    </p>
-                  ) : (
-                    <p
-                      className={`inline-block rounded-2xl border-2 border-edge px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere] ${
-                        r.m.uid === me ? "rounded-br-md bg-pen text-on-pen" : "rounded-bl-md bg-sunken"
-                      }`}
-                    >
-                      {r.m.text}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ),
-          )}
+          <Messages rows={rows} me={me} empty={ch.empty} />
         </ol>
         {ch.locked ? (
           <p className="border-t-2 border-edge bg-sunken px-4 py-3.5 text-center text-[13.5px] font-semibold text-ink-2">{ch.locked}</p>
@@ -419,7 +431,7 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
 function usePublicChannel(): Channel | null {
   const { lobby } = useNet();
   const chat = usePublicChat();
-  const view = useLobbyView();
+  const online = useLobbyOnline();
   if (!lobby) return null;
   return {
     key: "public",
@@ -428,7 +440,7 @@ function usePublicChannel(): Channel | null {
     send: (c) => lobby.say(c),
     empty: "Chưa ai nói gì. Chào mọi người đang online một câu đi! 👋",
     placeholder: "Nhắn cho mọi người đang online…",
-    hint: view.connected ? `${view.users.length} người đang online cùng đọc kênh này.` : "Chưa nối được với ai — tin nhắn tạm thời chỉ mình bạn thấy.",
+    hint: online !== null ? `${online} người đang online cùng đọc kênh này.` : "Chưa nối được với ai — tin nhắn tạm thời chỉ mình bạn thấy.",
   };
 }
 

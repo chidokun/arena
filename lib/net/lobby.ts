@@ -5,7 +5,7 @@
 import type { Profile } from "../identity";
 import type { StickerId } from "../stickers";
 import { Gossip, Liveness } from "./gossip";
-import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, RateLimit, readPublicMsg, TEXT_MAX } from "./chat";
+import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, isFresh, RateLimit, readPublicMsg, TEXT_MAX, toPublicWire } from "./chat";
 import type { ChatMsg } from "./room";
 import { ViewStore } from "./view-store";
 import { openChannel, Redialer, type Channel } from "./wire";
@@ -110,9 +110,13 @@ export class Lobby {
     });
     this.restoreChat();
     channel.onPeerJoin((peer) => {
-      // Gửi lịch sử chat công cộng cho người mới nối; họ tự khử trùng lặp theo id.
+      // Gửi lịch sử chat công cộng (còn hạn) cho người mới nối; họ tự khử trùng lặp theo id.
+      const now = Date.now();
       this.gossip.replay(
-        this.chat.slice(-CHAT_REPLAY).map((m) => ({ id: m.id, t: "chat", p: m })),
+        this.chat
+          .filter((m) => isFresh(m, now))
+          .slice(-CHAT_REPLAY)
+          .map((m) => ({ id: m.id, t: "chat", p: toPublicWire(m, now) })),
         peer,
       );
       this.store.invalidate();
@@ -195,8 +199,11 @@ export class Lobby {
     try {
       const list = JSON.parse(sessionStorage.getItem(CHAT_KEY) ?? "[]");
       if (!Array.isArray(list)) return;
+      const now = Date.now();
       for (const m of list) {
-        const msg = m && typeof m.id === "string" ? readPublicMsg({ id: m.id, t: "chat", p: m }) : null;
+        // Bản lưu ghi giờ theo đồng hồ máy mình: đổi ra tuổi để kiểm tra (và bỏ tin quá hạn) như tin nhận qua mạng.
+        const ok = m && typeof m.id === "string" && typeof m.at === "number";
+        const msg = ok ? readPublicMsg({ id: m.id, t: "chat", p: toPublicWire(m, now) }, now) : null;
         if (msg) this.chat = insertMsg(this.chat, msg) ?? this.chat;
       }
     } catch {}
@@ -222,7 +229,7 @@ export class Lobby {
       body.text = text;
     } else body.sticker = content.sticker;
     if (!this.chatRate.take(this.uid)) return false;
-    const r = this.gossip.broadcast("chat", body);
+    const r = this.gossip.broadcast("chat", toPublicWire(body, body.at));
     this.pushChat({ ...body, id: r.id });
     return true;
   }
