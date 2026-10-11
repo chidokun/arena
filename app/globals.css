@@ -149,6 +149,13 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Cắt phần tràn ngang của nội dung (sticker bay, bóng thoại sát mép…). Không cắt thì trang rộng ra trong lúc sticker
+     bay: điện thoại co cả trang lại cho vừa rồi bật về — giao diện chớp, nút chat `fixed` bị đẩy lệch. `clip` (không phải
+     `hidden`) để <main> không thành khung cuộn, không làm hỏng `sticky` bên trong; phần tử `fixed` thì không bị cắt. */
+  main {
+    overflow-x: clip;
+  }
+
   /* Phòng chơi trên màn hình rộng: sidebar 360px neo mép phải (RoomLayout) — nội dung và chân trang chừa chỗ cho nó. */
   html[data-room-side] main,
   html[data-room-side] body > footer {
