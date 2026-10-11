@@ -9,6 +9,7 @@ const QUICK = [
   { id: "brick", label: "Cục gạch" },
   { id: "cow", label: "Con bò" },
   { id: "clap", label: "Vỗ tay" },
+  { id: "chicken", label: "Gà ngơ" },
 ] as const;
 
 const KAIXIN = [

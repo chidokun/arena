@@ -60,6 +60,9 @@ function swarmOf(id: string, sticker: StickerId): Flyer[] {
       return make(5, (i) => ({ left: rnd(15, 72), top: rnd(8, 70), delay: lag(i, 1300), size: big(i), rot: int(-6, 6), dir: side() }));
     case "clap":
       return make(7, (i) => ({ left: rnd(4, 82), top: rnd(8, 70), delay: lag(i, 1200), size: big(i), rot: int(-20, 20) }));
+    case "chicken":
+      // Gà ngơ ngác trồi lên, lắc đầu ngoáy cổ rồi nhảy tót sang một bên.
+      return make(6, (i) => ({ left: rnd(6, 80), top: rnd(25, 70), delay: lag(i, 1100), size: big(i), rot: int(8, 16), dir: side() }));
     default:
       return make(7, (i) => ({
         left: 2 + Math.random() * 78,

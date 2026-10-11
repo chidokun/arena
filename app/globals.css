@@ -1496,6 +1496,9 @@
   .fly-clap {
     animation: fly-clap 2s ease-out both;
   }
+  .fly-chicken {
+    animation: fly-chicken 2.4s ease-in-out both;
+  }
   /* Pháo giấy: bắn vọt lên rồi rơi lả tả */
   .fly-confetti {
     position: absolute;
@@ -3599,6 +3602,38 @@
   100% {
     opacity: 0;
     transform: scale(1.4) translateY(-30px) rotate(var(--rot));
+  }
+}
+@keyframes fly-chicken {
+  0% {
+    opacity: 0;
+    transform: translateY(80px) scale(0.5, 0.3);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(-24px) scale(0.95, 1.15);
+  }
+  22% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+  30%,
+  50% {
+    transform: translateY(0) scale(1) rotate(calc(var(--dir) * var(--rot)));
+  }
+  40%,
+  60% {
+    transform: translateY(0) scale(1) rotate(calc(var(--dir) * var(--rot) * -1));
+  }
+  68% {
+    transform: translateY(4px) scale(1.12, 0.88) rotate(0deg);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(calc(var(--dir) * 60px), -70px) scale(0.95, 1.08) rotate(calc(var(--dir) * 14deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dir) * 120px), 10px) scale(0.9) rotate(calc(var(--dir) * 30deg));
   }
 }
 @keyframes fly-confetti {
