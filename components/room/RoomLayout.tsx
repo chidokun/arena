@@ -5,7 +5,7 @@ import { useState } from "react";
 import { gameHref, getGame } from "@/lib/games/registry";
 import { isKaixin } from "@/lib/stickers";
 import { StickerArt } from "./Sticker";
-import type { Flyer } from "./useRoom";
+import type { Flyer } from "./useFlyers";
 
 export function Notice({ emoji, title, children, spin }: { emoji: string; title: string; children?: React.ReactNode; spin?: boolean }) {
   return (

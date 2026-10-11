@@ -32,6 +32,8 @@ export const EDGE_PAD = 14;
 export const GROUND_Y = WORLD_H - 28;
 /** Shooter slide speed along an edge (along 0–1 per second). */
 export const EDGE_SPEED = 0.55;
+/** Đoạn sàn xuất phát (từ x = 0): không gai, không hố — người chạy mới vào có thời gian phản ứng. */
+export const START_SAFE_W = 240;
 /** Screen X where runner is drawn (scroll follows). */
 export const VIEW_RUNNER_X = 220;
 
@@ -145,16 +147,16 @@ export function makeCourse(seed: number): Course {
     const gap = 50 + Math.floor(rand() * 70);
     const w = Math.min(solid, WORLD_W - x);
     if (w > 24) platforms.push({ x, y: GROUND_Y, w, h: 28 });
-    // Occasional spikes on solid ground.
+    // Occasional spikes on solid ground (never on the start stretch).
     if (w > 60 && rand() < 0.45) {
       const hw = 28 + Math.floor(rand() * 24);
       const hx = x + 20 + Math.floor(rand() * Math.max(1, w - hw - 40));
-      hazards.push({ x: hx, y: GROUND_Y - 18, w: hw, h: 18 });
+      if (hx >= START_SAFE_W) hazards.push({ x: hx, y: GROUND_Y - 18, w: hw, h: 18 });
     }
     x += solid + gap;
   }
-  // Ensure start area is safe solid.
-  platforms.unshift({ x: 0, y: GROUND_Y, w: 140, h: 28 });
+  // Ensure start area is safe solid — người chạy xuất phát ở đây sau mỗi lần đổi người.
+  platforms.unshift({ x: 0, y: GROUND_Y, w: START_SAFE_W, h: 28 });
 
   // Floating pads to jump over pits / spikes.
   const bands = [GROUND_Y - 100, GROUND_Y - 180, GROUND_Y - 260];

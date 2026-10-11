@@ -3,7 +3,10 @@
  * và phòng nào đang mở (chủ phòng quảng bá). Trang chủ đếm số phòng / số người từ đây.
  */
 import type { Profile } from "../identity";
+import type { StickerId } from "../stickers";
 import { Gossip, Liveness } from "./gossip";
+import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, RateLimit, readPublicMsg, TEXT_MAX } from "./chat";
+import type { ChatMsg } from "./room";
 import { ViewStore } from "./view-store";
 import { openChannel, Redialer, type Channel } from "./wire";
 
@@ -51,6 +54,7 @@ const HEARTBEAT_MS = 3000;
 const USER_TIMEOUT_MS = 12000;
 const AD_TIMEOUT_MS = 15000;
 const PRUNE_AFTER_MS = 60000;
+const CHAT_KEY = "arena:public-chat";
 
 export class Lobby {
   readonly uid: string;
@@ -64,6 +68,12 @@ export class Lobby {
   private inviteFns = new Set<(i: Invite) => void>();
   private redialer: Redialer;
   readonly store: ViewStore<LobbyView>;
+  private chat: ChatMsg[] = [];
+  private chatFns = new Set<(m: ChatMsg) => void>();
+  private chatRate = new RateLimit(CHAT_RATE, CHAT_RATE_WINDOW_MS);
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Tin chat công cộng, cũ trước mới sau. */
+  readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
 
   static async open(uid: string, profile: Profile) {
     const channel = await openChannel("lobby");
@@ -87,12 +97,26 @@ export class Lobby {
       for (const k of keys) this.observe(k);
       this.store.invalidate();
     });
-    this.gossip.onRumor((r) => {
+    this.gossip.onRumor((r, _from, replayed) => {
+      if (r.t === "chat") {
+        const msg = readPublicMsg(r);
+        // Lịch sử gửi lại cho người mới vào không tính vào nhịp gửi.
+        if (msg && (replayed || this.chatRate.take(msg.uid))) this.pushChat(msg);
+        return;
+      }
       if (r.t !== "invite") return;
       const inv = r.p as Invite;
       if (inv?.to === this.uid) for (const fn of this.inviteFns) fn(inv);
     });
-    channel.onPeerJoin(() => this.store.invalidate());
+    this.restoreChat();
+    channel.onPeerJoin((peer) => {
+      // Gửi lịch sử chat công cộng cho người mới nối; họ tự khử trùng lặp theo id.
+      this.gossip.replay(
+        this.chat.slice(-CHAT_REPLAY).map((m) => ({ id: m.id, t: "chat", p: m })),
+        peer,
+      );
+      this.store.invalidate();
+    });
     channel.onPeerLeave(() => this.store.invalidate());
     this.beat(true);
     this.gossip.start();
@@ -102,7 +126,10 @@ export class Lobby {
         this.redialer.check();
         this.store.invalidate();
       }, 2000),
-      setInterval(() => this.prune(), 10000),
+      setInterval(() => {
+        this.prune();
+        this.chatRate.sweep();
+      }, 10000),
     );
   }
 
@@ -150,6 +177,61 @@ export class Lobby {
       .sort((a, b) => Number(a.status === "playing") - Number(b.status === "playing") || b.members - a.members);
     const peers = this.channel.peers().length;
     return { connected: peers > 0, peers, unreachable: this.channel.unreachable(), users, rooms };
+  }
+
+  // ---------- chat công cộng ----------
+
+  private pushChat(msg: ChatMsg) {
+    const next = insertMsg(this.chat, msg);
+    if (!next) return;
+    this.chat = next;
+    for (const fn of this.chatFns) fn(msg);
+    this.chatStore.invalidate();
+    this.schedulePersist();
+  }
+
+  /** Tải lại trang vẫn còn lịch sử (mỗi tab một bản, như uid). */
+  private restoreChat() {
+    try {
+      const list = JSON.parse(sessionStorage.getItem(CHAT_KEY) ?? "[]");
+      if (!Array.isArray(list)) return;
+      for (const m of list) {
+        const msg = m && typeof m.id === "string" ? readPublicMsg({ id: m.id, t: "chat", p: m }) : null;
+        if (msg) this.chat = insertMsg(this.chat, msg) ?? this.chat;
+      }
+    } catch {}
+  }
+
+  private schedulePersist() {
+    if (this.persistTimer) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      try {
+        sessionStorage.setItem(CHAT_KEY, JSON.stringify(this.chat.slice(-CHAT_PERSIST)));
+      } catch {}
+    }, 800);
+  }
+
+  /** Gửi tin vào kênh công cộng. Trả về false nếu gửi quá nhanh (người khác sẽ bỏ tin). */
+  say(content: { text: string } | { sticker: StickerId }): boolean {
+    const { name, avatar, color } = this.profile;
+    const body: ChatMsg = { id: "", uid: this.uid, name, avatar, color, at: Date.now() };
+    if ("text" in content) {
+      const text = content.text.trim().slice(0, TEXT_MAX);
+      if (!text) return true;
+      body.text = text;
+    } else body.sticker = content.sticker;
+    if (!this.chatRate.take(this.uid)) return false;
+    const r = this.gossip.broadcast("chat", body);
+    this.pushChat({ ...body, id: r.id });
+    return true;
+  }
+
+  onChat(fn: (m: ChatMsg) => void) {
+    this.chatFns.add(fn);
+    return () => {
+      this.chatFns.delete(fn);
+    };
   }
 
   // ---------- API ----------
@@ -201,6 +283,7 @@ export class Lobby {
   close() {
     this.goodbye();
     for (const t of this.timers) clearInterval(t);
+    if (this.persistTimer) clearTimeout(this.persistTimer);
     this.gossip.stop();
     this.channel.release();
   }

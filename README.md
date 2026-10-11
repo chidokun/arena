@@ -22,7 +22,8 @@ Mã phòng nằm ở query string vì site tĩnh không sinh trước được t
 lib/net/wire.ts    kênh P2P (một room Trystero, appId riêng mỗi kênh), đếm tham chiếu
 lib/net/ice.ts     máy chủ TURN (cấu hình lúc build) cho các cặp máy không nối thẳng được
 lib/net/gossip.ts  gossip store LWW + đồng hồ Lamport, anti-entropy push–pull, rumor, bộ phát hiện lỗi nhịp tim
-lib/net/lobby.ts      kênh "lobby": ai đang online / ở game nào, quảng bá phòng, lời mời
+lib/net/lobby.ts      kênh "lobby": ai đang online / ở game nào, quảng bá phòng, lời mời, chat công cộng
+lib/net/chat.ts       giới hạn chat chung hai kênh (giữ 200 tin, gửi lại 100 cho người mới, lưu 100 khi F5, 300 ký tự, 10 tin / 10 giây mỗi người); kiểm tra tin công cộng
 lib/net/room.ts       kênh "room:<id>": phần chung của phòng — ghế, chat, quyền chủ phòng, vòng đời ván
 lib/net/caro-room.ts  phòng caro (lớp con của RoomSession): nước đi, xin thua, xử thua người rớt mạng
 lib/net/loto-room.ts  phòng lô tô: chọn tờ, chủ phòng kêu số, rao "Hò!" / "Kinh!"

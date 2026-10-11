@@ -612,14 +612,14 @@ export class UndercoverRoom extends RoomSession<UcView> {
   }
 
   /** Không cho nói thẳng từ khoá của mình trong chat. */
-  send(content: { text: string } | { sticker: StickerId }) {
+  send(content: { text: string } | { sticker: StickerId }): boolean | void {
     const m = this.meta();
     const word = m?.status === "playing" && m.lineup.includes(this.me) ? this.mySecret(m)?.word : undefined;
     if ("text" in content && word && mentions(content.text, word)) {
       this.system("🤫 Tin nhắn có từ khoá của bạn nên chưa được gửi — đừng tiết lộ từ khoá nhé!");
       return;
     }
-    super.send(content);
+    return super.send(content);
   }
 
   // ---------- hành động chủ phòng ----------

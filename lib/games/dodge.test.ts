@@ -15,6 +15,7 @@ import {
   rankScores,
   RUN_SPEED,
   spawnRunner,
+  START_SAFE_W,
   stepWorld,
   TICK_MS,
   WORLD_H,
@@ -46,6 +47,19 @@ test("makeCourse cùng seed thì giống nhau, có sàn và gai", () => {
   assert.deepEqual(a.hazards, b.hazards);
   assert.ok(a.platforms.some((p) => p.y >= WORLD_H - 30));
   assert.ok(a.platforms.length >= 3);
+});
+
+test("người chạy mới xuất phát không chết ngay khi chưa kịp nhảy", () => {
+  // Chạy hết đoạn xuất phát mà không nhảy: không được dính gai hay rơi hố, seed nào cũng vậy.
+  const ticks = Math.floor(((START_SAFE_W - spawnRunner().x - 28) / RUN_SPEED) * 1000 / TICK_MS);
+  for (let seed = 1; seed <= 2000; seed++) {
+    let w = createWorld(seed * 7919, "r");
+    for (let i = 0; i < ticks; i++) {
+      const r = stepWorld(w, {}, {}, TICK_MS);
+      assert.equal(r.kill, undefined, `seed ${seed * 7919} chết ở tick ${i}`);
+      w = r.world;
+    }
+  }
 });
 
 test("runner tự chạy sang phải và nhảy được", () => {

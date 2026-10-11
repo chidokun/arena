@@ -37,6 +37,7 @@ import type { XqRolePublic } from "../games/xiangqi-role";
 import { hostTitle } from "../games/registry";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
+import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, RateLimit, TEXT_MAX } from "./chat";
 import { Gossip, Liveness, type Rumor } from "./gossip";
 import { joinProgress, type JoinProgress } from "./join";
 import type { Lobby, RoomAd } from "./lobby";
@@ -194,7 +195,6 @@ const NOT_FOUND_MS = 20000;
 // Sảnh vẫn thấy quảng bá của phòng (chủ phòng còn sống) thì kiên nhẫn chờ bắt tay lâu hơn.
 const NOT_FOUND_ADVERTISED_MS = 60000;
 const DROP_SEAT_MS = 15000;
-const CHAT_LIMIT = 120;
 // Tin chat đang trên đường lúc người gửi vừa bị cấm (vừa chết, trời vừa tối…) thì vẫn nhận.
 const MUTE_GRACE_MS = 2500;
 // Chặn vòng lặp react() tự gọi lại vô hạn nếu một hook cứ ghi mãi.
@@ -241,6 +241,7 @@ export abstract class RoomSession<G = unknown> {
   private phase: Phase = "connecting";
   private chat: ChatMsg[] = [];
   private chatFns = new Set<(m: ChatMsg) => void>();
+  private chatRate = new RateLimit(CHAT_RATE, CHAT_RATE_WINDOW_MS);
   /** Lúc máy mình thấy từng người bắt đầu bị cấm chat (`muted`). */
   private mutedSince = new Map<string, number>();
   private timers: ReturnType<typeof setInterval>[] = [];
@@ -295,9 +296,10 @@ export abstract class RoomSession<G = unknown> {
     try {
       const raw = sessionStorage.getItem(snapKey(this.id));
       const snap = raw ? JSON.parse(raw) : null;
+      // Lịch sử chat không ảnh hưởng trạng thái phòng nên khôi phục bất kể snapshot cũ hay mới.
+      if (snap && Array.isArray(snap.chat)) this.chat = snap.chat;
       if (snap && Date.now() - Number(snap.at) < SNAPSHOT_TTL_MS) {
         this.gossip.restore(snap);
-        if (Array.isArray(snap.chat)) this.chat = snap.chat;
         const mine = this.gossip.get<Member>(`p:${this.me}`);
         if (mine) {
           this.seq = mine.seq;
@@ -345,7 +347,7 @@ export abstract class RoomSession<G = unknown> {
     this.gossip.onRumor((r, _from, replayed) => this.onRumor(r, replayed));
     this.channel.onPeerJoin((peer) => {
       // Gửi lịch sử chat cho người mới; họ tự khử trùng lặp theo id.
-      const hist = this.chat.filter((m) => !m.system && !m.local).slice(-60);
+      const hist = this.chat.filter((m) => !m.system && !m.local).slice(-CHAT_REPLAY);
       this.gossip.replay(
         hist.map((m) => ({ id: m.id, t: "chat", p: m })),
         peer,
@@ -360,6 +362,7 @@ export abstract class RoomSession<G = unknown> {
     this.gossip.start();
     this.timers.push(setInterval(() => this.beat(false), HEARTBEAT_MS));
     this.timers.push(setInterval(() => this.react(), 1000));
+    this.timers.push(setInterval(() => this.chatRate.sweep(), 10000));
   }
 
   // ---------- luật riêng của từng game ----------
@@ -663,9 +666,11 @@ export abstract class RoomSession<G = unknown> {
     const msg = r.p as ChatMsg;
     if (!msg || typeof msg.uid !== "string" || (!msg.text && !msg.sticker)) return;
     if (!this.chatAllowed(msg, replayed)) return;
+    // Lịch sử gửi lại cho người mới vào không tính vào nhịp gửi.
+    if (!replayed && !this.chatRate.take(msg.uid)) return;
     // Id lạ (bản cũ/mới hơn, hoặc bị chế) thì bỏ: id sticker được dùng để dựng đường dẫn ảnh.
     if (msg.sticker !== undefined && !isStickerId(msg.sticker)) return;
-    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, 300), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined });
+    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, TEXT_MAX), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined });
   }
 
   private trackMutes() {
@@ -689,8 +694,9 @@ export abstract class RoomSession<G = unknown> {
   }
 
   protected pushChat(msg: ChatMsg) {
-    if (this.chat.some((c) => c.id === msg.id)) return;
-    this.chat = [...this.chat, msg].sort((a, b) => a.at - b.at).slice(-CHAT_LIMIT);
+    const next = insertMsg(this.chat, msg);
+    if (!next) return;
+    this.chat = next;
     for (const fn of this.chatFns) fn(msg);
     this.schedulePersist();
     this.store.invalidate();
@@ -707,15 +713,17 @@ export abstract class RoomSession<G = unknown> {
     };
   }
 
-  send(content: { text: string } | { sticker: StickerId }) {
+  /** Trả về false nếu gửi quá nhanh (người khác sẽ bỏ tin) để giao diện nhắc. */
+  send(content: { text: string } | { sticker: StickerId }): boolean | void {
     if (this.phase !== "ready" || this.muted?.(this.me)) return;
     const { name, avatar, color } = this.profile;
     const body: ChatMsg = { id: "", uid: this.me, name, avatar, color, at: Date.now(), ...content };
     if ("text" in content) {
-      const text = content.text.trim().slice(0, 300);
+      const text = content.text.trim().slice(0, TEXT_MAX);
       if (!text) return;
       body.text = text;
     }
+    if (!this.chatRate.take(this.me)) return false;
     const r = this.gossip.broadcast("chat", body);
     this.pushChat({ ...body, id: r.id });
   }
@@ -809,7 +817,7 @@ export abstract class RoomSession<G = unknown> {
       this.persistTimer = null;
       if (this.phase !== "ready" && this.phase !== "connecting") return;
       try {
-        sessionStorage.setItem(snapKey(this.id), JSON.stringify({ ...this.gossip.snapshot(), chat: this.chat.slice(-60), at: Date.now() }));
+        sessionStorage.setItem(snapKey(this.id), JSON.stringify({ ...this.gossip.snapshot(), chat: this.chat.slice(-CHAT_PERSIST), at: Date.now() }));
       } catch {}
     }, 800);
   }

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { loadProfile, resolveUid, saveProfile, type Profile } from "@/lib/identity";
 import { Lobby, type LobbyView, type Where } from "@/lib/net/lobby";
+import type { ChatMsg } from "@/lib/net/room";
 
 type Net = {
   uid: string;
@@ -15,6 +16,7 @@ type Net = {
 const NetContext = createContext<Net | null>(null);
 
 const EMPTY_VIEW: LobbyView = { connected: false, peers: 0, unreachable: 0, users: [], rooms: [] };
+const EMPTY_CHAT: ChatMsg[] = [];
 const noop = () => () => {};
 
 export function NetProvider({ children }: { children: React.ReactNode }) {
@@ -76,6 +78,16 @@ export function useLobbyView(): LobbyView {
     lobby?.store.subscribe ?? noop,
     lobby?.store.get ?? (() => EMPTY_VIEW),
     () => EMPTY_VIEW,
+  );
+}
+
+/** Tin chat công cộng (kênh sảnh). */
+export function usePublicChat(): ChatMsg[] {
+  const { lobby } = useNet();
+  return useSyncExternalStore(
+    lobby?.chatStore.subscribe ?? noop,
+    lobby?.chatStore.get ?? (() => EMPTY_CHAT),
+    () => EMPTY_CHAT,
   );
 }
 

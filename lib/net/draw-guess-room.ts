@@ -668,7 +668,7 @@ export class DrawGuessRoom extends RoomSession<DwView> {
    * Khung chat chỉ để thảo luận (lời đoán gửi qua `guess`). Người đã đoán đúng bị khoá chat tới hết lượt vẽ; người vẽ
    * không được nhắn đáp án.
    */
-  send(content: { text: string } | { sticker: StickerId }) {
+  send(content: { text: string } | { sticker: StickerId }): boolean | void {
     if (this.chatLocked()) return;
     const live = this.livePub();
     if ("text" in content && live && (live.pub.phase === "pick" || live.pub.phase === "draw")) {
@@ -678,7 +678,7 @@ export class DrawGuessRoom extends RoomSession<DwView> {
         return;
       }
     }
-    super.send(content);
+    return super.send(content);
   }
 
   // ---------- hành động chủ phòng ----------

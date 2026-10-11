@@ -21,8 +21,8 @@ import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
-import { RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useRoomView } from "./useRoom";
+import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { useBalloons, useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<DodgeView>;
 
@@ -34,6 +34,8 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
   const m = view.meta!;
   const g = view.game?.match;
   const balloons = useBalloons(session);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && !!g;
   // Mở ván: chủ phòng cho người chạy xuất phát sau nhịp đếm ngược (stint đầu bắt đầu ở tương lai, chưa đổi người chạy lần nào).
   const count = useCountdown(live && g.round === m.round && g.pub.lastStintMs == null ? g.round : 0, { endsAt: g?.pub.stintStarted });
@@ -59,7 +61,12 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
       <ActionBar view={view} session={session} />
       {g?.result && <ResultCard view={view} />}
       <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
-        <Arena view={view} session={session} live={live && !count} />
+        <div className="relative">
+          <div ref={boardRef}>
+            <Arena view={view} session={session} live={live && !count} />
+          </div>
+          <Flyers flyers={flyers} />
+        </div>
         <Scoreboard view={view} />
       </div>
       {!live && <HowTo />}
