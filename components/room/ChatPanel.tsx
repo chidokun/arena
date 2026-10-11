@@ -11,6 +11,7 @@ import { Flyers } from "./RoomLayout";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { StickerArt } from "./Sticker";
 import { useFlyers } from "./useFlyers";
+import { useBalloons, useRoomView } from "./useRoom";
 
 const ROOM_KEY = "arena:chat-open";
 const PUBLIC_KEY = "arena:public-chat-open";
@@ -127,11 +128,38 @@ type Channel = {
 const unreadOf = (chat: ChatMsg[], me: string, since: number) => chat.filter((m) => !m.system && m.uid !== me && m.at > since).length;
 
 /**
+ * Bóng thoại bật lên từ nút chat lúc khung chat đang thu nhỏ: tin của người không có thẻ ghế trên bàn (người xem), kèm
+ * avatar và tên. Bấm vào thì mở khung chat; bàn phím / trình đọc màn hình dùng nút chat.
+ */
+function Bubbles({ msgs, onOpen }: { msgs: ChatMsg[]; onOpen: () => void }) {
+  return (
+    <ol className="pointer-events-none fixed right-4 bottom-[86px] z-40 flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2" aria-live="polite">
+      {msgs.map((m, i) => (
+        <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""}`}>
+          <button type="button" tabIndex={-1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
+            <Avatar p={m} size={30} />
+            <span className="min-w-0">
+              <span className="block truncate text-[11.5px] font-bold text-ink-3">{m.name}</span>
+              {m.sticker ? (
+                <StickerArt id={m.sticker} size={56} />
+              ) : (
+                <span className="line-clamp-3 text-[14px] leading-snug font-semibold [overflow-wrap:anywhere]">{m.text}</span>
+              )}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
  * Khung chat nổi ở góc màn hình, thu nhỏ còn nút tròn (đếm tin mới) — chat được ngay mà không phải cuộn trang.
  * Trong phòng có tab Phòng / Công cộng (cùng các tab `panels` của phòng); ngoài phòng chỉ có kênh công cộng.
  * `docked`: nằm trong sidebar của phòng (màn hình rộng) — cao theo chỗ trống; thu nhỏ là ẩn cả sidebar (`hidden`, `onHide`),
  * lúc đó khung còn lại nút tròn như khi nổi.
  * `storageKey`: nơi nhớ đang mở hay thu nhỏ; chưa chọn bao giờ thì theo `openByDefault`.
+ * `bubbles`: tin vừa tới cần bật thành bóng thoại từ nút tròn lúc khung đang thu nhỏ.
  */
 function ChatBox({
   channels,
@@ -144,6 +172,7 @@ function ChatBox({
   title,
   storageKey,
   openByDefault,
+  bubbles = [],
 }: {
   channels: Channel[];
   panels?: SidePanel[];
@@ -155,6 +184,7 @@ function ChatBox({
   title: string;
   storageKey: string;
   openByDefault: () => boolean;
+  bubbles?: ChatMsg[];
 }) {
   const uid = useId();
   const fx = useStickerFx();
@@ -279,23 +309,26 @@ function ChatBox({
 
   if (!open)
     return (
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={false}
-        aria-controls={bodyId}
-        className="btn btn-pen fixed right-4 bottom-4 z-40 h-14 rounded-full px-5 text-base shadow-[0_5px_0_var(--edge)]"
-      >
-        <span aria-hidden="true">💬</span>
-        <span className="hidden sm:inline">{title}</span>
-        <span className="sr-only sm:hidden">Mở {title.toLowerCase()}</span>
-        {totalUnread > 0 && (
-          <span className="absolute -top-2 -right-1 min-w-6 rounded-full border-2 border-edge bg-coral px-1.5 py-0.5 text-xs font-bold text-white">
-            {totalUnread > 99 ? "99+" : totalUnread}
-            <span className="sr-only"> tin mới</span>
-          </span>
-        )}
-      </button>
+      <>
+        {bubbles.length > 0 && <Bubbles msgs={bubbles} onOpen={toggle} />}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={false}
+          aria-controls={bodyId}
+          className="btn btn-pen fixed right-4 bottom-4 z-40 h-14 rounded-full px-5 text-base shadow-[0_5px_0_var(--edge)]"
+        >
+          <span aria-hidden="true">💬</span>
+          <span className="hidden sm:inline">{title}</span>
+          <span className="sr-only sm:hidden">Mở {title.toLowerCase()}</span>
+          {totalUnread > 0 && (
+            <span className="absolute -top-2 -right-1 min-w-6 rounded-full border-2 border-edge bg-coral px-1.5 py-0.5 text-xs font-bold text-white">
+              {totalUnread > 99 ? "99+" : totalUnread}
+              <span className="sr-only"> tin mới</span>
+            </span>
+          )}
+        </button>
+      </>
     );
 
   const tabs = [
@@ -535,6 +568,14 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
   };
   const side = useRoomSide();
   useEffect(() => roomChat.mount(), []);
+  // Người ngồi ghế đã có bóng thoại trên thẻ ghế ở bàn chơi; tin của người xem thì bật lên từ nút chat.
+  const view = useRoomView(session);
+  const balloons = useBalloons(session);
+  const seated = new Set(view?.seats.flatMap((s) => (s.member ? [s.member.uid] : [])));
+  const bubbles = Object.values(balloons)
+    .filter((m) => m.uid !== me && !seated.has(m.uid))
+    .sort((a, b) => a.at - b.at)
+    .slice(-3);
   return (
     <ChatBox
       channels={pub ? [room, pub] : [room]}
@@ -548,6 +589,7 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
       storageKey={ROOM_KEY}
       // Màn hình rộng thì nằm sẵn trong sidebar; điện thoại thì thu nhỏ để không che bàn chơi.
       openByDefault={() => false}
+      bubbles={bubbles}
     />
   );
 }

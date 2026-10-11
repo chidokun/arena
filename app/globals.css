@@ -1433,6 +1433,34 @@
     border-bottom: 2px solid var(--edge);
     border-left: 2px solid var(--edge);
   }
+  /* Bóng thoại bật lên từ nút chat đang thu nhỏ (ChatPanel); cái sát nút có đuôi chỉ xuống nút. */
+  .chat-bubble {
+    position: relative;
+    max-width: 100%;
+    border: 2px solid var(--edge);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+    transform-origin: bottom right;
+    animation: chat-bubble 3.6s ease forwards;
+  }
+  .chat-bubble.has-tail {
+    border-bottom-right-radius: 6px;
+  }
+  .chat-bubble.has-tail::after {
+    content: "";
+    position: absolute;
+    right: 22px;
+    top: 100%;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    background: var(--surface);
+    border-right: 2px solid var(--edge);
+    border-bottom: 2px solid var(--edge);
+    transform: rotate(45deg);
+  }
 
   .fly {
     position: absolute;
@@ -3464,6 +3492,21 @@
   100% {
     opacity: 0;
     transform: translateX(-50%) translateY(-6px) scale(0.95);
+  }
+}
+@keyframes chat-bubble {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.6);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.95);
   }
 }
 @keyframes balloon-side {
