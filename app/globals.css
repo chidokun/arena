@@ -520,6 +520,307 @@
     }
   }
 
+  /* ---------- Sân cò chẹp ---------- */
+  .cc {
+    --cc-ground: color-mix(in srgb, var(--sun) 16%, var(--board));
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: min(74vh, 760px);
+    margin-inline: auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .cc text {
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .cc .cc-cell {
+    fill: var(--cc-ground);
+    stroke: var(--ink-2);
+    stroke-width: 4;
+    stroke-linejoin: round;
+    transition: fill 400ms;
+  }
+  .cc .cc-ground {
+    fill: color-mix(in srgb, var(--sun) 10%, var(--board));
+    stroke: var(--board-line);
+    stroke-width: 3;
+    stroke-dasharray: 8 7;
+  }
+  .cc .cc-label {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    fill: var(--ink-3);
+  }
+  .cc .cc-num {
+    font-size: 34px;
+    font-weight: 800;
+    fill: var(--ink-3);
+    opacity: 0.75;
+  }
+  .cc .cc-num.is-small {
+    font-size: 15px;
+    opacity: 1;
+  }
+  .cc .cc-house {
+    animation: cc-pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .cc .cc-target {
+    fill: none;
+    stroke-width: 4;
+    stroke-dasharray: 10 8;
+    animation: cc-march 900ms linear infinite;
+  }
+  .cc .cc-target-sky {
+    animation: cc-glow 1.2s ease-in-out infinite;
+  }
+  .cc .cc-stone {
+    stroke: var(--edge);
+    stroke-width: 3;
+  }
+  .cc .cc-mark {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 2;
+    stroke-dasharray: 4 4;
+  }
+  .cc .cc-hopper {
+    transition: transform 300ms cubic-bezier(0.4, 0, 0.3, 1);
+  }
+  .cc .cc-token {
+    stroke: var(--edge);
+    stroke-width: 3;
+  }
+  .cc .cc-foot {
+    fill: rgba(0, 0, 0, 0.18);
+  }
+  .cc .cc-jump {
+    animation: cc-jump 320ms ease-out;
+  }
+  .cc .cc-fall {
+    animation: cc-fall 900ms ease-in both;
+  }
+  .cc .cc-tag {
+    font-weight: 800;
+    fill: var(--ink);
+    stroke: var(--board);
+    stroke-width: 4px;
+    paint-order: stroke;
+  }
+  .cc .cc-tag.is-bad {
+    fill: var(--coral);
+  }
+  .cc .cc-char {
+    fill: #2b1d16;
+    animation: cc-char 3.4s ease-out both;
+  }
+  .cc .cc-smoke {
+    fill: #5f5a66;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cc-smoke 1.6s ease-out infinite both;
+  }
+  .cc .cc-flame {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: cc-flame 360ms ease-in-out infinite alternate, cc-fade 3.4s ease-in both;
+  }
+  .cc .cc-claim-ring {
+    fill: none;
+    stroke: var(--sun);
+    stroke-width: 5;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cc-ring 900ms ease-out both;
+  }
+  .cc .cc-claim-roof {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cc-roof 1.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+  .cc-banner {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    z-index: 2;
+    max-width: calc(100% - 24px);
+    padding: 6px 14px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: translateX(-50%);
+    animation: cc-banner 1.1s ease-out both;
+  }
+
+  /* Màn chọi đá: phủ toàn màn hình, canvas lấp đầy, HUD nổi trên. */
+  .cc-scene {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: #7ec8ff;
+    animation: cine-in 260ms ease-out;
+  }
+  .cc-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .cc-canvas.is-top {
+    touch-action: none;
+    cursor: grab;
+  }
+  .cc-canvas.is-top:active {
+    cursor: grabbing;
+  }
+  /* Video người chọi: đặt và co bằng transform theo phối cảnh (CoChepThrow), không nhận thao tác. */
+  .cc-kid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+    transform-origin: 0 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .cc-hud {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .cc-hud > * {
+    pointer-events: auto;
+  }
+  .cc-hud-who {
+    display: flex;
+    min-width: 0;
+    max-width: 50%;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px 4px 4px;
+    border: 2px solid #050312;
+    border-radius: 999px;
+    background: #fff;
+    color: #1d1648;
+    box-shadow: 0 3px 0 #050312;
+    font-size: 14px;
+  }
+  .cc-hud-avatar {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--tone);
+    font-size: 18px;
+  }
+  .cc-hud-goal {
+    flex: 1;
+    min-width: 0;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 800;
+    text-shadow: 0 2px 0 rgba(5, 3, 18, 0.55);
+  }
+  .cc-hint {
+    position: absolute;
+    left: 50%;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: min(440px, calc(100% - 32px));
+    display: grid;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 2px solid #050312;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1d1648;
+    box-shadow: 0 3px 0 #050312;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .cc-power {
+    height: 10px;
+    overflow: hidden;
+    border: 2px solid #050312;
+    border-radius: 999px;
+    background: #ece8fb;
+  }
+  .cc-power span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #12b981, #ffc23d 60%, #ff5a5f);
+  }
+  .cc-verdict {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    padding: 10px 22px;
+    border: 3px solid #050312;
+    border-radius: 18px;
+    box-shadow: 0 5px 0 #050312;
+    font-family: var(--font-display), sans-serif;
+    font-size: clamp(22px, 5vw, 34px);
+    font-weight: 800;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    animation: cc-verdict 420ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+    pointer-events: none;
+  }
+  .cc-verdict.is-good {
+    background: #d3f6e8;
+    color: #0b6b4a;
+  }
+  .cc-verdict.is-bad {
+    background: #ffe1e2;
+    color: #b3242a;
+  }
+  .cc-skip {
+    position: absolute;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    width: 100%;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(5, 3, 18, 0.6);
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cc .cc-house,
+    .cc .cc-target,
+    .cc .cc-target-sky,
+    .cc .cc-jump,
+    .cc-banner,
+    .cc-verdict {
+      animation: none;
+    }
+    .cc .cc-hopper {
+      transition: none;
+    }
+  }
+
   /* ---------- Bàn chấm nối ô ---------- */
   .db {
     display: block;
@@ -3285,6 +3586,137 @@
   }
   to {
     stroke-dashoffset: 0;
+  }
+}
+/* Cò chẹp: nhà mới bật lên, viền ô mục tiêu chạy, người nhảy nảy lên rồi đáp, ngã lăn ra; cháy nhà: ô sạm, lửa, khói. */
+@keyframes cc-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+@keyframes cc-march {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+@keyframes cc-glow {
+  50% {
+    fill-opacity: 0.55;
+  }
+}
+@keyframes cc-jump {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-16px) scale(1.12);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes cc-fall {
+  0% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-25deg) translateX(-4px);
+  }
+  60% {
+    transform: rotate(40deg) translateX(6px);
+  }
+  100% {
+    transform: rotate(90deg) translate(10px, 6px);
+  }
+}
+@keyframes cc-char {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes cc-smoke {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.4);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-110px) scale(2.1);
+  }
+}
+@keyframes cc-flame {
+  from {
+    transform: scale(0.9, 0.85) rotate(-4deg);
+  }
+  to {
+    transform: scale(1.1, 1.2) rotate(4deg);
+  }
+}
+@keyframes cc-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes cc-ring {
+  from {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+@keyframes cc-roof {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.3);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.3);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-12px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(1);
+  }
+}
+@keyframes cc-banner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  15%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes cc-verdict {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
   }
 }
 @keyframes db-claim {

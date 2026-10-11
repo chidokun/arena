@@ -7,6 +7,7 @@ import { useNet, useWhere } from "../NetProvider";
 import { BattleshipTable } from "./BattleshipTable";
 import { CaroTable } from "./CaroTable";
 import { ChessTable } from "./ChessTable";
+import { CoChepTable } from "./CoChepTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
 import { DotsBoxesTable } from "./DotsBoxesTable";
@@ -106,5 +107,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "oanquan") return <OAnQuanTable id={id} slug={slug} session={session} />;
   if (session.game === "chess") return <ChessTable id={id} slug={slug} session={session} />;
   if (session.game === "dots-boxes") return <DotsBoxesTable id={id} slug={slug} session={session} />;
+  if (session.game === "co-chep") return <CoChepTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

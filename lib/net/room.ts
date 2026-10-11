@@ -5,7 +5,8 @@
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
  *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
- *                     đoán sai của lượt đang vẽ, chủ phòng công khai.
+ *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
+ *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
  *                     vẽ đoán: người vẽ chọn từ thứ mấy.
@@ -25,9 +26,10 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
+import type { CcPublic } from "../games/co-chep";
 import type { DodgePublic } from "../games/dodge";
 import type { DwPublic } from "../games/draw-guess";
 import type { SudokuRound } from "../games/sudoku";
@@ -103,6 +105,8 @@ export type Meta = {
   dwUsed?: number[];
   /** Chấm nối ô: cỡ bàn của ván gần nhất, chốt lúc bắt đầu (chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong). */
   dbSize?: number;
+  /** Cò chẹp: seed của ván và những người đã bị loại (bỏ cuộc, mất kết nối, bị mời ra). */
+  cc?: CcPublic;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
