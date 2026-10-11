@@ -114,8 +114,8 @@ export function useRoomView<G>(session: RoomSession<G> | null): RoomView<G> | nu
 }
 
 /**
- * Tin nhắn mới nhất của từng người, tự tắt sau vài giây — để vẽ bóng thoại cạnh avatar. Tắt hiệu ứng sticker thì
- * sticker không hiện thành bóng thoại.
+ * Tin nhắn mới nhất của từng người, tự tắt sau vài giây — để vẽ bóng thoại bật lên từ nút chat (ChatPanel). Tắt hiệu
+ * ứng sticker thì sticker không hiện thành bóng thoại.
  */
 export function useBalloons(session: RoomSession | null) {
   const fx = useStickerFx();

@@ -11,7 +11,7 @@ import { Flyers } from "./RoomLayout";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { StickerArt } from "./Sticker";
 import { useFlyers } from "./useFlyers";
-import { useBalloons, useRoomView } from "./useRoom";
+import { useBalloons } from "./useRoom";
 
 const ROOM_KEY = "arena:chat-open";
 const PUBLIC_KEY = "arena:public-chat-open";
@@ -127,28 +127,41 @@ type Channel = {
 /** Tin chưa đọc: tin của người khác gửi sau lần cuối mình xem kênh. */
 const unreadOf = (chat: ChatMsg[], me: string, since: number) => chat.filter((m) => !m.system && m.uid !== me && m.at > since).length;
 
+/** Kiểu bong bóng ở nút chat theo loại tin — cùng màu và nhãn với ô tương ứng trong khung chat. */
+function bubbleKind(m: ChatMsg): { tone: string; tag?: string } {
+  if (m.shout) return { tone: "is-shout" };
+  if (m.guess) return { tone: `is-${m.guess}`, tag: GUESS_TAG[m.guess] };
+  if (m.clue) return { tone: "is-clue", tag: "✍️ Mô tả" };
+  return { tone: "" };
+}
+
 /**
- * Bóng thoại bật lên từ nút chat lúc khung chat đang thu nhỏ: tin của người không có thẻ ghế trên bàn (người xem), kèm
- * avatar và tên. Bấm vào thì mở khung chat; bàn phím / trình đọc màn hình dùng nút chat.
+ * Bóng thoại bật lên từ nút chat lúc khung chat đang thu nhỏ: tin vừa tới của mọi người (trừ mình), kèm avatar và tên.
+ * Lời đoán (vẽ đoán) và mô tả (gián điệp) có nhãn và màu riêng để không lẫn với tin thảo luận.
+ * Bấm vào thì mở khung chat; bàn phím / trình đọc màn hình dùng nút chat.
  */
 function Bubbles({ msgs, onOpen }: { msgs: ChatMsg[]; onOpen: () => void }) {
   return (
     <ol className="pointer-events-none fixed right-4 bottom-[86px] z-40 flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2" aria-live="polite">
-      {msgs.map((m, i) => (
-        <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""}`}>
-          <button type="button" tabIndex={-1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
-            <Avatar p={m} size={30} />
-            <span className="min-w-0">
-              <span className="block truncate text-[11.5px] font-bold text-ink-3">{m.name}</span>
-              {m.sticker ? (
-                <StickerArt id={m.sticker} size={56} />
-              ) : (
-                <span className="line-clamp-3 text-[14px] leading-snug font-semibold [overflow-wrap:anywhere]">{m.text}</span>
-              )}
-            </span>
-          </button>
-        </li>
-      ))}
+      {msgs.map((m, i) => {
+        const { tone, tag } = bubbleKind(m);
+        return (
+          <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""} ${tone}`}>
+            <button type="button" tabIndex={-1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
+              <Avatar p={m} size={30} />
+              <span className="min-w-0">
+                <span className={`block truncate text-[11.5px] font-bold ${m.shout ? "opacity-70" : "text-ink-3"}`}>{m.name}</span>
+                {tag && <span className="chat-bubble-tag block text-[11px] font-extrabold tracking-wide uppercase">{tag}</span>}
+                {m.sticker ? (
+                  <StickerArt id={m.sticker} size={56} />
+                ) : (
+                  <span className={`line-clamp-3 leading-snug [overflow-wrap:anywhere] ${m.shout ? "font-display text-[17px] font-extrabold" : "text-[14px] font-semibold"}`}>{m.text}</span>
+                )}
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -568,12 +581,10 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
   };
   const side = useRoomSide();
   useEffect(() => roomChat.mount(), []);
-  // Người ngồi ghế đã có bóng thoại trên thẻ ghế ở bàn chơi; tin của người xem thì bật lên từ nút chat.
-  const view = useRoomView(session);
+  // Tin vừa tới của mọi người bật lên từ nút chat — chỗ duy nhất hiện bóng thoại trong phòng.
   const balloons = useBalloons(session);
-  const seated = new Set(view?.seats.flatMap((s) => (s.member ? [s.member.uid] : [])));
   const bubbles = Object.values(balloons)
-    .filter((m) => m.uid !== me && !seated.has(m.uid))
+    .filter((m) => m.uid !== me)
     .sort((a, b) => a.at - b.at)
     .slice(-3);
   return (

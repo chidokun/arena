@@ -2,15 +2,15 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { CELLS, clock, colOf, COUNTDOWN_MS, LEVEL_KEYS, LEVELS, MODE_KEYS, MODES, rowOf, sees } from "@/lib/games/sudoku";
-import type { ChatMsg, RoomView } from "@/lib/net/room";
+import type { RoomView } from "@/lib/net/room";
 import type { SudokuMatch, SudokuRoom, SudokuView } from "@/lib/net/sudoku-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { Balloon, PeoplePanel } from "./People";
+import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<SudokuView>;
 
@@ -46,7 +46,6 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { opts, match: g } = view.game!;
-  const balloons = useBalloons(session);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
@@ -60,7 +59,7 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -80,7 +79,7 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
 
       <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
         {g ? <Play key={g.round} view={view} session={session} match={g} now={now} /> : <EmptyBoard view={view} />}
-        {g && <Scoreboard view={view} match={g} now={now} balloons={balloons} />}
+        {g && <Scoreboard view={view} match={g} now={now} />}
         <Flyers flyers={flyers} />
       </div>
 
@@ -638,7 +637,7 @@ function Play({ view, session, match: g, now }: { view: View; session: SudokuRoo
 }
 
 /** Bảng điểm: màu từng người, điểm (cùng giải đề) hoặc tiến độ (đối kháng), số lần sai, đồng hồ. */
-function Scoreboard({ view, match: g, now, balloons }: { view: View; match: SudokuMatch; now: number; balloons: Record<string, ChatMsg> }) {
+function Scoreboard({ view, match: g, now }: { view: View; match: SudokuMatch; now: number }) {
   const live = isLive(view);
   const s = g.state;
   const race = g.mode === "race";
@@ -674,7 +673,6 @@ function Scoreboard({ view, match: g, now, balloons }: { view: View; match: Sudo
               <span className="w-4 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
               <span className="relative">
                 {p ? <Avatar p={p} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
-                <Balloon msg={balloons[seat.uid]} />
                 {winners.has(seat.uid) && (
                   <span className="absolute -right-2 -bottom-1 text-base" aria-label="Thắng">
                     🏆

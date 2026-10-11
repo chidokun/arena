@@ -11,7 +11,7 @@ import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScen
 import { OAnQuanBoard, OAQ_TONE, QUAN_ART, SIDE_GEM, useSowing } from "./OAnQuanBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🪨", "🐚"];
 const START = initialState();
@@ -20,7 +20,6 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { match: g, wins, draws, opts } = view.game!;
-  const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && g?.round === m.round && !g.result;
@@ -52,7 +51,6 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
         tone={showGame ? OAQ_TONE[p] : undefined}
         active={playing && state.turn === p && !state.over}
         isHost={seat?.uid === m.host}
-        balloon={seat ? balloons[seat.uid] : undefined}
         me={view.me}
         align={k === 1 ? "right" : "left"}
       />
@@ -63,7 +61,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">

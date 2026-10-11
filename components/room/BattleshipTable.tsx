@@ -11,7 +11,7 @@ import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<BsView>;
 
@@ -23,7 +23,6 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { opts, match: g } = view.game!;
-  const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
 
@@ -40,7 +39,7 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -56,7 +55,7 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
         {([0, 1] as const).map((i) => (
-          <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} balloons={balloons} busy={busy(i)} />
+          <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} busy={busy(i)} />
         ))}
       </div>
 
@@ -128,7 +127,7 @@ function EndScene({ match: g, me, onClose }: { match: BsMatch; me: string; onClo
   );
 }
 
-function SeatSlot({ i, seat, g, view, balloons, busy }: { i: 0 | 1; seat?: BsSide["seat"]; g?: BsMatch; view: View; balloons: ReturnType<typeof useBalloons>; busy: boolean }) {
+function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"]; g?: BsMatch; view: View; busy: boolean }) {
   const m = view.meta!;
   const card = (
     <SeatCard
@@ -138,7 +137,6 @@ function SeatSlot({ i, seat, g, view, balloons, busy }: { i: 0 | 1; seat?: BsSid
       tone={g ? BS_TONE[i] : undefined}
       active={busy}
       isHost={seat?.uid === m.host}
-      balloon={seat ? balloons[seat.uid] : undefined}
       me={view.me}
       align={i === 1 ? "right" : "left"}
     />

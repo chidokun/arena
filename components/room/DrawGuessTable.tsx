@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { roundOfTurn, ROUND_CHOICES, standings, TIER_NAMES, TIME_CHOICES, totalTurns, type DwPublic } from "@/lib/games/draw-guess";
 import type { DrawGuessRoom, DwMatch, DwView, GuessState } from "@/lib/net/draw-guess-room";
-import type { ChatMsg, RoomView } from "@/lib/net/room";
+import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { DrawBoard, Toolbar, type Tool } from "./DrawBoard";
-import { Balloon, PeoplePanel } from "./People";
+import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<DwView>;
 
@@ -51,7 +51,6 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { opts, match: g } = view.game!;
-  const balloons = useBalloons(session);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
@@ -78,7 +77,7 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={
         <ChatPanel
           session={session}
@@ -108,7 +107,7 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
         </DrawBoard>
         {g?.canDraw && <Toolbar tool={tool} setTool={setTool} session={session} ops={g.ops} />}
         {g && live && <Prompt view={view} session={session} match={g} />}
-        {g ? <Scoreboard view={view} match={g} balloons={balloons} /> : <Waiting view={view} balloons={balloons} />}
+        {g ? <Scoreboard view={view} match={g} /> : <Waiting view={view} />}
         <Flyers flyers={flyers} />
       </div>
 
@@ -565,7 +564,7 @@ function GuessBox({ view, session, match: g }: { view: View; session: DrawGuessR
 }
 
 /** Bảng điểm: dải người chơi theo thứ tự vẽ — hạng, điểm, ai đang vẽ, ai đã đoán ra, điểm vừa cộng lúc lộ đáp án. */
-function Scoreboard({ view, match: g, balloons }: { view: View; match: DwMatch; balloons: Record<string, ChatMsg> }) {
+function Scoreboard({ view, match: g }: { view: View; match: DwMatch }) {
   const pub = g.pub;
   const live = isLive(view);
   const last = pub.phase === "show" ? pub.last : undefined;
@@ -589,7 +588,6 @@ function Scoreboard({ view, match: g, balloons }: { view: View; match: DwMatch; 
             <li key={uid} className={`dw-player ${drawing ? "is-drawing" : hit ? "is-hit" : ""}`} aria-label={`Hạng ${rank}: ${name}, ${score} điểm${drawing ? ", đang vẽ" : hit ? ", đã đoán ra" : ""}`}>
               <span className="relative flex-none">
                 {p ? <Avatar p={p} size={38} className={seat?.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[38px] w-[38px] bg-sunken" />}
-                <Balloon msg={balloons[uid]} />
                 <span className={`dw-rank ${rank === 1 && score > 0 ? "is-top" : ""}`} aria-hidden="true">
                   {rank === 1 && score > 0 ? "👑" : rank}
                 </span>
@@ -613,7 +611,7 @@ function Scoreboard({ view, match: g, balloons }: { view: View; match: DwMatch; 
 }
 
 /** Chưa có ván: những người đã vào ghế. */
-function Waiting({ view, balloons }: { view: View; balloons: Record<string, ChatMsg> }) {
+function Waiting({ view }: { view: View }) {
   const m = view.meta!;
   return (
     <section className="card p-3" aria-labelledby="dw-seat-h">
@@ -624,9 +622,8 @@ function Waiting({ view, balloons }: { view: View; balloons: Record<string, Chat
         <ul className="dw-strip">
           {view.seats.map((s) => (
             <li key={s.uid} className="dw-player">
-              <span className="relative flex-none">
+              <span className="flex-none">
                 {s.member ? <Avatar p={s.member} size={38} className={s.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[38px] w-[38px] bg-sunken" />}
-                <Balloon msg={balloons[s.uid]} />
               </span>
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">{s.uid === view.me ? "Bạn" : (s.member?.name ?? "Ai đó")}</span>
             </li>

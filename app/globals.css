@@ -1371,82 +1371,17 @@
   }
 
   /* ---------- Bóng thoại & sticker ---------- */
-  .balloon {
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 10px);
-    z-index: 20;
-    max-width: 220px;
-    width: max-content;
-    padding: 6px 12px;
-    border: 2px solid var(--edge);
-    border-radius: 14px;
-    background: var(--surface);
-    color: var(--ink);
-    font-size: 13.5px;
-    font-weight: 600;
-    line-height: 1.35;
-    box-shadow: var(--shadow-sm);
-    transform: translateX(-50%);
-    animation: balloon 3.6s ease forwards;
-    pointer-events: none;
-    overflow-wrap: anywhere;
-  }
-  .balloon::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 100%;
-    width: 12px;
-    height: 12px;
-    margin-left: -6px;
-    margin-top: -6px;
-    background: var(--surface);
-    border-right: 2px solid var(--edge);
-    border-bottom: 2px solid var(--edge);
-    transform: rotate(45deg);
-  }
-  .balloon.is-sticker {
-    padding: 4px 10px;
-  }
-  .balloon.is-sticker img {
-    display: block;
-  }
-  /* Câu rao lô tô: "Hò!", "Kinh!" */
-  .balloon.is-shout {
-    background: var(--sun);
-    color: #2b1d00;
-    font-family: var(--font-display);
-    font-size: 17px;
-    font-weight: 800;
-  }
-  .balloon.is-shout::after {
-    background: var(--sun);
-  }
-  /* Bóng thoại bên phải avatar (danh sách cuộn trong sidebar / khung chat: phía trên sẽ bị cắt). */
-  .balloon.is-side {
-    left: calc(100% + 10px);
-    top: 50%;
-    bottom: auto;
-    max-width: 200px;
-    transform: translateY(-50%);
-    animation-name: balloon-side;
-  }
-  .balloon.is-side::after {
-    left: 0;
-    top: 50%;
-    margin-left: -6px;
-    border-right: 0;
-    border-bottom: 2px solid var(--edge);
-    border-left: 2px solid var(--edge);
-  }
-  /* Bóng thoại bật lên từ nút chat đang thu nhỏ (ChatPanel); cái sát nút có đuôi chỉ xuống nút. */
+  /* Bóng thoại bật lên từ nút chat đang thu nhỏ (ChatPanel); cái sát nút có đuôi chỉ xuống nút. Loại tin đổi màu qua
+     --bb-bg (nền), --bb-edge (viền), --bb-tag (chữ nhãn) — đuôi dùng chung nên đổi theo. */
   .chat-bubble {
+    --bb-bg: var(--surface);
+    --bb-edge: var(--edge);
+    --bb-tag: var(--ink-3);
     position: relative;
     max-width: 100%;
-    border: 2px solid var(--edge);
+    border: 2px solid var(--bb-edge);
     border-radius: 16px;
-    background: var(--surface);
+    background: var(--bb-bg);
     color: var(--ink);
     box-shadow: var(--shadow-sm);
     transform-origin: bottom right;
@@ -1454,6 +1389,26 @@
   }
   .chat-bubble.has-tail {
     border-bottom-right-radius: 6px;
+  }
+  /* Câu rao lô tô: "Hò!", "Kinh!" */
+  .chat-bubble.is-shout {
+    --bb-bg: var(--sun);
+    color: #2b1d00;
+  }
+  /* Vẽ đoán: lời đoán sai (tím), đoán đúng (xanh); gián điệp: mô tả từ khoá (tím) — như .chat-guess / .chat-clue. */
+  .chat-bubble.is-wrong,
+  .chat-bubble.is-clue {
+    --bb-bg: var(--grape-soft);
+    --bb-edge: var(--grape);
+    --bb-tag: var(--grape);
+  }
+  .chat-bubble.is-right {
+    --bb-bg: var(--lime-soft);
+    --bb-edge: var(--lime);
+    --bb-tag: color-mix(in srgb, var(--lime) 75%, var(--ink));
+  }
+  .chat-bubble-tag {
+    color: var(--bb-tag);
   }
   .chat-bubble.has-tail::after {
     content: "";
@@ -1463,9 +1418,9 @@
     width: 12px;
     height: 12px;
     margin-top: -6px;
-    background: var(--surface);
-    border-right: 2px solid var(--edge);
-    border-bottom: 2px solid var(--edge);
+    background: var(--bb-bg);
+    border-right: 2px solid var(--bb-edge);
+    border-bottom: 2px solid var(--bb-edge);
     transform: rotate(45deg);
   }
 
@@ -3486,21 +3441,6 @@
     opacity: 1;
   }
 }
-@keyframes balloon {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(6px) scale(0.85);
-  }
-  8%,
-  85% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-6px) scale(0.95);
-  }
-}
 @keyframes chat-bubble {
   0% {
     opacity: 0;
@@ -3514,21 +3454,6 @@
   100% {
     opacity: 0;
     transform: translateY(-6px) scale(0.95);
-  }
-}
-@keyframes balloon-side {
-  0% {
-    opacity: 0;
-    transform: translateY(-50%) translateX(-6px) scale(0.85);
-  }
-  8%,
-  85% {
-    opacity: 1;
-    transform: translateY(-50%) translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-50%) translateX(6px) scale(0.95);
   }
 }
 @keyframes fly-heart {

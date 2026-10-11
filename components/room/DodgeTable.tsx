@@ -22,7 +22,7 @@ import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<DodgeView>;
 
@@ -33,7 +33,6 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
   const view = useRoomView(session)!;
   const m = view.meta!;
   const g = view.game?.match;
-  const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && !!g;
@@ -45,7 +44,7 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">

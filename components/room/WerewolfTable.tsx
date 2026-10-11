@@ -21,15 +21,15 @@ import {
   type Side,
   type WolfOptions,
 } from "@/lib/games/werewolf";
-import type { ChatMsg, RoomView } from "@/lib/net/room";
+import type { RoomView } from "@/lib/net/room";
 import type { Scene, WerewolfRoom, WolfView } from "@/lib/net/werewolf-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
-import { Balloon, PeoplePanel } from "./People";
+import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<WolfView>;
 
@@ -168,7 +168,6 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
   const view = useRoomView(session)!;
   const m = view.meta!;
   const g = view.game!;
-  const balloons = useBalloons(session);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   // Phù Thủy đang chọn người đầu độc — gắn với đêm hiện tại, sang đêm khác tự tắt.
@@ -187,7 +186,6 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
         <PeoplePanel
           view={view}
           session={session}
-          balloons={balloons}
           roomId={id}
           canSeat={false}
           unseatLabel="Huỷ sẵn sàng"
@@ -210,7 +208,7 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
         {g.result && <ResultCard view={view} />}
         {g.playing && <ActionCard view={view} session={session} pick={pick} poisoning={poisoning} setPoisoning={setPoisoning} />}
         {g.playing && g.me.secret?.role === "wolf" && <WolfDen view={view} session={session} />}
-        <Village view={view} pick={pick} balloons={balloons} />
+        <Village view={view} pick={pick} />
         {g.me.inGame && g.me.role && <RoleCard view={view} />}
         {!g.playing && <Settings view={view} session={session} />}
         <Flyers flyers={flyers} />
@@ -953,7 +951,7 @@ function WolfDen({ view, session }: { view: View; session: WerewolfRoom }) {
 // ---------- làng ----------
 
 /** Vòng làng: mọi người chơi, ai sống ai chết, phiếu bầu, và những gì mình được biết. Bấm để chọn khi có lựa chọn mở. */
-function Village({ view, pick, balloons }: { view: View; pick: Pick | null; balloons: Record<string, ChatMsg> }) {
+function Village({ view, pick }: { view: View; pick: Pick | null }) {
   const m = view.meta!;
   const g = view.game!;
   const pub = g.pub;
@@ -983,7 +981,7 @@ function Village({ view, pick, balloons }: { view: View; pick: Pick | null; ball
       <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2.5">
         {roster.map((uid) => (
           <li key={uid}>
-            <Token view={view} uid={uid} pick={pick} by={marks[uid] ?? []} balloon={balloons[uid]} inRound={inRound} />
+            <Token view={view} uid={uid} pick={pick} by={marks[uid] ?? []} inRound={inRound} />
           </li>
         ))}
       </ul>
@@ -991,7 +989,7 @@ function Village({ view, pick, balloons }: { view: View; pick: Pick | null; ball
   );
 }
 
-function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: string; pick: Pick | null; by: string[]; balloon?: ChatMsg; inRound: boolean }) {
+function Token({ view, uid, pick, by, inRound }: { view: View; uid: string; pick: Pick | null; by: string[]; inRound: boolean }) {
   const m = view.meta!;
   const g = view.game!;
   const seat = g.people[uid];
@@ -1025,7 +1023,6 @@ function Token({ view, uid, pick, by, balloon, inRound }: { view: View; uid: str
     <>
       <span className="relative">
         {p ? <Avatar p={p} size={52} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[52px] w-[52px] bg-sunken" />}
-        {!death && <Balloon msg={balloon} />}
         {uid === m.host && (
           <span className="absolute -top-2.5 -left-1.5 text-base" title="Quản trò">
             👑

@@ -22,7 +22,7 @@ import { PeoplePanel } from "./People";
 import { RoomLayout, StatusChip } from "./RoomLayout";
 import { PieceIcon } from "./XiangqiBoard";
 import { XiangqiRoleBoard } from "./XiangqiRoleBoard";
-import { useBalloons, useRoomView } from "./useRoom";
+import { useRoomView } from "./useRoom";
 
 const KIND_CODE: Record<PieceKind, number> = {
   general: KING,
@@ -56,7 +56,6 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
   const view = useRoomView(session)!;
   const m = view.meta!;
   const g = view.game!;
-  const balloons = useBalloons(session);
   const match = g.match;
   const playing = m.status === "playing";
   const ended = m.status === "ended";
@@ -70,7 +69,7 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
       panels={[{ key: "team", label: "⚔️ Phe", node: <TeamChat session={session} messages={g.teamChat} me={view.me} side={match?.mySide ?? sideFromSeats(g.seats, view.me)} /> }]}
     >

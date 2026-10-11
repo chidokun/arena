@@ -3,17 +3,17 @@
 import { useRef, useState } from "react";
 import { docSo, MAX_NUMBER, MAX_PICK, notReady, PACE_NAMES, PACES, SHEET_COLORS, SHEET_COUNT, sheetName, waitingRows } from "@/lib/games/loto";
 import { FIRST_CALL_MS, type LotoRoom, type LotoView } from "@/lib/net/loto-room";
-import type { ChatMsg, RoomView } from "@/lib/net/room";
+import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { LotoSheet, SheetDots, sheetStyle } from "./LotoSheet";
-import { Balloon, PeoplePanel } from "./People";
+import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useConfetti, useInView, useVoice } from "./useLoto";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<LotoView>;
 type Voice = ReturnType<typeof useVoice>;
@@ -36,7 +36,6 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
   const view = useRoomView(session)!;
   const m = view.meta!;
   const g = view.game!;
-  const balloons = useBalloons(session);
   const areaRef = useRef<HTMLDivElement>(null);
   const callerRef = useRef<HTMLElement>(null);
   const flyers = useFlyers(session, areaRef);
@@ -58,7 +57,6 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
         <PeoplePanel
           view={view}
           session={session}
-          balloons={balloons}
           roomId={id}
           canSeat={false}
           unseatLabel="Thu tờ"
@@ -77,7 +75,7 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
       </header>
 
       <div ref={areaRef} className="relative">
-        <Caller ref={callerRef} view={view} session={session} voice={voice} balloons={balloons} />
+        <Caller ref={callerRef} view={view} session={session} voice={voice} />
         {g.result && <ResultCard view={view} />}
         <div className="mt-4">
           <ActionBar view={view} session={session} voice={voice} />
@@ -134,7 +132,7 @@ function EndScene({ view, onClose }: { view: View; onClose: () => void }) {
 }
 
 /** Bảng kêu số: số vừa kêu (kèm vòng đếm tới số kế tiếp), bảng dò 1–90, người chơi quanh bàn và nút của chủ phòng. */
-function Caller({ ref, view, session, voice, balloons }: { ref: React.Ref<HTMLElement>; view: View; session: LotoRoom; voice: Voice; balloons: Record<string, ChatMsg> }) {
+function Caller({ ref, view, session, voice }: { ref: React.Ref<HTMLElement>; view: View; session: LotoRoom; voice: Voice }) {
   const m = view.meta!;
   const g = view.game!;
   const { draws, drawn } = g.state;
@@ -186,7 +184,7 @@ function Caller({ ref, view, session, voice, balloons }: { ref: React.Ref<HTMLEl
         </div>
       </details>
 
-      <Players view={view} balloons={balloons} />
+      <Players view={view} />
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t-2 border-rule pt-3">
         {voice.available ? (
@@ -292,7 +290,7 @@ function Board({ drawn, last }: { drawn: readonly boolean[]; last?: number }) {
 }
 
 /** Người chơi quanh bàn: tờ đang giữ, đang đợi mấy hàng, bóng thoại "Hò!" / "Kinh!". */
-function Players({ view, balloons }: { view: View; balloons: Record<string, ChatMsg> }) {
+function Players({ view }: { view: View }) {
   const m = view.meta!;
   const g = view.game!;
   const roster = m.status === "playing" ? Object.keys(g.dealt) : m.players;
@@ -310,7 +308,6 @@ function Players({ view, balloons }: { view: View; balloons: Record<string, Chat
           <li key={uid} className="flex w-[68px] flex-col items-center gap-1 text-center">
             <span className="relative">
               {p ? <Avatar p={p} size={40} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-10 w-10 bg-sunken" />}
-              <Balloon msg={balloons[uid]} />
               {uid === m.host && (
                 <span className="absolute -top-2.5 -right-1.5 text-base" title="Chủ phòng — người kêu số">
                   👑

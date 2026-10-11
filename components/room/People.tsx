@@ -1,28 +1,17 @@
 "use client";
 
 import { useContext, useEffect, useId, useState, type ReactNode } from "react";
-import type { ChatMsg, Member, RoomSession, RoomView, SeatView } from "@/lib/net/room";
+import type { Member, RoomSession, RoomView, SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
 import { hostTitle } from "@/lib/games/registry";
 import { PeopleOpenerCtx, PeopleVariantCtx } from "./side";
-import { StickerArt } from "./Sticker";
 
 const FOLD_KEY = "arena:people-folded";
 
-/** Bóng thoại trên avatar. `side`: hiện bên phải avatar thay vì phía trên — cho danh sách cuộn được (phía trên sẽ bị cắt). */
-export function Balloon({ msg, side }: { msg?: ChatMsg; side?: boolean }) {
-  if (!msg) return null;
-  return (
-    <span key={msg.id} className={`balloon ${side ? "is-side" : ""} ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
-      {msg.sticker ? <StickerArt id={msg.sticker} size={side ? 44 : 72} /> : msg.text}
-    </span>
-  );
-}
-
-/** Thẻ người chơi trong thanh đối đầu, có bóng thoại hiện trên avatar. Mặc định huy hiệu là X / O (caro); game khác đặt `badge`, `tone`. */
+/** Thẻ người chơi trong thanh đối đầu. Mặc định huy hiệu là X / O (caro); game khác đặt `badge`, `tone`. */
 export function SeatCard({
   seat,
   mark,
@@ -30,7 +19,6 @@ export function SeatCard({
   tone: toneOf,
   active,
   isHost,
-  balloon,
   me,
   align = "left",
 }: {
@@ -41,7 +29,6 @@ export function SeatCard({
   tone?: string;
   active?: boolean;
   isHost?: boolean;
-  balloon?: ChatMsg;
   me: string;
   align?: "left" | "right";
 }) {
@@ -60,7 +47,6 @@ export function SeatCard({
       {m ? (
         <span className="relative">
           <Avatar p={m} size={48} className={seat?.online ? "" : "opacity-40 grayscale"} />
-          <Balloon msg={balloon} />
           {isHost && (
             <span className="absolute -top-2.5 -right-1.5 text-lg" title="Chủ phòng" aria-label="Chủ phòng">
               👑
@@ -107,7 +93,6 @@ export function SeatCard({
 export function PeoplePanel({
   view,
   session,
-  balloons,
   roomId,
   detail,
   canSeat = true,
@@ -115,7 +100,6 @@ export function PeoplePanel({
 }: {
   view: RoomView;
   session: RoomSession;
-  balloons: Record<string, ChatMsg>;
   roomId: string;
   detail?: (p: Member, seated: boolean) => React.ReactNode;
   canSeat?: boolean;
@@ -142,10 +126,7 @@ export function PeoplePanel({
   const seatFree = m.players.length < m.seats;
   const row = (p: Member, seated: boolean) => (
     <li key={p.uid} className="flex items-center gap-2.5 py-1.5">
-      <span className="relative">
-        <Avatar p={p} size={34} className={view.online.has(p.uid) ? "" : "opacity-40 grayscale"} />
-        <Balloon msg={seated ? undefined : balloons[p.uid]} side />
-      </span>
+      <Avatar p={p} size={34} className={view.online.has(p.uid) ? "" : "opacity-40 grayscale"} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14.5px] font-bold">
           {p.name}
@@ -175,7 +156,7 @@ export function PeoplePanel({
   const everyone = [...seated, ...view.spectators];
   const count = m.cap > 0 ? `${view.online.size}/${m.cap}` : `${view.online.size}`;
 
-  if (variant === "strip") return <PeopleStrip people={everyone} seated={seated.length} online={view.online} balloons={balloons} count={count} me={view.me} />;
+  if (variant === "strip") return <PeopleStrip people={everyone} online={view.online} count={count} me={view.me} />;
 
   const title = (
     <span className="truncate">
@@ -250,19 +231,15 @@ function AvatarStack({ people, online, max = 5 }: { people: Member[]; online: Se
   );
 }
 
-/** Dải avatar gọn đầu trang (điện thoại): ai đang trong phòng, ai vừa nói gì; bấm để mở danh sách đầy đủ trong khung chat. */
+/** Dải avatar gọn đầu trang (điện thoại): ai đang trong phòng; bấm để mở danh sách đầy đủ trong khung chat. */
 function PeopleStrip({
   people,
-  seated,
   online,
-  balloons,
   count,
   me,
 }: {
   people: Member[];
-  seated: number;
   online: Set<string>;
-  balloons: Record<string, ChatMsg>;
   count: string;
   me: string;
 }) {
@@ -272,11 +249,9 @@ function PeopleStrip({
   return (
     <button type="button" onClick={open} className="card mb-4 flex w-full items-center gap-3 px-3 py-2 text-left">
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        {people.slice(0, MAX).map((p, i) => (
+        {people.slice(0, MAX).map((p) => (
           <span key={p.uid} className="relative flex-none">
             <Avatar p={p} size={30} className={online.has(p.uid) ? "" : "opacity-40 grayscale"} />
-            {/* Người ngồi ghế đã có bóng thoại trên thẻ ghế. */}
-            {i >= seated && <Balloon msg={balloons[p.uid]} />}
             <span className="sr-only">{p.uid === me ? `${p.name} (bạn)` : p.name}</span>
           </span>
         ))}

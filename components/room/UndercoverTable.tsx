@@ -23,15 +23,15 @@ import {
   type Tie,
   type UcOptions,
 } from "@/lib/games/undercover";
-import type { ChatMsg, RoomView } from "@/lib/net/room";
+import type { RoomView } from "@/lib/net/room";
 import type { Scene, UcView, UndercoverRoom } from "@/lib/net/undercover-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
-import { Balloon, PeoplePanel } from "./People";
+import { PeoplePanel } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<UcView>;
 
@@ -82,7 +82,6 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
   const view = useRoomView(session)!;
   const m = view.meta!;
   const g = view.game!;
-  const balloons = useBalloons(session);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const [rules, setRules] = useState(false);
@@ -102,7 +101,6 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
         <PeoplePanel
           view={view}
           session={session}
-          balloons={balloons}
           roomId={id}
           canSeat={false}
           unseatLabel="Huỷ sẵn sàng"
@@ -129,7 +127,7 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
         {g.me.inGame && g.me.word !== undefined && !g.result && <WordCard view={view} />}
         {g.seeAll && g.playing && <SeeAllCard view={view} />}
         {g.playing && g.pub && <ClueBoard view={view} pub={g.pub} />}
-        <Players view={view} pick={pick} balloons={balloons} />
+        <Players view={view} pick={pick} />
         {!g.playing && <Settings view={view} session={session} />}
         <Flyers flyers={flyers} />
       </div>
@@ -654,7 +652,7 @@ function SeeAllCard({ view }: { view: View }) {
 // ---------- bàn chơi ----------
 
 /** Những người chơi theo thứ tự thảo luận: ai còn, ai bị loại (lộ phe), ai đã lật bài, phiếu bầu. Bấm để chọn khi có lựa chọn mở. */
-function Players({ view, pick, balloons }: { view: View; pick: Pick | null; balloons: Record<string, ChatMsg> }) {
+function Players({ view, pick }: { view: View; pick: Pick | null }) {
   const m = view.meta!;
   const g = view.game!;
   const pub = g.pub;
@@ -675,7 +673,7 @@ function Players({ view, pick, balloons }: { view: View; pick: Pick | null; ball
       <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2.5">
         {roster.map((uid) => (
           <li key={uid}>
-            <Token view={view} uid={uid} n={g.playing ? order.indexOf(uid) + 1 : 0} pick={pick} by={marks[uid] ?? []} balloon={balloons[uid]} inRound={inRound} />
+            <Token view={view} uid={uid} n={g.playing ? order.indexOf(uid) + 1 : 0} pick={pick} by={marks[uid] ?? []} inRound={inRound} />
           </li>
         ))}
       </ul>
@@ -689,7 +687,6 @@ function Token({
   n,
   pick,
   by,
-  balloon,
   inRound,
 }: {
   view: View;
@@ -697,7 +694,6 @@ function Token({
   n: number;
   pick: Pick | null;
   by: string[];
-  balloon?: ChatMsg;
   inRound: boolean;
 }) {
   const m = view.meta!;
@@ -718,7 +714,6 @@ function Token({
     <>
       <span className="relative">
         {p ? <Avatar p={p} size={52} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[52px] w-[52px] bg-sunken" />}
-        {!out && <Balloon msg={balloon} />}
         {n > 0 && (
           <span className="uc-num" title={`Nói thứ ${n}`}>
             {n}

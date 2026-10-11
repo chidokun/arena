@@ -11,7 +11,7 @@ import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScen
 import { C4_NAME, C4_TONE, ConnectFourBoard } from "./ConnectFourBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
-import { useBalloons, useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useRoomView } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🔴", "🟡"];
 /** Thắng bằng chuỗi 4 thì chờ một nhịp cho quân kịp rơi và đường thắng kịp sáng rồi mới diễn. */
@@ -21,7 +21,6 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
   const view = useRoomView(session)!;
   const m = view.meta!;
   const { match: g, wins, draws } = view.game!;
-  const balloons = useBalloons(session);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && g?.round === m.round && !g.result;
@@ -41,7 +40,7 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -58,7 +57,6 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
           tone={showGame ? C4_TONE[1] : undefined}
           active={playing && state.turn === 1}
           isHost={slots[0]?.uid === m.host}
-          balloon={slots[0] ? balloons[slots[0].uid] : undefined}
           me={view.me}
         />
         <Score left={slots[0]?.uid} right={slots[1]?.uid} wins={wins} draws={draws} played={m.scored ?? 0} />
@@ -69,7 +67,6 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
           tone={showGame ? C4_TONE[2] : undefined}
           active={playing && state.turn === 2}
           isHost={slots[1]?.uid === m.host}
-          balloon={slots[1] ? balloons[slots[1].uid] : undefined}
           me={view.me}
           align="right"
         />
