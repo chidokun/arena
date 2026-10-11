@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BUILT_GAMES, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
+import { BUILT_GAMES, CATEGORIES, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
 
 const caro = {
   slug: "caro",
   name: "Cờ Caro",
   emoji: "⭕",
   status: "LIVE",
+  category: "brain",
   tagline: "Năm quân thẳng hàng là thắng",
   description: "…",
   seats: { min: 2, max: 2 },
@@ -20,6 +21,14 @@ test("giữ LIVE/MAINTENANCE, trạng thái lạ coi như DEVELOPMENT", () => {
   });
   assert.deepEqual(games.map((g) => g.status), ["LIVE", "MAINTENANCE", "DEVELOPMENT"]);
   assert.equal(games[1].host, "Quản trò");
+});
+
+test("giữ thể loại hợp lệ, thiếu / lạ coi như chill", () => {
+  const noCategory: Record<string, unknown> = { ...caro };
+  delete noCategory.category;
+  const games = parseGames({ games: [caro, { ...caro, slug: "a", category: "folk" }, { ...caro, slug: "b", category: "party" }, { ...noCategory, slug: "c" }] });
+  assert.deepEqual(games.map((g) => g.category), ["brain", "folk", "chill", "chill"]);
+  assert.deepEqual(CATEGORIES.map((c) => c.value), ["brain", "chill", "folk"]);
 });
 
 test("game có code thì có trang, bất kể trạng thái trên API", () => {

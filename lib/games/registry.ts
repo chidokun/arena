@@ -8,6 +8,15 @@
 /** LIVE: đang mở chơi · MAINTENANCE: tạm khoá, vào là bị đưa về trang chủ · DEVELOPMENT: sắp ra mắt, cũng khoá như bảo trì. */
 export type GameStatus = "LIVE" | "MAINTENANCE" | "DEVELOPMENT";
 
+/** Thể loại — trang chủ nhóm thẻ game theo đúng thứ tự này. */
+export type GameCategory = "brain" | "chill" | "folk";
+
+export const CATEGORIES: readonly { value: GameCategory; label: string; emoji: string }[] = [
+  { value: "brain", label: "Đấu trí căng não", emoji: "🧠" },
+  { value: "chill", label: "Nhẹ nhàng chill chill", emoji: "🍃" },
+  { value: "folk", label: "Trò chơi dân gian", emoji: "🏮" },
+];
+
 export type GameDef = {
   slug: string;
   name: string;
@@ -18,6 +27,7 @@ export type GameDef = {
   /** Số người tối đa trong phòng (người chơi + người xem) mà chủ phòng có thể đặt; 0 là không giới hạn. */
   capacity: { min: number; max: number; default: number };
   status: GameStatus;
+  category: GameCategory;
   /** Màu chủ đạo của thẻ game. */
   hue: "coral" | "sky" | "lime" | "grape" | "sun";
   emoji: string;
@@ -32,7 +42,10 @@ export const GAMES_URL = "https://arena-api.nguyentuan.dev/games.json";
 
 const range = (v: unknown, keys: string[]) => typeof v === "object" && v !== null && keys.every((k) => typeof (v as Record<string, unknown>)[k] === "number");
 
-/** Đổi JSON của API thành danh sách GameDef; ném lỗi nếu sai cấu trúc để build dừng thay vì xuất trang hỏng. Trạng thái lạ coi như DEVELOPMENT. */
+/**
+ * Đổi JSON của API thành danh sách GameDef; ném lỗi nếu sai cấu trúc để build dừng thay vì xuất trang hỏng. Trạng thái lạ
+ * coi như DEVELOPMENT, thể loại thiếu / lạ coi như "chill" (chỉ ảnh hưởng chỗ xếp thẻ ở trang chủ).
+ */
 export function parseGames(json: unknown): GameDef[] {
   const list = (json as { games?: unknown })?.games;
   if (!Array.isArray(list)) throw new Error(`${GAMES_URL}: thiếu mảng "games"`);
@@ -44,7 +57,8 @@ export function parseGames(json: unknown): GameDef[] {
     if (!HUES.includes(raw.hue as GameDef["hue"])) throw bad("hue");
     if (raw.host !== undefined && typeof raw.host !== "string") throw bad("host");
     const status = raw.status === "LIVE" || raw.status === "MAINTENANCE" ? raw.status : "DEVELOPMENT";
-    return { ...raw, status } as GameDef;
+    const category = CATEGORIES.some((c) => c.value === raw.category) ? raw.category : "chill";
+    return { ...raw, status, category } as GameDef;
   });
 }
 

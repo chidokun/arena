@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { gameHref, type GameDef } from "@/lib/games/registry";
+import { CATEGORIES, gameHref, type GameDef } from "@/lib/games/registry";
 import { countFor } from "@/lib/net/lobby";
 import { useGames } from "../GamesProvider";
 import { showMaintenance } from "../Maintenance";
@@ -34,17 +34,33 @@ function Stat({ value, label, tone }: { value: number | null; label: string; ton
   );
 }
 
+/** Thẻ game nhóm theo thể loại (thứ tự `CATEGORIES`); trong nhóm giữ thứ tự của API, nhóm rỗng thì ẩn. */
 export function GameGrid() {
   const view = useLobbyView();
   const games = useGames();
   return (
-    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {games.map((g) => (
-        <li key={g.slug}>
-          <GameCard game={g} counts={view.connected ? countFor(view, g.slug) : null} />
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-10">
+      {CATEGORIES.map((c) => {
+        const list = games.filter((g) => g.category === c.value);
+        if (!list.length) return null;
+        const id = `games-${c.value}`;
+        return (
+          <section key={c.value} aria-labelledby={id}>
+            <h3 id={id} className="mb-4 flex items-center gap-2 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+              <span aria-hidden="true">{c.emoji}</span> {c.label}
+              <span className="chip bg-surface text-ink-2">{list.length}</span>
+            </h3>
+            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {list.map((g) => (
+                <li key={g.slug}>
+                  <GameCard game={g} counts={view.connected ? countFor(view, g.slug) : null} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -69,7 +85,7 @@ function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; pl
         {game.status === "DEVELOPMENT" && <span className="chip absolute top-3 right-3 bg-surface text-ink-2">Sắp ra mắt</span>}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-display text-[22px] font-extrabold tracking-tight">{game.name}</h3>
+        <h4 className="font-display text-[22px] font-extrabold tracking-tight">{game.name}</h4>
         <p className="mt-1 text-[14.5px] text-ink-2">{game.tagline}</p>
         <div className="mt-auto flex items-center gap-4 pt-4 text-sm font-bold">
           {game.status === "LIVE" ? (
