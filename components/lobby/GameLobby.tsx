@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
+import { DEFAULT_OPTIONS as DB_DEFAULTS, normOptions as dbOptions, SIZES as DB_SIZES, type Size as DbSize } from "@/lib/games/dots-boxes";
 import {
   DEFAULT_OPTIONS as DW_DEFAULTS,
   MAX_PLAYERS as DW_MAX,
@@ -175,6 +176,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const draw = room.game === "draw-guess";
   const oaq = room.game === "oanquan";
   const chess = room.game === "chess";
+  const dots = room.game === "dots-boxes";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -203,7 +205,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                             ? "Đang rải quân"
                             : chess
                               ? "Đang đấu cờ"
-                              : "Đang đấu",
+                              : dots
+                                ? "Đang nối ô"
+                                : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -246,6 +250,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <DrawGuessChips room={room} />
         ) : oaq ? (
           <OAnQuanChips room={room} />
+        ) : dots ? (
+          <DotsBoxesChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -293,6 +299,23 @@ function ConnectFourChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-sky-soft px-2.5 py-1">▦ 7×6 · nối 4</span>
+    </>
+  );
+}
+
+function DotsBoxesChips({ room }: { room: RoomAd }) {
+  const { size } = dbOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-coral-soft px-2.5 py-1">
+        ▦ {size}×{size} ô
+      </span>
     </>
   );
 }
@@ -509,6 +532,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [rounds, setRounds] = useState(DW_DEFAULTS.rounds);
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
+  const [dotsSize, setDotsSize] = useState<DbSize>(DB_DEFAULTS.size);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -521,6 +545,7 @@ function CreateForm({ slug }: { slug: string }) {
   const draw = slug === "draw-guess";
   const oaq = slug === "oanquan";
   const chess = slug === "chess";
+  const dots = slug === "dots-boxes";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -547,6 +572,7 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
+        else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
         else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
@@ -581,6 +607,28 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
             🔵 Hai người chơi lần lượt thả quân vào bàn 7 cột × 6 hàng — quân rơi xuống ô trống thấp nhất. Ai nối được 4 quân liên tiếp theo hàng ngang,
             dọc hoặc chéo trước thì thắng; đầy bàn là hoà. Quân Đỏ đi trước, đổi người đi trước sau mỗi ván.
+          </p>
+        </>
+      ) : dots ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Cỡ bàn</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {DB_SIZES.map((s) => (
+                <button key={s} type="button" onClick={() => setDotsSize(s)} aria-pressed={dotsSize === s} className={`btn !px-2 ${dotsSize === s ? "btn-sun" : ""}`}>
+                  {s}×{s} ô
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {dotsSize === 3 ? "Ván chớp nhoáng, vài phút là xong." : dotsSize === 5 ? "Cỡ chuẩn — đủ chỗ để giăng bẫy chuỗi ô." : "Bàn lớn, ván dài, nhiều chuỗi để tính."} Đổi được trong phòng
+              trước mỗi ván.
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
+            🔲 Hai người chơi lần lượt kẻ một cạnh nối hai chấm kề nhau. Ai kẻ cạnh thứ tư khép kín một ô thì chiếm ô đó và được kẻ tiếp. Hết ô — hoặc một
+            bên đã chiếm quá nửa — thì ai nhiều ô hơn thắng. Màu Đỏ đi trước, đổi người đi trước sau mỗi ván.
           </p>
         </>
       ) : oaq ? (

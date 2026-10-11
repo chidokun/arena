@@ -520,6 +520,57 @@
     }
   }
 
+  /* ---------- Bàn chấm nối ô ---------- */
+  .db {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .db .db-empty {
+    stroke: var(--board-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 2 8;
+  }
+  .db .db-ghost {
+    stroke-width: 7;
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity 100ms;
+  }
+  .db .db-hit {
+    fill: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  .db.can-play .db-slot:hover .db-ghost,
+  .db.can-play .db-slot:focus-within .db-ghost {
+    opacity: 0.55;
+  }
+  .db line:not(.db-empty):not(.db-ghost),
+  .db .db-dots,
+  .db text {
+    pointer-events: none;
+  }
+  .db .db-dots {
+    fill: var(--ink);
+  }
+  .db .db-last {
+    stroke-dasharray: 100;
+    animation: db-stroke 260ms ease-out both;
+  }
+  .db .db-claim {
+    animation: db-claim 420ms cubic-bezier(0.3, 1.6, 0.5, 1) 180ms both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .db .db-last,
+    .db .db-claim {
+      animation: none;
+    }
+  }
+
   /* ---------- Bàn ô ăn quan ---------- */
   .oaq {
     display: block;
@@ -3222,6 +3273,21 @@
   100% {
     opacity: 0;
     transform: translateY(-26px);
+  }
+}
+/* Chấm nối ô: nét vừa kẻ vẽ dần từ đầu này sang đầu kia; ô vừa khép bật lên. */
+@keyframes db-stroke {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes db-claim {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
   }
 }
 @keyframes c4-dot {

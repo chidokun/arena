@@ -7,6 +7,7 @@ import { CaroRoom } from "@/lib/net/caro-room";
 import { ChessRoom } from "@/lib/net/chess-room";
 import { ConnectFourRoom } from "@/lib/net/connect-four-room";
 import { DodgeRoom } from "@/lib/net/dodge-room";
+import { DotsBoxesRoom } from "@/lib/net/dots-boxes-room";
 import { DrawGuessRoom } from "@/lib/net/draw-guess-room";
 import type { Lobby } from "@/lib/net/lobby";
 import { LotoRoom } from "@/lib/net/loto-room";
@@ -19,7 +20,7 @@ import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -56,7 +57,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                             ? OAnQuanRoom.open(id, uid, profile, lobby)
                             : game === "chess"
                               ? ChessRoom.open(id, uid, profile, lobby)
-                              : CaroRoom.open(id, uid, profile, lobby);
+                              : game === "dots-boxes"
+                                ? DotsBoxesRoom.open(id, uid, profile, lobby)
+                                : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }

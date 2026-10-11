@@ -9,6 +9,7 @@ import { CaroTable } from "./CaroTable";
 import { ChessTable } from "./ChessTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
+import { DotsBoxesTable } from "./DotsBoxesTable";
 import { DrawGuessTable } from "./DrawGuessTable";
 import { Joining } from "./Joining";
 import { LotoTable } from "./LotoTable";
@@ -104,5 +105,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "draw-guess") return <DrawGuessTable id={id} slug={slug} session={session} />;
   if (session.game === "oanquan") return <OAnQuanTable id={id} slug={slug} session={session} />;
   if (session.game === "chess") return <ChessTable id={id} slug={slug} session={session} />;
+  if (session.game === "dots-boxes") return <DotsBoxesTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

@@ -3,7 +3,7 @@
  *
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
- *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4 là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
+ *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
  *                     đoán sai của lượt đang vẽ, chủ phòng công khai.
  *   x:<round>:<uid> — người chơi xin thua.
@@ -25,7 +25,7 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { DodgePublic } from "../games/dodge";
@@ -101,6 +101,8 @@ export type Meta = {
   dw?: DwPublic;
   /** Vẽ đoán: mã các từ đã chơi trong phòng — không bốc lại. */
   dwUsed?: number[];
+  /** Chấm nối ô: cỡ bàn của ván gần nhất, chốt lúc bắt đầu (chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong). */
+  dbSize?: number;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;

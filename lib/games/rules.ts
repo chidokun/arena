@@ -69,6 +69,44 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "dots-boxes": {
+    intro: "Chấm nối ô cho 2 người: lần lượt kẻ cạnh nối các chấm, ai khép kín ô vuông thì chiếm ô đó — nhiều ô hơn là thắng.",
+    sections: [
+      {
+        emoji: "🎯",
+        title: "Mục tiêu",
+        items: ["Chiếm được nhiều ô vuông hơn đối thủ."],
+      },
+      {
+        emoji: "🕹️",
+        title: "Cách chơi",
+        items: [
+          "Bàn là lưới chấm 3×3, 5×5 hoặc 7×7 ô — chủ phòng chọn lúc tạo phòng và đổi được trước mỗi ván.",
+          "Đỏ đi trước, Xanh đi sau; người đi trước đổi luân phiên sau mỗi ván.",
+          "Mỗi lượt kẻ một cạnh nối hai chấm kề nhau theo hàng ngang hoặc dọc, vào chỗ chưa ai kẻ.",
+          "Kẻ cạnh thứ tư khép kín một ô (hoặc hai ô cùng lúc) thì ô đó mang màu của bạn và bạn được kẻ thêm một cạnh nữa — cứ khép được ô là đi tiếp.",
+        ],
+      },
+      {
+        emoji: "🧠",
+        title: "Mẹo",
+        items: [
+          "Tránh kẻ cạnh thứ ba của một ô: đối thủ chỉ việc kẻ cạnh thứ tư để ăn.",
+          "Cuối ván các ô thường nối thành chuỗi dài — đôi khi nhường đối thủ 2 ô để giành cả chuỗi lớn phía sau mới là nước cao tay.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Hết ô thì ai nhiều ô hơn thắng; bằng nhau là hoà (bàn lẻ ô như 3×3, 5×5, 7×7 thì không bao giờ hoà).",
+          "Một bên đã chiếm quá nửa số ô thì ván kết thúc sớm — đối thủ không thể đuổi kịp.",
+          "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua.",
+        ],
+      },
+    ],
+  },
+
   "oanquan": {
     intro: "Ô ăn quan cho 2 người: bốc quân rải quanh bàn, cách một ô trống là ăn — hết quan thì thu quân, ai nhiều điểm hơn là thắng.",
     sections: [
