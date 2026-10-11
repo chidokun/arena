@@ -6,6 +6,7 @@ import { gameHref, getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import { useNet, useWhere } from "../NetProvider";
 import { BattleshipTable } from "./BattleshipTable";
 import { CaroTable } from "./CaroTable";
+import { ChessTable } from "./ChessTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
 import { DrawGuessTable } from "./DrawGuessTable";
@@ -102,5 +103,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "battleship") return <BattleshipTable id={id} slug={slug} session={session} />;
   if (session.game === "draw-guess") return <DrawGuessTable id={id} slug={slug} session={session} />;
   if (session.game === "oanquan") return <OAnQuanTable id={id} slug={slug} session={session} />;
+  if (session.game === "chess") return <ChessTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

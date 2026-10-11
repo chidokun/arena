@@ -411,6 +411,48 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  chess: {
+    intro: "Cờ Vua cho 2 người: cầm quân Trắng hoặc Đen, dùng Hậu, Xe, Tượng, Mã và Tốt để chiếu hết Vua đối phương.",
+    sections: [
+      {
+        emoji: "♟️",
+        title: "Cách đi của quân",
+        items: [
+          "Vua: đi 1 ô theo mọi hướng. Hậu: đi thẳng hoặc chéo bao xa cũng được.",
+          "Xe: đi thẳng ngang / dọc. Tượng: đi chéo. Mã: đi chữ L và nhảy qua được quân khác.",
+          "Tốt: tiến 1 ô (nước đầu được tiến 2 ô), ăn chéo 1 ô về phía trước.",
+          "Không được đi nước để Vua mình bị chiếu.",
+        ],
+      },
+      {
+        emoji: "✨",
+        title: "Nước đặc biệt",
+        items: [
+          "Nhập thành: Vua và Xe chưa đi lần nào, giữa hai quân trống, Vua không bị chiếu và không đi qua ô bị khống chế — Vua đi 2 ô về phía Xe, Xe nhảy sang cạnh Vua.",
+          "Bắt tốt qua đường: Tốt đối phương vừa tiến 2 ô đứng ngay cạnh Tốt mình thì nước kế tiếp được ăn chéo như thể nó chỉ tiến 1 ô.",
+          "Phong cấp: Tốt tới hàng cuối được chọn thành Hậu, Xe, Tượng hoặc Mã.",
+        ],
+      },
+      {
+        emoji: "🕹️",
+        title: "Diễn biến ván",
+        items: [
+          "Trắng đi trước, hai người đổi bên sau mỗi ván; bên cầm quân Đen thấy bàn lật lại.",
+          "Bấm quân rồi bấm ô đích, hoặc kéo thả quân. Biên bản ghi theo ký hiệu quốc tế (vd. e4, Nf3, O-O).",
+          "Có thể xin hoà hoặc xin thua bất cứ lúc nào.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Chiếu hết Vua đối phương là thắng.",
+          "Hoà khi bên tới lượt hết nước đi mà không bị chiếu, thế cờ lặp lại ba lần, 50 nước mỗi bên không ăn quân và không đi Tốt, hai bên không đủ quân chiếu hết, hoặc đồng ý hoà.",
+        ],
+      },
+    ],
+  },
+
   "xiangqi-role": {
     intro: "Cờ Tướng Nhập Vai cho 2–10 người: mỗi phe chia thành 5 vai, mỗi người điều khiển một loại quân — cả phe phối hợp để chiếu bí đối phương.",
     sections: [

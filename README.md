@@ -11,7 +11,7 @@ bằng giao thức gossip tự viết. Site là trang tĩnh (Next.js `output: "e
 | Trang          | Đường dẫn                                         |
 | -------------- | ------------------------------------------------- |
 | Trang chủ      | `/`                                               |
-| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/`, `/games/draw-guess/`, `/games/oanquan/` |
+| Sảnh của game  | `/games/caro/`, `/games/loto/`, `/games/werewolf/`, `/games/undercover/`, `/games/sudoku/`, `/games/xiangqi/`, `/games/connect-four/`, `/games/battleship/`, `/games/draw-guess/`, `/games/oanquan/`, `/games/chess/` |
 | Phòng chơi     | `/games/<game>/room/?id=<mã>`                      |
 
 Mã phòng nằm ở query string vì site tĩnh không sinh trước được trang cho từng phòng.
@@ -31,6 +31,7 @@ lib/net/werewolf-room.ts  phòng ma sói: máy chủ phòng làm quản trò, b�
 lib/net/undercover-room.ts  phòng undercover: máy chủ phòng điều hành, từ khoá niêm phong giữa từng người và máy chủ phòng
 lib/net/sudoku-room.ts  phòng sudoku: người chơi ghi nước điền của mình, máy chủ phòng phân xử thứ tự và ghi bàn chung
 lib/net/xiangqi-room.ts phòng cờ tướng: nước đi, xin hoà, xin thua, xử thua người rớt mạng
+lib/net/chess-room.ts phòng cờ vua: nước đi (kèm quân phong cấp), xin hoà, xin thua, xử thua người rớt mạng
 lib/net/connect-four-room.ts phòng thả cờ 4: nước đi (số cột), xin thua, xử thua người rớt mạng
 lib/net/battleship-room.ts phòng bắn tàu: cam kết hạm đội, phát bắn và tự trả lời, công bố + đối chiếu khi hết ván
 lib/net/oanquan-room.ts phòng ô ăn quan: nước đi (±số ô, dấu là chiều rải), xin thua, xử thua người rớt mạng
@@ -43,6 +44,7 @@ lib/games/undercover.ts luật undercover thuần (phát từ → thảo luận 
 lib/games/undercover-words.ts bộ 1000 cặp từ khoá
 lib/games/sudoku.ts   luật sudoku thuần (sinh đề tất định từ seed theo mức, phân xử nước điền, dựng lại điểm từ bàn chung)
 lib/games/xiangqi.ts  luật cờ tướng thuần (nước đi hợp lệ, chiếu bí / bí nước, chiếu dai, biên bản kiểu Việt Nam)
+lib/games/chess.ts    luật cờ vua thuần (nhập thành, bắt tốt qua đường, phong cấp, chiếu hết / hết nước, lặp thế, 50 nước, thiếu quân, biên bản SAN)
 lib/games/connect-four.ts luật thả cờ 4 thuần (quân rơi xuống ô trống thấp nhất, nối 4 thắng, đầy bàn hoà)
 lib/games/battleship.ts luật bắn tàu thuần (hạm đội hợp lệ, trả lời phát bắn, dựng lại ván, cam kết SHA-256, đối chiếu)
 lib/games/oanquan.ts luật ô ăn quan thuần (rải, bốc tiếp, ăn liền mạch, quan non, hết dân rải lại, hết quan thu quân; diễn biến từng bước để diễn lại)
@@ -155,6 +157,17 @@ nhắc ai cầm quân gì), hết ván có cảnh chiến thắng kèm pháo gi�
 chiếu tướng đóng dấu "Chiếu tướng!" lên bàn — chỉ diễn khi khoảnh khắc xảy ra ngay trước mắt, vào phòng / tải lại trang
 không diễn lại. Chữ trên quân (chữ Hán hay tên tiếng Việt) chọn trên từng máy, nhớ trong localStorage.
 
+**Cờ Vua** (slug `chess`). Hai ghế như caro, phòng giới hạn người xem. `lineup[0]` cầm quân Trắng (đi trước, ở dưới),
+đổi bên mỗi ván; bên cầm quân Đen thấy bàn lật lại. Hai người lần lượt nối nước `[từ ô, tới ô]` — Tốt phong cấp thì
+`[từ ô, tới ô, quân]` — vào `g:<ván>` (ô 0 là a8, ô 63 là h1), mọi máy tự dựng lại ván bằng `replay` (`lib/games/chess.ts`,
+bộ sinh nước kiểm bằng perft chuẩn). Đủ luật nhập thành (Vua không bị chiếu, không đi qua ô bị khống chế), bắt tốt qua
+đường, phong cấp Hậu / Xe / Tượng / Mã (bàn hiện bảng chọn). Chiếu hết là thắng; hoà khi hết nước mà không bị chiếu, thế cờ
+(bàn + lượt + quyền nhập thành + ô bắt tốt qua đường bắt được) lặp lại lần thứ ba, 50 nước mỗi bên không ăn quân và không đi
+Tốt, hoặc không đủ quân chiếu hết (chỉ còn Vua, Vua + một Mã / Tượng, hay chỉ còn Tượng cùng màu ô). Đi quân bằng bấm chọn
+hoặc kéo thả. Xin hoà / xin thua / rớt mạng 30 giây như cờ tướng; bảng thắng / hoà cộng dồn. Biên bản ghi ký hiệu quốc tế
+(e4, Nf3, O-O, exd6, a8=Q, Qxf7#). Cạnh quân đã ăn hiện số điểm quân hơn (Tốt 1, Mã / Tượng 3, Xe 5, Hậu 9). Cảnh *Khai cuộc*,
+cảnh chiến thắng / hoà cờ và dấu "Chiếu!" như cờ tướng.
+
 **Thả Cờ 4** (slug `connect-four`). Hai ghế như caro, phòng giới hạn người xem, bàn 7 cột × 6 hàng. `lineup[0]` cầm
 quân Đỏ đi trước, `lineup[1]` cầm quân Vàng; đổi người đi trước mỗi ván. Hai người lần lượt nối *số cột* vào `g:<ván>`,
 quân rơi xuống ô trống thấp nhất; mọi máy tự dựng lại ván bằng `replay` (`lib/games/connect-four.ts`). Nối 4 quân liên
@@ -236,7 +249,7 @@ Mô hình tin cậy là hợp tác (bạn bè chơi với nhau): bản ghi chưa
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, thả cờ 4, bắn tàu, vẽ đoán (node --test)
+npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, cờ vua, thả cờ 4, bắn tàu, vẽ đoán (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

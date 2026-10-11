@@ -1220,6 +1220,143 @@
     scrollbar-width: thin;
   }
 
+  /* ---------- Bàn cờ vua ---------- */
+  .cb {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .cb-light {
+    fill: #efe9ff;
+  }
+  .cb-dark {
+    fill: #9f8cf0;
+  }
+  .cb-coord {
+    font-size: 17px;
+    font-weight: 800;
+    pointer-events: none;
+  }
+  .cb-coord.on-light {
+    fill: #7f6bd6;
+  }
+  .cb-coord.on-dark {
+    fill: #f4f0ff;
+  }
+  .cb-last {
+    fill: color-mix(in srgb, var(--sun) 55%, transparent);
+  }
+  .cb-sel {
+    fill: color-mix(in srgb, #4a2bd6 40%, transparent);
+  }
+  .cb-danger {
+    fill: url(#cb-danger);
+    pointer-events: none;
+  }
+  .cb-dot {
+    fill: color-mix(in srgb, #2a1a73 40%, transparent);
+    pointer-events: none;
+  }
+  .cb-take {
+    fill: none;
+    stroke: color-mix(in srgb, #2a1a73 45%, transparent);
+    stroke-width: 9;
+    pointer-events: none;
+  }
+  .cb-piece {
+    transition: transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  .cb-piece.is-drag {
+    transition: none;
+  }
+  .cb-lift {
+    transition: transform 140ms ease-out;
+    transform-origin: 50px 50px;
+  }
+  .cb.can-play .cb-piece.is-live {
+    cursor: grab;
+  }
+  .cb.is-dragging,
+  .cb.is-dragging .cb-piece {
+    cursor: grabbing;
+  }
+  .cb.can-play .cb-piece.is-live:hover .cb-lift,
+  .cb-piece.is-sel .cb-lift {
+    transform: translateY(-3px) scale(1.05);
+  }
+  .cb-piece.is-drag .cb-lift {
+    transform: scale(1.18);
+  }
+  .cb-piece:focus-visible,
+  .cb-target:focus-visible,
+  .cb-promo:focus-visible {
+    outline: none;
+  }
+  .cb-piece:focus-visible .cb-body {
+    stroke: var(--pen);
+  }
+  .cb-target:focus-visible {
+    fill: color-mix(in srgb, var(--pen) 30%, transparent);
+  }
+  .cb-p {
+    filter: drop-shadow(0 3px 0 rgba(20, 10, 60, 0.35));
+  }
+  .cb-icon .cb-p {
+    filter: none;
+  }
+  .cb-icon {
+    flex: none;
+    overflow: visible;
+  }
+  .cb-body {
+    stroke-width: 3.5;
+    stroke-linejoin: round;
+  }
+  .cb-p.is-w .cb-body {
+    fill: #fffaf0;
+    stroke: #1d1648;
+  }
+  .cb-p.is-b .cb-body {
+    fill: #2b2540;
+    stroke: #0d0a1f;
+  }
+  .cb-line {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .cb-p.is-w .cb-line {
+    stroke: #1d1648;
+  }
+  .cb-p.is-b .cb-line {
+    stroke: #d9d1ff;
+  }
+  .cb-p.is-w .cb-eye {
+    fill: #1d1648;
+  }
+  .cb-p.is-b .cb-eye {
+    fill: #d9d1ff;
+  }
+  .cb-shade {
+    fill: rgba(17, 13, 38, 0.55);
+  }
+  .cb-promo {
+    cursor: pointer;
+  }
+  .cb-promo-bg {
+    fill: #fffaf0;
+    stroke: var(--edge);
+    stroke-width: 4;
+  }
+  .cb-promo:hover .cb-promo-bg,
+  .cb-promo:focus-visible .cb-promo-bg {
+    fill: var(--sun);
+  }
+
   /* ---------- Bóng thoại & sticker ---------- */
   .balloon {
     position: absolute;

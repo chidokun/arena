@@ -174,6 +174,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const bs = room.game === "battleship";
   const draw = room.game === "draw-guess";
   const oaq = room.game === "oanquan";
+  const chess = room.game === "chess";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -200,7 +201,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                           ? "Đang vẽ"
                           : oaq
                             ? "Đang rải quân"
-                            : "Đang đấu",
+                            : chess
+                              ? "Đang đấu cờ"
+                              : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -229,6 +232,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <SudokuChips room={room} />
         ) : xiangqi ? (
           <XiangqiChips room={room} />
+        ) : chess ? (
+          <ChessChips room={room} />
         ) : dodge ? (
           <DodgeChips room={room} />
         ) : xiangqiRole ? (
@@ -352,6 +357,20 @@ function XiangqiChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-coral-soft px-2.5 py-1">🔴 Đỏ đi trước · đổi bên mỗi ván</span>
+    </>
+  );
+}
+
+function ChessChips({ room }: { room: RoomAd }) {
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-grape-soft px-2.5 py-1">⚪ Trắng đi trước · đổi bên mỗi ván</span>
     </>
   );
 }
@@ -501,6 +520,7 @@ function CreateForm({ slug }: { slug: string }) {
   const bs = slug === "battleship";
   const draw = slug === "draw-guess";
   const oaq = slug === "oanquan";
+  const chess = slug === "chess";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -524,7 +544,7 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (sudoku) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
-        } else if (xiangqi || c4) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
@@ -545,6 +565,14 @@ function CreateForm({ slug }: { slug: string }) {
           <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
             🀄 Hai người chơi, quân Đỏ đi trước và đổi bên sau mỗi ván. Chiếu bí hoặc khiến đối phương hết nước đi là thắng; chiếu dai (lặp thế cờ mà nước nào cũng chiếu) bị xử thua.
+          </p>
+        </>
+      ) : chess ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <p className="rounded-xl bg-grape-soft p-3 text-[13.5px] text-ink-2">
+            ♟️ Hai người chơi, quân Trắng đi trước và đổi bên sau mỗi ván. Đủ luật nhập thành, bắt tốt qua đường, phong cấp; chiếu hết là thắng, hết nước
+            đi mà không bị chiếu là hoà.
           </p>
         </>
       ) : c4 ? (

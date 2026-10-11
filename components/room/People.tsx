@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { ChatMsg, Member, RoomSession, RoomView, SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
@@ -32,7 +32,8 @@ export function SeatCard({
 }: {
   seat?: SeatView;
   mark?: 1 | 2;
-  badge?: string;
+  /** Chữ (hoặc hình nhỏ co theo khung) trên huy hiệu. */
+  badge?: ReactNode;
   tone?: string;
   active?: boolean;
   isHost?: boolean;
