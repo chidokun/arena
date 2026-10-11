@@ -26,10 +26,11 @@ function saveHidden(slug: string, hide: boolean) {
 }
 
 /**
- * Nút "Xem luật chơi" cạnh nút Tạo phòng. Vào sảnh mà chưa tick "Không hiện lại" thì tự mở popup luật chơi; đóng popup
- * tự mở đó thì hiện bong bóng chỉ chỗ xem lại.
+ * Nút xem luật chơi. Ở sảnh (cạnh nút Tạo phòng), vào sảnh mà chưa tick "Không hiện lại" thì tự mở popup luật chơi — ô
+ * "Không hiện lại" tick sẵn — đóng popup tự mở đó thì hiện bong bóng chỉ chỗ xem lại. Trong phòng (`compact`, cạnh nút
+ * Rời phòng) chỉ mở khi bấm.
  */
-export function RulesButton({ game }: { game: GameDef }) {
+export function RulesButton({ game, compact = false }: { game: GameDef; compact?: boolean }) {
   // auto: popup tự mở lúc vào sảnh (lời chào + bong bóng khi đóng); manual: bấm nút mở lại.
   const [open, setOpen] = useState<"auto" | "manual" | null>(null);
   const [hide, setHide] = useState(false);
@@ -37,11 +38,14 @@ export function RulesButton({ game }: { game: GameDef }) {
 
   // Trang sảnh dựng sẵn lúc build, nên chỉ đọc lựa chọn đã nhớ sau khi vào trình duyệt; mở trễ một nhịp cho trang kịp hiện.
   useEffect(() => {
+    if (compact) return;
     const t = setTimeout(() => {
-      if (!readHidden(game.slug)) setOpen("auto");
+      if (readHidden(game.slug)) return;
+      setHide(true);
+      setOpen("auto");
     }, 350);
     return () => clearTimeout(t);
-  }, [game.slug]);
+  }, [game.slug, compact]);
 
   useEffect(() => {
     if (!hint) return;
@@ -65,9 +69,15 @@ export function RulesButton({ game }: { game: GameDef }) {
   return (
     <>
       <span className="relative flex-none">
-        <button type="button" className="btn h-12 px-4 text-[15px]" onClick={show} aria-describedby={hint ? "rules-hint" : undefined}>
-          <span aria-hidden="true">📖</span> Xem luật chơi
-        </button>
+        {compact ? (
+          <button type="button" className="btn btn-sm" onClick={show}>
+            <span aria-hidden="true">📖</span> Luật chơi
+          </button>
+        ) : (
+          <button type="button" className="btn h-12 px-4 text-[15px]" onClick={show} aria-describedby={hint ? "rules-hint" : undefined}>
+            <span aria-hidden="true">📖</span> Xem luật chơi
+          </button>
+        )}
         {hint && (
           <span id="rules-hint" role="status" className="rules-hint" onClick={() => setHint(false)}>
             Bấm vào để xem lại luật chơi

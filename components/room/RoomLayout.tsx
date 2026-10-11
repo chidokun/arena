@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { gameHref, getGame } from "@/lib/games/registry";
 import { isKaixin } from "@/lib/stickers";
+import { RulesButton } from "../lobby/RulesButton";
 import { StickerArt } from "./Sticker";
 import type { Flyer } from "./useFlyers";
 
@@ -21,7 +22,7 @@ export function Notice({ emoji, title, children, spin }: { emoji: string; title:
   );
 }
 
-/** Khung chung của phòng: thanh vị trí với nút mời / rời phòng, cột bàn chơi và cột người trong phòng – trò chuyện. */
+/** Khung chung của phòng: thanh vị trí với nút mời / luật chơi / rời phòng, cột bàn chơi và cột người trong phòng – trò chuyện. */
 export function RoomLayout({ id, slug, side, children }: { id: string; slug: string; side: React.ReactNode; children: React.ReactNode }) {
   const game = getGame(slug)!;
   const [copied, setCopied] = useState(false);
@@ -50,6 +51,7 @@ export function RoomLayout({ id, slug, side, children }: { id: string; slug: str
         <button type="button" className="btn btn-sm" onClick={copyLink}>
           {copied ? "✅ Đã chép" : "🔗 Chép link mời"}
         </button>
+        <RulesButton game={game} compact />
         <Link href={gameHref(slug)} className="btn btn-sm btn-ghost no-underline">
           Rời phòng
         </Link>
