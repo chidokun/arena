@@ -524,12 +524,19 @@
   .cc {
     --cc-ground: color-mix(in srgb, var(--sun) 16%, var(--board));
     display: block;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* Sân dọc (điện thoại): giới hạn theo chiều cao màn hình. Sân ngang (máy tính): trải hết bề rộng. */
+  .cc.is-tall {
     width: auto;
     max-width: 100%;
     height: min(74vh, 760px);
     margin-inline: auto;
-    user-select: none;
-    -webkit-user-select: none;
+  }
+  .cc.is-wide {
+    width: 100%;
+    height: auto;
   }
   .cc text {
     text-anchor: middle;

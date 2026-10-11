@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { housesOf, judge, targetOf, TROI, type CcEvent, type CcState, type Racer, type Snap, type ThrowMode } from "@/lib/games/co-chep";
 import { TURN_MS, type CcMatch, type CcView, type CoChepRoom } from "@/lib/net/co-chep-room";
 import type { Member, RoomView, SeatView } from "@/lib/net/room";
@@ -17,6 +17,15 @@ import { useFlyers, useRoomView } from "./useRoom";
 const CHEERS = ["🎉", "🏠", "✨", "🎊", "🪨", "🏆"];
 const STEP_MS = 380;
 const NO_EVENTS: CcEvent[] = [];
+
+/** Từ bề rộng này (máy tính bảng ngang, máy tính) sân vẽ nằm ngang; hẹp hơn thì dọc. */
+const WIDE_COURT = "(min-width: 768px)";
+const subscribeWideCourt = (fn: () => void) => {
+  const mq = matchMedia(WIDE_COURT);
+  mq.addEventListener("change", fn);
+  return () => mq.removeEventListener("change", fn);
+};
+const useWideCourt = () => useSyncExternalStore(subscribeWideCourt, () => matchMedia(WIDE_COURT).matches, () => false);
 
 const emptySnap = (n: number): Snap => ({ owners: Array(9).fill(0), stones: Array(n).fill(0), backs: Array(n).fill(false) });
 const cellName = (c: number) => (c === TROI ? "Trời" : `ô ${c}`);
@@ -142,6 +151,7 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
   const iWon = !!g?.result?.winners?.includes(view.me);
   const end = useEndScene(g?.result ? g.round : 0, { delay: 1500, cheer: iWon || (g?.me ?? -1) < 0, emojis: CHEERS });
   const pb = usePlayback(g, g?.me ?? -1, count > 0);
+  const wide = useWideCourt();
 
   const showGame = !!g && m.status !== "waiting";
   const state = g?.state;
@@ -205,35 +215,34 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
 
       <ActionBar view={view} session={session} onAim={() => pb.openAim(key, state!)} canAim={ready && state?.need !== "hop" && !scene} busy={!pb.idle} />
 
-      <div className="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,400px)_1fr]">
-        <div className="relative mx-auto w-full max-w-[400px]">
-          <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
-            <CoChepCourt
-              snap={pb.snap}
-              players={avatars}
-              target={live && pb.idle && state!.need === "throw" ? state!.target : 0}
-              targetTone={turnTone}
-              hopper={pb.hop?.h}
-              hidden={pb.hop?.hidden}
-              fx={pb.fx}
-              mark={pb.mark}
-            />
-          </div>
-          {pb.banner && (
-            <p key={pb.banner.key} className="cc-banner">
-              {pb.banner.text}
-            </p>
-          )}
-          <Flyers flyers={flyers} />
-          {!showGame && m.status === "waiting" && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
-              <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
-                {!m.players.length ? "Đang chờ người vào ghế…" : view.isHost ? "Sẵn sàng thì bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
-              </p>
-            </div>
-          )}
+      {/* Máy tính: sân nằm ngang trải hết bề rộng; điện thoại: sân dọc. */}
+      <div className={`relative mx-auto mt-4 w-full ${wide ? "" : "max-w-[400px]"}`}>
+        <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
+          <CoChepCourt
+            orient={wide ? "wide" : "tall"}
+            snap={pb.snap}
+            players={avatars}
+            target={live && pb.idle && state!.need === "throw" ? state!.target : 0}
+            targetTone={turnTone}
+            hopper={pb.hop?.h}
+            hidden={pb.hop?.hidden}
+            fx={pb.fx}
+            mark={pb.mark}
+          />
         </div>
-        <Guide />
+        {pb.banner && (
+          <p key={pb.banner.key} className="cc-banner">
+            {pb.banner.text}
+          </p>
+        )}
+        <Flyers flyers={flyers} />
+        {!showGame && m.status === "waiting" && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
+            <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
+              {!m.players.length ? "Đang chờ người vào ghế…" : view.isHost ? "Sẵn sàng thì bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
+            </p>
+          </div>
+        )}
       </div>
       {view.mySeat < 0 && (g?.me ?? -1) < 0 && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
 
@@ -332,26 +341,6 @@ function PlayerCard({
         </span>
       )}
     </li>
-  );
-}
-
-/** Tóm tắt luật bên cạnh sân. */
-function Guide() {
-  return (
-    <div className="card grid gap-2 p-4 text-[13.5px] text-ink-2">
-      <p className="font-display text-base font-extrabold text-ink">Cách chơi nhanh</p>
-      <p>
-        🎯 Lần lượt chọi đá vào <b>ô 1 → 8</b>: kéo ngược rồi buông như bắn ná. Trúng ô mục tiêu thì tự nhảy cò chẹp một vòng, nhặt đá và chọi ô kế tiếp.
-      </p>
-      <p>
-        ☁️ Xong ô 8 thì chọi lên <b>Trời</b>, nhảy chẹp quanh đá bốn hướng, rồi <b>chọi qua lưng</b> không được nhìn: rơi gọn vào ô trống là chiếm làm <b>nhà</b>.
-      </p>
-      <p>🚫 Chạm vạch, ra ngoài, rơi vào nhà / ô có đá của người khác: mất lượt. Ngã khi nhảy: mất lượt nhưng đá nằm yên, lượt sau nhảy tiếp.</p>
-      <p>
-        🔥 Chọi trúng <b>nhà của chính mình</b> là cháy nhà! Nhảy vượt nhiều hàng liền bị chặn rất dễ ngã.
-      </p>
-      <p>🏆 Chủ phòng chốt ván (hoặc sân kín nhà) — ai nhiều nhà nhất thắng.</p>
-    </div>
   );
 }
 
@@ -477,7 +466,7 @@ function ActionBar({ view, session, onAim, canAim, busy }: { view: RoomView<CcVi
   const inLineup = !!g && g.me >= 0 && playing && !s?.players[g.me]?.out;
   return (
     <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
+      <p className="min-w-0 flex-1 basis-full text-[15px] font-semibold sm:basis-0">{message}</p>
       <div className="flex flex-wrap gap-2">
         {canAim && (
           <button type="button" className="btn btn-sun" onClick={onAim}>
