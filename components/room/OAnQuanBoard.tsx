@@ -30,8 +30,10 @@ export const OAQ_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 const base = process.env.BASE_PATH ?? "";
 /** Quân dân: các viên ngọc cắt từ ảnh trong public/oanquan, mỗi viên chọn ngẫu nhiên (tất định theo ván, ô, thứ tự). */
 export const GEMS = ["red", "blue", "green", "yellow", "purple"].map((c) => `${base}/oanquan/gem-${c}.webp`);
-/** Quân quan: avatar ông quan — ô 0 là quan nghiêm, ô 6 là quan cười. */
-export const QUAN_ART = [`${base}/oanquan/quan-1.webp`, `${base}/oanquan/quan-2.webp`];
+/** Quân quan: 4 avatar (ông quan nghiêm, ông quan cười, bà quan, bà quan nháy mắt), mỗi ván đổi cặp. */
+const QUAN_ART = [1, 2, 3, 4].map((n) => `${base}/oanquan/quan-${n}.webp`);
+/** Avatar của quan `q` (0: ô 0, 1: ô 6) trong ván `seed` — xoay vòng theo ván, hai ô quan không bao giờ trùng mặt. */
+export const quanArt = (q: 0 | 1, seed: number) => QUAN_ART[(seed + q) % QUAN_ART.length];
 /** Viên ngọc đại diện cho từng bên (ứng màu bên: đỏ / xanh). */
 export const SIDE_GEM = { 1: GEMS[0], 2: GEMS[1] } as const;
 const GOLDEN = 2.399963;
@@ -103,8 +105,8 @@ function Pebbles({ i, n, x, y, quan, seed }: { i: number; n: number; x: number; 
 
 const QUAN_SIZE = 78;
 
-function QuanStone({ i, x, y }: { i: number; x: number; y: number }) {
-  return <image href={QUAN_ART[i === 0 ? 0 : 1]} x={x - QUAN_SIZE / 2} y={y - QUAN_SIZE / 2 - 8} width={QUAN_SIZE} height={QUAN_SIZE} className="oaq-quan" />;
+function QuanStone({ i, x, y, seed }: { i: number; x: number; y: number; seed: number }) {
+  return <image href={quanArt(i === 0 ? 0 : 1, seed)} x={x - QUAN_SIZE / 2} y={y - QUAN_SIZE / 2 - 8} width={QUAN_SIZE} height={QUAN_SIZE} className="oaq-quan" />;
 }
 
 /** Ô dân / ô quan (hình nền + viền), không gồm quân. */
@@ -211,7 +213,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
   opts: OaqOptions;
   /** Bên của người xem: 2 thì lật bàn cho dãy 7–11 nằm dưới. */
   side: 0 | 1 | 2;
-  /** Hạt giống chọn màu ngọc (số ván) — mỗi ván một kiểu rải màu. */
+  /** Hạt giống chọn màu ngọc và avatar quan (số ván) — mỗi ván một kiểu. */
   seed: number;
   /** Đang trong ván: vạch màu báo bên tới lượt. */
   live: boolean;
@@ -245,7 +247,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
     stones.push(
       <g key={i}>
         <Pebbles i={i} n={board.dan[i]} x={s.x} y={s.y} quan={quan} seed={seed} />
-        {quan && hasQuan(board, i) && <QuanStone i={i} x={s.x} y={s.y} />}
+        {quan && hasQuan(board, i) && <QuanStone i={i} x={s.x} y={s.y} seed={seed} />}
         <CountTag s={s} n={board.dan[i]} />
         {quan && opts.quanNon && isQuanNon(board, i) && (
           <text x={s.x} y={s.y + 66} textAnchor="middle" className="oaq-non">

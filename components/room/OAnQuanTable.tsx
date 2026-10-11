@@ -8,7 +8,7 @@ import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { OAnQuanBoard, OAQ_TONE, QUAN_ART, SIDE_GEM, useSowing } from "./OAnQuanBoard";
+import { OAnQuanBoard, OAQ_TONE, quanArt, SIDE_GEM, useSowing } from "./OAnQuanBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useFlyers, useRoomView } from "./useRoom";
@@ -80,7 +80,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
       <ActionBar view={view} session={session} animating={!!frame} />
 
       <div className="relative mx-auto mt-4 max-w-[760px]">
-        {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} />}
+        {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} seed={g!.round} />}
         <div ref={boardRef} className="card my-2 overflow-hidden p-2 sm:p-3" style={{ background: "var(--sunken)" }}>
           <OAnQuanBoard
             board={board}
@@ -94,7 +94,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
             onSow={(at, dir) => session.sow(at, dir)}
           />
         </div>
-        {showGame && <Store board={board} p={below} seat={g!.lineup[below - 1]} me={view.me} />}
+        {showGame && <Store board={board} p={below} seat={g!.lineup[below - 1]} me={view.me} seed={g!.round} />}
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -114,7 +114,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
 }
 
 /** Kho quân đã ăn của một bên: số dân, số quan và tổng điểm. */
-function Store({ board, p, seat, me }: { board: Board; p: 1 | 2; seat?: SeatView; me: string }) {
+function Store({ board, p, seat, me, seed }: { board: Board; p: 1 | 2; seat?: SeatView; me: string; seed: number }) {
   const dan = board.got[p];
   const quans = board.quans[p];
   const name = seat?.uid === me ? "Bạn" : (seat?.member?.name ?? "Ai đó");
@@ -129,7 +129,7 @@ function Store({ board, p, seat, me }: { board: Board; p: 1 | 2; seat?: SeatView
           <Art src={SIDE_GEM[p]} size={18} /> {dan}
         </span>
         {([0, 1] as const).map((q) =>
-          board.quanBy[q] === p ? <Art key={q} src={QUAN_ART[q]} size={28} title={`Quan ${QUAN_VALUE} điểm`} /> : null,
+          board.quanBy[q] === p ? <Art key={q} src={quanArt(q, seed)} size={28} title={`Quan ${QUAN_VALUE} điểm`} /> : null,
         )}
         <b className="font-display text-lg text-ink">{dan + quans * QUAN_VALUE}đ</b>
       </span>
