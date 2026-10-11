@@ -110,6 +110,35 @@ const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: 
 
 type Content = { text: string } | { sticker: StickerId };
 
+const noop = () => () => {};
+
+/**
+ * Phần màn hình còn nhìn thấy lúc bàn phím ảo đang mở (`"top,height"`, rỗng nếu bàn phím không che gì). Trên điện thoại
+ * bàn phím chỉ thu nhỏ visual viewport chứ không thu layout viewport, nên khung chat `fixed bottom` bị che mất ô nhập.
+ * Chỉ theo dõi lúc ô nhập đang focus để phóng to bằng hai ngón không bị tính nhầm là bàn phím.
+ */
+function useKeyboardView(active: boolean) {
+  return useSyncExternalStore(
+    active
+      ? (fn) => {
+          const vv = window.visualViewport;
+          vv?.addEventListener("resize", fn);
+          vv?.addEventListener("scroll", fn);
+          return () => {
+            vv?.removeEventListener("resize", fn);
+            vv?.removeEventListener("scroll", fn);
+          };
+        }
+      : noop,
+    () => {
+      const vv = window.visualViewport;
+      if (!active || !vv || document.documentElement.clientHeight - vv.height < 80) return "";
+      return `${Math.round(vv.offsetTop)},${Math.round(vv.height)}`;
+    },
+    () => "",
+  );
+}
+
 /** Một kênh chat: trong phòng hoặc công cộng. `send` trả về false nếu tin không gửi được (gửi quá nhanh). */
 type Channel = {
   key: "room" | "public";
@@ -227,6 +256,15 @@ function ChatBox({
   const stick = useRef(true);
   // Vừa bấm mở khung: đặt con trỏ vào ô nhập (chỉ máy có chuột — trên điện thoại sẽ bật bàn phím che màn hình).
   const focusOnOpen = useRef(false);
+  const [typing, setTyping] = useState(false);
+  // Bàn phím ảo đang che: khung chat nổi co lại vừa phần màn hình còn thấy để ô nhập không bị che.
+  const kb = useKeyboardView(typing && !docked);
+  const kbStyle = (() => {
+    if (!kb) return undefined;
+    const [top, height] = kb.split(",").map(Number);
+    const h = Math.min(height - 24, 600);
+    return { top: top + height - h - 12, bottom: "auto", height: h };
+  })();
 
   // Giờ trong tin là giờ máy người gửi (có thể lệch), nên mốc đã đọc lấy cái muộn hơn.
   const markSeen = (c: Channel) => setSeen((s) => ({ ...s, [c.key]: Math.max(Date.now(), c.chat.at(-1)?.at ?? 0) }));
@@ -274,7 +312,7 @@ function ChatBox({
   useEffect(() => {
     const el = listRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [lastId, open, active, ch.locked]);
+  }, [lastId, open, active, ch.locked, kb]);
 
   useEffect(() => {
     if (!open || !focusOnOpen.current) return;
@@ -356,7 +394,7 @@ function ChatBox({
           ? "card flex min-h-0 flex-1 flex-col overflow-hidden"
           : "card fixed inset-x-3 bottom-3 z-40 flex h-[min(78dvh,600px)] flex-col overflow-hidden sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]"
       }
-      style={docked ? undefined : { animation: "pop-in 220ms ease", boxShadow: "0 8px 0 var(--edge)" }}
+      style={docked ? undefined : { animation: "pop-in 220ms ease", boxShadow: "0 8px 0 var(--edge)", ...kbStyle }}
       aria-label={title}
       onKeyDown={docked ? undefined : (e) => e.key === "Escape" && toggle()}
     >
@@ -514,6 +552,8 @@ function ChatBox({
               </div>
               <form
                 className="field-row flex gap-2"
+                onFocus={() => setTyping(true)}
+                onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setTyping(false)}
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!text.trim()) return;
@@ -526,14 +566,16 @@ function ChatBox({
                 <input
                   ref={inputRef}
                   id={inputId}
-                  className="field !min-h-[42px]"
+                  // Chữ dưới 16px thì Safari iOS tự phóng to trang khi focus ô nhập.
+                  className="field !min-h-[42px] max-sm:!text-base"
                   placeholder={ch.placeholder ?? "Nhắn gì đó…"}
                   value={text}
                   maxLength={TEXT_MAX}
                   onChange={(e) => setText(e.target.value)}
                   autoComplete="off"
                 />
-                <button type="submit" className="btn btn-pen" disabled={!text.trim()} aria-label="Gửi">
+                {/* Không lấy focus khỏi ô nhập khi bấm: bàn phím ảo vẫn mở để gõ tiếp. */}
+                <button type="submit" className="btn btn-pen" disabled={!text.trim()} aria-label="Gửi" onPointerDown={(e) => e.preventDefault()}>
                   Gửi
                 </button>
               </form>
