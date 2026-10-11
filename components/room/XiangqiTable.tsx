@@ -95,12 +95,8 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
     <RoomLayout
       id={id}
       slug={slug}
-      side={
-        <>
-          <PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />
-          <ChatPanel session={session} chat={view.chat} me={view.me} />
-        </>
-      }
+      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>

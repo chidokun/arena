@@ -78,17 +78,15 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
     <RoomLayout
       id={id}
       slug={slug}
-      side={
-        <>
-          <PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />
-          <ChatPanel
-            session={session}
-            chat={view.chat}
-            me={view.me}
-            placeholder={placeholder}
-            locked={live && g?.hit && g.pub.phase === "draw" ? "🤐 Bạn đã đoán đúng — khoá chat tới hết lượt để không lộ đáp án." : undefined}
-          />
-        </>
+      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      chat={
+        <ChatPanel
+          session={session}
+          chat={view.chat}
+          me={view.me}
+          placeholder={placeholder}
+          locked={live && g?.hit && g.pub.phase === "draw" ? "🤐 Bạn đã đoán đúng — khoá chat tới hết lượt để không lộ đáp án." : undefined}
+        />
       }
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">

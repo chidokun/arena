@@ -1,19 +1,23 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useContext, useEffect, useId, useState, type ReactNode } from "react";
 import type { ChatMsg, Member, RoomSession, RoomView, SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
 import { hostTitle } from "@/lib/games/registry";
+import { PeopleOpenerCtx, PeopleVariantCtx } from "./side";
 import { StickerArt } from "./Sticker";
 
-export function Balloon({ msg }: { msg?: ChatMsg }) {
+const FOLD_KEY = "arena:people-folded";
+
+/** Bóng thoại trên avatar. `side`: hiện bên phải avatar thay vì phía trên — cho danh sách cuộn được (phía trên sẽ bị cắt). */
+export function Balloon({ msg, side }: { msg?: ChatMsg; side?: boolean }) {
   if (!msg) return null;
   return (
-    <span key={msg.id} className={`balloon ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
-      {msg.sticker ? <StickerArt id={msg.sticker} size={72} /> : msg.text}
+    <span key={msg.id} className={`balloon ${side ? "is-side" : ""} ${msg.sticker ? "is-sticker" : ""} ${msg.shout ? "is-shout" : ""}`} role="presentation">
+      {msg.sticker ? <StickerArt id={msg.sticker} size={side ? 44 : 72} /> : msg.text}
     </span>
   );
 }
@@ -98,6 +102,7 @@ export function SeatCard({
 /**
  * Danh sách người trong phòng; chủ phòng có thêm nút thêm vào ghế / mời ra ghế / kick / nhường chủ phòng.
  * Game tuỳ biến được dòng mô tả từng người (`detail`), có cho kéo người xem vào ghế không (`canSeat`) và nhãn nút mời ra ghế.
+ * Cách vẽ theo chỗ RoomLayout đặt (`PeopleVariantCtx`): khối thu gọn được trong sidebar, tab Người, hay dải avatar.
  */
 export function PeoplePanel({
   view,
@@ -117,14 +122,29 @@ export function PeoplePanel({
   unseatLabel?: string;
 }) {
   const m = view.meta!;
+  const variant = useContext(PeopleVariantCtx);
+  const headId = useId();
   const [inviting, setInviting] = useState(false);
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem(FOLD_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const fold = (v: boolean) => {
+    setFolded(v);
+    try {
+      localStorage.setItem(FOLD_KEY, v ? "1" : "0");
+    } catch {}
+  };
   const playing = m.status === "playing";
   const seatFree = m.players.length < m.seats;
   const row = (p: Member, seated: boolean) => (
     <li key={p.uid} className="flex items-center gap-2.5 py-1.5">
       <span className="relative">
         <Avatar p={p} size={34} className={view.online.has(p.uid) ? "" : "opacity-40 grayscale"} />
-        <Balloon msg={seated ? undefined : balloons[p.uid]} />
+        <Balloon msg={seated ? undefined : balloons[p.uid]} side />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14.5px] font-bold">
@@ -152,45 +172,163 @@ export function PeoplePanel({
     </li>
   );
   const seated = view.seats.map((s) => s.member).filter((x): x is Member => !!x);
+  const everyone = [...seated, ...view.spectators];
+  const count = m.cap > 0 ? `${view.online.size}/${m.cap}` : `${view.online.size}`;
+
+  if (variant === "strip") return <PeopleStrip people={everyone} seated={seated.length} online={view.online} balloons={balloons} count={count} me={view.me} />;
+
+  const title = (
+    <span className="truncate">
+      👥 Trong phòng <span className="text-ink-3">({count})</span>
+    </span>
+  );
+  const inviteButton = view.isHost && (
+    <button type="button" className="btn btn-sm flex-none" onClick={() => setInviting(true)}>
+      ✉️ Mời
+    </button>
+  );
+  const list = (
+    <ul className="divide-y divide-rule">
+      {seated.map((p) => row(p, true))}
+      {view.spectators.map((p) => row(p, false))}
+    </ul>
+  );
+  const invite = (
+    <Dialog open={inviting} onClose={() => setInviting(false)} title="Mời người chơi">
+      {inviting && <InviteList view={view} roomId={roomId} />}
+    </Dialog>
+  );
+
+  if (variant === "bare")
+    return (
+      <section className="px-4 py-3" aria-labelledby={headId}>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h2 id={headId} className="min-w-0 font-display text-lg font-extrabold">
+            {title}
+          </h2>
+          {inviteButton}
+        </div>
+        {list}
+        {invite}
+      </section>
+    );
+
+  // Khối trong sidebar: cao tối đa ~45% để nhường chỗ cho khung chat, danh sách tự cuộn; thu gọn được còn một hàng avatar.
   return (
-    <section className="card p-4" aria-labelledby="people-h">
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="people-h" className="font-display text-lg font-extrabold">
-          👥 Trong phòng{" "}
-          <span className="text-ink-3">({m.cap > 0 ? `${view.online.size}/${m.cap}` : view.online.size})</span>
-        </h2>
-        {view.isHost && (
-          <button type="button" className="btn btn-sm" onClick={() => setInviting(true)}>
-            ✉️ Mời
+    <section className={`card flex flex-none flex-col overflow-hidden ${folded ? "" : "max-h-[45%]"}`} aria-labelledby={headId}>
+      <div className="flex items-center gap-2 py-2.5 pr-3 pl-4">
+        <h2 id={headId} className="min-w-0 flex-1 font-display text-lg font-extrabold">
+          <button type="button" className="flex w-full min-w-0 items-center gap-2 text-left transition-colors hover:text-pen" aria-expanded={!folded} onClick={() => fold(!folded)}>
+            {title}
+            {folded && <AvatarStack people={everyone} online={view.online} />}
+            <svg viewBox="0 0 16 16" width="14" height="14" className={`flex-none text-ink-3 transition-transform ${folded ? "-rotate-90" : ""}`} aria-hidden="true">
+              <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="sr-only">{folded ? "Mở danh sách" : "Thu gọn danh sách"}</span>
           </button>
-        )}
+        </h2>
+        {inviteButton}
       </div>
-      <ul className="mt-2 divide-y divide-rule">
-        {seated.map((p) => row(p, true))}
-        {view.spectators.map((p) => row(p, false))}
-      </ul>
-      <Dialog open={inviting} onClose={() => setInviting(false)} title="Mời người chơi">
-        {inviting && <InviteList view={view} roomId={roomId} />}
-      </Dialog>
+      {!folded && <div className="min-h-0 overflow-y-auto border-t-2 border-rule px-4 py-1">{list}</div>}
+      {invite}
     </section>
   );
 }
 
-function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMakeHost: () => void; name: string; host: string }) {
-  const [open, setOpen] = useState(false);
+/** Hàng avatar chồng lên nhau (tối đa `max` người, còn lại hiện +n). */
+function AvatarStack({ people, online, max = 5 }: { people: Member[]; online: Set<string>; max?: number }) {
+  const more = people.length - max;
   return (
-    <div className="relative">
-      <button type="button" className="btn btn-sm btn-ghost !px-2" aria-expanded={open} aria-label={`Tuỳ chọn cho ${name}`} onClick={() => setOpen((o) => !o)}>
+    <span className="flex flex-none items-center" aria-hidden="true">
+      {people.slice(0, max).map((p) => (
+        <span key={p.uid} className="-ml-1.5 rounded-full ring-2 ring-surface first:ml-0">
+          <Avatar p={p} size={22} className={online.has(p.uid) ? "" : "opacity-40 grayscale"} />
+        </span>
+      ))}
+      {more > 0 && <span className="ml-1 text-xs font-bold text-ink-3">+{more}</span>}
+    </span>
+  );
+}
+
+/** Dải avatar gọn đầu trang (điện thoại): ai đang trong phòng, ai vừa nói gì; bấm để mở danh sách đầy đủ trong khung chat. */
+function PeopleStrip({
+  people,
+  seated,
+  online,
+  balloons,
+  count,
+  me,
+}: {
+  people: Member[];
+  seated: number;
+  online: Set<string>;
+  balloons: Record<string, ChatMsg>;
+  count: string;
+  me: string;
+}) {
+  const open = useContext(PeopleOpenerCtx);
+  const MAX = 6;
+  const more = people.length - MAX;
+  return (
+    <button type="button" onClick={open} className="card mb-4 flex w-full items-center gap-3 px-3 py-2 text-left">
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        {people.slice(0, MAX).map((p, i) => (
+          <span key={p.uid} className="relative flex-none">
+            <Avatar p={p} size={30} className={online.has(p.uid) ? "" : "opacity-40 grayscale"} />
+            {/* Người ngồi ghế đã có bóng thoại trên thẻ ghế. */}
+            {i >= seated && <Balloon msg={balloons[p.uid]} />}
+            <span className="sr-only">{p.uid === me ? `${p.name} (bạn)` : p.name}</span>
+          </span>
+        ))}
+        {more > 0 && <span className="text-sm font-bold text-ink-3">+{more}</span>}
+      </span>
+      <span className="flex-none text-sm font-bold text-ink-2">
+        👥 {count} người <span aria-hidden="true">›</span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Menu ⋯ của chủ phòng cho từng người. Đặt `fixed` theo vị trí nút (mở lên trên nếu sát đáy màn hình) để không bị danh
+ * sách cuộn trong sidebar / khung chat cắt mất; cuộn hay đổi cỡ màn hình thì đóng.
+ */
+function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMakeHost: () => void; name: string; host: string }) {
+  const [at, setAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!at) return;
+    const close = () => setAt(null);
+    addEventListener("scroll", close, true);
+    addEventListener("resize", close);
+    return () => {
+      removeEventListener("scroll", close, true);
+      removeEventListener("resize", close);
+    };
+  }, [at]);
+  return (
+    <div>
+      <button
+        type="button"
+        className="btn btn-sm btn-ghost !px-2"
+        aria-expanded={!!at}
+        aria-label={`Tuỳ chọn cho ${name}`}
+        onClick={(e) => {
+          if (at) return setAt(null);
+          const r = e.currentTarget.getBoundingClientRect();
+          const right = innerWidth - r.right;
+          setAt(innerHeight - r.bottom > 130 ? { top: r.bottom + 4, right } : { bottom: innerHeight - r.top + 4, right });
+        }}
+      >
         ⋯
       </button>
-      {open && (
-        <div className="card absolute top-full right-0 z-30 mt-1 grid w-48 gap-1 p-1.5" role="menu" onMouseLeave={() => setOpen(false)}>
+      {at && (
+        <div className="card fixed z-50 grid w-48 gap-1 p-1.5" style={at} role="menu" onMouseLeave={() => setAt(null)}>
           <button
             type="button"
             role="menuitem"
             className="rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-sunken"
             onClick={() => {
-              setOpen(false);
+              setAt(null);
               onMakeHost();
             }}
           >
@@ -200,7 +338,7 @@ function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMa
             role="menuitem"
             className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-coral hover:bg-coral-soft"
             onConfirm={() => {
-              setOpen(false);
+              setAt(null);
               onKick();
             }}
             confirmLabel="Bấm lần nữa để kick"

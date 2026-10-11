@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { gameHref, getGame } from "@/lib/games/registry";
 import { isKaixin } from "@/lib/stickers";
 import { RulesButton } from "../lobby/RulesButton";
+import { PeopleOpenerCtx, PeopleVariantCtx, RoomSideCtx, useWide, type RoomSide, type SidePanel } from "./side";
 import { StickerArt } from "./Sticker";
 import type { Flyer } from "./useFlyers";
 
@@ -22,10 +23,64 @@ export function Notice({ emoji, title, children, spin }: { emoji: string; title:
   );
 }
 
-/** Khung chung của phòng: thanh vị trí với nút mời / luật chơi / rời phòng, cột bàn chơi và cột người trong phòng – trò chuyện. */
-export function RoomLayout({ id, slug, side, children }: { id: string; slug: string; side: React.ReactNode; children: React.ReactNode }) {
+const SIDE_KEY = "arena:room-side-hidden";
+
+/**
+ * Khung chung của phòng: thanh vị trí với nút mời / luật chơi / rời phòng, cột bàn chơi và phần xã hội (người trong
+ * phòng, trò chuyện, `panels` thêm của từng game).
+ * Màn hình rộng: sidebar neo mép phải màn hình, cao từ dưới thanh đầu trang tới đáy — người trong phòng ở trên, khung chat
+ * lấp phần còn lại, `panels` thành tab trong khung chat; ẩn được (nhớ lựa chọn) để bàn chơi rộng hết khung, lúc đó chat còn
+ * nút tròn ở góc. Điện thoại: dải avatar đầu trang, còn danh sách người và `panels` thành tab trong khung chat nổi.
+ */
+export function RoomLayout({
+  id,
+  slug,
+  people,
+  chat,
+  panels,
+  children,
+}: {
+  id: string;
+  slug: string;
+  people: React.ReactNode;
+  chat: React.ReactNode;
+  panels?: SidePanel[];
+  children: React.ReactNode;
+}) {
   const game = getGame(slug)!;
   const [copied, setCopied] = useState(false);
+  const wide = useWide();
+  const opener = useRef<((tab: string) => void) | null>(null);
+  const bind = useCallback<RoomSide["bind"]>((fn) => {
+    opener.current = fn;
+  }, []);
+  const openPeople = useCallback(() => opener.current?.("people"), []);
+  const [hidden, setHiddenState] = useState(() => {
+    try {
+      return localStorage.getItem(SIDE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setHidden = useCallback((v: boolean) => {
+    setHiddenState(v);
+    try {
+      localStorage.setItem(SIDE_KEY, v ? "1" : "0");
+    } catch {}
+  }, []);
+  const shown = wide && !hidden;
+  // Sidebar neo mép phải màn hình: chừa lề phải cho <main> và chân trang (globals.css, `html[data-room-side]`). Đặt
+  // trước khi vẽ để bàn chơi không nháy rộng rồi co lại.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const html = document.documentElement;
+    html.dataset.roomSide = "";
+    return () => {
+      delete html.dataset.roomSide;
+    };
+  }, [shown]);
+  const peopleTab: SidePanel = { key: "people", label: "👥 Người", node: <PeopleVariantCtx value="bare">{people}</PeopleVariantCtx> };
+  const side: RoomSide = { docked: wide, hidden, setHidden, panels: wide ? (panels ?? []) : [peopleTab, ...(panels ?? [])], bind };
 
   const copyLink = async () => {
     try {
@@ -57,10 +112,30 @@ export function RoomLayout({ id, slug, side, children }: { id: string; slug: str
         </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0">{children}</div>
-        <div className="grid h-max gap-6">{side}</div>
-      </div>
+      <RoomSideCtx value={side}>
+        {/* Bàn chơi giữ nguyên vị trí trong cây khi đổi cỡ màn hình qua mốc lg, để không bị dựng lại (mất nét vẽ, trạng thái…). */}
+        <div className="min-w-0">
+          {!wide && (
+            <PeopleVariantCtx value="strip">
+              <PeopleOpenerCtx value={openPeople}>{people}</PeopleOpenerCtx>
+            </PeopleVariantCtx>
+          )}
+          {children}
+        </div>
+        {wide ? (
+          // Ngay dưới thanh đầu trang (cao 4rem + viền 2px). Khi ẩn, khung chat vẫn ở đây (giữ tin chưa đọc, chữ đang gõ)
+          // nhưng chỉ còn nút tròn nổi ở góc.
+          <aside
+            className={hidden ? undefined : "fixed top-[66px] right-0 bottom-0 z-30 flex w-[360px] flex-col gap-3 border-l-2 border-edge bg-sunken p-3"}
+            aria-label="Người trong phòng và trò chuyện"
+          >
+            {!hidden && people}
+            {chat}
+          </aside>
+        ) : (
+          chat
+        )}
+      </RoomSideCtx>
     </div>
   );
 }

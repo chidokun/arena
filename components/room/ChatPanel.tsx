@@ -8,6 +8,7 @@ import { Avatar } from "../Avatar";
 import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
 import { Flyers } from "./RoomLayout";
+import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { StickerArt } from "./Sticker";
 import { useFlyers } from "./useFlyers";
 
@@ -127,13 +128,38 @@ const unreadOf = (chat: ChatMsg[], me: string, since: number) => chat.filter((m)
 
 /**
  * Khung chat nổi ở góc màn hình, thu nhỏ còn nút tròn (đếm tin mới) — chat được ngay mà không phải cuộn trang.
- * Trong phòng có tab Trong phòng / Công cộng; ngoài phòng chỉ có kênh công cộng.
+ * Trong phòng có tab Phòng / Công cộng (cùng các tab `panels` của phòng); ngoài phòng chỉ có kênh công cộng.
+ * `docked`: nằm trong sidebar của phòng (màn hình rộng) — cao theo chỗ trống; thu nhỏ là ẩn cả sidebar (`hidden`, `onHide`),
+ * lúc đó khung còn lại nút tròn như khi nổi.
  * `storageKey`: nơi nhớ đang mở hay thu nhỏ; chưa chọn bao giờ thì theo `openByDefault`.
  */
-function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels: Channel[]; me: string; title: string; storageKey: string; openByDefault: () => boolean }) {
+function ChatBox({
+  channels,
+  panels = [],
+  docked = false,
+  hidden = false,
+  onHide,
+  bind,
+  me,
+  title,
+  storageKey,
+  openByDefault,
+}: {
+  channels: Channel[];
+  panels?: SidePanel[];
+  docked?: boolean;
+  hidden?: boolean;
+  onHide?: (hidden: boolean) => void;
+  bind?: RoomSide["bind"];
+  me: string;
+  title: string;
+  storageKey: string;
+  openByDefault: () => boolean;
+}) {
   const uid = useId();
   const fx = useStickerFx();
-  const [active, setActive] = useState(channels[0].key);
+  const [active, setActive] = useState<string>(channels[0].key);
+  const panel = panels.find((p) => p.key === active);
   const ch = channels.find((c) => c.key === active) ?? channels[0];
   const [text, setText] = useState("");
   const [packOpen, setPackOpen] = useState(false);
@@ -141,16 +167,17 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rows = useMemo(() => toRows(ch.chat), [ch.chat]);
   // Khung chat chỉ dựng ở client (sau khi vào phòng / có kết nối sảnh), nên đọc lựa chọn đã nhớ ngay lúc khởi tạo được.
-  const [open, setOpen] = useState(() => {
+  const [openPref, setOpen] = useState(() => {
     try {
       const v = localStorage.getItem(storageKey);
       if (v !== null) return v === "1";
     } catch {}
     return openByDefault();
   });
+  const open = docked ? !hidden : openPref;
   // Mốc đã đọc của từng kênh. Lịch sử có sẵn lúc mở khung (người khác gửi lại cho mình) không tính là tin mới.
   const [seen, setSeen] = useState<Record<string, number>>(() => Object.fromEntries(channels.map((c) => [c.key, Date.now()])));
-  const unread = (c: Channel) => (open && c.key === ch.key ? 0 : unreadOf(c.chat, me, seen[c.key] ?? 0));
+  const unread = (c: Channel) => (open && !panel && c.key === ch.key ? 0 : unreadOf(c.chat, me, seen[c.key] ?? 0));
   const totalUnread = channels.reduce((n, c) => n + unread(c), 0);
   const listRef = useRef<HTMLOListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -163,24 +190,36 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
 
   const toggle = () => {
     const next = !open;
-    setOpen(next);
-    if (!next) markSeen(ch);
+    if (docked) onHide?.(!next);
     else {
+      setOpen(next);
+      try {
+        localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {}
+    }
+    if (next) {
       stick.current = true;
       focusOnOpen.current = matchMedia("(pointer: fine)").matches;
-    }
-    try {
-      localStorage.setItem(storageKey, next ? "1" : "0");
-    } catch {}
+    } else if (!panel) markSeen(ch);
   };
 
-  const pick = (c: Channel) => {
-    if (c.key === ch.key) return;
-    markSeen(ch);
-    setActive(c.key);
+  const pick = (key: string) => {
+    if (key === active) return;
+    if (!panel) markSeen(ch);
+    setActive(key);
     setSlow(false);
     stick.current = true;
   };
+
+  // Cho chỗ khác (dải avatar trên điện thoại) mở khung ở một tab — thường là tab không phải kênh chat, nên không cần chốt mốc đã đọc.
+  useEffect(() => {
+    if (!bind) return;
+    bind((tab) => {
+      setActive(tab);
+      setOpen(true);
+    });
+    return () => bind(null);
+  }, [bind]);
 
   useEffect(() => () => {
     if (slowTimer.current) clearTimeout(slowTimer.current);
@@ -192,7 +231,7 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
   useEffect(() => {
     const el = listRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [lastId, open, ch.key, ch.locked]);
+  }, [lastId, open, active, ch.locked]);
 
   useEffect(() => {
     if (!open || !focusOnOpen.current) return;
@@ -259,61 +298,88 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
       </button>
     );
 
+  const tabs = [
+    ...channels.map((c) => ({ key: c.key, label: c.label, unread: unread(c) })),
+    ...panels.map((p) => ({ key: p.key, label: p.label, unread: 0 })),
+  ];
+
   return (
     <section
-      className="card fixed inset-x-3 bottom-3 z-40 flex h-[min(78dvh,600px)] flex-col overflow-hidden sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]"
-      style={{ animation: "pop-in 220ms ease", boxShadow: "0 8px 0 var(--edge)" }}
+      className={
+        docked
+          ? "card flex min-h-0 flex-1 flex-col overflow-hidden"
+          : "card fixed inset-x-3 bottom-3 z-40 flex h-[min(78dvh,600px)] flex-col overflow-hidden sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]"
+      }
+      style={docked ? undefined : { animation: "pop-in 220ms ease", boxShadow: "0 8px 0 var(--edge)" }}
       aria-label={title}
-      onKeyDown={(e) => e.key === "Escape" && toggle()}
+      onKeyDown={docked ? undefined : (e) => e.key === "Escape" && toggle()}
     >
       <div className="border-b-2 border-edge">
-        <h2 className="flex items-center gap-2 pr-2 font-display text-lg font-extrabold">
-          <button
-            type="button"
-            onClick={toggle}
-            aria-expanded={open}
-            aria-controls={bodyId}
-            className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left transition-colors hover:text-pen"
-          >
+        {docked ? (
+          <h2 className="flex items-center gap-2 py-2.5 pr-2 pl-4 font-display text-lg font-extrabold">
             <span className="flex-1 truncate">💬 {title}</span>
-            <span className="sr-only">Thu nhỏ {title.toLowerCase()}</span>
-          </button>
-          {fxButton}
-          {/* Bản lặp của nút tiêu đề cho dễ bấm bằng chuột; bàn phím / trình đọc màn hình dùng nút tiêu đề. */}
-          <button
-            type="button"
-            onClick={toggle}
-            tabIndex={-1}
-            aria-hidden="true"
-            title="Thu nhỏ"
-            className="grid h-7 w-7 flex-none place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
-          >
-            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3.5 12h9" />
-            </svg>
-          </button>
-        </h2>
-        {channels.length > 1 && (
+            {fxButton}
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={open}
+              title="Ẩn sidebar — nhường chỗ cho bàn chơi"
+              className="grid h-7 w-7 flex-none place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 3.5 8.5 8 4 12.5M8.5 3.5 13 8l-4.5 4.5" />
+              </svg>
+              <span className="sr-only">Ẩn sidebar người trong phòng và trò chuyện</span>
+            </button>
+          </h2>
+        ) : (
+          <h2 className="flex items-center gap-2 pr-2 font-display text-lg font-extrabold">
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={open}
+              aria-controls={bodyId}
+              className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left transition-colors hover:text-pen"
+            >
+              <span className="flex-1 truncate">💬 {title}</span>
+              <span className="sr-only">Thu nhỏ {title.toLowerCase()}</span>
+            </button>
+            {fxButton}
+            {/* Bản lặp của nút tiêu đề cho dễ bấm bằng chuột; bàn phím / trình đọc màn hình dùng nút tiêu đề. */}
+            <button
+              type="button"
+              onClick={toggle}
+              tabIndex={-1}
+              aria-hidden="true"
+              title="Thu nhỏ"
+              className="grid h-7 w-7 flex-none place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3.5 12h9" />
+              </svg>
+            </button>
+          </h2>
+        )}
+        {tabs.length > 1 && (
           <div className="flex gap-1.5 px-3 pb-2.5" role="tablist" aria-label="Kênh chat">
-            {channels.map((c) => {
-              const n = unread(c);
-              const on = c.key === ch.key;
+            {tabs.map((t) => {
+              const on = t.key === (panel?.key ?? ch.key);
               return (
                 <button
-                  key={c.key}
+                  key={t.key}
                   type="button"
                   role="tab"
                   aria-selected={on}
                   aria-controls={bodyId}
-                  onClick={() => pick(c)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-1.5 text-[13.5px] font-bold transition-colors ${
+                  onClick={() => pick(t.key)}
+                  className={`flex min-w-0 flex-auto items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-1.5 text-[13.5px] font-bold whitespace-nowrap transition-colors ${
                     on ? "border-edge bg-pen text-on-pen" : "border-transparent bg-sunken text-ink-2 hover:border-edge"
                   }`}
                 >
-                  {c.label}
-                  {n > 0 && (
+                  <span className="truncate">{t.label}</span>
+                  {t.unread > 0 && (
                     <span className="rounded-full border-2 border-edge bg-coral px-1.5 text-[11px] leading-4 text-white">
-                      {n > 99 ? "99+" : n}
+                      {t.unread > 99 ? "99+" : t.unread}
                       <span className="sr-only"> tin mới</span>
                     </span>
                   )}
@@ -323,106 +389,112 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
           </div>
         )}
       </div>
-      <div id={bodyId} className="flex min-h-0 flex-1 flex-col" role={channels.length > 1 ? "tabpanel" : undefined}>
-        <ol
-          ref={listRef}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-          }}
-          onLoadCapture={() => {
-            // Ảnh sticker tải xong làm danh sách cao thêm: giữ đáy nếu đang bám đáy.
-            const el = listRef.current;
-            if (el && stick.current) el.scrollTop = el.scrollHeight;
-          }}
-          className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
-          aria-live="polite"
-        >
-          <Messages rows={rows} me={me} empty={ch.empty} />
-        </ol>
-        {ch.locked ? (
-          <p className="border-t-2 border-edge bg-sunken px-4 py-3.5 text-center text-[13.5px] font-semibold text-ink-2">{ch.locked}</p>
-        ) : (
-          <div className="border-t-2 border-edge p-3">
-            {(slow || ch.hint) && (
-              <p className={`mb-2 px-1 text-[12.5px] font-semibold ${slow ? "text-coral" : "text-ink-3"}`} role={slow ? "status" : undefined}>
-                {slow ? "Bạn gửi nhanh quá, chờ vài giây rồi gửi tiếp nhé." : ch.hint}
-              </p>
-            )}
-            {packOpen && (
-              <div id={packId} className="mb-2.5 rounded-xl border-2 border-edge bg-sunken p-2" role="group" aria-label={`Gửi ${KAIXIN_PACK}`}>
-                <p className="mb-1.5 px-1 text-[11.5px] font-bold tracking-wide text-ink-3 uppercase">{KAIXIN_PACK}</p>
-                <div className="grid max-h-[148px] grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1 overflow-y-auto">
-                  {KAIXIN_STICKERS.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      title={s.label}
-                      aria-label={`Gửi sticker ${s.label}`}
-                      onClick={() => send({ sticker: s.id })}
-                      className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
-                    >
-                      <StickerArt id={s.id} size={52} />
-                    </button>
-                  ))}
+      {panel ? (
+        <div id={bodyId} className="min-h-0 flex-1 overflow-y-auto" role="tabpanel">
+          {panel.node}
+        </div>
+      ) : (
+        <div id={bodyId} className="flex min-h-0 flex-1 flex-col" role={tabs.length > 1 ? "tabpanel" : undefined}>
+          <ol
+            ref={listRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            }}
+            onLoadCapture={() => {
+              // Ảnh sticker tải xong làm danh sách cao thêm: giữ đáy nếu đang bám đáy.
+              const el = listRef.current;
+              if (el && stick.current) el.scrollTop = el.scrollHeight;
+            }}
+            className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
+            aria-live="polite"
+          >
+            <Messages rows={rows} me={me} empty={ch.empty} />
+          </ol>
+          {ch.locked ? (
+            <p className="border-t-2 border-edge bg-sunken px-4 py-3.5 text-center text-[13.5px] font-semibold text-ink-2">{ch.locked}</p>
+          ) : (
+            <div className="border-t-2 border-edge p-3">
+              {(slow || ch.hint) && (
+                <p className={`mb-2 px-1 text-[12.5px] font-semibold ${slow ? "text-coral" : "text-ink-3"}`} role={slow ? "status" : undefined}>
+                  {slow ? "Bạn gửi nhanh quá, chờ vài giây rồi gửi tiếp nhé." : ch.hint}
+                </p>
+              )}
+              {packOpen && (
+                <div id={packId} className="mb-2.5 rounded-xl border-2 border-edge bg-sunken p-2" role="group" aria-label={`Gửi ${KAIXIN_PACK}`}>
+                  <p className="mb-1.5 px-1 text-[11.5px] font-bold tracking-wide text-ink-3 uppercase">{KAIXIN_PACK}</p>
+                  <div className="grid max-h-[148px] grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1 overflow-y-auto">
+                    {KAIXIN_STICKERS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        title={s.label}
+                        aria-label={`Gửi sticker ${s.label}`}
+                        onClick={() => send({ sticker: s.id })}
+                        className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
+                      >
+                        <StickerArt id={s.id} size={52} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-            <div className="mb-2.5 flex gap-1.5" role="group" aria-label="Gửi sticker">
-              {QUICK_STICKERS.map((s) => (
+              )}
+              <div className="mb-2.5 flex gap-1.5" role="group" aria-label="Gửi sticker">
+                {QUICK_STICKERS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    title={s.label}
+                    aria-label={`Gửi sticker ${s.label}`}
+                    onClick={() => send({ sticker: s.id })}
+                    className="grid h-10 flex-1 place-items-center rounded-xl border-2 border-edge bg-surface transition-transform hover:-translate-y-0.5 hover:bg-sunken active:translate-y-0.5"
+                  >
+                    <StickerArt id={s.id} size={30} />
+                  </button>
+                ))}
                 <button
-                  key={s.id}
                   type="button"
-                  title={s.label}
-                  aria-label={`Gửi sticker ${s.label}`}
-                  onClick={() => send({ sticker: s.id })}
-                  className="grid h-10 flex-1 place-items-center rounded-xl border-2 border-edge bg-surface transition-transform hover:-translate-y-0.5 hover:bg-sunken active:translate-y-0.5"
+                  title={KAIXIN_PACK}
+                  aria-label={`${packOpen ? "Đóng" : "Mở"} ${KAIXIN_PACK}`}
+                  aria-expanded={packOpen}
+                  aria-controls={packId}
+                  onClick={() => setPackOpen((o) => !o)}
+                  className={`grid h-10 flex-1 place-items-center overflow-hidden rounded-xl border-2 border-edge transition-transform hover:-translate-y-0.5 active:translate-y-0.5 ${
+                    packOpen ? "bg-sun" : "bg-surface hover:bg-sunken"
+                  }`}
                 >
-                  <StickerArt id={s.id} size={30} />
+                  <StickerArt id={KAIXIN_STICKERS[0].id} size={34} />
                 </button>
-              ))}
-              <button
-                type="button"
-                title={KAIXIN_PACK}
-                aria-label={`${packOpen ? "Đóng" : "Mở"} ${KAIXIN_PACK}`}
-                aria-expanded={packOpen}
-                aria-controls={packId}
-                onClick={() => setPackOpen((o) => !o)}
-                className={`grid h-10 flex-1 place-items-center overflow-hidden rounded-xl border-2 border-edge transition-transform hover:-translate-y-0.5 active:translate-y-0.5 ${
-                  packOpen ? "bg-sun" : "bg-surface hover:bg-sunken"
-                }`}
+              </div>
+              <form
+                className="field-row flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!text.trim()) return;
+                  if (send({ text })) setText("");
+                }}
               >
-                <StickerArt id={KAIXIN_STICKERS[0].id} size={34} />
-              </button>
+                <label htmlFor={inputId} className="sr-only">
+                  Tin nhắn
+                </label>
+                <input
+                  ref={inputRef}
+                  id={inputId}
+                  className="field !min-h-[42px]"
+                  placeholder={ch.placeholder ?? "Nhắn gì đó…"}
+                  value={text}
+                  maxLength={TEXT_MAX}
+                  onChange={(e) => setText(e.target.value)}
+                  autoComplete="off"
+                />
+                <button type="submit" className="btn btn-pen" disabled={!text.trim()} aria-label="Gửi">
+                  Gửi
+                </button>
+              </form>
             </div>
-            <form
-              className="field-row flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!text.trim()) return;
-                if (send({ text })) setText("");
-              }}
-            >
-              <label htmlFor={inputId} className="sr-only">
-                Tin nhắn
-              </label>
-              <input
-                ref={inputRef}
-                id={inputId}
-                className="field !min-h-[42px]"
-                placeholder={ch.placeholder ?? "Nhắn gì đó…"}
-                value={text}
-                maxLength={TEXT_MAX}
-                onChange={(e) => setText(e.target.value)}
-                autoComplete="off"
-              />
-              <button type="submit" className="btn btn-pen" disabled={!text.trim()} aria-label="Gửi">
-                Gửi
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -445,7 +517,8 @@ function usePublicChannel(): Channel | null {
 }
 
 /**
- * Khung chat trong phòng: tab Trong phòng (mặc định) và Công cộng.
+ * Khung chat trong phòng: tab Phòng (mặc định), Công cộng và các tab thêm RoomLayout cấp (Người, chat phe…).
+ * Màn hình rộng thì nằm trong sidebar, điện thoại thì nổi ở góc.
  * `locked`: lý do tạm không cho gửi tin trong phòng (ma sói: ban đêm, người đã chết) — vẫn đọc được. `placeholder`: gợi ý
  * trong ô nhập (vẽ đoán: đang lượt vẽ thì tin của người đoán là lời đoán).
  */
@@ -453,22 +526,28 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
   const pub = usePublicChannel();
   const room: Channel = {
     key: "room",
-    label: "🏠 Trong phòng",
+    label: "🏠 Phòng",
     chat,
     send: (c) => session.send(c),
     empty: "Chưa có tin nhắn. Chào cả phòng một câu đi! 👋",
     placeholder,
     locked,
   };
+  const side = useRoomSide();
   useEffect(() => roomChat.mount(), []);
   return (
     <ChatBox
       channels={pub ? [room, pub] : [room]}
+      panels={side?.panels}
+      docked={side?.docked}
+      hidden={side?.hidden}
+      onHide={side?.setHidden}
+      bind={side?.bind}
       me={me}
       title="Trò chuyện"
       storageKey={ROOM_KEY}
-      // Màn hình rộng thì mở sẵn (khung nằm đè lên cột bên); điện thoại thì thu nhỏ để không che bàn chơi.
-      openByDefault={() => matchMedia("(min-width: 1024px)").matches}
+      // Màn hình rộng thì nằm sẵn trong sidebar; điện thoại thì thu nhỏ để không che bàn chơi.
+      openByDefault={() => false}
     />
   );
 }

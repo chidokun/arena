@@ -70,13 +70,9 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
     <RoomLayout
       id={id}
       slug={slug}
-      side={
-        <>
-          <PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />
-          <TeamChat session={session} messages={g.teamChat} me={view.me} side={match?.mySide ?? sideFromSeats(g.seats, view.me)} />
-          <ChatPanel session={session} chat={view.chat} me={view.me} />
-        </>
-      }
+      people={<PeoplePanel view={view} session={session} balloons={balloons} roomId={id} />}
+      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
+      panels={[{ key: "team", label: "⚔️ Phe", node: <TeamChat session={session} messages={g.teamChat} me={view.me} side={match?.mySide ?? sideFromSeats(g.seats, view.me)} /> }]}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
@@ -454,10 +450,11 @@ function TeamChat({
 }) {
   const [text, setText] = useState("");
   if (!side) {
-    return <div className="card p-4 text-sm text-ink-3">Chọn role để mở chat phe.</div>;
+    return <div className="p-4 text-sm text-ink-3">Chọn role để mở chat phe.</div>;
   }
+  // Nằm trong tab "Phe" của khung chat phòng: lấp đầy tab, danh sách tin tự cuộn.
   return (
-    <div className="card flex max-h-80 flex-col p-3">
+    <div className="flex h-full flex-col p-3">
       <h3 className="font-display text-base font-extrabold">Chat phe {side === "red" ? "Đỏ" : "Đen"}</h3>
       <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto text-sm">
         {messages.length === 0 && <li className="text-ink-3">Chưa có tin…</li>}

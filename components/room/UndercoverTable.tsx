@@ -98,20 +98,18 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
     <RoomLayout
       id={id}
       slug={slug}
-      side={
-        <>
-          <PeoplePanel
-            view={view}
-            session={session}
-            balloons={balloons}
-            roomId={id}
-            canSeat={false}
-            unseatLabel="Huỷ sẵn sàng"
-            detail={(p, seated) => <PersonLine view={view} uid={p.uid} seated={seated} />}
-          />
-          <ChatPanel session={session} chat={view.chat} me={view.me} locked={chatLock(view)} />
-        </>
+      people={
+        <PeoplePanel
+          view={view}
+          session={session}
+          balloons={balloons}
+          roomId={id}
+          canSeat={false}
+          unseatLabel="Huỷ sẵn sàng"
+          detail={(p, seated) => <PersonLine view={view} uid={p.uid} seated={seated} />}
+        />
       }
+      chat={<ChatPanel session={session} chat={view.chat} me={view.me} locked={chatLock(view)} />}
     >
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
