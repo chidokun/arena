@@ -8,7 +8,7 @@ import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { OAnQuanBoard, OAQ_TONE, quanArt, SIDE_GEM, useSowing } from "./OAnQuanBoard";
+import { OAnQuanBoard, OAQ_TALL_RATIO, OAQ_TONE, quanArt, SIDE_GEM, useSowing, useTallBoard } from "./OAnQuanBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
 import { useFlyers, useRoomView } from "./useRoom";
@@ -21,6 +21,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
   const m = view.meta!;
   const { match: g, wins, draws, opts } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
+  const tall = useTallBoard();
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && g?.round === m.round && !g.result;
   const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
@@ -77,11 +78,16 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
         {seatCard(1)}
       </div>
 
-      <ActionBar view={view} session={session} animating={!!frame} />
+      <ActionBar view={view} session={session} animating={!!frame} tall={tall} />
 
-      <div className="relative mx-auto mt-4 max-w-[760px]">
+      <div className="relative mt-4">
         {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} seed={g!.round} />}
-        <div ref={boardRef} className="card my-2 overflow-hidden p-2 sm:p-3" style={{ background: "var(--sunken)" }}>
+        {/* Bàn dọc: cao vừa màn hình (chừa chỗ hai kho quân) chứ không giãn hết bề ngang. */}
+        <div
+          ref={boardRef}
+          className="card mx-auto my-2 overflow-hidden p-2 sm:p-3"
+          style={{ background: "var(--sunken)", width: tall ? `min(100%, calc((100svh - 190px) * ${OAQ_TALL_RATIO.toFixed(4)} + 20px))` : undefined }}
+        >
           <OAnQuanBoard
             board={board}
             state={state}
@@ -91,6 +97,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
             seed={g?.round ?? 0}
             live={live}
             canPlay={!!g?.myTurn && !count && !frame}
+            tall={tall}
             onSow={(at, dir) => session.sow(at, dir)}
           />
         </div>
@@ -197,7 +204,7 @@ function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onCl
 }
 
 /** Nút hành động chính tuỳ vai trò: vào ghế / rời ghế / bắt đầu / xin thua / ván mới. */
-function ActionBar({ view, session, animating }: { view: RoomView<OaqView>; session: OAnQuanRoom; animating: boolean }) {
+function ActionBar({ view, session, animating, tall }: { view: RoomView<OaqView>; session: OAnQuanRoom; animating: boolean; tall: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const seated = view.mySeat >= 0;
@@ -214,7 +221,7 @@ function ActionBar({ view, session, animating }: { view: RoomView<OaqView>; sess
     } else if (g.mySide) {
       message = g.myTurn ? (
         <>
-          🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: OAQ_TONE[g.mySide] }}>bên mình</b> (dãy dưới) rồi chọn chiều rải ◀ ▶
+          🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: OAQ_TONE[g.mySide] }}>bên mình</b> {tall ? "(cột phải) rồi chọn chiều rải ▲ ▼" : "(dãy dưới) rồi chọn chiều rải ◀ ▶"}
         </>
       ) : (
         <>⏳ Chờ đối thủ rải quân…</>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useState, useSyncExternalStore } from "react";
 import {
   applyStep,
   cloneBoard,
@@ -24,6 +24,27 @@ const Q = 92;
 const P = 12;
 const W = 2 * P + 2 * Q + 5 * C;
 const H = 2 * P + 2 * C;
+/** Tỉ lệ rộng / cao của bàn dọc. */
+export const OAQ_TALL_RATIO = H / W;
+
+/** Màn hình hẹp (điện thoại dọc) thì dựng bàn dọc: bàn ngang 7 ô thu nhỏ quá, quân khó nhìn khó chạm. */
+const TALL = "(max-width: 639px)";
+const subscribeTall = (fn: () => void) => {
+  const mq = matchMedia(TALL);
+  mq.addEventListener("change", fn);
+  return () => mq.removeEventListener("change", fn);
+};
+export function useTallBoard() {
+  return useSyncExternalStore(subscribeTall, () => matchMedia(TALL).matches, () => false);
+}
+
+/**
+ * Bàn dọc vẽ y như bàn ngang rồi xoay −90°: dãy dưới (bên mình) thành cột phải, rải sang phải thành rải lên, ô quan trái
+ * xuống đáy. Chữ và avatar quan thì xoay ngược lại quanh tâm của chúng cho đứng thẳng — `Up` trả về phép xoay đó.
+ */
+type Up = (x: number, y: number) => string | undefined;
+const flat: Up = () => undefined;
+const upright: Up = (x, y) => `rotate(90 ${x} ${y})`;
 
 export const OAQ_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 
@@ -105,8 +126,20 @@ function Pebbles({ i, n, x, y, quan, seed }: { i: number; n: number; x: number; 
 
 const QUAN_SIZE = 78;
 
-function QuanStone({ i, x, y, seed }: { i: number; x: number; y: number; seed: number }) {
-  return <image href={quanArt(i === 0 ? 0 : 1, seed)} x={x - QUAN_SIZE / 2} y={y - QUAN_SIZE / 2 - 8} width={QUAN_SIZE} height={QUAN_SIZE} className="oaq-quan" />;
+/** Avatar quan: bàn ngang nhích lên chừa chỗ số quân bên dưới; bàn dọc nhích sang phải, số quân nằm bên trái. */
+function QuanStone({ i, x, y, seed, up }: { i: number; x: number; y: number; seed: number; up: Up }) {
+  const cy = up === flat ? y - 8 : y + 18;
+  return (
+    <image
+      href={quanArt(i === 0 ? 0 : 1, seed)}
+      x={x - QUAN_SIZE / 2}
+      y={cy - QUAN_SIZE / 2}
+      width={QUAN_SIZE}
+      height={QUAN_SIZE}
+      transform={up(x, cy)}
+      className="oaq-quan"
+    />
+  );
 }
 
 /** Ô dân / ô quan (hình nền + viền), không gồm quân. */
@@ -120,14 +153,30 @@ function Cell({ s, mine }: { s: Spot; mine: boolean }) {
   return <rect x={s.x - C / 2} y={s.y - C / 2} width={C} height={C} fill={fill} stroke="var(--edge)" strokeWidth={3} />;
 }
 
-/** Số quân dân của ô: ô dân ở góc ngoài (gần mép bàn), ô quan ở ngay dưới viên quan. */
-function CountTag({ s, n }: { s: Spot; n: number }) {
-  const x = s.quan ? s.x : s.x + C / 2 - 9;
-  const y = s.quan ? s.y + 50 : s.top ? s.y - C / 2 + 19 : s.y + C / 2 - 9;
+/**
+ * Số quân dân của ô: ô dân ở góc ngoài (gần mép bàn; bàn dọc là góc trên phía mép), ô quan ở ngay dưới viên quan (bàn
+ * dọc: bên trái viên quan). Kèm nhãn "quan non" dưới số — bàn dọc thì lệch về phía cạnh phẳng của ô quan cho đủ chỗ.
+ */
+function CountTag({ s, n, non, up }: { s: Spot; n: number; non: boolean; up: Up }) {
+  const tall = up !== flat;
+  let x: number, y: number, anchor: "middle" | "start" | "end";
+  if (s.quan) [x, y, anchor] = tall ? [s.x - 6, s.y - 56, "middle"] : [s.x, s.y + 50, "middle"];
+  else if (tall) [x, y, anchor] = [s.x + C / 2 - 19, s.top ? s.y - C / 2 + 9 : s.y + C / 2 - 9, s.top ? "start" : "end"];
+  else [x, y, anchor] = [s.x + C / 2 - 9, s.top ? s.y - C / 2 + 19 : s.y + C / 2 - 9, "end"];
+  // Bàn dọc: ô quan trái nằm đáy, cạnh phẳng ở trên — nhãn đặt phía trên số; ô quan phải thì ngược lại.
+  const nx = tall ? s.x - 6 + (s.side === "l" ? 18 : -18) : s.x;
+  const ny = tall ? s.y - 56 : s.y + 66;
   return (
-    <text x={x} y={y} textAnchor={s.quan ? "middle" : "end"} className="oaq-count">
-      {n}
-    </text>
+    <>
+      <text x={x} y={y} textAnchor={anchor} transform={up(x, y)} className="oaq-count">
+        {n}
+      </text>
+      {non && (
+        <text x={nx} y={ny} textAnchor="middle" transform={up(nx, ny)} className="oaq-non">
+          quan non
+        </text>
+      )}
+    </>
   );
 }
 
@@ -194,6 +243,7 @@ export function useSowing(round: number, moves: readonly Move[], state: OaqState
 /**
  * Bàn ô ăn quan SVG: 2 dãy × 5 ô dân, hai ô quan bán nguyệt ở hai đầu. Người chơi chạm một ô dân bên mình (dãy dưới) có
  * quân rồi chạm nửa trái / phải của ô (mũi tên ◀ / ▶) để chọn chiều rải; có chuột thì rê lên ô là hiện mũi tên, bấm thẳng luôn.
+ * `tall`: bàn dọc cho điện thoại — bên mình là cột phải, mũi tên thành ▲ / ▼.
  */
 export const OAnQuanBoard = memo(function OAnQuanBoard({
   board,
@@ -204,6 +254,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
   seed,
   live,
   canPlay,
+  tall,
   onSow,
 }: {
   /** Bàn đang hiện — khung đang diễn hoặc bàn sau nước cuối. */
@@ -218,9 +269,12 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
   /** Đang trong ván: vạch màu báo bên tới lượt. */
   live: boolean;
   canPlay: boolean;
+  /** Bàn dọc (điện thoại). */
+  tall: boolean;
   onSow: (at: number, dir: 1 | -1) => void;
 }) {
   const flip = side === 2;
+  const up = tall ? upright : flat;
   const mine = side || 1;
   const [sel, setSel] = useState(-1);
   const [aim, setAim] = useState<Move>(0);
@@ -247,13 +301,8 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
     stones.push(
       <g key={i}>
         <Pebbles i={i} n={board.dan[i]} x={s.x} y={s.y} quan={quan} seed={seed} />
-        {quan && hasQuan(board, i) && <QuanStone i={i} x={s.x} y={s.y} seed={seed} />}
-        <CountTag s={s} n={board.dan[i]} />
-        {quan && opts.quanNon && isQuanNon(board, i) && (
-          <text x={s.x} y={s.y + 66} textAnchor="middle" className="oaq-non">
-            quan non
-          </text>
-        )}
+        {quan && hasQuan(board, i) && <QuanStone i={i} x={s.x} y={s.y} seed={seed} up={up} />}
+        <CountTag s={s} n={board.dan[i]} non={quan && opts.quanNon && isQuanNon(board, i)} up={up} />
       </g>,
     );
     if (preview.has(i)) marks.push(<SpotRing key={`p${i}`} s={s} className="oaq-preview" />);
@@ -275,7 +324,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
             className="oaq-arrow"
             role="button"
             tabIndex={selected === i ? 0 : -1}
-            aria-label={`Rải ô ${s.col + 1} sang ${dir === 1 ? "phải" : "trái"}`}
+            aria-label={`Rải ô ${s.col + 1} ${tall ? (dir === 1 ? "lên trên" : "xuống dưới") : dir === 1 ? "sang phải" : "sang trái"}`}
             onClick={() => sow(i, dir)}
             onKeyDown={(e) => {
               if (e.key !== "Enter" && e.key !== " ") return;
@@ -311,9 +360,9 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 setSel(selected === i ? -1 : i);
-              } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+              } else if (tall ? e.key === "ArrowUp" || e.key === "ArrowDown" : e.key === "ArrowLeft" || e.key === "ArrowRight") {
                 e.preventDefault();
-                sow(i, e.key === "ArrowRight" ? 1 : -1);
+                sow(i, e.key === "ArrowRight" || e.key === "ArrowUp" ? 1 : -1);
               }
             }}
           />
@@ -331,7 +380,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
     hand = (
       <g className="oaq-hand" style={{ transform: `translate(${s.x}px, ${y}px)` }}>
         <circle r={17} />
-        <text y={6} textAnchor="middle">
+        <text y={6} textAnchor="middle" transform={up(0, 0)}>
           {board.hand}
         </text>
       </g>
@@ -342,7 +391,7 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
     const st = frame.step;
     const s = spotOf(st.at, flip);
     pop = (
-      <text key={frame.i} x={s.x} y={s.y - 10} textAnchor="middle" className="oaq-pop" style={{ fill: OAQ_TONE[st.p] }}>
+      <text key={frame.i} x={s.x} y={s.y - 10} textAnchor="middle" transform={up(s.x, s.y - 10)} className="oaq-pop" style={{ fill: OAQ_TONE[st.p] }}>
         +{st.n + (st.quan ? 10 : 0)}
       </text>
     );
@@ -351,30 +400,32 @@ export const OAnQuanBoard = memo(function OAnQuanBoard({
   const turnTone = OAQ_TONE[state.turn];
   return (
     <svg
-      viewBox={`0 0 ${W} ${H}`}
+      viewBox={tall ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`}
       className={`oaq ${canPlay ? "can-play" : ""}`}
       aria-label={`Bàn ô ăn quan${canPlay ? " — đến lượt bạn: chọn một ô dân bên mình rồi chọn chiều rải" : ""}`}
       onPointerLeave={() => setAim(0)}
     >
-      {cells}
-      {/* Dãy bên đang tới lượt có vạch màu ở mép ngoài. */}
-      {live && (
-        <rect
-          x={P + Q}
-          y={(state.turn === 2) !== flip ? P - 6 : P + 2 * C + 1}
-          width={5 * C}
-          height={5}
-          rx={2.5}
-          fill={turnTone}
-          className="oaq-turn"
-        />
-      )}
-      {marks}
-      {stones}
-      {hits}
-      {pop}
-      {hand}
-      {lastAt >= 0 && <LastArrow s={spotOf(lastAt, flip)} dir={(spotOf(lastAt, flip).top ? -1 : 1) * lastDir} />}
+      <g transform={tall ? `translate(0 ${W}) rotate(-90)` : undefined}>
+        {cells}
+        {/* Dãy bên đang tới lượt có vạch màu ở mép ngoài. */}
+        {live && (
+          <rect
+            x={P + Q}
+            y={(state.turn === 2) !== flip ? P - 6 : P + 2 * C + 1}
+            width={5 * C}
+            height={5}
+            rx={2.5}
+            fill={turnTone}
+            className="oaq-turn"
+          />
+        )}
+        {marks}
+        {stones}
+        {hits}
+        {pop}
+        {hand}
+        {lastAt >= 0 && <LastArrow s={spotOf(lastAt, flip)} dir={(spotOf(lastAt, flip).top ? -1 : 1) * lastDir} />}
+      </g>
     </svg>
   );
 });
