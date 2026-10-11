@@ -509,7 +509,7 @@ function ClueForm({ session, word }: { session: UndercoverRoom; word: string | n
         setErr(session.describe(text));
       }}
     >
-      <div className="flex gap-2">
+      <div className="field-row flex gap-2">
         <label htmlFor="uc-clue" className="sr-only">
           Mô tả của bạn
         </label>
@@ -1274,7 +1274,7 @@ function CustomWords({ view, session }: { view: View; session: UndercoverRoom })
         </div>
       ) : (
         <form
-          className="mt-2 flex flex-wrap gap-2"
+          className="field-row mt-2 flex flex-wrap gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             session.setCustom({ civilian: civ, undercover: uc });

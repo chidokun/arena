@@ -216,6 +216,10 @@
     box-shadow: none;
     transform: translateY(3px);
   }
+  /* Hàng ô nhập + nút: nút tắt không lún xuống, để mép trên/dưới thẳng hàng với ô nhập. */
+  .field-row > .btn:disabled {
+    transform: none;
+  }
   /* Nút bấm hai lần (ConfirmButton) đang chờ xác nhận. */
   .btn[data-armed] {
     outline: 3px dashed var(--coral);

@@ -396,7 +396,7 @@ function ChatBox({ channels, me, title, storageKey, openByDefault }: { channels:
               </button>
             </div>
             <form
-              className="flex gap-2"
+              className="field-row flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!text.trim()) return;

@@ -455,7 +455,7 @@ function JoinByCode({ slug }: { slug: string }) {
   const id = code.trim().replace(/^#/, "").toLowerCase();
   return (
     <form
-      className="flex w-full gap-2"
+      className="field-row flex w-full gap-2"
       onSubmit={(e) => {
         e.preventDefault();
         if (id) router.push(roomHref(slug, id));

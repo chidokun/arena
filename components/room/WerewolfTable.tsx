@@ -922,7 +922,7 @@ function WolfDen({ view, session }: { view: View; session: WerewolfRoom }) {
       )}
       {open && (
         <form
-          className="mt-3 flex gap-2"
+          className="field-row mt-3 flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (!text.trim()) return;
