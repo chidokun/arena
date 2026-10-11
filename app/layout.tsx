@@ -13,6 +13,7 @@ import { PublicChatDock } from "@/components/room/ChatPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { body, display } from "@/lib/fonts";
 import { loadGames } from "@/lib/games/registry";
+import { ogImage, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // Mã đo lường GA4 là công khai (nằm sẵn trong HTML); chỉ gắn ở bản build để lượt chạy `next dev` không lẫn vào số liệu.
@@ -21,9 +22,14 @@ const GA_ID = process.env.NODE_ENV === "production" ? "G-ZMN01YP9MV" : null;
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://arena.nguyentuan.dev"),
-  title: { default: "Arena — Đấu trường game đối kháng P2P", template: "%s · Arena" },
-  description: "Vào phòng, rủ bạn bè và đấu ngay trên trình duyệt. Không đăng ký, không máy chủ — các trình duyệt nối trực tiếp với nhau.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: "%s · Arena" },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ["game online", "chơi cùng bạn bè", "cờ caro online", "cờ tướng online", "ma sói online", "lô tô online", "game trình duyệt", "game P2P"],
+  // Trang con khai lại openGraph / twitter qua shareMeta (lib/site.ts).
+  openGraph: { type: "website", siteName: SITE_NAME, locale: "vi_VN", images: [ogImage()] },
+  twitter: { card: "summary_large_image", images: [ogImage()] },
 };
 
 export const viewport: Viewport = {

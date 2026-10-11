@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GameLobby } from "@/components/lobby/GameLobby";
 import { MaintenanceGate } from "@/components/Maintenance";
-import { getGame, hasPage, loadGames } from "@/lib/games/registry";
+import { gameHref, getGame, hasPage, loadGames } from "@/lib/games/registry";
+import { ogImage, shareMeta } from "@/lib/site";
 
 export const dynamicParams = false;
 
@@ -13,7 +14,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ game: string }> }): Promise<Metadata> {
   await loadGames();
   const game = getGame((await params).game);
-  return game ? { title: `${game.name} — sảnh chờ`, description: game.description } : {};
+  return game ? shareMeta({ title: `${game.name} — chơi online cùng bạn bè`, description: game.description, path: gameHref(game.slug), image: ogImage(game.slug, `${game.name} — ${game.tagline}`) }) : {};
 }
 
 export default async function GamePage({ params }: { params: Promise<{ game: string }> }) {

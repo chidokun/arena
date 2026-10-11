@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { GameGrid, LiveStats } from "@/components/home/GameGrid";
 import { StickerArt } from "@/components/room/Sticker";
+import { shareMeta, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
+
+export const metadata: Metadata = {
+  ...shareMeta({ title: SITE_TITLE, description: SITE_DESCRIPTION, path: "/" }),
+  title: { absolute: SITE_TITLE },
+};
 
 const STEPS = [
   { n: "1", title: "Chọn game", text: "Vào sảnh của game để xem các phòng đang mở và số người trong đó.", tone: "var(--sky)" },

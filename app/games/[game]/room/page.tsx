@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { RoomScreen } from "@/components/room/RoomScreen";
 import { MaintenanceGate } from "@/components/Maintenance";
 import { getGame, hasPage, loadGames } from "@/lib/games/registry";
+import { ogImage, shareMeta } from "@/lib/site";
 
 export const dynamicParams = false;
 
@@ -14,7 +15,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ game: string }> }): Promise<Metadata> {
   await loadGames();
   const game = getGame((await params).game);
-  return game ? { title: `Phòng ${game.name}` } : {};
+  if (!game) return {};
+  // Link phòng là link mời: Facebook / Zalo hiện tiêu đề này kèm ảnh của game.
+  const meta = shareMeta({
+    title: `Vào phòng ${game.name} chơi cùng mình!`,
+    description: `${game.tagline}. Bấm link là vào phòng ngay, không cần đăng ký hay cài app.`,
+    image: ogImage(game.slug, `${game.name} — ${game.tagline}`),
+  });
+  // Mỗi phòng một ?id= nhưng cùng một trang tĩnh; không cho Google lập chỉ mục các phòng tạm thời.
+  return { ...meta, robots: { index: false, follow: true } };
 }
 
 export default async function RoomPage({ params }: { params: Promise<{ game: string }> }) {
