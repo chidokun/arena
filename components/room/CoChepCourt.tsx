@@ -85,8 +85,9 @@ export const CoChepCourt = memo(function CoChepCourt({
   mark?: { x: number; y: number } | null;
 }) {
   const g = GEO[orient];
-  const skyLabel = g.pt(100, SKY.cy + 74);
-  const groundLabel = g.pt(100, -80);
+  // Nhãn Trời / Đất nằm giữa vùng của nó. Sân ngang hẹp chiều dọc nhãn → xếp biểu tượng trên, chữ dưới.
+  const skyLabel = g.pt(100, g.tall ? SKY.cy + 74 : SKY.cy + SKY.r * 0.45);
+  const groundLabel = g.pt(100, g.tall ? -76 : (GROUND.y0 + GROUND.y1) / 2);
   const markAt = mark ? g.pt(mark.x, mark.y) : null;
   return (
     <svg viewBox={g.viewBox} className={`cc is-${orient}`} role="img" aria-label="Sân cò chẹp">
@@ -97,14 +98,10 @@ export const CoChepCourt = memo(function CoChepCourt({
         </radialGradient>
       </defs>
       <path d={g.sky} fill={`url(#cc-sky-${orient})`} className={target === TROI ? "cc-target-sky" : undefined} />
-      <text x={skyLabel.x} y={skyLabel.y} className="cc-label">
-        ☁️ TRỜI
-      </text>
+      <Label at={skyLabel} icon="☁️" text="TRỜI" stacked={!g.tall} />
 
       <rect {...g.box(GROUND)} rx={14} className="cc-ground" />
-      <text x={groundLabel.x} y={groundLabel.y} className="cc-label">
-        ĐẤT
-      </text>
+      <Label at={groundLabel} icon="🌱" text="ĐẤT" stacked={!g.tall} />
 
       {CELLS.map((r, c) => {
         if (!c) return null;
@@ -149,6 +146,26 @@ export const CoChepCourt = memo(function CoChepCourt({
     </svg>
   );
 });
+
+/** Nhãn vùng (Trời, Đất): biểu tượng và chữ cùng hàng, hoặc xếp chồng (biểu tượng trên, chữ dưới). */
+function Label({ at, icon, text, stacked }: { at: { x: number; y: number }; icon: string; text: string; stacked: boolean }) {
+  if (!stacked)
+    return (
+      <text x={at.x} y={at.y} className="cc-label">
+        {icon} {text}
+      </text>
+    );
+  return (
+    <g className="cc-label">
+      <text x={at.x} y={at.y - 12} fontSize={22}>
+        {icon}
+      </text>
+      <text x={at.x} y={at.y + 14}>
+        {text}
+      </text>
+    </g>
+  );
+}
 
 function HopToken({ hopper, p, g }: { hopper: Hopper; p: CourtPlayer; g: Geo }) {
   const w = stepAt(hopper.step);
