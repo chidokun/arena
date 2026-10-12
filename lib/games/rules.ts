@@ -70,61 +70,77 @@ export const RULES: Record<string, GameRules> = {
   },
 
   "co-chep": {
-    intro: "Cò chẹp – chiếm nhà cho 1 đến 5 người: chọi đá chính xác, nhảy cò chẹp đúng luật, chọi qua lưng để chiếm nhà — ai nhiều nhà nhất là thắng.",
+    intro: "Trò dân gian cho 1–5 người: chọi đá chinh phục từng ô, lên Trời rồi chọi qua lưng để chiếm nhà. Ai có nhiều nhà nhất là thắng.",
     sections: [
       {
         emoji: "🗺️",
         title: "Sân chơi",
         items: [
-          "Ô Đất là chỗ đứng chọi. Ô 1, 2, 3, 6 là ô đơn (cò — nhảy một chân); 4–5 và 7–8 là ô đôi (chẹp — mỗi chân một ô).",
-          "Trời là nửa vòng tròn phía trên ô 7–8, không có vạch bao quanh.",
-          "Nhà là ô một người đã chiếm được — tô màu và in hình đại diện của chủ nhà.",
+          "Đất: chỗ đứng chọi đá.",
+          "Ô 1 → 8: ô đơn (1, 2, 3, 6) nhảy cò một chân; ô đôi (4–5, 7–8) nhảy chẹp hai chân.",
+          "Trời: nửa vòng tròn phía trên ô 7–8, không có vạch bao.",
+          "Nhà: ô bạn đã chiếm được, tô màu và in hình đại diện của bạn.",
         ],
       },
       {
         emoji: "🎯",
-        title: "Chọi đá (kéo – buông như bắn ná)",
+        title: "Cách chọi đá",
         items: [
-          "Tới lượt thì màn chọi đá tự mở: kéo ngược về sau, kéo càng dài chọi càng xa, kéo lệch một bên thì đá bay lệch sang bên kia. Buông tay là chọi.",
-          "Chấm quỹ đạo chỉ hiện đoạn đầu; đá chạm đất còn trượt thêm một chút, tay cũng hơi run — mỗi cú một khác.",
-          "Đá phải nằm gọn trong ô mới tính; chạm vạch, ra ngoài sân, sai ô đều mất lượt.",
+          "Tới lượt, kéo viên đá ngược về sau như kéo ná rồi buông: kéo càng dài đá bay càng xa, kéo lệch bên này thì đá bay lệch bên kia.",
+          "Đá phải nằm gọn trong ô mới tính. Chạm vạch, ra ngoài hay sai ô đều mất lượt.",
         ],
       },
       {
         emoji: "🦩",
         title: "Giai đoạn 1: chinh phục ô 1 → 8",
         items: [
-          "Chọi đá vào ô mục tiêu (bắt đầu từ ô 1). Trúng thì tự nhảy: từ Đất nhảy lần lượt qua các ô, bỏ qua ô có đá và nhà người khác (nhà mình thì được nhảy vào), tới 7–8 quay đầu, đến ô ngay trước ô có đá thì nhặt đá rồi nhảy về Đất.",
-          "Nhảy xong thì chọi tiếp ô kế tiếp, cứ thế tới ô 8. Ô nào đã thành nhà thì bỏ qua.",
-          "Phải nhảy vượt từ 2 hàng liền bị chặn trở lên thì rất dễ ngã; lúc nào cũng có chút rủi ro mất thăng bằng. Tỉ lệ được tính sẵn, như nhau trên mọi máy.",
-          "Ngã thì mất lượt nhưng giữ tiến độ: đá vẫn nằm nguyên chỗ, lượt sau nhảy tiếp luôn không cần chọi lại.",
+          "Chọi đá vào ô mục tiêu, bắt đầu từ ô 1.",
+          "Trúng thì máy tự nhảy giúp bạn: nhảy từ Đất lên tới ô 7–8, quay đầu, nhặt đá ở ô ngay trước ô có đá rồi nhảy về Đất. Khi nhảy, bỏ qua ô có đá và nhà người khác; nhà mình thì được nhảy vào.",
+          "Nhảy xong thì chọi tiếp ô kế tiếp, cứ thế tới ô 8. Ô đã thành nhà thì bỏ qua.",
         ],
       },
       {
         emoji: "☁️",
         title: "Giai đoạn 2: chinh phục Trời",
         items: [
-          "Xong ô 8 thì chọi đá lên Trời; trượt là mất lượt.",
-          "Lên được Trời thì tự nhảy tới ô chẹp 7–8, rồi nhảy chẹp quanh viên đá bốn hướng: trên, phải, dưới, trái.",
-          "Xong động tác thì chọi qua lưng — màn chọi quay ra bầu trời, không được nhìn sân: kéo lên trên để lấy đà rồi buông.",
+          "Xong ô 8 thì chọi đá lên Trời.",
+          "Trúng thì nhảy tới ô 7–8, rồi nhảy chẹp quanh viên đá đủ bốn hướng: trên, phải, dưới, trái.",
+          "Cuối cùng chọi đá qua lưng, không được nhìn: màn hình quay ra bầu trời, kéo lên trên để lấy đà rồi buông.",
         ],
       },
       {
         emoji: "🏠",
-        title: "Chiếm nhà và cháy nhà",
+        title: "Kết quả cú chọi qua lưng",
         items: [
-          "Đá rơi gọn vào ô trống hoàn toàn (không phải nhà ai, không có đá người khác): chiếm ô đó làm nhà, được chơi tiếp và bắt đầu lại hành trình từ ô 1.",
-          "Rơi vào nhà người khác, ô có đá người khác, chạm vạch hay ra ngoài: mất lượt (lượt sau chọi lên Trời lại).",
-          "Chọi trúng nhà của chính mình — từ Đất hay qua lưng đều vậy — là cháy nhà: mất nhà và mất lượt. Nhà người khác thì không chiếm được bằng cách chọi vào.",
+          "Rơi gọn vào ô trống hoàn toàn: chiếm ô đó làm nhà, được chơi tiếp và bắt đầu lại hành trình từ ô 1.",
+          "Rơi vào nhà người khác, ô có đá người khác, chạm vạch hoặc ra ngoài: mất lượt, lượt sau chọi lên Trời lại.",
+          "Rơi vào nhà của chính mình: cháy nhà! Mất nhà và mất lượt.",
+        ],
+      },
+      {
+        emoji: "🔥",
+        title: "Nhà và cháy nhà",
+        items: [
+          "Nhà đã có chủ thì người khác không chiếm được. Người khác chọi trúng nhà bạn thì nhà vẫn là của bạn.",
+          "Tự chọi trúng nhà mình thì cháy nhà, dù chọi từ Đất hay qua lưng.",
+        ],
+      },
+      {
+        emoji: "⏸️",
+        title: "Mất lượt nhưng giữ tiến độ",
+        items: [
+          "Phạm lỗi thì mất lượt, chuyển sang người kế tiếp.",
+          "Tiến độ không bị xoá: đá đang nằm đâu vẫn nằm đó, lượt sau chơi tiếp từ chỗ đang dở.",
+          "Khi nhảy có thể bị ngã (mất thăng bằng); phải nhảy vượt từ 2 hàng liền bị chặn trở lên thì càng dễ ngã.",
         ],
       },
       {
         emoji: "🏆",
         title: "Thắng thua",
         items: [
-          "Chủ phòng bấm Chốt ván lúc nào cũng được (hoặc ván tự hết khi cả 8 ô đều đã thành nhà): ai nhiều nhà nhất thắng, bằng nhau thì cùng thắng.",
-          "Mỗi lượt có 60 giây; quá giờ hoặc mất kết nối khi tới lượt thì bị cho qua lượt. Bỏ cuộc hay mất kết nối quá lâu thì rời cuộc, nhà để lại không được tính.",
-          "Người chọi trước xoay vòng sau mỗi ván.",
+          "Ván kết thúc khi chủ phòng bấm Chốt ván, hoặc khi cả 8 ô đều đã thành nhà.",
+          "Ai nhiều nhà nhất thắng; bằng nhà thì cùng thắng.",
+          "Mỗi lượt có 60 giây; quá giờ hoặc mất kết nối thì bị qua lượt. Bỏ cuộc hoặc mất kết nối quá lâu thì rời cuộc, nhà để lại không được tính.",
         ],
       },
     ],

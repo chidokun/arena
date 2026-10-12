@@ -77,12 +77,8 @@ const at = (v: View, p: V3): Pt => {
   return { x: v.ox + v.s * r.x, y: v.oy + v.s * r.y, k: v.s / r.depth };
 };
 
+/** Camera đặt cao, nhìn dốc xuống sân (như nhìn từ sau lưng người chọi) — mọi cỡ màn hình dùng chung một góc. */
 const CAMS = {
-  front: camera(P(100, -470, 400), P(100, 270, 0)),
-  back: camera(P(100, 880, 300), P(100, 220, 0)),
-};
-/** Màn hình dọc (điện thoại): camera cao hơn, nhìn dốc xuống để sân dài ra, lấp chiều cao. */
-const TALL_CAMS = {
   front: camera(P(100, -330, 620), P(100, 250, 0)),
   back: camera(P(100, 760, 560), P(100, 230, 0)),
 };
@@ -527,7 +523,8 @@ export function CoChepThrow({
       const cd: CourtData = { ...court, tones, target };
       const myTone = tones[tone] ?? tones[0];
       const s = show.current;
-      const margin = { t: Math.max(70, H * 0.12), b: Math.max(30, H * 0.05), l: 16, r: 16 };
+      // Lề dưới chừa chỗ cho khung hướng dẫn (thanh lực + lời nhắc) để không che người chọi.
+      const margin = { t: Math.max(70, H * 0.12), b: Math.max(96, H * 0.12), l: 16, r: 16 };
       const kidVideo = video.current;
 
       // Giai đoạn hiện tại.
@@ -557,7 +554,15 @@ export function CoChepThrow({
         return;
       }
 
-      const v = fit((H > W * 1.3 ? TALL_CAMS : CAMS)[mode], [...FRAME, P(ORIGIN[mode].x, ORIGIN[mode].y, ORIGIN[mode].z)], W, H, margin);
+      const pts = [...FRAME, P(ORIGIN[mode].x, ORIGIN[mode].y, ORIGIN[mode].z)];
+      let v = fit(CAMS[mode], pts, W, H, margin);
+      if (mode === "front") {
+        // Video người chọi đặt theo tay, chân thò xuống dưới: lấn vào khung hướng dẫn thì thu khung hình lại cho vừa.
+        const hand = at(v, ORIGIN.front);
+        const kidK = at(v, P(ORIGIN.front.x - 30, ORIGIN.front.y - 10)).k * 0.8;
+        const over = hand.y + (KID.h - KID.front.hand.y) * (kidK / KID.k) - (H - margin.b);
+        if (over > 0) v = fit(CAMS[mode], pts, W, H, { ...margin, b: margin.b + over * 1.15 });
+      }
       paintBackdrop(ctx, v, W, H, mode === "front" ? 1 : -1);
       const final = phase === "hold" || phase === "slide" ? s!.result.spot : null;
       paintCourt(ctx, v, cd, now, phase === "hold" ? final : null);
