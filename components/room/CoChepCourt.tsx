@@ -86,8 +86,8 @@ export const CoChepCourt = memo(function CoChepCourt({
 }) {
   const g = GEO[orient];
   // Nhãn Trời / Đất nằm giữa vùng của nó. Sân ngang hẹp chiều dọc nhãn → xếp biểu tượng trên, chữ dưới.
-  const skyLabel = g.pt(100, g.tall ? SKY.cy + 74 : SKY.cy + SKY.r * 0.45);
-  const groundLabel = g.pt(100, g.tall ? -76 : (GROUND.y0 + GROUND.y1) / 2);
+  const skyLabel = g.pt(100, SKY.cy + SKY.r * 0.45);
+  const groundLabel = g.pt(100, (GROUND.y0 + GROUND.y1) / 2);
   const markAt = mark ? g.pt(mark.x, mark.y) : null;
   return (
     <svg viewBox={g.viewBox} className={`cc is-${orient}`} role="img" aria-label="Sân cò chẹp">

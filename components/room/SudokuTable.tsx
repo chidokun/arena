@@ -664,14 +664,14 @@ function Scoreboard({ view, match: g, now }: { view: View; match: SudokuMatch; n
       <p className="text-[12.5px] font-semibold text-ink-3">
         {race ? `Mỗi người ${g.puzzle.empties} ô trống` : `Còn ${s.open}/${g.puzzle.empties} ô trống`}
       </p>
-      <ol className="mt-3 grid gap-3">
+      <ol className="mt-3 grid grid-cols-1 gap-3">
         {order.map((k, rank) => {
           const seat = g.lineup[k];
           const p = seat.member;
           return (
-            <li key={seat.uid} className="flex items-center gap-2.5">
-              <span className="w-4 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
-              <span className="relative">
+            <li key={seat.uid} className="flex min-w-0 items-center gap-2.5">
+              <span className="w-4 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
+              <span className="relative shrink-0">
                 {p ? <Avatar p={p} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
                 {winners.has(seat.uid) && (
                   <span className="absolute -right-2 -bottom-1 text-base" aria-label="Thắng">
@@ -680,9 +680,9 @@ function Scoreboard({ view, match: g, now }: { view: View; match: SudokuMatch; n
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 truncate text-[14px] font-bold">
+                <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-bold">
                   <span className="sd-swatch" style={{ background: colorOf(k) }} aria-hidden="true" />
-                  <span className="truncate">{seat.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</span>
+                  <span className="min-w-0 truncate">{seat.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</span>
                 </p>
                 {race ? (
                   <>
@@ -700,7 +700,7 @@ function Scoreboard({ view, match: g, now }: { view: View; match: SudokuMatch; n
                   </p>
                 )}
               </div>
-              {!race && <span className="font-display text-2xl font-extrabold tabular-nums">{s.score[k]}</span>}
+              {!race && <span className="shrink-0 font-display text-2xl font-extrabold tabular-nums">{s.score[k]}</span>}
             </li>
           );
         })}
