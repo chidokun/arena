@@ -19,6 +19,7 @@ import { MineControlTable } from "./MineControlTable";
 import { OAnQuanTable } from "./OAnQuanTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
+import { TrucXanhTable } from "./TrucXanhTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { XiangqiRoleTable } from "./XiangqiRoleTable";
@@ -112,5 +113,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "co-chep") return <CoChepTable id={id} slug={slug} session={session} />;
   if (session.game === "mine-control") return <MineControlTable id={id} slug={slug} session={session} />;
   if (session.game === "kawaii") return <KawaiiTable id={id} slug={slug} session={session} />;
+  if (session.game === "truc-xanh") return <TrucXanhTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

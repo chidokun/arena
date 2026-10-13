@@ -17,13 +17,14 @@ import { MineControlRoom } from "@/lib/net/mine-control-room";
 import { OAnQuanRoom } from "@/lib/net/oanquan-room";
 import type { ChatMsg, RoomSession, RoomView } from "@/lib/net/room";
 import { SudokuRoom } from "@/lib/net/sudoku-room";
+import { TrucXanhRoom } from "@/lib/net/truc-xanh-room";
 import { UndercoverRoom } from "@/lib/net/undercover-room";
 import { WerewolfRoom } from "@/lib/net/werewolf-room";
 import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -68,7 +69,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                                     ? MineControlRoom.open(id, uid, profile, lobby)
                                     : game === "kawaii"
                                       ? KawaiiRoom.open(id, uid, profile, lobby)
-                                      : CaroRoom.open(id, uid, profile, lobby);
+                                      : game === "truc-xanh"
+                                        ? TrucXanhRoom.open(id, uid, profile, lobby)
+                                        : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }

@@ -53,6 +53,49 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "truc-xanh": {
+    intro: "Trúc Xanh như trên truyền hình, cho bao nhiêu người cũng được, một mình cũng chơi được: lần lượt lật ô tìm cặp hình giống nhau để mở dần bức tranh ẩn — ai đoán trúng từ khoá của tranh là thắng.",
+    sections: [
+      {
+        emoji: "🖼️",
+        title: "Bàn chơi",
+        items: [
+          "Các ô đánh số úp lên một bức tranh ẩn, bốc ngẫu nhiên trong bộ hơn 100 tranh (danh lam, món ăn, con vật, đồ vật…) — tranh nào phòng đã chơi thì không bốc lại.",
+          "Mặt dưới mỗi ô là một hình emoji, mỗi hình đúng hai ô. Chủ phòng chọn bàn Nhỏ 4×3, Vừa 5×4 (20 ô như truyền hình) hoặc Lớn 6×5.",
+        ],
+      },
+      {
+        emoji: "🔄",
+        title: "Lật ô",
+        items: [
+          "Người chơi lần lượt theo thứ tự xáo lúc bắt đầu ván. Tới lượt thì lật hai ô bất kỳ.",
+          "Hai ô cùng hình: cặp ô biến mất, lộ ra một mảng tranh — và bạn được lật tiếp.",
+          "Hai ô khác hình: ô ngửa thêm chốc lát cho cả phòng ghi nhớ rồi úp lại, sang lượt người sau.",
+          "Mỗi lượt có 20 giây, lật trúng thì tính lại giờ. Hết giờ hoặc vắng mặt thì mất lượt.",
+        ],
+      },
+      {
+        emoji: "🎯",
+        title: "Đoán tranh",
+        items: [
+          "Ai trong đội hình cũng được đoán từ khoá bất cứ lúc nào, không cần tới lượt — gõ vào ô đoán dưới tranh.",
+          "Không cần dấu, không phân biệt hoa thường (“thap eiffel” ≡ “Tháp Eiffel”); vài tranh có nhiều cách gọi, gọi cách nào cũng được.",
+          "Đoán đúng là thắng ngay. Đoán trật thì thôi, không bị phạt — chỉ hiện cho cả phòng thấy; gần đúng thì chỉ riêng bạn được báo. Mỗi ván đoán tối đa 20 lần.",
+          "Lật hết bàn mà chưa ai đoán ra thì cả phòng còn 30 giây để đoán, hết giờ thì ván kết thúc không ai thắng.",
+        ],
+      },
+      {
+        emoji: "🙋",
+        title: "Người chơi",
+        items: [
+          "Không giới hạn số ghế: ai vào phòng cũng có thể bấm “Vào chơi” trước khi ván bắt đầu; vào giữa ván thì xem và chờ ván sau.",
+          "Người xem không được đoán, cũng đừng nhắc đáp án trong khung chat.",
+          "Chủ phòng dừng ván được bất cứ lúc nào (không tính ai thắng); cả đội hình mất kết nối lâu thì ván tự dừng.",
+        ],
+      },
+    ],
+  },
+
   caro: {
     intro: "Cờ caro kiểu Việt Nam cho 2 người: lần lượt đặt quân trên bàn ô vuông, ai xếp được 5 quân thẳng hàng trước là thắng.",
     sections: [

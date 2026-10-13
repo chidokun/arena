@@ -7,8 +7,8 @@
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
  *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
  *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng; dò mìn chiến thuật là hành động (mở ô, kỹ năng,
- *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng; sudoku, nối thú kawaii là bàn chung
- *                     chủ phòng ghi sau khi phân xử nhật ký `m:` của từng người.
+ *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng; sudoku, nối thú kawaii, trúc xanh
+ *                     là bàn chung chủ phòng ghi sau khi phân xử nhật ký `m:` của từng người.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
  *                     vẽ đoán: người vẽ chọn từ thứ mấy.
@@ -16,8 +16,8 @@
  *   s:<round>:<uid> — ma sói, undercover, vẽ đoán: bí mật chủ phòng gửi riêng từng người (vai, từ khoá…), niêm phong.
  *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
- *   m:<round>:<uid> — sudoku, nối thú kawaii: nhật ký nước điền / nước nối của từng người; chủ phòng phân xử thứ tự rồi
- *                     ghi bàn chung vào `g:<ván>`.
+ *   m:<round>:<uid> — sudoku, nối thú kawaii, trúc xanh: nhật ký nước điền / nước nối / lật ô và lời đoán của từng người;
+ *                     chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
  *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
  *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
  *   d:<round>:<lượt>.<trang>:<uid> — vẽ đoán: tranh của người vẽ trong lượt, chia trang thao tác (nét, đổ màu, hoàn tác…).
@@ -29,7 +29,8 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom,
+ * TrucXanhRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { CcPublic } from "../games/co-chep";
@@ -38,6 +39,7 @@ import type { DwPublic } from "../games/draw-guess";
 import type { KwRound } from "../games/kawaii";
 import type { McPublic } from "../games/mine-control";
 import type { SudokuRound } from "../games/sudoku";
+import type { TxRound } from "../games/truc-xanh";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
 import type { XqRolePublic } from "../games/xiangqi-role";
@@ -63,9 +65,10 @@ export type Result = {
   /**
    * Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu:
    * "sunk" là đánh chìm hết hạm đội. Vẽ đoán: "points" là hết các lượt, nhiều điểm nhất thắng (`winners`). Dò mìn
-   * chiến thuật: "survive" là người cuối cùng chưa bị loại.
+   * chiến thuật: "survive" là người cuối cùng chưa bị loại. Trúc xanh: "guess" là có người đoán trúng tranh (`winner`), hoặc
+   * lật hết bàn, hết giờ đoán mà không ai đoán ra (`winner` null).
    */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -74,7 +77,7 @@ export type Meta = {
   game: string;
   name: string;
   host: string;
-  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ); 0 là không giới hạn (nối thú kawaii). */
+  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ); 0 là không giới hạn (nối thú kawaii, trúc xanh). */
   seats: number;
   /** Số người tối đa trong phòng, tính cả người xem; 0 là không giới hạn. */
   cap: number;
@@ -117,6 +120,10 @@ export type Meta = {
   mc?: McPublic;
   /** Nối thú kawaii: bàn (seed, cỡ) và giờ lộ bàn của ván gần nhất, chốt lúc bắt đầu. */
   kw?: KwRound;
+  /** Trúc xanh: bàn (seed, cỡ), mã tranh ẩn và giờ mở bàn của ván gần nhất, chốt lúc bắt đầu. */
+  tx?: TxRound;
+  /** Trúc xanh: mã các tranh đã chơi trong phòng — không bốc lại. */
+  txUsed?: number[];
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;

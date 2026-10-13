@@ -2554,6 +2554,168 @@
     animation: kw-path 650ms ease-out forwards;
   }
 
+  /* ---------- Trúc xanh ---------- */
+  /* Tranh ẩn nằm dưới lưới ô; ô lật được cặp thì mờ đi để lộ tranh. `--cols` là số cột (cỡ chữ theo bề ngang bàn). */
+  .tx-board {
+    position: relative;
+    width: 100%;
+    max-width: 760px;
+    aspect-ratio: 4 / 3;
+    margin-inline: auto;
+    overflow: hidden;
+    border: 3px solid var(--edge);
+    border-radius: 14px;
+    background: var(--sunken);
+    box-shadow: var(--shadow);
+    user-select: none;
+    touch-action: manipulation;
+    container-type: inline-size;
+  }
+  .tx-pic {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+  .tx-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+  }
+  .tx-cell {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    /* Nền đặc dưới thẻ: lúc thẻ đang xoay không để lọt tranh ẩn; ô đã lật được thì trong suốt. */
+    background: var(--sunken);
+    perspective: 700px;
+    cursor: pointer;
+  }
+  .tx-cell.is-gone,
+  .tx-cell.is-done {
+    background: transparent;
+  }
+  .tx-cell:disabled {
+    cursor: default;
+  }
+  .tx-card {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 380ms ease;
+  }
+  .tx-back,
+  .tx-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--edge) 70%, transparent);
+    backface-visibility: hidden;
+    line-height: 1;
+  }
+  /* Mặt úp: ô tre xanh có số. */
+  .tx-back {
+    background:
+      linear-gradient(90deg, transparent 46%, rgb(255 255 255 / 0.16) 46% 54%, transparent 54%),
+      linear-gradient(180deg, transparent 47%, rgb(0 0 0 / 0.14) 47% 53%, transparent 53%),
+      linear-gradient(150deg, #43d68c, #13955c 70%, #0d7a4a);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: calc(30cqi / var(--cols));
+    font-weight: 800;
+    text-shadow: 0 2px 0 rgb(0 0 0 / 0.3);
+  }
+  .tx-face {
+    background: var(--board);
+    font-size: calc(46cqi / var(--cols));
+    transform: rotateY(180deg);
+  }
+  .tx-cell.is-pickable:focus-visible .tx-back {
+    filter: brightness(1.12);
+    box-shadow: inset 0 0 0 3px var(--sun);
+  }
+  @media (hover: hover) {
+    .tx-cell.is-pickable:hover .tx-back {
+      filter: brightness(1.12);
+      box-shadow: inset 0 0 0 3px var(--sun);
+    }
+  }
+  .tx-cell.is-open .tx-card,
+  .tx-cell.is-gone .tx-card {
+    transform: rotateY(180deg);
+  }
+  .tx-cell.is-open .tx-face {
+    box-shadow: inset 0 0 0 3px var(--sun);
+  }
+  /* Lật trúng: hai ô ngửa thêm một nhịp rồi mờ đi, lộ tranh. */
+  .tx-cell.is-gone {
+    pointer-events: none;
+  }
+  .tx-cell.is-gone .tx-card {
+    animation: tx-gone 1100ms ease-in forwards;
+  }
+  /* Hết ván: các ô còn úp mờ dần, lộ cả tranh. */
+  .tx-cell.is-done .tx-card {
+    animation: tx-done 900ms ease-in forwards;
+  }
+  .tx-answer {
+    position: absolute;
+    bottom: 4%;
+    left: 50%;
+    max-width: 92%;
+    padding: 6px 16px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-display);
+    font-size: clamp(16px, 4.2cqi, 28px);
+    font-weight: 800;
+    text-align: center;
+    transform: translateX(-50%);
+    animation: tx-answer 500ms 600ms ease-out both;
+  }
+  .tx-answer.is-err {
+    bottom: auto;
+    top: 4%;
+    background: var(--coral-soft);
+    font-size: 14px;
+  }
+  .tx-timer {
+    width: 100%;
+    max-width: 760px;
+    height: 8px;
+    margin-inline: auto;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--sunken);
+  }
+  .tx-timer > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 250ms linear;
+  }
+  .tx-player {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+  }
+  .tx-player.is-turn {
+    border-color: var(--lime);
+    background: var(--lime-soft);
+  }
+
   /* ---------- Ma sói ---------- */
   .ww-stage {
     position: relative;
@@ -4466,5 +4628,29 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes tx-gone {
+  0%,
+  45% {
+    opacity: 1;
+    transform: rotateY(180deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotateY(180deg) scale(0.6);
+  }
+}
+@keyframes tx-done {
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+@keyframes tx-answer {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
   }
 }

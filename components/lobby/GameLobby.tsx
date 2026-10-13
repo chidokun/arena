@@ -38,6 +38,7 @@ import {
 import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
 import { DEFAULT_OPTIONS as KW_DEFAULTS, HINT_COST as KW_HINT, normOptions as kwOptions, PAIR_POINTS as KW_PAIR, SIZE_KEYS as KW_SIZES, SIZES as KW_SIZE, type SizeKey as KwSize } from "@/lib/games/kawaii";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
+import { DEFAULT_OPTIONS as TX_DEFAULTS, normOptions as txOptions, PICTURES as TX_PICTURES, SIZE_KEYS as TX_SIZES, SIZES as TX_SIZE, type SizeKey as TxSize } from "@/lib/games/truc-xanh";
 import {
   DEFAULT_OPTIONS as SD_DEFAULTS,
   LEVEL_KEYS,
@@ -192,6 +193,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const coChep = room.game === "co-chep";
   const mc = room.game === "mine-control";
   const kw = room.game === "kawaii";
+  const tx = room.game === "truc-xanh";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -228,7 +230,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                     ? "Đang dò mìn"
                                     : kw
                                       ? "Đang nối thú"
-                                      : "Đang đấu",
+                                      : tx
+                                        ? "Đang lật ô"
+                                        : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -279,6 +283,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <MineControlChips room={room} />
         ) : kw ? (
           <KawaiiChips room={room} />
+        ) : tx ? (
+          <TrucXanhChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -520,6 +526,19 @@ function KawaiiChips({ room }: { room: RoomAd }) {
   );
 }
 
+function TrucXanhChips({ room }: { room: RoomAd }) {
+  const { size } = txOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-lime-soft px-2.5 py-1">
+        ▦ {TX_SIZE[size].label} {TX_SIZE[size].w}×{TX_SIZE[size].h}
+      </span>
+    </>
+  );
+}
+
 function SudokuChips({ room }: { room: RoomAd }) {
   const opts = sdOptions(room.opts);
   return (
@@ -608,6 +627,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [mcMap, setMcMap] = useState<McMap>(MC_DEFAULTS.map);
   const [mcMines, setMcMines] = useState<McMines>(MC_DEFAULTS.mines);
   const [kwSize, setKwSize] = useState<KwSize>(KW_DEFAULTS.size);
+  const [txSize, setTxSize] = useState<TxSize>(TX_DEFAULTS.size);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -624,6 +644,7 @@ function CreateForm({ slug }: { slug: string }) {
   const coChep = slug === "co-chep";
   const mc = slug === "mine-control";
   const kw = slug === "kawaii";
+  const tx = slug === "truc-xanh";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -650,6 +671,9 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (kw) {
           // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize } });
+        } else if (tx) {
+          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: txSize } });
         } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
@@ -877,6 +901,26 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
             🐾 Không giới hạn người chơi, một mình cũng chơi được. Cả phòng chung một bàn: nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được) —
             ai nối trước được {KW_PAIR} điểm, xin gợi ý −{KW_HINT}. Không tính giờ: dọn sạch bàn là hết ván, nhiều điểm nhất thắng.
+          </p>
+        </>
+      ) : tx ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Cỡ bàn</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {TX_SIZES.map((k) => (
+                <button key={k} type="button" onClick={() => setTxSize(k)} aria-pressed={txSize === k} className={`btn !px-2 ${txSize === k ? "btn-lime" : ""}`}>
+                  {TX_SIZE[k].label} {TX_SIZE[k].w}×{TX_SIZE[k].h}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {txSize === "s" ? "6 cặp — tranh lộ nhanh, ván ngắn." : txSize === "m" ? "10 cặp, 20 ô như trên truyền hình." : "15 cặp — tranh lộ chậm, khó đoán hơn."} Đổi được trong phòng trước mỗi ván.
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
+            🎋 Không giới hạn người chơi, một mình cũng chơi được. Lần lượt lật hai ô: trùng hình thì lộ một mảng tranh và được lật tiếp. Ai cũng đoán được từ khoá
+            bất cứ lúc nào — đúng là thắng, trật thì thôi. Bộ {TX_PICTURES.length} tranh, không lặp lại trong phòng.
           </p>
         </>
       ) : sudoku ? (
