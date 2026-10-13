@@ -25,12 +25,15 @@ import {
   MIN_PLAYERS,
   normOptions,
   optimistic,
+  LEVELS,
   pickPicture,
   pictureOf,
-  PICTURES,
   replay,
   TURN_MS,
+  usedId,
+  usedOf,
   type Board,
+  type Level,
   type SizeKey,
   type TxOptions,
   type TxRound,
@@ -46,6 +49,7 @@ export type GuessState = "wait" | "wrong" | "near" | "right";
 export type TxMatch = {
   round: number;
   size: SizeKey;
+  level: Level;
   /** Thứ tự lượt. */
   lineup: SeatView[];
   /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
@@ -71,6 +75,7 @@ export type TxView = {
   opts: TxOptions;
   /** Ván hiện tại hoặc vừa xong; undefined khi chưa chơi ván nào. */
   match?: TxMatch;
+  /** Số tranh đã chơi / cả bộ của mức khó đang chọn cho ván tới. */
   pics: { used: number; total: number };
 };
 
@@ -134,12 +139,14 @@ export class TrucXanhRoom extends RoomSession<TxView> {
       const j = Math.floor(Math.random() * (i + 1));
       [players[i], players[j]] = [players[j], players[i]];
     }
+    const opts = normOptions(m.opts);
     const used = m.txUsed ?? [];
-    const pic = pickPicture(used, Math.random);
+    const pic = pickPicture(used, opts.level, Math.random);
     m.lineup = players;
-    m.tx = { ...normOptions(m.opts), seed: crypto.getRandomValues(new Uint32Array(1))[0], pic, t0: Date.now() + COUNTDOWN_MS };
-    // Chơi hết bộ tranh thì đếm lại từ đầu.
-    m.txUsed = used.length >= PICTURES.length ? [pic] : [...used, pic];
+    m.tx = { ...opts, seed: crypto.getRandomValues(new Uint32Array(1))[0], pic, t0: Date.now() + COUNTDOWN_MS };
+    // Chơi hết bộ tranh của mức này thì đếm lại từ đầu (bộ của mức kia giữ nguyên).
+    const full = usedOf(used, opts.level).length >= LEVELS[opts.level].pictures.length;
+    m.txUsed = [...(full ? this.otherLevels(used, opts.level) : used), usedId(opts.level, pic)];
     return true;
   }
 
@@ -223,9 +230,9 @@ export class TrucXanhRoom extends RoomSession<TxView> {
 
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): TxView {
     const opts = normOptions(m.opts);
-    const base: TxView = { opts, pics: { used: m.txUsed?.length ?? 0, total: PICTURES.length } };
+    const base: TxView = { opts, pics: { used: usedOf(m.txUsed ?? [], opts.level).length, total: LEVELS[opts.level].pictures.length } };
     const tx = m.tx;
-    const pic = tx && pictureOf(tx.pic);
+    const pic = tx && pictureOf(tx);
     if (!tx || !pic || !m.round || !m.lineup.length) return base;
     const state = this.stateOf(m, tx);
     const me = m.lineup.indexOf(this.me);
@@ -243,6 +250,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
       match: {
         round: m.round,
         size: tx.size,
+        level: normOptions(tx).level,
         lineup: m.lineup.map(seatOf),
         me,
         state,
@@ -260,7 +268,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
   protected resultText(r: Result, name: (uid: string) => string) {
     if (r.reason !== "guess") return `Ván ${r.round} dừng giữa chừng`;
     const m = this.meta();
-    const answer = m?.tx ? pictureOf(m.tx.pic)?.w : undefined;
+    const answer = m?.tx ? pictureOf(m.tx)?.w : undefined;
     const reveal = answer ? ` — đáp án là “${answer}”` : "";
     return r.winner ? `🏆 ${name(r.winner)} đoán trúng tranh, thắng ván ${r.round}${reveal}!` : `Ván ${r.round} kết thúc, không ai đoán ra${reveal}`;
   }
@@ -310,7 +318,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
    */
   send(content: { text: string } | { sticker: StickerId }): boolean | void {
     const m = this.meta();
-    const pic = m?.tx && m.status === "playing" ? pictureOf(m.tx.pic) : undefined;
+    const pic = m?.tx && m.status === "playing" ? pictureOf(m.tx) : undefined;
     if ("text" in content && m && pic && isAnswer(content.text, pic)) {
       if (!m.lineup.includes(this.me)) this.system("🤫 Người xem đừng nhắc đáp án nhé!");
       else if (this.playable()) this.guess(content.text);
@@ -320,21 +328,28 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return super.send(content);
   }
 
-  /** Chủ phòng đổi cỡ bàn cho ván tới. */
+  /** Chủ phòng đổi cỡ bàn / mức khó cho ván tới. */
   setOptions(next: Partial<TxOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
       const opts = normOptions({ ...normOptions(m.opts), ...next });
-      if (opts.size === normOptions(m.opts).size) return false;
+      if (JSON.stringify(opts) === JSON.stringify(normOptions(m.opts))) return false;
       m.opts = { ...m.opts, ...opts };
     });
   }
 
-  /** Xoá đánh dấu các tranh đã chơi để bốc lại từ đầu. */
+  /** Các tranh đã chơi của những mức khác `level`. */
+  private otherLevels(used: readonly number[], level: Level) {
+    return used.filter((id) => !usedOf([id], level).length);
+  }
+
+  /** Xoá đánh dấu các tranh đã chơi của mức khó đang chọn để bốc lại từ đầu bộ. */
   resetPictures() {
     this.hostEdit((m) => {
-      if (!m.txUsed?.length) return false;
-      delete m.txUsed;
+      const { level } = normOptions(m.opts);
+      const used = m.txUsed ?? [];
+      if (!usedOf(used, level).length) return false;
+      m.txUsed = this.otherLevels(used, level);
     });
   }
 

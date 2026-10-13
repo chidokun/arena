@@ -4,6 +4,9 @@
  * trùng hình thì cặp ô biến mất — lộ một mảng tranh — và được lật tiếp; trật thì hai ô úp lại, sang người sau. Hết giờ
  * lượt hoặc vắng mặt thì mất lượt.
  *
+ * Tranh ẩn bốc từ một trong hai bộ theo mức chủ phòng chọn: Dễ — danh lam, món ăn, con vật, đồ vật cụ thể; Khó — khái
+ * niệm trừu tượng (cảm xúc, xã hội, khoa học…).
+ *
  * Ai trong đội hình cũng được đoán từ khoá của tranh bất cứ lúc nào, không cần tới lượt: đoán đúng là thắng ngay, đoán
  * trật thì thôi (không bị phạt, chỉ giới hạn số lần đoán). Lật hết bàn mà chưa ai đoán ra thì còn `FINAL_MS` để đoán,
  * hết giờ thì ván kết thúc không ai thắng.
@@ -13,9 +16,10 @@
  * lại được ván từ bàn chung (`replay`).
  */
 import { isNear, isRight } from "./draw-guess.ts";
+import { ABSTRACT } from "./truc-xanh-abstract.ts";
 import { PICTURES, type Picture } from "./truc-xanh-words.ts";
 
-export { PICTURES, type Picture };
+export { ABSTRACT, PICTURES, type Picture };
 
 export const SIZES = {
   s: { w: 4, h: 3, label: "Nhỏ" },
@@ -44,25 +48,43 @@ export const FINAL_MS = 30000;
 export const GUESS_MAX = 20;
 export const GUESS_LEN = 40;
 
-export type TxOptions = { size: SizeKey };
-export const DEFAULT_OPTIONS: TxOptions = { size: "m" };
+/** Mức khó: bộ tranh ẩn dùng cho ván. */
+export const LEVELS = {
+  easy: { label: "Dễ", emoji: "🟢", about: "Danh lam, món ăn, con vật, đồ vật — nhìn là nhận ra.", pictures: PICTURES },
+  hard: { label: "Khó", emoji: "🔴", about: "Khái niệm trừu tượng: cảm xúc, xã hội, khoa học… — phải suy luận từ tranh.", pictures: ABSTRACT },
+} as const;
+export type Level = keyof typeof LEVELS;
+export const LEVEL_KEYS: readonly Level[] = ["easy", "hard"];
+const normLevel = (x: unknown): Level => LEVEL_KEYS.find((k) => k === x) ?? "easy";
+
+export type TxOptions = { size: SizeKey; level: Level };
+export const DEFAULT_OPTIONS: TxOptions = { size: "m", level: "easy" };
 
 export function normOptions(o: unknown): TxOptions {
   const x = (o ?? {}) as Partial<TxOptions>;
-  return { size: SIZE_KEYS.find((k) => k === x.size) ?? DEFAULT_OPTIONS.size };
+  return { size: SIZE_KEYS.find((k) => k === x.size) ?? DEFAULT_OPTIONS.size, level: normLevel(x.level) };
 }
 
 /** Phần công khai của một ván, chủ phòng chốt lúc bắt đầu (`meta.tx`): bàn sinh từ `seed` theo `size`, tranh `pic`. */
 export type TxRound = TxOptions & {
   seed: number;
-  /** Mã tranh ẩn (vị trí trong `PICTURES`). */
+  /** Mã tranh ẩn: vị trí trong bộ tranh của mức `level`. */
   pic: number;
   /** Giờ máy chủ phòng lúc mở bàn (hết đếm ngược) — cũng là lúc bắt đầu lượt đầu tiên. */
   t0: number;
 };
 
 export const pairsOf = (size: SizeKey) => (SIZES[size].w * SIZES[size].h) / 2;
-export const pictureOf = (id: number): Picture | undefined => PICTURES[id];
+/** Tranh của một ván (ván chốt trước khi có mức khó thì là bộ Dễ). */
+export const pictureOf = (r: { pic: number; level?: unknown }): Picture | undefined => LEVELS[normLevel(r.level)].pictures[r.pic];
+
+/** Bộ Khó đánh dấu "đã chơi" bằng mã cộng thêm chừng này, để chung một danh sách với bộ Dễ (`meta.txUsed`). */
+const HARD_BASE = 1000;
+/** Mã một tranh trong danh sách tranh đã chơi của phòng. */
+export const usedId = (level: Level, pic: number) => (level === "hard" ? HARD_BASE + pic : pic);
+/** Các tranh đã chơi (vị trí trong bộ) của một mức. */
+export const usedOf = (used: readonly number[], level: Level) =>
+  used.flatMap((id) => (level === "hard" ? (id >= HARD_BASE ? [id - HARD_BASE] : []) : id < HARD_BASE ? [id] : []));
 
 // ---------- so đáp án ----------
 
@@ -107,11 +129,12 @@ export function deal(seed: number, size: SizeKey): number[] {
   return shuffle([...kinds, ...kinds], rand);
 }
 
-/** Bốc một tranh chưa chơi trong phòng; chơi hết rồi thì bốc lại từ cả bộ. */
-export function pickPicture(used: readonly number[], rand: () => number): number {
-  const seen = new Set(used);
-  const fresh = PICTURES.map((_, i) => i).filter((i) => !seen.has(i));
-  const pool = fresh.length ? fresh : PICTURES.map((_, i) => i);
+/** Bốc một tranh chưa chơi trong phòng (`used` — danh sách `usedId`) của mức `level`; chơi hết rồi thì bốc lại từ cả bộ. */
+export function pickPicture(used: readonly number[], level: Level, rand: () => number): number {
+  const all = LEVELS[level].pictures.map((_, i) => i);
+  const seen = new Set(usedOf(used, level));
+  const fresh = all.filter((i) => !seen.has(i));
+  const pool = fresh.length ? fresh : all;
   return pool[Math.floor(rand() * pool.length)];
 }
 
@@ -273,9 +296,9 @@ const clone = (s: TxState): TxState => ({
  * Dựng lại ván từ bàn chung — tất định, máy nào cũng ra như nhau. Có `from` (trạng thái đã dựng từ phần đầu của cùng
  * nhật ký) thì chỉ áp tiếp các dòng mới.
  */
-export function replay(r: Pick<TxRound, "seed" | "size" | "t0" | "pic">, players: number, log: readonly unknown[], from?: TxState): TxState {
+export function replay(r: Pick<TxRound, "seed" | "size" | "t0" | "pic" | "level">, players: number, log: readonly unknown[], from?: TxState): TxState {
   const s = from && from.count <= log.length && from.pairs.length === players ? clone(from) : newGame(r, players);
-  const pic = pictureOf(r.pic) ?? { w: "", img: "" };
+  const pic = pictureOf(r) ?? { w: "", img: "" };
   for (; s.count < log.length; s.count++) apply(s, pic, log[s.count]);
   return s;
 }
@@ -296,11 +319,11 @@ export type JudgeCtx = {
  * người tới lượt vắng mặt) hoặc hết giờ đoán. `state` là trạng thái dựng từ `prev.log` (nếu có sẵn). Trả về bàn mới,
  * hoặc null nếu không có gì đổi.
  */
-export function judge(r: Pick<TxRound, "seed" | "size" | "t0" | "pic">, moves: readonly (readonly unknown[])[], prev: Board, ctx: JudgeCtx, state?: TxState): Board | null {
+export function judge(r: Pick<TxRound, "seed" | "size" | "t0" | "pic" | "level">, moves: readonly (readonly unknown[])[], prev: Board, ctx: JudgeCtx, state?: TxState): Board | null {
   const { now } = ctx;
   if (now < r.t0) return null;
   const players = moves.length;
-  const pic = pictureOf(r.pic) ?? { w: "", img: "" };
+  const pic = pictureOf(r) ?? { w: "", img: "" };
   const s = state && state.count === prev.log.length ? clone(state) : replay(r, players, prev.log);
   const log = prev.log.slice();
   const seen = Array.from({ length: players }, (_, k) => prev.seen[k] ?? 0);

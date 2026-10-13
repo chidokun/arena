@@ -2596,8 +2596,8 @@
     perspective: 700px;
     cursor: pointer;
   }
-  .tx-cell.is-gone,
-  .tx-cell.is-done {
+  .tx-cell.is-done,
+  .tx-cell.is-cleared {
     background: transparent;
   }
   .tx-cell:disabled {
@@ -2654,14 +2654,28 @@
     box-shadow: inset 0 0 0 3px var(--sun);
   }
   /* Lật trúng: hai ô ngửa thêm một nhịp rồi mờ đi, lộ tranh. */
+  /*
+   * Lật trúng: ô vừa lật xoay ngửa (transition của .tx-card), cả hai ô giữ hình kèm viền xanh một nhịp rồi mới mờ đi, lộ
+   * tranh. Nền ô chỉ trong suốt sau khi thẻ đã ngửa hẳn — lúc thẻ đang xoay không để lọt tranh.
+   */
+  /* Mờ cả ô chứ không mờ .tx-card: opacity trên phần tử preserve-3d làm phẳng thẻ, lộ mặt số bị lật ngược. */
   .tx-cell.is-gone {
+    background: transparent;
+    pointer-events: none;
+    transition: background-color 1ms linear 450ms;
+    animation: tx-gone 450ms ease-in 1150ms forwards;
+  }
+  .tx-cell.is-gone .tx-face {
+    box-shadow: inset 0 0 0 4px var(--lime);
+    animation: tx-match 420ms ease-out 380ms;
+  }
+  /* Ô đã lật được từ trước khi mình vào bàn: ẩn luôn. */
+  .tx-cell.is-cleared {
+    opacity: 0;
     pointer-events: none;
   }
-  .tx-cell.is-gone .tx-card {
-    animation: tx-gone 1100ms ease-in forwards;
-  }
   /* Hết ván: các ô còn úp mờ dần, lộ cả tranh. */
-  .tx-cell.is-done .tx-card {
+  .tx-cell.is-done {
     animation: tx-done 900ms ease-in forwards;
   }
   .tx-answer {
@@ -4632,14 +4646,14 @@
 }
 
 @keyframes tx-gone {
-  0%,
-  45% {
-    opacity: 1;
-    transform: rotateY(180deg) scale(1);
-  }
-  100% {
+  to {
     opacity: 0;
-    transform: rotateY(180deg) scale(0.6);
+    transform: scale(0.6);
+  }
+}
+@keyframes tx-match {
+  50% {
+    transform: rotateY(180deg) scale(1.1);
   }
 }
 @keyframes tx-done {

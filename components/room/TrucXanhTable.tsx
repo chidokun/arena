@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTDOWN_MS, FINAL_MS, GUESS_LEN, GUESS_MAX, pairsOf, SIZE_KEYS, SIZES, TILES, TURN_MS } from "@/lib/games/truc-xanh";
+import { COUNTDOWN_MS, FINAL_MS, GUESS_LEN, GUESS_MAX, LEVEL_KEYS, LEVELS, pairsOf, SIZE_KEYS, SIZES, TILES, TURN_MS } from "@/lib/games/truc-xanh";
 import type { GuessState, TrucXanhRoom, TxMatch, TxView } from "@/lib/net/truc-xanh-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
@@ -56,6 +56,7 @@ export function TrucXanhTable({ id, slug, session }: { id: string; slug: string;
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const end = useEndScene(g?.result?.reason === "guess" && g.result.winner ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const size = live && g ? g.size : opts.size;
+  const level = LEVELS[live && g ? g.level : opts.level];
   const placeholder = live && g && g.me >= 0 ? "Thảo luận — đoán ở ô dưới tranh nhé" : live ? "Người xem đừng nhắc đáp án nhé!" : undefined;
 
   return (
@@ -68,6 +69,9 @@ export function TrucXanhTable({ id, slug, session }: { id: string; slug: string;
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang lật ô">
         <span className="chip text-ink-2">
           ▦ {SIZES[size].label} {SIZES[size].w}×{SIZES[size].h}
+        </span>
+        <span className="chip text-ink-2">
+          {level.emoji} Mức {level.label}
         </span>
         <span className="chip text-ink-2">🙋 {m.players.length} người chơi · không giới hạn</span>
       </RoomHeader>
@@ -96,7 +100,7 @@ function CountdownScene({ view, match: g, n }: { view: View; match: TxMatch; n: 
   return (
     <CountdownCine
       tone="lilac"
-      eyebrow={`🎋 Trúc Xanh · ${SIZES[g.size].label} ${SIZES[g.size].w}×${SIZES[g.size].h}`}
+      eyebrow={`🎋 Trúc Xanh · Mức ${LEVELS[g.level].label} · ${SIZES[g.size].w}×${SIZES[g.size].h}`}
       n={n}
       title={g.lineup.length > 1 ? (first === view.me ? "Bạn lật trước!" : `${nameIn(view, first)} lật trước`) : "Lật ô, đoán tranh nào..."}
       tip="Đoán được tranh lúc nào cũng được — đúng là thắng!"
@@ -202,9 +206,26 @@ function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <span className="w-[86px] text-[13px] font-bold text-ink-3">Mức khó</span>
+        {LEVEL_KEYS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            className={`btn btn-sm ${opts.level === k ? "btn-lime" : ""}`}
+            aria-pressed={opts.level === k}
+            disabled={!host && opts.level !== k}
+            onClick={host ? () => session.setOptions({ level: k }) : undefined}
+            title={LEVELS[k].about}
+          >
+            {LEVELS[k].emoji} {LEVELS[k].label}
+          </button>
+        ))}
+        <span className="text-[12.5px] font-semibold text-ink-3">{LEVELS[opts.level].about}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <span className="w-[86px] text-[13px] font-bold text-ink-3">Tranh</span>
         <span className="text-[13.5px] font-semibold text-ink-2">
-          Đã chơi {pics.used}/{pics.total} tranh
+          Đã chơi {pics.used}/{pics.total} tranh mức {LEVELS[opts.level].label}
         </span>
         {host && pics.used > 0 && (
           <button type="button" className="btn btn-sm" onClick={() => session.resetPictures()}>
@@ -215,7 +236,7 @@ function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
       <p className="text-[13.5px] text-ink-2">
         Lần lượt lật hai ô: trùng hình thì cặp ô biến mất, lộ một mảng tranh và được lật tiếp; trật thì úp lại, sang người sau. Mỗi lượt {TURN_MS / 1000} giây. Ai
         cũng đoán được từ khoá của tranh bất cứ lúc nào: đúng là thắng, trật thì thôi (tối đa {GUESS_MAX} lần mỗi ván). Lật hết bàn còn {FINAL_MS / 1000} giây để
-        đoán.{!host && " Chủ phòng chọn cỡ bàn cho ván tới."}
+        đoán.{!host && " Chủ phòng chọn cỡ bàn và mức khó cho ván tới."}
       </p>
     </section>
   );
@@ -264,6 +285,8 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
   const done = !live || s.over;
   const myTurn = live && !counting && !done && g.me >= 0 && turnOf(g) === g.me && g.open.length < 2;
   const [pic, setPic] = useState<"wait" | "ok" | "err">("wait");
+  // Các ô đã lật được lúc bàn hiện ra (vào giữa ván, tải lại trang) — không diễn lại hiệu ứng lật trúng.
+  const [gone] = useState(() => new Set(s.owner.flatMap((o, i) => (o >= 0 ? [i] : []))));
   const { w, h } = s;
   const turn = turnOf(g);
   const total = s.cleared ? FINAL_MS : TURN_MS;
@@ -284,27 +307,22 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
           {s.tiles.map((kind, i) => {
             const owned = s.owner[i] >= 0;
             const open = g.open.includes(i);
-            if (owned || done)
-              return (
-                <span key={i} className={`tx-cell ${owned ? "is-gone" : "is-done"}`} aria-hidden="true">
-                  <span className="tx-card">
-                    <span className="tx-back">{i + 1}</span>
-                    <span className="tx-face">{TILES[kind]}</span>
-                  </span>
-                </span>
-              );
+            // Ô nào cũng là cùng một nút từ đầu tới cuối ván để CSS diễn liền mạch: úp → lật ngửa → (trúng) giữ hai
+            // hình một nhịp rồi mờ đi. Ô đã lật được từ trước khi mình vào bàn thì ẩn luôn, không diễn lại.
+            const state = owned ? (gone.has(i) ? "is-cleared" : "is-gone") : done ? "is-done" : open ? "is-open" : myTurn ? "is-pickable" : "";
             return (
               <button
                 key={i}
                 type="button"
-                className={`tx-cell ${open ? "is-open" : ""} ${myTurn && !open ? "is-pickable" : ""}`}
+                className={`tx-cell ${state}`}
                 onClick={() => session.flip(i)}
-                disabled={!myTurn || open}
-                aria-label={open ? `Ô ${i + 1}: ${TILES[kind]}` : `Ô ${i + 1}`}
+                disabled={!myTurn || open || owned || done}
+                aria-hidden={owned || undefined}
+                aria-label={open || owned ? `Ô ${i + 1}: ${TILES[kind]}` : `Ô ${i + 1}`}
               >
                 <span className="tx-card">
                   <span className="tx-back">{i + 1}</span>
-                  <span className="tx-face">{open ? TILES[kind] : null}</span>
+                  <span className="tx-face">{open || owned ? TILES[kind] : null}</span>
                 </span>
               </button>
             );

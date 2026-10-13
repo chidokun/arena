@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  ABSTRACT,
   deal,
   emptyBoard,
   FINAL_MS,
@@ -9,17 +10,22 @@ import {
   isAnswer,
   isClose,
   judge,
+  LEVEL_KEYS,
+  LEVELS,
   normOptions,
   optimistic,
   pairsOf,
   PEEK_MS,
   pickPicture,
+  pictureOf,
   PICTURES,
   replay,
   SIZE_KEYS,
   SIZES,
   TILES,
   TURN_MS,
+  usedId,
+  usedOf,
   type Board,
   type Move,
   type TxRound,
@@ -28,7 +34,7 @@ import {
 
 const T0 = 1_000_000;
 const pic = PICTURES.findIndex((p) => p.w === "Tháp Eiffel");
-const R: TxRound = { seed: 42, size: "s", pic, t0: T0 };
+const R: TxRound = { seed: 42, size: "s", level: "easy", pic, t0: T0 };
 
 /** Một ván giả lập: người chơi gửi nước vào nhật ký riêng, chủ phòng phân xử ở giờ `now`. */
 function match(players: number, r: TxRound = R) {
@@ -74,32 +80,57 @@ test("chia bàn: mỗi hình đúng hai ô, đủ số cặp, tất định theo
     assert.deepEqual(deal(7, size), tiles);
   }
   assert.notDeepEqual(deal(1, "l"), deal(2, "l"));
-  assert.deepEqual(normOptions({ size: "x" }), { size: "m" });
+  assert.deepEqual(normOptions({ size: "x" }), { size: "m", level: "easy" });
+  assert.deepEqual(normOptions({ size: "l", level: "hard" }), { size: "l", level: "hard" });
+  assert.equal(normOptions({ level: "x" }).level, "easy");
 });
 
-test("bộ tranh: ít nhất 100 tranh, mỗi tranh có từ khoá và ảnh https", () => {
-  assert.ok(PICTURES.length >= 100);
-  assert.equal(new Set(PICTURES.map((p) => p.w)).size, PICTURES.length);
-  for (const p of PICTURES) {
-    assert.ok(p.w.trim());
-    assert.match(p.img, /^https:\/\/(upload|thumb)\.wikimedia\.org\//);
+test("bộ tranh: mỗi mức ít nhất 100 tranh, mỗi tranh có từ khoá và ảnh https", () => {
+  for (const level of LEVEL_KEYS) {
+    const set = LEVELS[level].pictures;
+    assert.ok(set.length >= 100, level);
+    assert.equal(new Set(set.map((p) => p.w)).size, set.length);
+    for (const p of set) {
+      assert.ok(p.w.trim());
+      assert.match(p.img, /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^?]+$/);
+    }
+  }
+  assert.equal(LEVELS.easy.pictures, PICTURES);
+  assert.equal(LEVELS.hard.pictures, ABSTRACT);
+});
+
+test("bộ tranh: từ khoá nào cũng chấm đúng tranh của nó, không ăn nhầm tranh khác cùng bộ", () => {
+  for (const level of LEVEL_KEYS) {
+    const set = LEVELS[level].pictures;
+    for (const p of set)
+      for (const name of [p.w, ...(p.alt ?? [])]) {
+        assert.ok(isAnswer(name, p), name);
+        for (const q of set) if (q !== p) assert.ok(!isAnswer(name, q), `${name} ≠ ${q.w}`);
+      }
   }
 });
 
-test("bộ tranh: từ khoá nào cũng chấm đúng tranh của nó, không ăn nhầm tranh khác", () => {
-  for (const p of PICTURES)
-    for (const name of [p.w, ...(p.alt ?? [])]) {
-      assert.ok(isAnswer(name, p), name);
-      for (const q of PICTURES) if (q !== p) assert.ok(!isAnswer(name, q), `${name} ≠ ${q.w}`);
-    }
-});
-
-test("bốc tranh tránh tranh đã chơi, hết thì bốc lại cả bộ", () => {
+test("bốc tranh theo mức, tránh tranh đã chơi của mức đó, hết thì bốc lại cả bộ", () => {
   const all = PICTURES.map((_, i) => i);
   const used = all.filter((i) => i !== 5);
-  assert.equal(pickPicture(used, Math.random), 5);
-  const any = pickPicture(all, () => 0.5);
+  assert.equal(pickPicture(used, "easy", Math.random), 5);
+  const any = pickPicture(all, "easy", () => 0.5);
   assert.ok(any >= 0 && any < PICTURES.length);
+  // Tranh đã chơi của bộ Dễ không ảnh hưởng bộ Khó và ngược lại.
+  const hardUsed = ABSTRACT.map((_, i) => usedId("hard", i)).filter((id) => id !== usedId("hard", 7));
+  assert.equal(pickPicture([...hardUsed, 7], "hard", Math.random), 7);
+  assert.deepEqual(usedOf([3, usedId("hard", 3), 9], "easy"), [3, 9]);
+  assert.deepEqual(usedOf([3, usedId("hard", 3), 9], "hard"), [3]);
+});
+
+test("tranh của ván theo mức; ván cũ chưa có mức là bộ Dễ", () => {
+  assert.equal(pictureOf({ pic: 0, level: "hard" }), ABSTRACT[0]);
+  assert.equal(pictureOf({ pic: 0, level: "easy" }), PICTURES[0]);
+  assert.equal(pictureOf({ pic: 0 }), PICTURES[0]);
+  const love = ABSTRACT.findIndex((p) => p.w === "Tình yêu");
+  const g = match(1, { ...R, level: "hard", pic: love });
+  g.guess(0, "yeu");
+  assert.equal(g.tick(T0).winner, 0);
 });
 
 test("chấm đáp án: không dấu, hoa thường, cách gọi khác; gần đúng chỉ khi sai ít", () => {
