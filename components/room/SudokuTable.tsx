@@ -5,11 +5,12 @@ import { CELLS, clock, colOf, COUNTDOWN_MS, LEVEL_KEYS, LEVELS, MODE_KEYS, MODES
 import type { RoomView } from "@/lib/net/room";
 import type { SudokuMatch, SudokuRoom, SudokuView } from "@/lib/net/sudoku-room";
 import { Avatar } from "../Avatar";
-import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<SudokuView>;
@@ -62,16 +63,14 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang giải" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang giải">
         <span className="chip text-ink-2">
           {LEVELS[shown.level].emoji} {LEVELS[shown.level].name}
         </span>
         <span className="chip text-ink-2">
           {MODES[shown.mode].emoji} {MODES[shown.mode].name}
         </span>
-      </header>
+      </RoomHeader>
 
       <ActionBar view={view} session={session} now={now} />
       {!live && <Rules view={view} session={session} />}
@@ -150,21 +149,18 @@ function ActionBar({ view, session, now }: { view: View; session: SudokuRoom; no
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
-  const seated = view.mySeat >= 0;
-  const full = m.players.length >= m.seats;
-  const anyOnline = view.seats.some((s) => s.online);
 
   let message: React.ReactNode;
-  let tone = "var(--sunken)";
+  let tone: string = TONE.idle;
   if (live && g) {
     const counting = !now || now < g.opensAt;
     const locked = now < g.lockedUntil;
     if (g.me < 0) message = <>👀 Bạn đang xem — {g.mode === "race" ? "ô tô màu là đã có người giải (màu người giải nhanh nhất) — hết ván mới lộ số." : "mỗi ô được tô màu người điền đúng trước."}</>;
     else if (counting) {
-      tone = "var(--sun-soft)";
+      tone = TONE.hot;
       message = now ? <>⏳ Chuẩn bị… đề lộ sau {Math.max(1, Math.ceil((g.opensAt - now) / 1000))} giây!</> : <>⏳ Chuẩn bị…</>;
     } else if (g.mode === "race" && rankOf(g, g.me)) {
-      tone = "var(--sun-soft)";
+      tone = TONE.hot;
       const rank = rankOf(g, g.me);
       const t = g.fin[g.me];
       message = (
@@ -174,62 +170,34 @@ function ActionBar({ view, session, now }: { view: View; session: SudokuRoom; no
         </>
       );
     } else if (locked) {
-      tone = "var(--coral-soft)";
+      tone = TONE.alert;
       message = <>🔒 Sai rồi — khoá tay {Math.ceil((g.lockedUntil - now) / 1000)} giây.</>;
     } else if (g.mode === "race" && g.state.winners.length) {
-      tone = "var(--lime-soft)";
+      tone = TONE.turn;
       message = (
         <>
           🏆 <b>{nameIn(view, g.lineup[g.state.winners[0]].uid)}</b> đã thắng — hãy tiếp tục để hoàn tất ván nhé!
         </>
       );
     } else if (g.mode === "race") {
-      tone = "var(--lime-soft)";
+      tone = TONE.turn;
       message = <>⚡ Giải nhanh nhất có thể! Ô tô màu là đã có người giải trước — điền sai bị khoá tay 5 giây.</>;
     } else {
-      tone = "var(--lime-soft)";
+      tone = TONE.turn;
       message = <>🎯 Điền đúng ô trống trước người khác để ghi điểm — điền sai bị trừ 1 điểm.</>;
     }
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm “Bắt đầu” khi mọi người sẵn sàng." : "Chờ chủ phòng bắt đầu."}</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để giải đề cùng mọi người.</>;
   }
-
+  if (live && g)
+    return (
+      <StatusBar tone={tone} message={message}>
+        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+      </StatusBar>
+    );
+  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!live && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!live && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!live && view.isHost && (
-          <button
-            type="button"
-            className="btn btn-pen"
-            onClick={() => session.start()}
-            disabled={!m.players.length || !anyOnline}
-            title={!m.players.length ? "Cần ít nhất một người vào ghế" : !anyOnline ? "Người chơi đang mất kết nối" : ""}
-          >
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {live && view.isHost && (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.stop()} confirmLabel="Bấm lần nữa để dừng">
-            ⏹ Dừng ván
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view, { enough: true, startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng.", join: "Bấm “Vào chơi” để giải đề cùng mọi người." })}>
+      <SeatButtons view={view} session={session} blocked={blocked} />
+    </StatusBar>
   );
 }
 
@@ -278,55 +246,40 @@ function Rules({ view, session }: { view: View; session: SudokuRoom }) {
   );
 }
 
+/** Thẻ kết quả: người thắng (hợp sức) hoặc bảng xếp hạng theo thứ tự giải xong (đối kháng). */
 function ResultCard({ view, match: g }: { view: View; match: SudokuMatch }) {
   const r = g.result!;
   const winners = r.winners ?? [];
-  const solved = r.reason === "solve" && winners.length > 0;
+  if (r.reason !== "solve" || !winners.length) return <StoppedCard round={g.round} />;
   const iWon = winners.includes(view.me);
   const k = g.lineup.findIndex((s) => s.uid === winners[0]);
   const names = winners.map((u) => nameIn(view, u)).join(", ");
-  if (!solved)
-    return (
-      <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-        <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">⏹ Dừng ván</p>
-        <p className="mt-1 text-[15px] text-ink-2">Ván {g.round} dừng giữa chừng — không tính ai thắng.</p>
-      </section>
-    );
   if (g.mode === "coop")
     return (
-      <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-        <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
-        </p>
-        <p className="mt-1 text-[15px] text-ink-2">
-          {g.state.score[k]} điểm · cả phòng hoàn tất ván Sudoku trong {clock(g.time ?? 0)}.
-        </p>
-      </section>
+      <Result
+        round={g.round}
+        title={winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
+        sub={`${g.state.score[k]} điểm · cả phòng hoàn tất ván Sudoku trong ${clock(g.time ?? 0)}.`}
+      />
     );
   // Đối kháng: xếp hạng theo thứ tự giải xong, người chưa xong xếp theo số ô đã giải.
   const rest = g.lineup.map((_, i) => i).filter((i) => !rankOf(g, i)).sort((a, b) => g.state.right[b] - g.state.right[a]);
+  const done = g.state.finished.length;
   return (
-    <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-      <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{iWon ? "🏆 Bạn về nhất!" : `🏆 ${names} về nhất!`}</p>
-      <ol className="mt-3 grid gap-2">
-        {[...g.state.finished, ...rest].map((i, n) => {
-          const seat = g.lineup[i];
-          const done = rankOf(g, i) > 0;
+    <Result round={g.round} title={iWon ? "🏆 Bạn về nhất!" : `🏆 ${names} về nhất!`}>
+      <Standings
+        rows={[...g.state.finished, ...rest].map((i, n) => {
           const t = g.fin[i];
-          return (
-            <li key={seat.uid} className="flex items-center gap-2.5 text-[14.5px]">
-              <span className="w-6 text-center font-display font-extrabold">{done ? (n === 0 ? "🥇" : n === 1 ? "🥈" : n === 2 ? "🥉" : n + 1) : "–"}</span>
-              <span className="sd-swatch" style={{ background: colorOf(i) }} aria-hidden="true" />
-              <b className="min-w-0 flex-1 truncate">{nameIn(view, seat.uid)}</b>
-              <span className="font-semibold text-ink-2 tabular-nums">
-                {done ? (t != null ? clock(t) : "xong") : `${g.state.right[i]}/${g.puzzle.empties} ô`}
-                {g.state.wrong[i] ? ` · sai ${g.state.wrong[i]}` : ""}
-              </span>
-            </li>
-          );
+          return {
+            uid: g.lineup[i].uid,
+            name: nameIn(view, g.lineup[i].uid),
+            rank: n < done ? n + 1 : 0,
+            mark: <span className="sd-swatch" style={{ background: colorOf(i) }} aria-hidden="true" />,
+            value: `${n < done ? (t != null ? clock(t) : "xong") : `${g.state.right[i]}/${g.puzzle.empties} ô`}${g.state.wrong[i] ? ` · sai ${g.state.wrong[i]}` : ""}`,
+          };
         })}
-      </ol>
-    </section>
+      />
+    </Result>
   );
 }
 

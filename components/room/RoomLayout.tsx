@@ -140,6 +140,36 @@ export function RoomLayout({
   );
 }
 
+/** Đầu bàn chơi: tên phòng, trạng thái ván, rồi các chip luật / thông tin riêng của game (`children`). */
+export function RoomHeader({ name, status, round, playing, children }: { name: string; status: string; round: number; playing?: string; children?: React.ReactNode }) {
+  return (
+    <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <h1 className="font-display text-3xl font-extrabold tracking-tight">{name}</h1>
+      <StatusChip status={status} round={round} playing={playing} />
+      {children}
+    </header>
+  );
+}
+
+/**
+ * Lời nhắc nổi giữa bàn chơi lúc chưa có ván (đặt trong khối `relative` bọc bàn): chờ đủ người / chủ phòng bấm bắt đầu.
+ * `enough`: đủ người để bắt đầu chưa (mặc định: kín ghế); `waiting`: câu khi chưa đủ.
+ */
+export function WaitingOverlay({ isHost, players, seats, enough = players >= seats, waiting = `Đang chờ đủ ${seats} người vào ghế…` }: { isHost: boolean; players: number; seats: number; enough?: boolean; waiting?: string }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
+      <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
+        {!enough ? waiting : isHost ? "Đủ người rồi — bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
+      </p>
+    </div>
+  );
+}
+
+/** Dòng nhắc dưới bàn chơi cho người không chơi ván này. */
+export function SpectatorNote() {
+  return <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>;
+}
+
 export function StatusChip({ status, round, playing = "đang đấu" }: { status: string; round: number; playing?: string }) {
   if (status === "playing")
     return (

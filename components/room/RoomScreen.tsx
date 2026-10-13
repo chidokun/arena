@@ -14,6 +14,7 @@ import { DotsBoxesTable } from "./DotsBoxesTable";
 import { DrawGuessTable } from "./DrawGuessTable";
 import { Joining } from "./Joining";
 import { LotoTable } from "./LotoTable";
+import { MineControlTable } from "./MineControlTable";
 import { OAnQuanTable } from "./OAnQuanTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
@@ -108,5 +109,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "chess") return <ChessTable id={id} slug={slug} session={session} />;
   if (session.game === "dots-boxes") return <DotsBoxesTable id={id} slug={slug} session={session} />;
   if (session.game === "co-chep") return <CoChepTable id={id} slug={slug} session={session} />;
+  if (session.game === "mine-control") return <MineControlTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

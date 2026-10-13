@@ -6,7 +6,8 @@
  *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
  *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
- *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng.
+ *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng; dò mìn chiến thuật là hành động (mở ô, kỹ năng,
+ *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
  *                     vẽ đoán: người vẽ chọn từ thứ mấy.
@@ -26,12 +27,13 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { CcPublic } from "../games/co-chep";
 import type { DodgePublic } from "../games/dodge";
 import type { DwPublic } from "../games/draw-guess";
+import type { McPublic } from "../games/mine-control";
 import type { SudokuRound } from "../games/sudoku";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
@@ -57,9 +59,10 @@ export type Result = {
   winners?: string[];
   /**
    * Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu:
-   * "sunk" là đánh chìm hết hạm đội. Vẽ đoán: "points" là hết các lượt, nhiều điểm nhất thắng (`winners`).
+   * "sunk" là đánh chìm hết hạm đội. Vẽ đoán: "points" là hết các lượt, nhiều điểm nhất thắng (`winners`). Dò mìn
+   * chiến thuật: "survive" là người cuối cùng chưa bị loại.
    */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -107,6 +110,8 @@ export type Meta = {
   dbSize?: number;
   /** Cò chẹp: seed của ván và những người đã bị loại (bỏ cuộc, mất kết nối, bị mời ra). */
   cc?: CcPublic;
+  /** Dò mìn chiến thuật: seed, bản đồ, số mìn của ván và những người đã bị loại vì bỏ cuộc / mất kết nối / bị mời ra. */
+  mc?: McPublic;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;

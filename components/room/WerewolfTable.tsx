@@ -28,7 +28,7 @@ import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<WolfView>;
@@ -194,14 +194,12 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
       }
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} locked={chatLock(view)} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang chơi" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang chơi">
         {!g.playing && <span className="chip text-ink-2">🙋 {m.players.length} người sẵn sàng</span>}
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRules(true)}>
           📜 Luật chơi
         </button>
-      </header>
+      </RoomHeader>
 
       <div ref={areaRef} className="relative grid gap-4">
         <StageCard view={view} session={session} />

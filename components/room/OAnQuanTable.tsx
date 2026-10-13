@@ -4,13 +4,14 @@ import { useRef } from "react";
 import { initialState, QUAN_VALUE, score, TOTAL, type Board } from "@/lib/games/oanquan";
 import type { OAnQuanRoom, OaqMatch, OaqView } from "@/lib/net/oanquan-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
-import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { OAnQuanBoard, OAQ_TALL_RATIO, OAQ_TONE, quanArt, SIDE_GEM, useSowing, useTallBoard } from "./OAnQuanBoard";
 import { PeoplePanel, SeatCard } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { DuelResult, type DuelSummary } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🪨", "🐚"];
@@ -65,12 +66,10 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} />
+      <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip text-ink-2">🪨 10 ô dân · 2 ô quan</span>
         {opts.quanNon && <span className="chip text-ink-2">🚫 Cấm ăn quan non</span>}
-      </header>
+      </RoomHeader>
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
         {seatCard(0)}
@@ -79,6 +78,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
       </div>
 
       <ActionBar view={view} session={session} animating={!!frame} tall={tall} />
+      {m.status === "ended" && g?.result && !frame && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
       <div className="relative mt-4">
         {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} seed={g!.round} />}
@@ -103,15 +103,9 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
         </div>
         {showGame && <Store board={board} p={below} seat={g!.lineup[below - 1]} me={view.me} seed={g!.round} />}
         <Flyers flyers={flyers} />
-        {!showGame && m.status === "waiting" && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
-              {m.players.length < m.seats ? `Đang chờ đủ ${m.seats} người vào ghế…` : view.isHost ? "Đủ người rồi — bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
-            </p>
-          </div>
-        )}
+        {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
       </div>
-      {!seated && !side && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+      {!seated && !side && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
@@ -174,124 +168,78 @@ function CountdownScene({ match: g, me, n }: { match: OaqMatch; me: string; n: n
   );
 }
 
-/** Cảnh hết ván: người thắng hoặc hoà — bấm để đóng. */
-function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onClose: () => void }) {
+/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function summary(g: OaqMatch, me: string): DuelSummary {
   const r = g.result!;
+  if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} — mỗi bên ${TOTAL / 2} điểm` };
   const a = score(g.state, 1);
   const b = score(g.state, 2);
-  if (!r.winner)
-    return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: OAQ_TONE[(k + 1) as 1 | 2] }))} title="Hoà!" sub={`Ván ${g.round} — mỗi bên ${TOTAL / 2} điểm`} onClose={onClose} />;
   const k = g.lineup.findIndex((s) => s.uid === r.winner);
-  const seat = g.lineup[k];
-  const p = (k + 1) as 1 | 2;
-  const why =
-    r.reason === "resign"
-      ? "Đối thủ xin thua"
-      : r.reason === "leave"
-        ? "Đối thủ rời trận"
-        : r.reason === "kick"
-          ? "Đối thủ bị mời ra"
-          : `Hết quan, thu quân: ${p === 1 ? a : b} – ${p === 1 ? b : a} điểm`;
-  return (
-    <WinCine
-      winners={[{ uid: r.winner, p: seat?.member, badge: <Pebble p={p} /> }]}
-      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
-      sub={why}
-      note={r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined}
-      onClose={onClose}
-    />
-  );
+  return {
+    winner: r.winner,
+    title: r.winner === me ? "Bạn chiến thắng!" : `${g.lineup[k]?.member?.name ?? "Ai đó"} chiến thắng!`,
+    sub: forfeitWhy(r) ?? `Hết quan, thu quân: ${k === 0 ? a : b} – ${k === 0 ? b : a} điểm`,
+    note: r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined,
+  };
 }
 
-/** Nút hành động chính tuỳ vai trò: vào ghế / rời ghế / bắt đầu / xin thua / ván mới. */
+function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onClose: () => void }) {
+  const s = summary(g, me);
+  if (!s.winner) return <DrawCine people={g.lineup.map((x, k) => ({ uid: x.uid, p: x.member, ring: OAQ_TONE[(k + 1) as 1 | 2] }))} title={s.title} sub={s.sub} onClose={onClose} />;
+  const k = g.lineup.findIndex((x) => x.uid === s.winner);
+  return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Pebble p={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
+}
+
+/** Thanh trạng thái: lượt rải trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session, animating, tall }: { view: RoomView<OaqView>; session: OAnQuanRoom; animating: boolean; tall: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
-  const seated = view.mySeat >= 0;
-  const playing = m.status === "playing";
-  const full = m.players.length >= m.seats;
-  const allOnline = view.seats.every((s) => s.online);
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");
 
-  let message: React.ReactNode;
-  let tone = "var(--sunken)";
-  if (playing && g && !g.result) {
-    if (animating) {
-      message = <>🪨 Đang rải quân…</>;
-    } else if (g.mySide) {
-      message = g.myTurn ? (
-        <>
-          🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: OAQ_TONE[g.mySide] }}>bên mình</b> {tall ? "(cột phải) rồi chọn chiều rải ▲ ▼" : "(dãy dưới) rồi chọn chiều rải ◀ ▶"}
-        </>
-      ) : (
-        <>⏳ Chờ đối thủ rải quân…</>
-      );
-      tone = g.myTurn ? "var(--lime-soft)" : "var(--sunken)";
-    } else {
-      message = (
-        <>
-          👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b>
-        </>
-      );
-    }
-    if (!animating && g.state.steps.some((s) => s.k === "scatter"))
-      message = (
-        <>
-          {message} <span className="text-ink-3">· {g.state.turn === g.mySide ? "Bạn" : name(g.lineup[g.state.turn - 1]?.uid)} vừa hết dân, phải lấy 5 quân trong kho rải lại</span>
-        </>
-      );
-  } else if (m.status !== "waiting" && g?.result && animating) {
-    message = <>🪨 Đang rải quân…</>;
-  } else if (m.status === "ended" && g?.result) {
-    const r = g.result;
-    const iWon = r.winner === view.me;
-    const iLost = r.loser === view.me;
-    tone = iWon ? "var(--sun-soft)" : iLost ? "var(--coral-soft)" : "var(--grape-soft)";
-    const why = r.reason === "resign" ? " — đối thủ xin thua" : r.reason === "leave" ? " — đối thủ rời trận" : r.reason === "kick" ? " — đối thủ bị mời ra" : ` — ${score(g.state, 1)} : ${score(g.state, 2)}`;
-    message = r.winner ? (
-      iWon ? (
-        <>🏆 Bạn thắng rồi!{why}</>
-      ) : (
-        <>
-          {iLost ? "😵 Bạn thua" : "🏁"} — <b>{name(r.winner)}</b> thắng{why}
-        </>
-      )
-    ) : (
-      <>🤝 Hết quan — hai bên bằng điểm, hoà!</>
+  // Nước cuối vẫn đang diễn: chưa nói gì về kết quả.
+  if (m.status !== "waiting" && g && animating)
+    return <StatusBar message={<>🪨 Đang rải quân…</>}>{m.status === "playing" && !g.result && g.mySide ? <ResignButton onConfirm={() => session.resign()} /> : null}</StatusBar>;
+  if (m.status === "playing" && g && !g.result) {
+    const scatter = g.state.steps.some((s) => s.k === "scatter") && (
+      <span className="text-ink-3">
+        {" "}
+        · {g.state.turn === g.mySide ? "Bạn" : name(g.lineup[g.state.turn - 1]?.uid)} vừa hết dân, phải lấy 5 quân trong kho rải lại
+      </span>
     );
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = full ? <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm Bắt đầu khi sẵn sàng." : "Chờ chủ phòng bắt đầu."}</> : <>✅ Bạn đã vào ghế, đang chờ thêm người…</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để giành ghế và sẵn sàng.</>;
+    if (!g.mySide)
+      return (
+        <StatusBar
+          message={
+            <>
+              👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b>
+              {scatter}
+            </>
+          }
+        />
+      );
+    return (
+      <StatusBar
+        tone={g.myTurn ? TONE.turn : TONE.idle}
+        message={
+          g.myTurn ? (
+            <>
+              🎯 Đến lượt bạn — chọn một ô dân <b style={{ color: OAQ_TONE[g.mySide] }}>bên mình</b> {tall ? "(cột phải) rồi chọn chiều rải ▲ ▼" : "(dãy dưới) rồi chọn chiều rải ◀ ▶"}
+              {scatter}
+            </>
+          ) : (
+            <>
+              ⏳ Chờ đối thủ rải quân…{scatter}
+            </>
+          )
+        }
+      >
+        <ResignButton onConfirm={() => session.resign()} />
+      </StatusBar>
+    );
   }
-
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!playing && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!playing && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!full || !allOnline} title={!full ? "Cần đủ người vào ghế" : !allOnline ? "Có người chơi đang mất kết nối" : ""}>
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && g?.mySide ? (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.resign()} confirmLabel="Bấm lần nữa để xin thua">
-            🏳️ Xin thua
-          </ConfirmButton>
-        ) : null}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view)}>
+      <SeatButtons view={view} session={session} />
+    </StatusBar>
   );
 }

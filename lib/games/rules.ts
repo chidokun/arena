@@ -146,6 +146,70 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "mine-control": {
+    intro: "Dò mìn đối kháng cho 2–4 người: mở ô từ căn cứ để chiếm đất, dùng năng lượng cho kỹ năng, né mìn — trụ lại cuối cùng hoặc nhiều điểm nhất là thắng.",
+    sections: [
+      {
+        emoji: "🗺️",
+        title: "Bản đồ",
+        items: [
+          "Chủ phòng chọn bản đồ Nhỏ 10×6, Vừa 15×9 hoặc Lớn 20×12, và 10, 15 hoặc 20 quả mìn rải ngẫu nhiên. Bản đồ nhỏ mà đông người thì số mìn tự hạ xuống (không quá nửa số ô ngoài căn cứ).",
+          "Mỗi người có một căn cứ 🏠 ở một góc; vùng 3×3 quanh căn cứ chắc chắn không có mìn.",
+          "Mỗi người bắt đầu với 3 mạng ❤️ và 2 năng lượng ⚡ (tối đa 4). Người đi trước xoay vòng sau mỗi ván.",
+        ],
+      },
+      {
+        emoji: "⛏️",
+        title: "Mở ô",
+        items: [
+          "Mỗi lượt làm đúng một việc: mở một ô hoặc dùng một kỹ năng. Làm xong (hợp lệ) thì hồi 1 năng lượng.",
+          "Chỉ mở được ô đang ẩn nằm sát lãnh thổ của mình theo hàng ngang hoặc dọc (ô chéo không tính). Căn cứ cũng là lãnh thổ.",
+          "Ô an toàn hiện số mìn trong 8 ô xung quanh và thuộc về mình: +1 điểm, số 3–5 thưởng thêm 1, số 6–8 thưởng thêm 2.",
+          "Mở trúng ô số 0 thì vùng an toàn quanh đó tự mở ra — các ô tự mở là ô trung lập (không của ai, không tính điểm).",
+          "Ô của người khác và mìn đã lộ thì không mở, không chiếm được.",
+        ],
+      },
+      {
+        emoji: "💥",
+        title: "Giẫm mìn",
+        items: [
+          "Mất 1 mạng, bị trừ 2 điểm (điểm không xuống dưới 0), mìn lộ ra vĩnh viễn và hết lượt.",
+          "Có Khiên thì Khiên vỡ thay cho 1 mạng — vẫn bị trừ 2 điểm.",
+          "Hết mạng là bị loại; điểm, lãnh thổ và Pháo đài vẫn giữ để xếp hạng.",
+        ],
+      },
+      {
+        emoji: "✨",
+        title: "Kỹ năng",
+        items: [
+          "📡 Radar (2⚡): chọn một ô ẩn, biết tổng số mìn trong vùng 3×3 quanh nó (kể cả chính ô đó). Không mở ô, không chỉ chỗ mìn.",
+          "🛡️ Khiên (2⚡): đỡ cho lần giẫm mìn tiếp theo không mất mạng. Mỗi lúc chỉ giữ một Khiên.",
+          "🏰 Pháo đài (2⚡): đánh dấu một ô của mình (không phải căn cứ), tối đa 2 cái — mỗi Pháo đài thưởng 2 điểm cuối ván.",
+          "🚩 Cướp Đất (3⚡): chiếm một ô trung lập đã mở, sát lãnh thổ mình và không sát lãnh thổ đối thủ nào: +1 điểm.",
+          "Không muốn làm gì thì bỏ lượt (không hồi năng lượng). Ai tới lượt mà không còn việc gì làm được thì tự động bỏ qua.",
+        ],
+      },
+      {
+        emoji: "🏁",
+        title: "Kết thúc ván",
+        items: [
+          "Mở hết mọi ô an toàn (không cần mở mìn).",
+          "Chỉ còn một người chưa bị loại — người đó thắng ngay.",
+          "Bế tắc: không còn ai mở ô hay Cướp Đất được nữa (Radar, Khiên không giữ ván lại), hoặc mọi người cùng bỏ lượt liên tiếp 2 vòng.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Hết ván vì mở hết ô hoặc bế tắc: cộng thưởng cuối ván (+2 mỗi Pháo đài, +1 mỗi mạng còn lại), ai nhiều điểm nhất thắng — kể cả người đã bị loại.",
+          "Bằng điểm thì xét lần lượt: nhiều ô sở hữu hơn, nhiều mạng hơn, nhiều Pháo đài hơn. Vẫn bằng thì hoà.",
+          "Mỗi lượt có 45 giây; quá giờ hoặc mất kết nối khi tới lượt thì bị cho qua lượt. Bỏ cuộc hay mất kết nối quá lâu thì bị loại.",
+        ],
+      },
+    ],
+  },
+
   "dots-boxes": {
     intro: "Chấm nối ô cho 2 người: lần lượt kẻ cạnh nối các chấm, ai khép kín ô vuông thì chiếm ô đó — nhiều ô hơn là thắng.",
     sections: [

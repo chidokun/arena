@@ -17,11 +17,12 @@ import {
 } from "@/lib/games/dodge";
 import type { DodgeMatch, DodgeRoom, DodgeView } from "@/lib/net/dodge-room";
 import type { RoomView } from "@/lib/net/room";
-import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, Standings } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { SeatButtons, seatMessage, startBlocker, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<DodgeView>;
@@ -47,11 +48,9 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang né bão" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang né bão">
         <span className="chip text-ink-2">🌩️ Real-time</span>
-      </header>
+      </RoomHeader>
 
       <ActionBar view={view} session={session} />
       {g?.result && <ResultCard view={view} />}
@@ -92,16 +91,20 @@ function CountdownScene({ view, match: g, n }: { view: View; match: DodgeMatch; 
   );
 }
 
-/** Cảnh hết trận: người sống lâu nhất (hoặc những người đồng hạng) — bấm để đóng. */
+/** Tiêu đề kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function winTitle(view: View, winners: string[]) {
+  const names = winners.map((u) => nameOf(view, u)).join(", ");
+  return winners.length > 1 ? `${names} đồng hạng nhất!` : winners[0] === view.me ? "Bạn sống lâu nhất!" : `${names} sống lâu nhất!`;
+}
+
 function EndScene({ view, match: g, onClose }: { view: View; match: DodgeMatch; onClose: () => void }) {
   const winners = g.result!.winners ?? [];
   const iWon = winners.includes(view.me);
   const best = g.liveScores[winners[0]] ?? 0;
-  const names = winners.map((u) => nameOf(view, u)).join(", ");
   return (
     <WinCine
       winners={winners.map((u) => ({ uid: u, p: g.lineup.find((s) => s.uid === u)?.member ?? view.members.find((p) => p.uid === u), badge: "🏃" }))}
-      title={winners.length > 1 ? `${names} đồng hạng nhất!` : iWon ? "Bạn sống lâu nhất!" : `${names} sống lâu nhất!`}
+      title={winTitle(view, winners)}
       sub={`Trụ được ${formatMs(best)} giữa cơn bão`}
       note={!iWon && g.lineup.some((s) => s.uid === view.me) ? "Ván sau trụ lâu hơn nhé!" : undefined}
       onClose={onClose}
@@ -109,89 +112,38 @@ function EndScene({ view, match: g, onClose }: { view: View; match: DodgeMatch; 
   );
 }
 
+/** Thanh trạng thái: vai của mình trong trận; ngoài ván thì chọn cạnh nấp, vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: DodgeRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
-  const seated = view.mySeat >= 0;
-  const playing = m.status === "playing";
-  const enough = m.players.length >= MIN_PLAYERS;
-  const allOnline = view.seats.every((s) => s.online);
 
-  let message: ReactNode;
-  let tone = "var(--sunken)";
-  if (playing && g) {
+  if (m.status === "playing" && g) {
+    let tone: string = TONE.idle;
+    let message: ReactNode = <>👀 Đang xem trận né bão…</>;
     if (g.iAmRunner) {
+      tone = TONE.turn;
       message = <>🏃 Tự chạy trái→phải — Space / W / ↑ nhảy né hố, gai và đạn!</>;
-      tone = "var(--lime-soft)";
-    } else if (seated || g.lineup.some((s) => s.uid === view.me)) {
+    } else if (view.mySeat >= 0 || g.lineup.some((s) => s.uid === view.me)) {
       const edge = g.myEdge ?? "top";
-      const slide =
-        edge === "left" || edge === "right" ? "↑↓ / W S trượt cạnh" : "←→ / A D trượt cạnh";
+      const slide = edge === "left" || edge === "right" ? "↑↓ / W S trượt cạnh" : "←→ / A D trượt cạnh";
+      tone = TONE.alert;
       message = (
         <>
           🔫 Truy cản từ <b>{EDGE_LABEL[edge]}</b> — {slide}, click / Space bắn
         </>
       );
-      tone = "var(--coral-soft)";
-    } else message = <>👀 Đang xem trận né bão…</>;
-  } else if (m.status === "ended" && g?.result) {
-    const r = g.result;
-    const won = r.winner === view.me || r.winners?.includes(view.me);
-    tone = won ? "var(--sun-soft)" : "var(--grape-soft)";
-    message = r.winner ? (
-      <>
-        🏁 <b>{nameOf(view, r.winner)}</b> sống lâu nhất!
-      </>
-    ) : r.winners?.length ? (
-      <>🏁 Đồng hạng: {r.winners.map((u) => nameOf(view, u)).join(", ")}</>
-    ) : (
-      <>🏁 Hết trận.</>
+    }
+    return (
+      <StatusBar tone={tone} message={message}>
+        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+      </StatusBar>
     );
-  } else if (seated) {
-    message = enough ? <>✅ Đã vào ghế. {view.isHost ? "Bấm Bắt đầu khi đủ người." : "Chờ chủ phòng bắt đầu."}</> : <>✅ Đã vào ghế — cần ít nhất {MIN_PLAYERS} người.</>;
-  } else {
-    message = <>Chọn cạnh nấp rồi bấm “Vào chơi”.</>;
   }
-
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!playing && (
-          <EdgePicker
-            current={g?.myEdge}
-            onPick={(e) => session.pickEdge(e)}
-            disabled={view.pending === "play"}
-          />
-        )}
-        {!playing && !seated && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!playing && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button
-            type="button"
-            className="btn btn-pen"
-            onClick={() => session.start()}
-            disabled={!enough || !allOnline}
-            title={!enough ? `Cần ≥ ${MIN_PLAYERS} người` : !allOnline ? "Có người mất kết nối" : ""}
-          >
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && view.isHost && (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.stop()} confirmLabel="Bấm lần nữa để dừng">
-            ⏹ Dừng ván
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view, { enough: m.players.length >= MIN_PLAYERS, startHint: "Bấm Bắt đầu khi đủ người.", join: "Chọn cạnh nấp rồi bấm “Vào chơi”." })}>
+      <EdgePicker current={g?.myEdge} onPick={(e) => session.pickEdge(e)} disabled={view.pending === "play"} />
+      <SeatButtons view={view} session={session} blocked={startBlocker(view, { min: MIN_PLAYERS })} />
+    </StatusBar>
   );
 }
 
@@ -224,25 +176,21 @@ function HowTo() {
   );
 }
 
+/** Thẻ kết quả: người trụ lâu nhất và bảng thời gian sống sót. */
 function ResultCard({ view }: { view: View }) {
   const g = view.game?.match;
   if (!g?.result) return null;
-  const order = rankScores(g.liveScores, g.lineup.map((s) => s.uid));
+  const winners = g.result.winners ?? [];
   return (
-    <div className="card mt-3 px-4 py-3" style={{ background: "var(--sun-soft)" }}>
-      <p className="font-display text-lg font-extrabold">🏁 Bảng xếp hạng</p>
-      <ol className="mt-2 grid gap-1 text-sm font-semibold">
-        {order.map((uid, i) => (
-          <li key={uid} className="flex justify-between gap-3">
-            <span>
-              {i + 1}. {nameOf(view, uid)}
-              {uid === view.me ? " (bạn)" : ""}
-            </span>
-            <span className="tabular-nums">{formatMs(g.liveScores[uid] ?? 0)}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <Result round={g.round} title={winners.length ? `🏆 ${winTitle(view, winners)}` : "🏁 Hết trận"}>
+      <Standings
+        rows={rankScores(g.liveScores, g.lineup.map((s) => s.uid)).map((uid) => ({
+          uid,
+          name: `${nameOf(view, uid)}${uid === view.me ? " (bạn)" : ""}`,
+          value: formatMs(g.liveScores[uid] ?? 0),
+        }))}
+      />
+    </Result>
   );
 }
 

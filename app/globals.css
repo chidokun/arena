@@ -879,6 +879,110 @@
     }
   }
 
+  /* ---------- Bàn dò mìn chiến thuật ---------- */
+  .mc-grid {
+    display: grid;
+    gap: 3px;
+    container-type: inline-size;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .mc-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    min-width: 0;
+    border-radius: 22%;
+    font-family: var(--font-display), sans-serif;
+    font-weight: 800;
+    font-size: calc(100cqi / var(--mc-w) * 0.5);
+    line-height: 1;
+    transition:
+      transform 120ms,
+      background-color 160ms,
+      box-shadow 160ms;
+  }
+  .mc-cell.is-hidden {
+    background: color-mix(in srgb, var(--pen) 16%, var(--surface));
+    box-shadow:
+      inset 0 -3px 0 color-mix(in srgb, var(--edge) 22%, transparent),
+      inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
+  }
+  .mc-cell.is-open {
+    background: color-mix(in srgb, var(--board-line) 35%, var(--board));
+  }
+  .mc-cell.is-base {
+    box-shadow: inset 0 0 0 2px var(--edge);
+    font-size: calc(100cqi / var(--mc-w) * 0.6);
+  }
+  .mc-cell.is-boom {
+    background: color-mix(in srgb, var(--coral) 40%, var(--board));
+    animation: mc-boom 520ms ease-out;
+  }
+  .mc-cell.is-mine {
+    opacity: 0.75;
+  }
+  .mc-cell.is-ok {
+    cursor: pointer;
+    box-shadow: inset 0 0 0 2px var(--mc-tone);
+  }
+  .mc-cell.is-ok:hover,
+  .mc-cell.is-ok:focus-visible {
+    background: color-mix(in srgb, var(--mc-tone) 30%, var(--surface));
+    transform: translateY(-1px);
+    outline: none;
+  }
+  .mc-cell.is-scan {
+    background: color-mix(in srgb, var(--grape) 35%, var(--surface));
+  }
+  .mc-cell.is-last::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    border: 2px solid var(--ink);
+    animation: mc-last 1.4s ease-out 2;
+    pointer-events: none;
+  }
+  .mc-cell .mc-radar {
+    display: grid;
+    place-items: center;
+    width: 72%;
+    height: 72%;
+    border-radius: 999px;
+    border: 2px dashed var(--grape);
+    color: var(--grape);
+    font-size: 0.85em;
+  }
+  .mc-n1 {
+    color: var(--sky);
+  }
+  .mc-n2 {
+    color: var(--lime);
+  }
+  .mc-n3 {
+    color: var(--coral);
+  }
+  .mc-n4 {
+    color: var(--grape);
+  }
+  .mc-n5,
+  .mc-n6,
+  .mc-n7,
+  .mc-n8 {
+    color: var(--ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mc-cell,
+    .mc-cell.is-boom,
+    .mc-cell.is-last::after {
+      animation: none;
+      transition: none;
+    }
+  }
+
   /* ---------- Bàn ô ăn quan ---------- */
   .oaq {
     display: block;
@@ -3593,6 +3697,28 @@
   }
   to {
     stroke-dashoffset: 0;
+  }
+}
+/* Dò mìn chiến thuật: ô nổ rung lên, ô vừa đi nhấp nháy viền. */
+@keyframes mc-boom {
+  0% {
+    transform: scale(1.35);
+  }
+  30% {
+    transform: scale(0.9) rotate(-6deg);
+  }
+  60% {
+    transform: scale(1.05) rotate(4deg);
+  }
+}
+@keyframes mc-last {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
   }
 }
 /* Cò chẹp: nhà mới bật lên, viền ô mục tiêu chạy, người nhảy nảy lên rồi đáp, ngã lăn ra; cháy nhà: ô sạm, lửa, khói. */

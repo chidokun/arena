@@ -5,12 +5,13 @@ import { roundOfTurn, ROUND_CHOICES, standings, TIER_NAMES, TIME_CHOICES, totalT
 import type { DrawGuessRoom, DwMatch, DwView, GuessState } from "@/lib/net/draw-guess-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
-import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { DrawBoard, Toolbar, type Tool } from "./DrawBoard";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<DwView>;
@@ -88,13 +89,11 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
         />
       }
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang vẽ" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang vẽ">
         <span className="chip text-ink-2">🔁 {shown.rounds} vòng</span>
         <span className="chip text-ink-2">⏱ {shown.time}s</span>
         <span className="chip text-ink-2">💡 Gợi ý {shown.hints ? "bật" : "tắt"}</span>
-      </header>
+      </RoomHeader>
 
       <ActionBar view={view} session={session} now={now} />
       {!live && <Rules view={view} session={session} />}
@@ -153,45 +152,42 @@ function WinScene({ view, match: g, onClose }: { view: View; match: DwMatch; onC
 
 /** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session, now }: { view: View; session: DrawGuessRoom; now: number }) {
-  const m = view.meta!;
   const { match: g, unkeyed } = view.game!;
   const live = isLive(view);
-  const seated = view.mySeat >= 0;
-  const full = m.players.length >= m.seats;
   const ready = view.seats.filter((s) => s.online).length;
   const left = g && now ? Math.max(0, Math.ceil((g.deadline - now) / 1000)) : 0;
 
   let message: React.ReactNode;
-  let tone = "var(--sunken)";
+  let tone: string = TONE.idle;
   if (live && g) {
     const pub = g.pub;
     const drawer = nameIn(view, pub.drawer);
     if (pub.phase === "pick") {
-      tone = g.role === "drawer" ? "var(--sun-soft)" : "var(--sunken)";
+      tone = g.role === "drawer" ? TONE.hot : TONE.idle;
       message = g.role === "drawer" ? <>✏️ Tới lượt bạn vẽ — chọn một từ{left ? ` trong ${left} giây` : ""}!</> : <>⏳ {drawer} đang chọn từ…</>;
     } else if (pub.phase === "draw") {
       const hits = pub.hits.length;
       const total = guessersOf(pub).length;
       if (g.role === "drawer") {
-        tone = "var(--lime-soft)";
+        tone = TONE.turn;
         message = (
           <>
             🖌️ Vẽ <b>“{g.word}”</b> — không viết chữ, không nói đáp án! ({hits}/{total} người đã đoán ra)
           </>
         );
       } else if (g.hit) {
-        tone = "var(--sun-soft)";
+        tone = TONE.hot;
         message = (
           <>
             🎉 Bạn đã đoán đúng{g.word ? <> <b>“{g.word}”</b></> : ""} (+{g.hit.p})! Khung chat tạm khoá tới hết lượt — chờ mọi người nhé.
           </>
         );
       } else if (g.role === "guesser") {
-        tone = "var(--lime-soft)";
+        tone = TONE.turn;
         message = <>🤔 {drawer} đang vẽ gì vậy? Gõ đáp án vào ô đoán dưới tranh — không cần dấu. Khung chat chỉ để thảo luận.</>;
       } else message = <>👀 Bạn đang xem {drawer} vẽ — {hits}/{total} người đã đoán ra.</>;
     } else if (pub.phase === "show") {
-      tone = "var(--grape-soft)";
+      tone = TONE.info;
       message = pub.last?.word ? (
         <>
           💡 Đáp án là <b>“{pub.last.word}”</b>
@@ -201,41 +197,18 @@ function ActionBar({ view, session, now }: { view: View; session: DrawGuessRoom;
         <>⏭ Bỏ qua lượt này…</>
       );
     } else message = <>🏁 Hết các lượt — đang tổng kết…</>;
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm “Bắt đầu” khi đủ người (ít nhất 2)." : "Chờ chủ phòng bắt đầu."}</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để cùng vẽ, cùng đoán.</>;
   }
-
+  if (live && g)
+    return (
+      <StatusBar tone={tone} message={message}>
+        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+      </StatusBar>
+    );
   const blocked = ready < 2 ? "Cần ít nhất 2 người chơi đang online trong ghế" : unkeyed.length ? "Đang chờ máy của người chơi sẵn sàng…" : "";
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!live && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!live && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!live && view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!!blocked} title={blocked}>
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {live && view.isHost && (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.stop()} confirmLabel="Bấm lần nữa để dừng">
-            ⏹ Dừng ván
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view, { enough: true, startHint: "Bấm “Bắt đầu” khi đủ người (ít nhất 2).", join: "Bấm “Vào chơi” để cùng vẽ, cùng đoán." })}>
+      <SeatButtons view={view} session={session} blocked={blocked} />
+    </StatusBar>
   );
 }
 
@@ -636,33 +609,17 @@ function Waiting({ view }: { view: View }) {
   );
 }
 
+/** Thẻ kết quả: người thắng và bảng điểm cả ván. */
 function ResultCard({ view, match: g }: { view: View; match: DwMatch }) {
   const r = g.result!;
-  if (r.reason !== "points")
-    return (
-      <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-        <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">⏹ Dừng ván</p>
-        <p className="mt-1 text-[15px] text-ink-2">Ván {g.round} dừng giữa chừng — không tính ai thắng.</p>
-      </section>
-    );
+  if (r.reason !== "points") return <StoppedCard round={g.round} />;
   const winners = r.winners ?? [];
   const iWon = winners.includes(view.me);
   const names = winners.map((u) => nameIn(view, u)).join(", ");
   return (
-    <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-      <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-        {!winners.length ? "🤷 Chưa ai ghi được điểm" : winners.length > 1 ? `🤝 ${names} đồng hạng nhất!` : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
-      </p>
-      <ol className="mt-3 grid gap-2">
-        {standings(g.pub).map(({ uid, score, rank }) => (
-          <li key={uid} className="flex items-center gap-2.5 text-[14.5px]">
-            <span className="w-6 text-center font-display font-extrabold">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}</span>
-            <b className="min-w-0 flex-1 truncate">{nameIn(view, uid)}</b>
-            <span className="font-semibold text-ink-2 tabular-nums">{score} điểm</span>
-          </li>
-        ))}
-      </ol>
-    </section>
+    <Result round={g.round} title={!winners.length ? "🤷 Chưa ai ghi được điểm" : winners.length > 1 ? `🤝 ${names} đồng hạng nhất!` : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}>
+      <Standings rows={standings(g.pub).map(({ uid, score, rank }) => ({ uid, name: nameIn(view, uid), rank, value: `${score} điểm` }))} />
+    </Result>
   );
 }
 

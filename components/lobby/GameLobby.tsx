@@ -24,6 +24,17 @@ import {
   type ClaimMs,
 } from "@/lib/games/xiangqi-role";
 import { DEFAULT_PACE, PACE_NAMES, PACES, SHEET_COUNT } from "@/lib/games/loto";
+import {
+  DEFAULT_OPTIONS as MC_DEFAULTS,
+  MAP_KEYS as MC_MAPS,
+  MAPS as MC_MAP,
+  MAX_PLAYERS as MC_MAX,
+  MINE_CHOICES as MC_MINES,
+  minesFor as mcMinesFor,
+  normOptions as mcOptions,
+  type MapKey as McMap,
+  type Mines as McMines,
+} from "@/lib/games/mine-control";
 import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
@@ -178,6 +189,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const chess = room.game === "chess";
   const dots = room.game === "dots-boxes";
   const coChep = room.game === "co-chep";
+  const mc = room.game === "mine-control";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -210,7 +222,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                 ? "Đang nối ô"
                                 : coChep
                                   ? "Đang chọi đá"
-                                  : "Đang đấu",
+                                  : mc
+                                    ? "Đang dò mìn"
+                                    : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -257,6 +271,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <DotsBoxesChips room={room} />
         ) : coChep ? (
           <CoChepChips room={room} />
+        ) : mc ? (
+          <MineControlChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -318,6 +334,24 @@ function CoChepChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-lime-soft px-2.5 py-1">🏠 Chiếm nhà</span>
+    </>
+  );
+}
+
+function MineControlChips({ room }: { room: RoomAd }) {
+  const o = mcOptions(room.opts);
+  const { w, h } = MC_MAP[o.map];
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-sky-soft px-2.5 py-1">
+        ▦ {w}×{h} · 💣 {o.mines}
+      </span>
     </>
   );
 }
@@ -552,6 +586,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
   const [dotsSize, setDotsSize] = useState<DbSize>(DB_DEFAULTS.size);
+  const [mcMap, setMcMap] = useState<McMap>(MC_DEFAULTS.map);
+  const [mcMines, setMcMines] = useState<McMines>(MC_DEFAULTS.mines);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -566,6 +602,7 @@ function CreateForm({ slug }: { slug: string }) {
   const chess = slug === "chess";
   const dots = slug === "dots-boxes";
   const coChep = slug === "co-chep";
+  const mc = slug === "mine-control";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -594,6 +631,7 @@ function CreateForm({ slug }: { slug: string }) {
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize } });
         else if (coChep) stashCreate(id, { name: clean, cap, seats: game.seats.max, opts: {} });
+        else if (mc) stashCreate(id, { name: clean, cap, seats: MC_MAX, opts: { map: mcMap, mines: mcMines } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
         else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
@@ -643,6 +681,47 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
             🪨 Từ 1 đến {game.seats.max} người chơi. Kéo – buông để chọi đá lần lượt vào ô 1 → 8, trúng thì tự nhảy cò chẹp nhặt đá về; xong ô 8 thì chọi lên Trời rồi chọi
             qua lưng để chiếm nhà. Chọi trúng nhà mình là cháy nhà! Chủ phòng chốt ván lúc nào cũng được — ai nhiều nhà nhất thắng.
+          </p>
+        </>
+      ) : mc ? (
+        <>
+          <CapacityField
+            cap={cap}
+            setCap={setCap}
+            min={Math.max(game.capacity.min, MC_MAX)}
+            max={game.capacity.max}
+            seats={MC_MAX}
+            note={`Tối đa ${MC_MAX} người chơi và ${Math.max(0, cap - MC_MAX)} người xem.`}
+          />
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Bản đồ</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {MC_MAPS.map((k) => (
+                <button key={k} type="button" onClick={() => setMcMap(k)} aria-pressed={mcMap === k} className={`btn !px-2 ${mcMap === k ? "btn-sun" : ""}`}>
+                  {MC_MAP[k].label} {MC_MAP[k].w}×{MC_MAP[k].h}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Số mìn</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {MC_MINES.map((n) => (
+                <button key={n} type="button" onClick={() => setMcMines(n)} aria-pressed={mcMines === n} className={`btn !px-2 ${mcMines === n ? "btn-sun" : ""}`}>
+                  💣 {n}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {mcMinesFor({ map: mcMap, mines: mcMines }, MC_MAX) < mcMines
+                ? `Bản đồ này đông người thì tự hạ còn ${mcMinesFor({ map: mcMap, mines: mcMines }, MC_MAX)} mìn (4 người) để khỏi kín mìn.`
+                : "Mìn càng dày, mở ô càng hồi hộp."}{" "}
+              Đổi được trong phòng trước mỗi ván.
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
+            💣 Từ 2 đến {MC_MAX} người, mỗi người một căn cứ ở góc bản đồ. Lần lượt mở ô sát lãnh thổ để chiếm đất và ghi điểm, dùng năng lượng cho Radar, Khiên,
+            Pháo đài, Cướp Đất. Giẫm mìn mất mạng — hết 3 mạng là bị loại. Trụ lại cuối cùng, hoặc nhiều điểm nhất khi hết ô / bế tắc, là thắng.
           </p>
         </>
       ) : dots ? (

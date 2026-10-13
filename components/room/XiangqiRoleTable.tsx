@@ -19,7 +19,9 @@ import type { RoomView } from "@/lib/net/room";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, Vs, WinCine, type CrowdItem } from "./Cine";
 import { PeoplePanel } from "./People";
-import { RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, StoppedCard } from "./ResultCard";
+import { RoomHeader, RoomLayout } from "./RoomLayout";
+import { SeatButtons, seatMessage, startBlocker, StatusBar } from "./StatusBar";
 import { PieceIcon } from "./XiangqiBoard";
 import { XiangqiRoleBoard } from "./XiangqiRoleBoard";
 import { useRoomView } from "./useRoom";
@@ -73,9 +75,7 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
       panels={[{ key: "team", label: "⚔️ Phe", node: <TeamChat session={session} messages={g.teamChat} me={view.me} side={match?.mySide ?? sideFromSeats(g.seats, view.me)} /> }]}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} />
+      <RoomHeader name={m.name} status={m.status} round={m.round}>
         {match && (
           <span className="chip" style={{ color: match.pub.side === "red" ? "var(--coral)" : "var(--ink)" }}>
             Lượt {match.pub.side === "red" ? "Đỏ" : "Đen"}
@@ -83,9 +83,10 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
           </span>
         )}
         <span className="chip text-ink-2">⏱ Claim {claimLabel(g.opts.claimMs)}</span>
-      </header>
+      </RoomHeader>
 
       <ActionBar view={view} session={session} />
+      {ended && match && <ResultCard match={match} />}
 
       {!playing && !ended && (
         <>
@@ -115,11 +116,6 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
             <TurnPanel match={match} session={session} members={view.members} claimMs={g.opts.claimMs} />
             {match.dead && (
               <p className="rounded-xl bg-sunken p-3 text-sm text-ink-2">Hết quân trong role của bạn. Bạn đang xem và vẫn chat được với đồng đội.</p>
-            )}
-            {ended && match.pub.winner && (
-              <p className="rounded-xl bg-lime-soft p-3 font-display text-lg font-extrabold">
-                Chiếu bí — phe {match.pub.winner === "red" ? "Đỏ" : "Đen"} thắng!
-              </p>
             )}
           </aside>
         </div>
@@ -170,20 +166,28 @@ function CountdownScene({ match, members, me, n }: { match: XqRoleMatch; members
   );
 }
 
-/** Cảnh hết ván: phe chiếu bí thắng — những người chơi của phe thắng (vàng rực); bấm để đóng. */
+/** Tiêu đề / giải thích kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function summary(match: XqRoleMatch, side: Side) {
+  const mine = match.mySide;
+  return {
+    title: mine === side ? "Phe bạn chiến thắng!" : `Phe ${SIDE_NAME[side]} chiến thắng!`,
+    sub: `Chiếu bí sau ${match.pub.turn} nước`,
+    note: mine && mine !== side ? "Phe bạn thua ván này — ván sau phục thù nhé!" : undefined,
+  };
+}
+
 function EndScene({ match, members, me, onClose }: { match: XqRoleMatch; members: RoomView["members"]; me: string; onClose: () => void }) {
   const side = match.pub.winner!;
   const people = teamOf(match, side, members, me).filter((x) => x.p);
-  const mine = match.mySide;
-  return (
-    <WinCine
-      winners={people.map((x) => ({ uid: x.uid, p: x.p, badge: x.badge, plainBadge: true }))}
-      title={mine === side ? "Phe bạn chiến thắng!" : `Phe ${SIDE_NAME[side]} chiến thắng!`}
-      sub={`Chiếu bí sau ${match.pub.turn} nước`}
-      note={mine && mine !== side ? "Phe bạn thua ván này — ván sau phục thù nhé!" : undefined}
-      onClose={onClose}
-    />
-  );
+  return <WinCine winners={people.map((x) => ({ uid: x.uid, p: x.p, badge: x.badge, plainBadge: true }))} {...summary(match, side)} onClose={onClose} />;
+}
+
+/** Thẻ kết quả: phe thắng, hoặc ván dừng vì không đủ người. */
+function ResultCard({ match }: { match: XqRoleMatch }) {
+  const side = match.pub.winner;
+  if (!side) return <StoppedCard round={match.round} sub={`Ván ${match.round} dừng giữa chừng — không đủ người chơi.`} />;
+  const s = summary(match, side);
+  return <Result round={match.round} title={`${match.mySide && match.mySide !== side ? "😵" : "🏆"} ${s.title}`} sub={s.sub} note={s.note} />;
 }
 
 function sideFromSeats(seats: Record<number, string>, me: string): Side | null {
@@ -208,29 +212,21 @@ function ClaimConfig({ claimMs, onChange }: { claimMs: ClaimMs; onChange: (ms: C
   );
 }
 
+/** Thanh trạng thái ngoài ván: vào ghế (chọn role bên dưới) / bắt đầu. Trong ván thì bảng lượt bên cạnh bàn cờ lo. */
 function ActionBar({ view, session }: { view: RoomView; session: XiangqiRoleRoom }) {
   const m = view.meta!;
-  const seated = view.mySeat >= 0;
   const n = m.players.length;
   if (m.status === "playing") return null;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {!seated ? (
-        <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play" || n >= ROLE_COUNT}>
-          Chọn role &amp; vào ghế
-        </button>
-      ) : (
-        <button type="button" className="btn btn-sm" onClick={() => session.leaveSeat()}>
-          Rời ghế
-        </button>
-      )}
-      {view.isHost && (
-        <button type="button" className="btn btn-pen" disabled={n < MIN_PLAYERS} onClick={() => session.start()}>
-          Bắt đầu ({n}/{MIN_PLAYERS}+ · tối đa {ROLE_COUNT} · bot fill)
-        </button>
-      )}
-      {!view.isHost && seated && <span className="text-sm text-ink-3">Chờ chủ phòng bắt đầu…</span>}
-    </div>
+    <StatusBar
+      message={seatMessage(view, {
+        enough: n >= MIN_PLAYERS,
+        startHint: `Bấm Bắt đầu khi đủ người — role còn trống do bot chơi thay (${n}/${ROLE_COUNT}).`,
+        join: <>Bấm “Chọn role &amp; vào ghế” rồi chọn role ở bảng bên dưới.</>,
+      })}
+    >
+      <SeatButtons view={view} session={session} joinLabel="🙋 Chọn role & vào ghế" blocked={startBlocker(view, { min: MIN_PLAYERS })} />
+    </StatusBar>
   );
 }
 

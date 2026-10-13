@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { coord, FLEET, fleetGrid, randomFleet, shipCells, SIZE, type Fleet, type Ship } from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
 import type { RoomView } from "@/lib/net/room";
-import { ConfirmButton } from "../ConfirmButton";
 import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { DuelResult, type DuelSummary } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 type View = RoomView<BsView>;
@@ -42,16 +43,14 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing={g?.phase === "setup" ? "đang bày tàu" : "đang giao chiến"} />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing={g?.phase === "setup" ? "đang bày tàu" : "đang giao chiến"}>
         <span className="chip text-ink-2">
           ▦ {SIZE}×{SIZE} · {FLEET.length} tàu
         </span>
         <span className="chip" style={{ color: opts.chain ? "var(--sun)" : "var(--ink-3)" }}>
           {opts.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
         </span>
-      </header>
+      </RoomHeader>
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
         {([0, 1] as const).map((i) => (
@@ -60,12 +59,13 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
       </div>
 
       <ActionBar view={view} session={session} />
+      {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
       <div ref={boardRef} className="relative mt-4">
         {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
         <Flyers flyers={flyers} />
       </div>
-      {!seated && !(g && g.me >= 0) && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+      {!seated && !(g && g.me >= 0) && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
@@ -101,30 +101,25 @@ function CountdownScene({ match: g, me, n }: { match: BsMatch; me: string; n: nu
   );
 }
 
-/** Cảnh hết ván: người thắng (vàng rực) — bấm để đóng. */
-function EndScene({ match: g, me, onClose }: { match: BsMatch; me: string; onClose: () => void }) {
+/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function summary(g: BsMatch, me: string): DuelSummary {
   const r = g.result!;
-  if (!r.winner) return <DrawCine people={g.sides.map((s, k) => ({ uid: s.seat.uid, p: s.seat.member, ring: RING[k] }))} title="Hoà!" sub={`Ván ${g.round} hoà`} onClose={onClose} />;
-  const k = g.sides.findIndex((s) => s.seat.uid === r.winner) as 0 | 1;
-  const seat = g.sides[k]?.seat;
+  if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} hoà` };
+  const k = g.sides.findIndex((s) => s.seat.uid === r.winner);
   const shots = g.sides[1 - k]?.marks.filter((v) => v >= 0).length ?? 0;
-  const why =
-    r.reason === "resign"
-      ? "Đối thủ xin thua"
-      : r.reason === "leave"
-        ? "Đối thủ rời trận"
-        : r.reason === "kick"
-          ? "Đối thủ bị mời ra"
-          : `Đánh chìm toàn bộ ${FLEET.length} tàu sau ${shots} phát bắn`;
-  return (
-    <WinCine
-      winners={[{ uid: r.winner, p: seat?.member, badge: <span style={{ color: RING[k] }}>⚓</span> }]}
-      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
-      sub={why}
-      note={r.loser === me ? `${r.reason === "sunk" ? "Hạm đội của bạn đã chìm" : "Bạn thua ván này"} — ván sau phục thù nhé!` : undefined}
-      onClose={onClose}
-    />
-  );
+  return {
+    winner: r.winner,
+    title: r.winner === me ? "Bạn chiến thắng!" : `${g.sides[k]?.seat.member?.name ?? "Ai đó"} chiến thắng!`,
+    sub: forfeitWhy(r) ?? `Đánh chìm toàn bộ ${FLEET.length} tàu sau ${shots} phát bắn`,
+    note: r.loser === me ? `${r.reason === "sunk" ? "Hạm đội của bạn đã chìm" : "Bạn thua ván này"} — ván sau phục thù nhé!` : undefined,
+  };
+}
+
+function EndScene({ match: g, me, onClose }: { match: BsMatch; me: string; onClose: () => void }) {
+  const s = summary(g, me);
+  if (!s.winner) return <DrawCine people={g.sides.map((x, k) => ({ uid: x.seat.uid, p: x.seat.member, ring: RING[k] }))} title={s.title} sub={s.sub} onClose={onClose} />;
+  const k = g.sides.findIndex((x) => x.seat.uid === s.winner);
+  return <WinCine winners={[{ uid: s.winner, p: g.sides[k]?.seat.member, badge: <span style={{ color: RING[k] }}>⚓</span> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
 function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"]; g?: BsMatch; view: View; busy: boolean }) {
@@ -154,104 +149,57 @@ function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"];
 const nameOf = (view: View, uid?: string | null) =>
   uid ? (view.members.find((p) => p.uid === uid)?.name ?? view.game?.match?.sides.find((s) => s.seat.uid === uid)?.seat.member?.name ?? "Ai đó") : "";
 
-/** Nút hành động chính tuỳ vai trò: vào ghế / rời ghế / bắt đầu / xin thua / ván mới. */
+/** Thanh trạng thái: bày tàu / lượt bắn trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
   const m = view.meta!;
   const { opts, match: g } = view.game!;
-  const seated = view.mySeat >= 0;
-  const playing = m.status === "playing";
-  const full = m.players.length >= m.seats;
-  const allOnline = view.seats.every((s) => s.online);
   const name = (uid?: string | null) => nameOf(view, uid);
 
-  let message: React.ReactNode;
-  let tone = "var(--sunken)";
-  if (playing && g && !g.result) {
-    if (g.me >= 0) {
-      const foe = g.sides[1 - g.me];
-      if (g.lost) {
-        message = <>⚠️ Máy này không còn sơ đồ hạm đội của bạn nên không tự báo kết quả phát bắn được — bạn có thể xin thua.</>;
-        tone = "var(--coral-soft)";
-      } else if (g.phase === "setup")
-        message = g.placing ? (
-          <>
-            🛠️ Bày hạm đội rồi bấm <b>Sẵn sàng</b> — {foe.ready ? "đối thủ đã sẵn sàng!" : "đối thủ cũng đang bày tàu."}
-          </>
-        ) : (
-          <>
-            🔒 Đã chốt hạm đội. Chờ <b>{name(foe.seat.uid)}</b> bày tàu…
-          </>
-        );
-      else if (g.myTurn) {
-        message = <>🎯 Đến lượt bạn — chọn một ô trên hải đồ đối phương để khai hoả{opts.chain ? " (trúng được bắn tiếp)" : ""}</>;
-        tone = "var(--lime-soft)";
-      } else if (g.turn === g.me) message = <>📡 Đang chờ đối thủ báo kết quả…</>;
-      else message = <>⏳ Đối thủ đang ngắm bắn…</>;
-    } else
-      message =
-        g.phase === "setup" ? (
-          <>👀 Đang xem — hai bên đang bày tàu…</>
-        ) : (
-          <>
-            👀 Đang xem — lượt bắn của <b>{name(g.sides[g.turn].seat.uid)}</b>
-          </>
-        );
-  } else if (m.status === "ended" && g?.result) {
-    const r = g.result;
-    const iWon = r.winner === view.me;
-    const iLost = r.loser === view.me;
-    tone = iWon ? "var(--sun-soft)" : iLost ? "var(--coral-soft)" : "var(--grape-soft)";
-    const why =
-      r.reason === "sunk"
-        ? " — đánh chìm toàn bộ hạm đội"
-        : r.reason === "resign"
-          ? " — đối thủ xin thua"
-          : r.reason === "leave"
-            ? " — đối thủ rời trận"
-            : r.reason === "kick"
-              ? " — đối thủ bị mời ra"
-              : "";
-    message = iWon ? (
-      <>🏆 Bạn thắng rồi!{why}</>
-    ) : (
-      <>
-        {iLost ? "😵 Bạn thua" : "🏁"} — <b>{name(r.winner)}</b> thắng{why}
-      </>
+  if (m.status === "playing" && g && !g.result) {
+    if (g.me < 0)
+      return (
+        <StatusBar
+          message={
+            g.phase === "setup" ? (
+              <>👀 Đang xem — hai bên đang bày tàu…</>
+            ) : (
+              <>
+                👀 Đang xem — lượt bắn của <b>{name(g.sides[g.turn].seat.uid)}</b>
+              </>
+            )
+          }
+        />
+      );
+    const foe = g.sides[1 - g.me];
+    let tone: string = TONE.idle;
+    let message: React.ReactNode;
+    if (g.lost) {
+      tone = TONE.alert;
+      message = <>⚠️ Máy này không còn sơ đồ hạm đội của bạn nên không tự báo kết quả phát bắn được — bạn có thể xin thua.</>;
+    } else if (g.phase === "setup")
+      message = g.placing ? (
+        <>
+          🛠️ Bày hạm đội rồi bấm <b>Sẵn sàng</b> — {foe.ready ? "đối thủ đã sẵn sàng!" : "đối thủ cũng đang bày tàu."}
+        </>
+      ) : (
+        <>
+          🔒 Đã chốt hạm đội. Chờ <b>{name(foe.seat.uid)}</b> bày tàu…
+        </>
+      );
+    else if (g.myTurn) {
+      tone = TONE.turn;
+      message = <>🎯 Đến lượt bạn — chọn một ô trên hải đồ đối phương để khai hoả{opts.chain ? " (trúng được bắn tiếp)" : ""}</>;
+    } else message = g.turn === g.me ? <>📡 Đang chờ đối thủ báo kết quả…</> : <>⏳ Đối thủ đang ngắm bắn…</>;
+    return (
+      <StatusBar tone={tone} message={message}>
+        <ResignButton onConfirm={() => session.resign()} />
+      </StatusBar>
     );
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = full ? <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm Bắt đầu khi sẵn sàng." : "Chờ chủ phòng bắt đầu."}</> : <>✅ Bạn đã vào ghế, đang chờ thêm người…</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để giành ghế và sẵn sàng.</>;
   }
-
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!playing && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!playing && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!full || !allOnline} title={!full ? "Cần đủ người vào ghế" : !allOnline ? "Có người chơi đang mất kết nối" : ""}>
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && g && g.me >= 0 && !g.result ? (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.resign()} confirmLabel="Bấm lần nữa để xin thua">
-            🏳️ Xin thua
-          </ConfirmButton>
-        ) : null}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view)}>
+      <SeatButtons view={view} session={session} />
+    </StatusBar>
   );
 }
 
@@ -271,11 +219,7 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
             </section>
           ))}
         </div>
-        <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
-          <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
-            {m.players.length < m.seats ? `Đang chờ đủ ${m.seats} người vào ghế…` : view.isHost ? "Đủ người rồi — bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
-          </p>
-        </div>
+        <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />
       </div>
     );
   const order: (0 | 1)[] = g.me !== -1 ? [(1 - g.me) as 0 | 1, g.me] : [0, 1];

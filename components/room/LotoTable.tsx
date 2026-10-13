@@ -5,13 +5,14 @@ import { docSo, MAX_NUMBER, MAX_PICK, notReady, PACE_NAMES, PACES, SHEET_COLORS,
 import { FIRST_CALL_MS, type LotoRoom, type LotoView } from "@/lib/net/loto-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
-import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { LotoSheet, SheetDots, sheetStyle } from "./LotoSheet";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, StoppedCard } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { StatusBar, StopButton, TONE } from "./StatusBar";
 import { useConfetti, useInView, useVoice } from "./useLoto";
 import { useFlyers, useRoomView } from "./useRoom";
 
@@ -65,14 +66,12 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
       }
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang kêu số" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang kêu số">
         <span className="chip text-ink-2">⏱ {g.opts.interval / 1000} giây/số</span>
         <span className="chip" style={{ color: taken >= SHEET_COUNT ? "var(--coral)" : "var(--ink-3)" }}>
           🎫 {taken}/{SHEET_COUNT} tờ
         </span>
-      </header>
+      </RoomHeader>
 
       <div ref={areaRef} className="relative">
         <Caller ref={callerRef} view={view} session={session} voice={voice} />
@@ -362,13 +361,13 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
   const next = m.round ? "Ván mới" : "Bắt đầu";
 
   let message: React.ReactNode;
-  let tone = "var(--sunken)";
+  let tone: string = TONE.idle;
   if (playing) {
     const mine = g.dealt[view.me] ?? [];
     const needs = [...new Set(waitingRows(g.sheets, mine, g.state.drawn).map((w) => w.need))];
     if (!mine.length) message = view.isHost ? <>🎙️ Bạn đang kêu số — máy tự rút số theo nhịp, mọi người tự dò tờ.</> : <>👀 Bạn đang xem ván này — hết ván sẽ được chọn tờ.</>;
     else if (needs.length) {
-      tone = "var(--sun-soft)";
+      tone = TONE.hot;
       message = (
         <>
           🔔 Đợi rồi! Chỉ cần số <b>{needs.join(", ")}</b> là kinh.
@@ -378,7 +377,7 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
   } else if (me.waiting) {
     message = me.ready ? <>⏳ Đang báo sẵn sàng…</> : me.sheets.length ? <>⏳ Đang chờ chủ phòng ghi nhận tờ…</> : <>⏳ Đang trả tờ…</>;
   } else if (view.isHost) {
-    tone = canStart ? "var(--lime-soft)" : "var(--sunken)";
+    tone = canStart ? TONE.turn : TONE.idle;
     message = (
       <>
         👑 {g.mine.length ? <>Bạn giữ tờ <b>{g.mine.map(sheetName).join(", ")}</b>. </> : <>Bạn là người kêu số — chọn tờ nếu muốn chơi cùng. </>}
@@ -390,14 +389,14 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
       </>
     );
   } else if (me.ready) {
-    tone = "var(--lime-soft)";
+    tone = TONE.turn;
     message = (
       <>
         ✅ Đã sẵn sàng với tờ <b>{g.mine.map(sheetName).join(", ")}</b> — chờ chủ phòng bắt đầu{m.round ? " ván mới" : ""}.
       </>
     );
   } else if (g.mine.length) {
-    tone = "var(--sun-soft)";
+    tone = TONE.hot;
     message = (
       <>
         🎫 Bạn giữ tờ <b>{g.mine.map(sheetName).join(", ")}</b>. Chọn xong thì bấm “Sẵn sàng”.
@@ -408,45 +407,38 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
   }
 
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!playing && g.mine.length > 0 && !me.ready && (
-          <button type="button" className="btn" onClick={() => session.pick([])} disabled={me.waiting}>
-            Trả tờ
-          </button>
-        )}
-        {!playing && !view.isHost && g.mine.length > 0 && !me.ready && (
-          <button type="button" className="btn btn-lime" onClick={() => session.setReady(true)} disabled={me.waiting}>
-            🙋 Sẵn sàng
-          </button>
-        )}
-        {!playing && !view.isHost && me.ready && (
-          <button type="button" className="btn" onClick={() => session.setReady(false)} disabled={me.waiting}>
-            Huỷ sẵn sàng
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button
-            type="button"
-            className="btn btn-pen"
-            onClick={() => {
-              voice.announce("Bắt đầu!");
-              session.start();
-            }}
-            disabled={!canStart}
-            title={!m.players.length ? "Cần ít nhất một người chọn tờ" : unready.length ? `Chưa sẵn sàng: ${unready.map(nameOf).join(", ")}` : ""}
-          >
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && view.isHost && (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.stop()} confirmLabel="Bấm lần nữa để dừng">
-            ⏹ Dừng ván
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+    <StatusBar tone={tone} message={message}>
+      {!playing && g.mine.length > 0 && !me.ready && (
+        <button type="button" className="btn" onClick={() => session.pick([])} disabled={me.waiting}>
+          Trả tờ
+        </button>
+      )}
+      {!playing && !view.isHost && g.mine.length > 0 && !me.ready && (
+        <button type="button" className="btn btn-lime" onClick={() => session.setReady(true)} disabled={me.waiting}>
+          🙋 Sẵn sàng
+        </button>
+      )}
+      {!playing && !view.isHost && me.ready && (
+        <button type="button" className="btn" onClick={() => session.setReady(false)} disabled={me.waiting}>
+          Huỷ sẵn sàng
+        </button>
+      )}
+      {!playing && view.isHost && (
+        <button
+          type="button"
+          className="btn btn-pen"
+          onClick={() => {
+            voice.announce("Bắt đầu!");
+            session.start();
+          }}
+          disabled={!canStart}
+          title={!m.players.length ? "Cần ít nhất một người chọn tờ" : unready.length ? `Chưa sẵn sàng: ${unready.map(nameOf).join(", ")}` : ""}
+        >
+          {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
+        </button>
+      )}
+      {playing && view.isHost && <StopButton onConfirm={() => session.stop()} />}
+    </StatusBar>
   );
 }
 
@@ -455,40 +447,34 @@ function ResultCard({ view }: { view: View }) {
   const r = g.result!;
   const winners = r.winners ?? [];
   const last = g.state.draws.at(-1);
+  if (!winners.length) return <StoppedCard round={g.round} sub={`Ván ${g.round} dừng giữa chừng — không ai kinh.`} />;
   return (
-    <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${g.round}`}>
-      <p className="font-display text-3xl font-extrabold tracking-tight">
-        {winners.length ? "🎉" : "⏹"} {winners.length > 1 ? "Kinh trùng!" : winners.length ? "Kinh!" : "Dừng ván"}
-      </p>
-      {winners.length === 0 ? (
-        <p className="mt-1 text-[15px] text-ink-2">Ván {g.round} dừng giữa chừng — không ai kinh.</p>
-      ) : (
-        <ul className="mt-3 grid gap-3">
-          {g.state.wins.map((win) => {
-            const p = g.people[win.uid]?.member;
-            const row = g.sheets[win.sheet].rows[win.row].filter(Boolean);
-            return (
-              <li key={`${win.uid}:${win.sheet}:${win.row}`} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                {p && <Avatar p={p} size={38} />}
-                <div className="min-w-0">
-                  <p className="font-bold">{win.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</p>
-                  <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-3">
-                    <SheetDots ids={[win.sheet]} size={10} /> Tờ {sheetName(win.sheet)} · hàng {win.row + 1}
-                  </p>
-                </div>
-                <ol className="flex gap-1.5 sm:ml-auto" aria-label="Năm số của hàng kinh">
-                  {row.map((n) => (
-                    <li key={n} className={`loto-chip ${n === last ? "is-last" : "is-win"}`}>
-                      {n}
-                    </li>
-                  ))}
-                </ol>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+    <Result round={g.round} title={`🎉 ${winners.length > 1 ? "Kinh trùng!" : "Kinh!"}`}>
+      <ul className="mt-3 grid gap-3">
+        {g.state.wins.map((win) => {
+          const p = g.people[win.uid]?.member;
+          const row = g.sheets[win.sheet].rows[win.row].filter(Boolean);
+          return (
+            <li key={`${win.uid}:${win.sheet}:${win.row}`} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {p && <Avatar p={p} size={38} />}
+              <div className="min-w-0">
+                <p className="font-bold">{win.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</p>
+                <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-3">
+                  <SheetDots ids={[win.sheet]} size={10} /> Tờ {sheetName(win.sheet)} · hàng {win.row + 1}
+                </p>
+              </div>
+              <ol className="flex gap-1.5 sm:ml-auto" aria-label="Năm số của hàng kinh">
+                {row.map((n) => (
+                  <li key={n} className={`loto-chip ${n === last ? "is-last" : "is-win"}`}>
+                    {n}
+                  </li>
+                ))}
+              </ol>
+            </li>
+          );
+        })}
+      </ul>
+    </Result>
   );
 }
 

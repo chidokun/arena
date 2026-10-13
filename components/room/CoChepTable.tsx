@@ -11,7 +11,9 @@ import { CountdownCine, Crowd, DrawCine, Party, useCountdown, useEndScene, WinCi
 import { CC_TONES, CoChepCourt, type CourtFx, type Hopper } from "./CoChepCourt";
 import { CoChepThrow } from "./CoChepThrow";
 import { PeoplePanel } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { ResultCard as Result, Standings } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout, SpectatorNote } from "./RoomLayout";
+import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
 const CHEERS = ["🎉", "🏠", "✨", "🎊", "🪨", "🏆"];
@@ -190,11 +192,9 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} playing="đang chơi" />
+      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang chơi">
         <span className="chip text-ink-2">🪨 Chiếm nhà · tối đa {m.seats} người</span>
-      </header>
+      </RoomHeader>
 
       <ul className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: showGame ? players.length : m.seats }, (_, k) => (
@@ -214,6 +214,7 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
       </ul>
 
       <ActionBar view={view} session={session} onAim={() => pb.openAim(key, state!)} canAim={ready && state?.need !== "hop" && !scene} busy={!pb.idle} />
+      {m.status === "ended" && g?.result && pb.idle && <ResultCard match={g} me={view.me} />}
 
       {/* Máy tính: sân nằm ngang trải hết bề rộng; điện thoại: sân dọc. */}
       <div className={`relative mx-auto mt-4 w-full ${wide ? "" : "max-w-[400px]"}`}>
@@ -244,7 +245,7 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
           </div>
         )}
       </div>
-      {view.mySeat < 0 && (g?.me ?? -1) < 0 && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+      {view.mySeat < 0 && (g?.me ?? -1) < 0 && <SpectatorNote />}
 
       {scene && g && (
         <CoChepThrow
@@ -354,29 +355,25 @@ function CountdownScene({ match: g, me, n }: { match: CcMatch; me: string; n: nu
   );
 }
 
-function EndScene({ match: g, me, onClose }: { match: CcMatch; me: string; onClose: () => void }) {
+/** Tiêu đề / giải thích kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function summary(g: CcMatch, me: string) {
   const r = g.result!;
   const ws = r.winners ?? [];
-  if (!ws.length)
-    return (
-      <DrawCine
-        people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: CC_TONES[k] }))}
-        title="Chưa ai có nhà!"
-        sub={`Ván ${g.round} khép lại — ván sau cố lên nhé`}
-        emoji="🏚️"
-        onClose={onClose}
-      />
-    );
-  const winners = ws.map((uid) => {
-    const k = g.lineup.findIndex((s) => s.uid === uid);
-    return { uid, p: g.lineup[k]?.member as Member | undefined, k, houses: housesOf(g.state, k) };
-  });
-  const title = ws.includes(me) ? (ws.length > 1 ? "Bạn đồng hạng nhất!" : "Bạn chiến thắng!") : ws.length > 1 ? "Đồng hạng nhất!" : `${winners[0].p?.name ?? "Ai đó"} chiến thắng!`;
+  if (!ws.length) return { ws, title: "Chưa ai có nhà!", sub: `Ván ${g.round} khép lại — ván sau cố lên nhé` };
+  const first = g.lineup.find((s) => s.uid === ws[0]);
+  const title = ws.includes(me) ? (ws.length > 1 ? "Bạn đồng hạng nhất!" : "Bạn chiến thắng!") : ws.length > 1 ? "Đồng hạng nhất!" : `${first?.member?.name ?? "Ai đó"} chiến thắng!`;
+  const sub = r.reason === "leave" ? "Những người khác đã rời cuộc" : `${housesOf(g.state, g.lineup.indexOf(first!))} nhà — nhiều nhất sân`;
+  return { ws, title, sub };
+}
+
+function EndScene({ match: g, me, onClose }: { match: CcMatch; me: string; onClose: () => void }) {
+  const { ws, title, sub } = summary(g, me);
+  if (!ws.length) return <DrawCine people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: CC_TONES[k] }))} title={title} sub={sub} emoji="🏚️" onClose={onClose} />;
   return (
     <WinCine
-      winners={winners.map((w) => ({ uid: w.uid, p: w.p, badge: <span className="text-[13px]">🏠</span> }))}
+      winners={ws.map((uid) => ({ uid, p: g.lineup.find((s) => s.uid === uid)?.member as Member | undefined, badge: <span className="text-[13px]">🏠</span> }))}
       title={title}
-      sub={r.reason === "leave" ? "Những người khác đã rời cuộc" : `${winners[0].houses} nhà — nhiều nhất sân`}
+      sub={sub}
       onClose={onClose}
     >
       <ul className="flex flex-wrap justify-center gap-2 text-[14px] font-bold">
@@ -387,6 +384,25 @@ function EndScene({ match: g, me, onClose }: { match: CcMatch; me: string; onClo
         ))}
       </ul>
     </WinCine>
+  );
+}
+
+/** Thẻ kết quả: người thắng và số nhà của từng người. */
+function ResultCard({ match: g, me }: { match: CcMatch; me: string }) {
+  const { ws, title, sub } = summary(g, me);
+  const order = g.lineup.map((s, k) => ({ s, k, n: housesOf(g.state, k) })).sort((a, b) => b.n - a.n);
+  return (
+    <Result round={g.round} title={`${ws.length ? "🏆" : "🏚️"} ${title}`} sub={sub}>
+      <Standings
+        rows={order.map(({ s, k, n }) => ({
+          uid: s.uid,
+          name: s.uid === me ? "Bạn" : (s.member?.name ?? "Ai đó"),
+          rank: n > 0 ? order.filter((x) => x.n > n).length + 1 : 0,
+          mark: <span className="h-3 w-3 flex-none rounded-full" style={{ background: CC_TONES[k] }} aria-hidden="true" />,
+          value: `${n} 🏠`,
+        }))}
+      />
+    </Result>
   );
 }
 
@@ -405,22 +421,33 @@ function ActionBar({ view, session, onAim, canAim, busy }: { view: RoomView<CcVi
   const m = view.meta!;
   const g = view.game?.match;
   const s = g?.state;
-  const seated = view.mySeat >= 0;
   const playing = m.status === "playing";
-  const full = m.players.length >= m.seats;
-  const allOnline = view.seats.every((x) => x.online);
   const left = useTurnLeft(g?.since, playing && !g?.result);
   const name = (k: number) => (g?.lineup[k]?.uid === view.me ? "bạn" : (g?.lineup[k]?.member?.name ?? "Ai đó"));
 
+  if (!playing)
+    return (
+      <StatusBar
+        stack
+        message={seatMessage(view, {
+          enough: true,
+          startHint: "Bấm Bắt đầu khi đủ người (chơi một mình để luyện tay cũng được).",
+          join: <>Bấm “Vào chơi” để giành ghế (tối đa {m.seats} người).</>,
+        })}
+      >
+        <SeatButtons view={view} session={session} blocked={startBlocker(view, { min: 1 })} />
+      </StatusBar>
+    );
+
   let message: React.ReactNode;
-  let tone = "var(--sunken)";
-  if (playing && g && s && !g.result && busy) {
+  let tone: string = TONE.idle;
+  if (!g || !s || g.result || busy) {
     // Đang diễn lại các bước vừa xảy ra — chưa báo trước kết quả.
     message = <>👀 Xem diễn biến trên sân…</>;
-  } else if (playing && g && s && !g.result) {
+  } else {
     const clock = left > 0 && left <= 20 ? <span className="ml-1 tabular-nums text-coral">⏱ {left}s</span> : null;
     if (g.myTurn) {
-      tone = "var(--lime-soft)";
+      tone = TONE.turn;
       message =
         s.need === "hop" ? (
           <>🦩 Đá vẫn nằm ở {cellName(s.players[g.me].stone)} — tự nhảy tiếp…</>
@@ -442,69 +469,22 @@ function ActionBar({ view, session, onAim, canAim, busy }: { view: RoomView<CcVi
         </>
       );
     }
-  } else if (m.status === "ended" && g?.result) {
-    const ws = g.result.winners ?? [];
-    const mine = ws.includes(view.me);
-    tone = mine ? "var(--sun-soft)" : "var(--grape-soft)";
-    message = !ws.length ? (
-      <>🏚️ Hết ván — chưa ai chiếm được nhà.</>
-    ) : mine ? (
-      <>🏆 Bạn thắng với {housesOf(g.state, g.me)} nhà!</>
-    ) : (
-      <>
-        🏁 <b>{ws.map((u) => g.lineup.find((x) => x.uid === u)?.member?.name ?? "Ai đó").join(", ")}</b> thắng — nhiều nhà nhất!
-      </>
-    );
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm Bắt đầu khi đủ người (chơi một mình để luyện tay cũng được)." : "Chờ chủ phòng bắt đầu."}</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để giành ghế (tối đa {m.seats} người).</>;
   }
 
-  const inLineup = !!g && g.me >= 0 && playing && !s?.players[g.me]?.out;
+  const inLineup = !!g && g.me >= 0 && !s?.players[g.me]?.out;
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 basis-full text-[15px] font-semibold sm:basis-0">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {canAim && (
-          <button type="button" className="btn btn-sun" onClick={onAim}>
-            🎯 Chọi đá
-          </button>
-        )}
-        {!playing && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!playing && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button
-            type="button"
-            className="btn btn-pen"
-            onClick={() => session.start()}
-            disabled={!m.players.length || !allOnline}
-            title={!m.players.length ? "Cần ít nhất một người vào ghế" : !allOnline ? "Có người chơi đang mất kết nối" : ""}
-          >
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && view.isHost && (
-          <ConfirmButton className="btn" onConfirm={() => session.finish()} confirmLabel="Bấm lần nữa để chốt ván">
-            🏁 Chốt ván
-          </ConfirmButton>
-        )}
-        {inLineup && (g?.lineup.length ?? 0) > 1 && (
-          <ConfirmButton className="btn btn-coral" onConfirm={() => session.resign()} confirmLabel="Bấm lần nữa để bỏ cuộc">
-            🏳️ Bỏ cuộc
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+    <StatusBar stack tone={tone} message={message}>
+      {canAim && (
+        <button type="button" className="btn btn-sun" onClick={onAim}>
+          🎯 Chọi đá
+        </button>
+      )}
+      {view.isHost && (
+        <ConfirmButton className="btn" onConfirm={() => session.finish()} confirmLabel="Bấm lần nữa để chốt ván">
+          🏁 Chốt ván
+        </ConfirmButton>
+      )}
+      {inLineup && (g?.lineup.length ?? 0) > 1 && <ResignButton label="Bỏ cuộc" onConfirm={() => session.resign()} />}
+    </StatusBar>
   );
 }

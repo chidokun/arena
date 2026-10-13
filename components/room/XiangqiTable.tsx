@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { emptyState, type End, type Side, type XqState } from "@/lib/games/xiangqi";
 import type { Result, RoomView, SeatView } from "@/lib/net/room";
 import type { XiangqiRoom, XqMatch, XqView } from "@/lib/net/xiangqi-room";
-import { ConfirmButton } from "../ConfirmButton";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { Cine, DrawCine, Duel, Eyebrow, Fighter, Party, Stamp, Tip, useEndScene, useMoment, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
-import { Flyers, RoomLayout, StatusChip } from "./RoomLayout";
+import { DuelResult, type DuelSummary } from "./ResultCard";
+import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 import { PieceIcon, XiangqiBoard, type Script } from "./XiangqiBoard";
 
@@ -97,9 +98,7 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
       people={<PeoplePanel view={view} session={session} roomId={id} />}
       chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
     >
-      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">{m.name}</h1>
-        <StatusChip status={m.status} round={m.round} />
+      <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip" style={{ color: SIDE_TONE[1] }}>
           🔴 Đỏ đi trước
         </span>
@@ -111,7 +110,7 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
         >
           {script === "han" ? "帥 Chữ Hán" : "🔤 Chữ Việt"}
         </button>
-      </header>
+      </RoomHeader>
 
       <div className="mb-2 flex items-stretch gap-2 sm:gap-4">
         <SeatCard
@@ -143,6 +142,7 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
       )}
 
       <ActionBar view={view} session={session} />
+      {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_210px]">
         <div className="relative">
@@ -163,17 +163,11 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
               <span>Chiếu tướng!</span>
             </div>
           )}
-          {!showGame && m.status === "waiting" && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center">
-              <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
-                {m.players.length < m.seats ? `Đang chờ đủ ${m.seats} người vào ghế…` : view.isHost ? "Đủ người rồi — bấm Bắt đầu!" : "Đang chờ chủ phòng bắt đầu…"}
-              </p>
-            </div>
-          )}
+          {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
         </div>
         <MoveList state={state} />
       </div>
-      {!seated && !inLineup && <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>}
+      {!seated && !inLineup && <SpectatorNote />}
 
       {g && scenes.intro.shown && <IntroScene match={g} me={view.me} script={script} onClose={scenes.intro.close} />}
       {g?.result && scenes.end.shown && <EndScene match={g} me={view.me} script={script} onClose={scenes.end.close} />}
@@ -225,31 +219,27 @@ function IntroScene({ match: g, me, script, onClose }: { match: XqMatch; me: str
   );
 }
 
-/** Cảnh hết ván: người thắng (vàng rực) hoặc hoà cờ — bấm để đóng. */
-function EndScene({ match: g, me, script, onClose }: { match: XqMatch; me: string; script: Script; onClose: () => void }) {
+/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
+function summary(g: XqMatch, me: string): DuelSummary {
   const r = g.result!;
   const why = reasonOf(r, g.state.end);
-  if (!r.winner)
-    return (
-      <DrawCine
-        people={g.lineup.map((s, k) => ({ uid: s.uid, p: s.member, ring: SIDE_TONE[(k + 1) as Side] }))}
-        title="Hoà cờ!"
-        sub={why ? `Ván ${g.round} hoà — ${why}` : undefined}
-        onClose={onClose}
-      />
-    );
+  if (!r.winner) return { winner: null, title: "Hoà cờ!", sub: why ? `Ván ${g.round} hoà — ${why}` : undefined };
   const k = g.lineup.findIndex((s) => s.uid === r.winner);
-  const seat = g.lineup[k];
   const side = (k + 1) as Side;
-  return (
-    <WinCine
-      winners={[{ uid: r.winner, p: seat?.member, badge: <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} />, plainBadge: true }]}
-      title={r.winner === me ? "Bạn chiến thắng!" : `${seat?.member?.name ?? "Ai đó"} chiến thắng!`}
-      sub={`Quân ${SIDE_NAME[side]}${why ? ` · ${why[0].toUpperCase()}${why.slice(1)}` : ""}${r.reason === "mate" && g.state.end === "mate" ? ` sau ${g.state.count} nước` : ""}`}
-      note={r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined}
-      onClose={onClose}
-    />
-  );
+  return {
+    winner: r.winner,
+    title: r.winner === me ? "Bạn chiến thắng!" : `${g.lineup[k]?.member?.name ?? "Ai đó"} chiến thắng!`,
+    sub: `Quân ${SIDE_NAME[side]}${why ? ` · ${why[0].toUpperCase()}${why.slice(1)}` : ""}${r.reason === "mate" && g.state.end === "mate" ? ` sau ${g.state.count} nước` : ""}`,
+    note: r.loser === me ? "Bạn thua ván này — ván sau phục thù nhé!" : undefined,
+  };
+}
+
+function EndScene({ match: g, me, script, onClose }: { match: XqMatch; me: string; script: Script; onClose: () => void }) {
+  const s = summary(g, me);
+  if (!s.winner) return <DrawCine people={g.lineup.map((x, k) => ({ uid: x.uid, p: x.member, ring: SIDE_TONE[(k + 1) as Side] }))} title={s.title} sub={s.sub} onClose={onClose} />;
+  const k = g.lineup.findIndex((x) => x.uid === s.winner);
+  const side = (k + 1) as Side;
+  return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} />, plainBadge: true }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
 /** Quân đã ăn được của một bên. */
@@ -295,100 +285,51 @@ function MoveList({ state }: { state: XqState }) {
   );
 }
 
-/** Nút hành động chính tuỳ vai trò: vào ghế / rời ghế / bắt đầu / xin hoà / xin thua / ván mới. */
+/** Thanh trạng thái: lượt đi / lời xin hoà trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: XiangqiRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
-  const seated = view.mySeat >= 0;
-  const playing = m.status === "playing";
-  const full = m.players.length >= m.seats;
-  const allOnline = view.seats.every((s) => s.online);
   const name = (uid?: string | null) => (uid ? (uid === view.me ? "Bạn" : (g?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó")) : "");
-  const foe = g && g.mySide ? ((3 - g.mySide) as Side) : 0;
-  const theyOffer = !!foe && g!.offers.includes(foe as Side);
-  const iOffer = !!g?.mySide && g.offers.includes(g.mySide);
 
-  let message: React.ReactNode;
-  let tone = "var(--sunken)";
-  if (playing && g && !g.result) {
-    if (g.mySide) {
-      if (theyOffer) {
-        tone = "var(--grape-soft)";
-        message = <>🤝 Đối thủ xin hoà — bấm “Đồng ý hoà”, hoặc cứ đi tiếp để từ chối.</>;
-      } else if (g.myTurn && g.state.check) {
-        tone = "var(--coral-soft)";
-        message = <>⚠️ Bạn đang bị chiếu — phải đỡ ngay!</>;
-      } else if (g.myTurn) {
-        tone = "var(--lime-soft)";
-        message = (
-          <>
-            🎯 Đến lượt bạn — cầm quân <b style={{ color: SIDE_TONE[g.mySide] }}>{SIDE_NAME[g.mySide]}</b>
-          </>
-        );
-      } else message = iOffer ? <>🤝 Bạn đã xin hoà — chờ đối thủ trả lời…</> : <>⏳ Chờ đối thủ đi…</>;
-    } else {
+  if (m.status === "playing" && g && !g.result) {
+    if (!g.mySide) {
       const turn = g.lineup[g.state.turn - 1];
-      message = (
-        <>
-          👀 Đang xem — lượt của <b>{name(turn?.uid)}</b> (quân {SIDE_NAME[g.state.turn]}){g.state.check ? " — đang bị chiếu!" : ""}
-        </>
+      return (
+        <StatusBar
+          message={
+            <>
+              👀 Đang xem — lượt của <b>{name(turn?.uid)}</b> (quân {SIDE_NAME[g.state.turn]}){g.state.check ? " — đang bị chiếu!" : ""}
+            </>
+          }
+        />
       );
     }
-  } else if (g?.result && m.status !== "waiting") {
-    const r = g.result;
-    const iWon = r.winner === view.me;
-    const iLost = r.loser === view.me;
-    const why = reasonOf(r, g.state.end);
-    tone = iWon ? "var(--sun-soft)" : iLost ? "var(--coral-soft)" : "var(--grape-soft)";
-    message = r.winner ? (
-      iWon ? (
-        <>🏆 Bạn thắng rồi!{why ? ` — ${why}` : ""}</>
-      ) : (
-        <>
-          {iLost ? "😵 Bạn thua" : "🏁"} — <b>{name(r.winner)}</b> thắng{why ? ` — ${why}` : ""}
-        </>
-      )
-    ) : (
-      <>🤝 Hoà cờ!{why ? ` — ${why}` : ""}</>
+    const theyOffer = g.offers.includes((3 - g.mySide) as Side);
+    const iOffer = g.offers.includes(g.mySide);
+    let tone: string = TONE.idle;
+    let message: React.ReactNode = iOffer ? <>🤝 Bạn đã xin hoà — chờ đối thủ trả lời…</> : <>⏳ Chờ đối thủ đi…</>;
+    if (theyOffer) {
+      tone = TONE.info;
+      message = <>🤝 Đối thủ xin hoà — bấm “Đồng ý hoà”, hoặc cứ đi tiếp để từ chối.</>;
+    } else if (g.myTurn && g.state.check) {
+      tone = TONE.alert;
+      message = <>⚠️ Bạn đang bị chiếu — phải đỡ ngay!</>;
+    } else if (g.myTurn) {
+      tone = TONE.turn;
+      message = <>🎯 Đến lượt bạn — cầm quân <b style={{ color: SIDE_TONE[g.mySide] }}>{SIDE_NAME[g.mySide]}</b></>;
+    }
+    return (
+      <StatusBar tone={tone} message={message}>
+        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
+          🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
+        </button>
+        <ResignButton onConfirm={() => session.resign()} />
+      </StatusBar>
     );
-  } else if (view.pending === "play") {
-    message = <>⏳ Đang chờ chủ phòng xếp ghế…</>;
-  } else if (seated) {
-    message = full ? <>✅ Bạn đã vào ghế. {view.isHost ? "Bấm Bắt đầu khi sẵn sàng." : "Chờ chủ phòng bắt đầu."}</> : <>✅ Bạn đã vào ghế, đang chờ thêm người…</>;
-  } else {
-    message = full ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>Bấm “Vào chơi” để giành ghế và sẵn sàng.</>;
   }
-
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
-      <p className="min-w-0 flex-1 text-[15px] font-semibold">{message}</p>
-      <div className="flex flex-wrap gap-2">
-        {!playing && !seated && !full && (
-          <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
-            🙋 Vào chơi
-          </button>
-        )}
-        {!playing && seated && (
-          <button type="button" className="btn" onClick={() => session.leaveSeat()} disabled={view.pending === "watch"}>
-            Rời ghế
-          </button>
-        )}
-        {!playing && view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!full || !allOnline} title={!full ? "Cần đủ người vào ghế" : !allOnline ? "Có người chơi đang mất kết nối" : ""}>
-            {m.round > 0 ? "🔁 Ván mới" : "▶ Bắt đầu"}
-          </button>
-        )}
-        {playing && g?.mySide && !g.result ? (
-          <>
-            <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
-              🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
-            </button>
-            <ConfirmButton className="btn btn-coral" onConfirm={() => session.resign()} confirmLabel="Bấm lần nữa để xin thua">
-              🏳️ Xin thua
-            </ConfirmButton>
-          </>
-        ) : null}
-      </div>
-    </div>
+    <StatusBar message={seatMessage(view)}>
+      <SeatButtons view={view} session={session} />
+    </StatusBar>
   );
 }
