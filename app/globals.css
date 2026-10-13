@@ -2470,6 +2470,90 @@
     transition: width 300ms ease;
   }
 
+  /* ---------- Nối thú Kawaii ---------- */
+  /* Lưới (cột + 2) × (hàng + 2): vành ngoài một ô để đường nối đi vòng viền; `--cols` là số cột kể cả vành. */
+  .kw-board {
+    position: relative;
+    display: grid;
+    width: 100%;
+    margin-inline: auto;
+    border: 3px solid var(--edge);
+    border-radius: 14px;
+    background: var(--board);
+    box-shadow: var(--shadow);
+    user-select: none;
+    touch-action: manipulation;
+    container-type: inline-size;
+  }
+  .kw-tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    margin: 6%;
+    padding: 0;
+    border: 2px solid var(--edge);
+    border-radius: 22%;
+    background: color-mix(in srgb, hsl(var(--kh, 250) 85% 62%) 30%, var(--board));
+    box-shadow: 0 2px 0 var(--edge);
+    font-size: calc(62cqi / var(--cols));
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      transform 120ms ease,
+      background-color 120ms ease;
+  }
+  .kw-tile > span {
+    pointer-events: none;
+  }
+  .kw-tile:disabled {
+    cursor: default;
+  }
+  .kw-tile:not(:disabled):hover {
+    transform: translateY(-2px);
+  }
+  .kw-tile.is-sel {
+    z-index: 1;
+    background: var(--sun);
+    outline: 3px solid var(--pen);
+    outline-offset: 1px;
+    transform: translateY(-2px) scale(1.06);
+  }
+  .kw-tile.is-hint {
+    outline: 3px dashed var(--lime);
+    outline-offset: 1px;
+    animation: kw-hint 600ms ease-in-out infinite alternate;
+  }
+  .kw-tile.is-nope {
+    background: var(--coral-soft);
+    animation: shake 380ms ease-in-out;
+  }
+  .kw-tile.is-back {
+    background: repeating-linear-gradient(45deg, var(--pen-soft) 0 6px, color-mix(in srgb, var(--pen) 22%, var(--board)) 6px 12px);
+    cursor: default;
+  }
+  .kw-tile.is-gone {
+    pointer-events: none;
+    animation: kw-gone 520ms ease-in forwards;
+  }
+  .kw-paths {
+    position: absolute;
+    inset: 3px;
+    width: calc(100% - 6px);
+    height: calc(100% - 6px);
+    overflow: visible;
+    pointer-events: none;
+  }
+  .kw-paths polyline {
+    fill: none;
+    stroke-width: 0.14;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 0.06px var(--edge));
+    animation: kw-path 650ms ease-out forwards;
+  }
+
   /* ---------- Ma sói ---------- */
   .ww-stage {
     position: relative;
@@ -4357,5 +4441,30 @@
   *::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+@keyframes kw-hint {
+  to {
+    transform: translateY(-3px) scale(1.05);
+  }
+}
+@keyframes kw-gone {
+  0% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.35) rotate(14deg);
+  }
+}
+@keyframes kw-path {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }

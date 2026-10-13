@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Result, RoomSession, RoomView } from "@/lib/net/room";
+import { seatOpen, type Result, type RoomSession, type RoomView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 
 /**
@@ -51,7 +51,7 @@ export function seatMessage(
   return isFull(view) ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>{join}</>;
 }
 
-const isFull = (view: RoomView) => view.meta!.players.length >= view.meta!.seats;
+const isFull = (view: RoomView) => !seatOpen(view.meta!);
 
 /** Lý do chủ phòng chưa bấm bắt đầu được (rỗng là bắt đầu được): mặc định cần kín ghế và mọi người chơi còn kết nối. */
 export function startBlocker(view: RoomView, { min }: { min?: number } = {}): string {

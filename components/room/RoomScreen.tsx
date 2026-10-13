@@ -13,6 +13,7 @@ import { DodgeTable } from "./DodgeTable";
 import { DotsBoxesTable } from "./DotsBoxesTable";
 import { DrawGuessTable } from "./DrawGuessTable";
 import { Joining } from "./Joining";
+import { KawaiiTable } from "./KawaiiTable";
 import { LotoTable } from "./LotoTable";
 import { MineControlTable } from "./MineControlTable";
 import { OAnQuanTable } from "./OAnQuanTable";
@@ -110,5 +111,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "dots-boxes") return <DotsBoxesTable id={id} slug={slug} session={session} />;
   if (session.game === "co-chep") return <CoChepTable id={id} slug={slug} session={session} />;
   if (session.game === "mine-control") return <MineControlTable id={id} slug={slug} session={session} />;
+  if (session.game === "kawaii") return <KawaiiTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

@@ -36,6 +36,7 @@ import {
   type Mines as McMines,
 } from "@/lib/games/mine-control";
 import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
+import { DEFAULT_OPTIONS as KW_DEFAULTS, HINT_COST as KW_HINT, normOptions as kwOptions, PAIR_POINTS as KW_PAIR, SIZE_KEYS as KW_SIZES, SIZES as KW_SIZE, type SizeKey as KwSize } from "@/lib/games/kawaii";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
   DEFAULT_OPTIONS as SD_DEFAULTS,
@@ -190,6 +191,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const dots = room.game === "dots-boxes";
   const coChep = room.game === "co-chep";
   const mc = room.game === "mine-control";
+  const kw = room.game === "kawaii";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -224,7 +226,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                   ? "Đang chọi đá"
                                   : mc
                                     ? "Đang dò mìn"
-                                    : "Đang đấu",
+                                    : kw
+                                      ? "Đang nối thú"
+                                      : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -273,6 +277,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <CoChepChips room={room} />
         ) : mc ? (
           <MineControlChips room={room} />
+        ) : kw ? (
+          <KawaiiChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -501,6 +507,19 @@ function UcChips({ room }: { room: RoomAd }) {
   );
 }
 
+function KawaiiChips({ room }: { room: RoomAd }) {
+  const { size } = kwOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sun-soft px-2.5 py-1">
+        ▦ {KW_SIZE[size].label} {KW_SIZE[size].w}×{KW_SIZE[size].h}
+      </span>
+    </>
+  );
+}
+
 function SudokuChips({ room }: { room: RoomAd }) {
   const opts = sdOptions(room.opts);
   return (
@@ -588,6 +607,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [dotsSize, setDotsSize] = useState<DbSize>(DB_DEFAULTS.size);
   const [mcMap, setMcMap] = useState<McMap>(MC_DEFAULTS.map);
   const [mcMines, setMcMines] = useState<McMines>(MC_DEFAULTS.mines);
+  const [kwSize, setKwSize] = useState<KwSize>(KW_DEFAULTS.size);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -603,6 +623,7 @@ function CreateForm({ slug }: { slug: string }) {
   const dots = slug === "dots-boxes";
   const coChep = slug === "co-chep";
   const mc = slug === "mine-control";
+  const kw = slug === "kawaii";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -626,6 +647,9 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (sudoku) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
+        } else if (kw) {
+          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize } });
         } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
@@ -832,6 +856,27 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
             ♟️ Từ {XQ_MIN} đến {XQ_MAX} người — mỗi phe 5 role: Tướng·Sĩ·Tượng (1 người), Xe, Pháo, Mã, Tốt. Claim {claimLabel(claimMs)}:
             1 người → tự đi; ≥2 → Tướng chọn. Role trống do bot. Chat riêng theo phe.
+          </p>
+        </>
+      ) : kw ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Cỡ bàn</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {KW_SIZES.map((k) => (
+                <button key={k} type="button" onClick={() => setKwSize(k)} aria-pressed={kwSize === k} className={`btn !px-2 ${kwSize === k ? "btn-sun" : ""}`}>
+                  {KW_SIZE[k].label} {KW_SIZE[k].w}×{KW_SIZE[k].h}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {kwSize === "s" ? "Ván nhanh, vài phút là dọn xong." : kwSize === "m" ? "Cỡ vừa — hợp với nhóm vài người." : "Bàn kinh điển 16×9, đông người chơi mới vui."} Đổi được trong phòng trước mỗi
+              ván.
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            🐾 Không giới hạn người chơi, một mình cũng chơi được. Cả phòng chung một bàn: nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được) —
+            ai nối trước được {KW_PAIR} điểm, xin gợi ý −{KW_HINT}. Không tính giờ: dọn sạch bàn là hết ván, nhiều điểm nhất thắng.
           </p>
         </>
       ) : sudoku ? (

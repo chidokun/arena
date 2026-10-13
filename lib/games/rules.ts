@@ -11,6 +11,48 @@ export type GameRules = {
 };
 
 export const RULES: Record<string, GameRules> = {
+  kawaii: {
+    intro: "Nối thú kiểu Pikachu cho bao nhiêu người cũng được, một mình cũng chơi được: cả phòng chung một bàn, nối hai ô cùng hình để dọn bàn — không tính giờ, chỉ tính điểm.",
+    sections: [
+      {
+        emoji: "🧩",
+        title: "Bàn chơi",
+        items: [
+          "Chủ phòng chọn bàn Nhỏ 8×6, Vừa 12×8 hoặc Lớn 16×9 — mỗi loại thú có đúng 4 ô. Đổi được trong phòng trước mỗi ván.",
+          "Cả phòng chơi chung một bàn, mỗi ván xếp bàn mới. Ván bắt đầu sau 3 giây đếm ngược để mọi người cùng lúc thấy bàn.",
+        ],
+      },
+      {
+        emoji: "🔗",
+        title: "Cách nối",
+        items: [
+          "Bấm hai ô cùng hình. Nối được khi có đường gồm tối đa 3 đoạn thẳng ngang / dọc (gấp khúc tối đa 2 lần) chỉ đi qua ô trống.",
+          "Đường nối được đi vòng ra ngoài viền bàn, như có thêm một vòng ô trống bao quanh.",
+          "Nối được thì hai ô biến mất. Không nối được thì chẳng sao, chọn lại cặp khác — không bị trừ điểm.",
+          "Bàn không còn cặp nào nối được thì tự xáo lại các ô còn lại.",
+        ],
+      },
+      {
+        emoji: "🏅",
+        title: "Tính điểm",
+        items: [
+          "Ai nối được một cặp trước người khác được 10 điểm; hai người cùng bấm một cặp thì người được chủ phòng ghi nhận trước có điểm.",
+          "💡 Gợi ý chỉ ra một cặp nối được, đổi lại bị trừ 5 điểm.",
+          "Không tính giờ: dọn sạch bàn là hết ván, ai nhiều điểm nhất thắng — bằng điểm thì đồng hạng.",
+        ],
+      },
+      {
+        emoji: "🙋",
+        title: "Người chơi",
+        items: [
+          "Không giới hạn số ghế: ai vào phòng cũng có thể bấm “Vào chơi” trước khi ván bắt đầu; vào giữa ván thì xem và chờ ván sau.",
+          "Chơi một mình thì cứ dọn sạch bàn là xong ván.",
+          "Chủ phòng dừng ván được bất cứ lúc nào (không tính ai thắng); cả đội hình mất kết nối lâu thì ván tự dừng.",
+        ],
+      },
+    ],
+  },
+
   caro: {
     intro: "Cờ caro kiểu Việt Nam cho 2 người: lần lượt đặt quân trên bàn ô vuông, ai xếp được 5 quân thẳng hàng trước là thắng.",
     sections: [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext, useEffect, useId, useState, type ReactNode } from "react";
-import type { Member, RoomSession, RoomView, SeatView } from "@/lib/net/room";
+import { seatOpen, type Member, type RoomSession, type RoomView, type SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
@@ -123,7 +123,7 @@ export function PeoplePanel({
     } catch {}
   };
   const playing = m.status === "playing";
-  const seatFree = m.players.length < m.seats;
+  const seatFree = seatOpen(m);
   const row = (p: Member, seated: boolean) => (
     <li key={p.uid} className="flex items-center gap-2.5 py-1.5">
       <Avatar p={p} size={34} className={view.online.has(p.uid) ? "" : "opacity-40 grayscale"} />

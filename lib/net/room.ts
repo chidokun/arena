@@ -7,7 +7,8 @@
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
  *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
  *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng; dò mìn chiến thuật là hành động (mở ô, kỹ năng,
- *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng.
+ *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng; sudoku, nối thú kawaii là bàn chung
+ *                     chủ phòng ghi sau khi phân xử nhật ký `m:` của từng người.
  *   x:<round>:<uid> — người chơi xin thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
  *                     vẽ đoán: người vẽ chọn từ thứ mấy.
@@ -15,7 +16,8 @@
  *   s:<round>:<uid> — ma sói, undercover, vẽ đoán: bí mật chủ phòng gửi riêng từng người (vai, từ khoá…), niêm phong.
  *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
  *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
- *   m:<round>:<uid> — sudoku: nhật ký nước điền của từng người; chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
+ *   m:<round>:<uid> — sudoku, nối thú kawaii: nhật ký nước điền / nước nối của từng người; chủ phòng phân xử thứ tự rồi
+ *                     ghi bàn chung vào `g:<ván>`.
  *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
  *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
  *   d:<round>:<lượt>.<trang>:<uid> — vẽ đoán: tranh của người vẽ trong lượt, chia trang thao tác (nét, đổ màu, hoàn tác…).
@@ -27,12 +29,13 @@
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom)
+ * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { CcPublic } from "../games/co-chep";
 import type { DodgePublic } from "../games/dodge";
 import type { DwPublic } from "../games/draw-guess";
+import type { KwRound } from "../games/kawaii";
 import type { McPublic } from "../games/mine-control";
 import type { SudokuRound } from "../games/sudoku";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
@@ -71,7 +74,7 @@ export type Meta = {
   game: string;
   name: string;
   host: string;
-  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ). */
+  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ); 0 là không giới hạn (nối thú kawaii). */
   seats: number;
   /** Số người tối đa trong phòng, tính cả người xem; 0 là không giới hạn. */
   cap: number;
@@ -112,6 +115,8 @@ export type Meta = {
   cc?: CcPublic;
   /** Dò mìn chiến thuật: seed, bản đồ, số mìn của ván và những người đã bị loại vì bỏ cuộc / mất kết nối / bị mời ra. */
   mc?: McPublic;
+  /** Nối thú kawaii: bàn (seed, cỡ) và giờ lộ bàn của ván gần nhất, chốt lúc bắt đầu. */
+  kw?: KwRound;
   ack: Record<string, number>;
   kicked: string[];
   result?: Result;
@@ -234,6 +239,9 @@ function takeCreate(id: string): CreateRoom | null {
     return null;
   }
 }
+
+/** Còn ghế trống không — `seats` 0 là không giới hạn. */
+export const seatOpen = (m: Pick<Meta, "players" | "seats">) => m.seats <= 0 || m.players.length < m.seats;
 
 type RoomCtor<T> = new (id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) => T;
 
@@ -381,7 +389,7 @@ export abstract class RoomSession<G = unknown> {
   /** Ghi nhận ý định của một người lúc ngoài ván. Mặc định: vào ghế nếu còn chỗ / rời ghế. */
   protected applyIntent(m: Meta, p: Member) {
     const i = m.players.indexOf(p.uid);
-    if (p.want === "play" && i < 0 && m.players.length < m.seats) m.players.push(p.uid);
+    if (p.want === "play" && i < 0 && seatOpen(m)) m.players.push(p.uid);
     if (p.want === "watch" && i >= 0) m.players.splice(i, 1);
   }
 
@@ -800,7 +808,7 @@ export abstract class RoomSession<G = unknown> {
   /** Chủ phòng kéo một người xem vào ghế trống. */
   seat(uid: string) {
     this.hostEdit((m) => {
-      if (m.status === "playing" || m.players.includes(uid) || m.players.length >= m.seats || !this.isOnline(uid)) return false;
+      if (m.status === "playing" || m.players.includes(uid) || !seatOpen(m) || !this.isOnline(uid)) return false;
       m.players.push(uid);
     });
   }
