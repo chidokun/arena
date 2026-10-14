@@ -21,6 +21,7 @@ export function SeatCard({
   isHost,
   me,
   align = "left",
+  stacked,
 }: {
   seat?: SeatView;
   mark?: 1 | 2;
@@ -31,13 +32,15 @@ export function SeatCard({
   isHost?: boolean;
   me: string;
   align?: "left" | "right";
+  /** Luôn xếp dọc (avatar trên tên) như trên điện thoại — cho chỗ hẹp như hai bên bàn lúc trình chiếu. */
+  stacked?: boolean;
 }) {
   const m = seat?.member;
   const tone = toneOf ?? (mark === 1 ? "var(--coral)" : mark === 2 ? "var(--sky)" : "var(--ink-3)");
   const label = badge ?? (mark === 1 ? "X" : "O");
   return (
     <div
-      className={`card relative flex min-w-0 flex-1 flex-col items-center gap-2 p-3 text-center transition-all sm:flex-row sm:gap-3 sm:p-4 ${align === "right" ? "sm:flex-row-reverse sm:text-right" : "sm:text-left"}`}
+      className={`card relative flex min-w-0 flex-1 flex-col items-center gap-2 p-3 text-center transition-all ${stacked ? "" : `sm:flex-row sm:gap-3 sm:p-4 ${align === "right" ? "sm:flex-row-reverse sm:text-right" : "sm:text-left"}`}`}
       style={{
         borderColor: active ? tone : undefined,
         boxShadow: active ? `0 4px 0 ${tone}` : undefined,
@@ -54,7 +57,7 @@ export function SeatCard({
           )}
           {mark && (
             <span
-              className="absolute -bottom-1 -left-1.5 grid h-6 w-6 place-items-center rounded-lg border-2 border-edge font-display text-sm font-extrabold text-white sm:hidden"
+              className={`absolute -bottom-1 -left-1.5 grid h-6 w-6 place-items-center rounded-lg border-2 border-edge font-display text-sm font-extrabold text-white ${stacked ? "" : "sm:hidden"}`}
               style={{ background: tone }}
               aria-hidden="true"
             >
@@ -76,7 +79,7 @@ export function SeatCard({
           {!m ? "Đang chờ người vào chơi" : !seat?.online ? "⚠️ Mất kết nối" : active ? "Đang suy nghĩ…" : "Sẵn sàng"}
         </p>
       </div>
-      {mark && (
+      {mark && !stacked && (
         <span className="hidden h-11 w-11 flex-none place-items-center rounded-xl border-2 border-edge font-display text-2xl font-extrabold text-white sm:grid" style={{ background: tone }}>
           {label}
         </span>

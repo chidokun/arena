@@ -6,6 +6,7 @@ import { gameHref, getGame } from "@/lib/games/registry";
 import { isKaixin } from "@/lib/stickers";
 import { RulesButton } from "../lobby/RulesButton";
 import { PeopleOpenerCtx, PeopleVariantCtx, RoomSideCtx, useWide, type RoomSide, type SidePanel } from "./side";
+import { StageCtx, useStageHost } from "./stage";
 import { StickerArt } from "./Sticker";
 import type { Flyer } from "./useFlyers";
 
@@ -31,6 +32,7 @@ const SIDE_KEY = "arena:room-side-hidden";
  * Màn hình rộng: sidebar neo mép phải màn hình, cao từ dưới thanh đầu trang tới đáy — người trong phòng ở trên, khung chat
  * lấp phần còn lại, `panels` thành tab trong khung chat; ẩn được (nhớ lựa chọn) để bàn chơi rộng hết khung, lúc đó chat còn
  * nút tròn ở góc. Điện thoại: dải avatar đầu trang, còn danh sách người và `panels` thành tab trong khung chat nổi.
+ * Game bọc bàn chơi trong `StageArea` thì có thêm nút Trình chiếu (stage.tsx).
  */
 export function RoomLayout({
   id,
@@ -50,6 +52,7 @@ export function RoomLayout({
   const game = getGame(slug)!;
   const [copied, setCopied] = useState(false);
   const wide = useWide();
+  const stage = useStageHost();
   const opener = useRef<((tab: string) => void) | null>(null);
   const bind = useCallback<RoomSide["bind"]>((fn) => {
     opener.current = fn;
@@ -106,6 +109,11 @@ export function RoomLayout({
         <button type="button" className="btn btn-sm" onClick={copyLink}>
           {copied ? "✅ Đã chép" : "🔗 Chép link mời"}
         </button>
+        {stage.available && (
+          <button type="button" className="btn btn-sm" onClick={stage.enter}>
+            📺 Trình chiếu
+          </button>
+        )}
         <RulesButton game={game} compact />
         <Link href={gameHref(slug)} className="btn btn-sm btn-ghost no-underline">
           Rời phòng
@@ -120,7 +128,7 @@ export function RoomLayout({
               <PeopleOpenerCtx value={openPeople}>{people}</PeopleOpenerCtx>
             </PeopleVariantCtx>
           )}
-          {children}
+          <StageCtx value={stage.ctx}>{children}</StageCtx>
         </div>
         {wide ? (
           // Ngay dưới thanh đầu trang (cao 4rem + viền 2px). Khi ẩn, khung chat vẫn ở đây (giữ tin chưa đọc, chữ đang gõ)

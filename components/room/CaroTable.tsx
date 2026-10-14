@@ -10,6 +10,7 @@ import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScen
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
@@ -35,6 +36,17 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
 
   // Thanh đối đầu: trong ván thì theo thứ tự X–O; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  const seat = (k: 0 | 1, stacked?: boolean) => (
+    <SeatCard
+      seat={slots[k]}
+      mark={showGame ? ((k + 1) as 1 | 2) : undefined}
+      active={playing && state.turn === k + 1}
+      isHost={slots[k]?.uid === m.host}
+      me={view.me}
+      align={k ? "right" : "left"}
+      stacked={stacked}
+    />
+  );
 
   return (
     <RoomLayout
@@ -53,34 +65,22 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
       </RoomHeader>
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
-        <SeatCard
-          seat={slots[0]}
-          mark={showGame ? 1 : undefined}
-          active={playing && state.turn === 1}
-          isHost={slots[0]?.uid === m.host}
-          me={view.me}
-        />
+        {seat(0)}
         <Score left={slots[0]?.uid} right={slots[1]?.uid} wins={wins} draws={draws} played={m.scored ?? 0} />
-        <SeatCard
-          seat={slots[1]}
-          mark={showGame ? 2 : undefined}
-          active={playing && state.turn === 2}
-          isHost={slots[1]?.uid === m.host}
-          me={view.me}
-          align="right"
-        />
+        {seat(1)}
       </div>
 
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div className="relative mt-4">
+      {/* Trình chiếu: hai người chơi kèm bàn vuông lớn nhất vừa ô còn trống. */}
+      <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]}>
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={(x, y) => session.move(x, y)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-      </div>
+      </StageArea>
       {!seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
