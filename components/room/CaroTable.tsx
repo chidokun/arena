@@ -36,6 +36,8 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
 
   // Thanh đối đầu: trong ván thì theo thứ tự X–O; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
+  // Lúc trình chiếu (`stacked`) không có ô tỉ số ở giữa, nên mỗi thẻ tự ghi số ván thắng của mình.
   const seat = (k: 0 | 1, stacked?: boolean) => (
     <SeatCard
       seat={slots[k]}
@@ -45,6 +47,7 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
       me={view.me}
       align={k ? "right" : "left"}
       stacked={stacked}
+      footer={stacked && slots[k] ? <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? (k ? "var(--sky)" : "var(--coral)") : undefined} /> : undefined}
     />
   );
 
@@ -159,6 +162,15 @@ export function Score({ left, right, wins, draws, played }: { left?: string; rig
         </span>
       )}
     </div>
+  );
+}
+
+/** Số ván thắng dưới tên người chơi lúc trình chiếu — cỡ chữ như ô tỉ số, "–" khi chưa thắng ván nào; `color` khi đang dẫn. */
+function Wins({ n, color }: { n: number; color?: string }) {
+  return (
+    <p className="mt-2 font-display text-2xl leading-none font-extrabold tabular-nums sm:text-3xl" style={{ color }} aria-label={n ? `Thắng ${n} ván` : "Chưa thắng ván nào"}>
+      {n || "–"}
+    </p>
   );
 }
 

@@ -22,6 +22,7 @@ export function SeatCard({
   me,
   align = "left",
   stacked,
+  footer,
 }: {
   seat?: SeatView;
   mark?: 1 | 2;
@@ -34,6 +35,8 @@ export function SeatCard({
   align?: "left" | "right";
   /** Luôn xếp dọc (avatar trên tên) như trên điện thoại — cho chỗ hẹp như hai bên bàn lúc trình chiếu. */
   stacked?: boolean;
+  /** Dòng thêm dưới tên (dùng với `stacked`), vd. số ván thắng lúc trình chiếu. */
+  footer?: ReactNode;
 }) {
   const m = seat?.member;
   const tone = toneOf ?? (mark === 1 ? "var(--coral)" : mark === 2 ? "var(--sky)" : "var(--ink-3)");
@@ -78,6 +81,7 @@ export function SeatCard({
         <p className="truncate text-[12.5px] font-semibold text-ink-3">
           {!m ? "Đang chờ người vào chơi" : !seat?.online ? "⚠️ Mất kết nối" : active ? "Đang suy nghĩ…" : "Sẵn sàng"}
         </p>
+        {footer}
       </div>
       {mark && !stacked && (
         <span className="hidden h-11 w-11 flex-none place-items-center rounded-xl border-2 border-edge font-display text-2xl font-extrabold text-white sm:grid" style={{ background: tone }}>
