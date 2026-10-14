@@ -14,6 +14,7 @@ import { KawaiiRoom } from "@/lib/net/kawaii-room";
 import type { Lobby } from "@/lib/net/lobby";
 import { LotoRoom } from "@/lib/net/loto-room";
 import { MineControlRoom } from "@/lib/net/mine-control-room";
+import { MinesweeperRoom } from "@/lib/net/minesweeper-room";
 import { OAnQuanRoom } from "@/lib/net/oanquan-room";
 import type { ChatMsg, RoomSession, RoomView } from "@/lib/net/room";
 import { SudokuRoom } from "@/lib/net/sudoku-room";
@@ -24,7 +25,7 @@ import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -71,7 +72,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                                       ? KawaiiRoom.open(id, uid, profile, lobby)
                                       : game === "truc-xanh"
                                         ? TrucXanhRoom.open(id, uid, profile, lobby)
-                                        : CaroRoom.open(id, uid, profile, lobby);
+                                        : game === "minesweeper"
+                                          ? MinesweeperRoom.open(id, uid, profile, lobby)
+                                          : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }

@@ -983,6 +983,115 @@
     }
   }
 
+  /* ---------- Bàn dò mìn cổ điển ---------- */
+  .ms-grid {
+    display: grid;
+    gap: 2px;
+    margin-inline: auto;
+    padding: 6px;
+    border: 3px solid var(--edge);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--board-line) 60%, var(--board));
+    box-shadow: var(--shadow);
+    container-type: inline-size;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .ms-grid.is-shake {
+    animation: shake 380ms ease-in-out;
+  }
+  .ms-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    min-width: 0;
+    padding: 0;
+    border-radius: 18%;
+    font-family: var(--font-display), sans-serif;
+    font-weight: 800;
+    font-size: calc((100cqi - 12px) / var(--ms-w) * 0.56);
+    line-height: 1;
+    transition:
+      transform 100ms,
+      background-color 140ms;
+  }
+  .ms-cell.is-hidden {
+    background: color-mix(in srgb, var(--pen) 22%, var(--surface));
+    box-shadow:
+      inset 0 -3px 0 color-mix(in srgb, var(--edge) 25%, transparent),
+      inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
+  }
+  .ms-cell.is-ok {
+    cursor: pointer;
+  }
+  .ms-cell.is-hidden.is-ok:hover,
+  .ms-cell.is-hidden.is-ok:focus-visible {
+    background: color-mix(in srgb, var(--pen) 36%, var(--surface));
+    transform: translateY(-1px);
+    outline: none;
+  }
+  .ms-cell.is-open {
+    background: color-mix(in srgb, var(--ms-who, var(--board-line)) 24%, var(--board));
+  }
+  .ms-cell.is-open.is-start {
+    background: var(--board);
+  }
+  .ms-cell.is-open.is-ok:hover {
+    box-shadow: inset 0 0 0 2px var(--pen);
+  }
+  .ms-cell.is-flag {
+    font-size: calc((100cqi - 12px) / var(--ms-w) * 0.5);
+  }
+  .ms-cell.is-wrong {
+    font-size: calc((100cqi - 12px) / var(--ms-w) * 0.5);
+    background: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, var(--coral) 35%, transparent) 4px 6px), var(--sunken);
+  }
+  .ms-cell.is-mine {
+    background: color-mix(in srgb, var(--ink-3) 30%, var(--surface));
+    box-shadow: none;
+    font-size: calc((100cqi - 12px) / var(--ms-w) * 0.5);
+  }
+  .ms-cell.is-boom {
+    background: color-mix(in srgb, var(--coral) 55%, var(--board));
+    box-shadow: inset 0 0 0 2px var(--ms-who, var(--edge));
+    animation: mc-boom 520ms ease-out;
+  }
+  .ms-n1 {
+    color: color-mix(in srgb, #2563eb 68%, var(--ink));
+  }
+  .ms-n2 {
+    color: color-mix(in srgb, #16a34a 68%, var(--ink));
+  }
+  .ms-n3 {
+    color: color-mix(in srgb, #dc2626 68%, var(--ink));
+  }
+  .ms-n4 {
+    color: color-mix(in srgb, #7c3aed 68%, var(--ink));
+  }
+  .ms-n5 {
+    color: color-mix(in srgb, #b45309 68%, var(--ink));
+  }
+  .ms-n6 {
+    color: color-mix(in srgb, #0891b2 68%, var(--ink));
+  }
+  .ms-n7 {
+    color: var(--ink);
+  }
+  .ms-n8 {
+    color: var(--ink-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ms-cell,
+    .ms-cell.is-boom,
+    .ms-grid.is-shake {
+      animation: none;
+      transition: none;
+    }
+  }
+
   /* ---------- Bàn ô ăn quan ---------- */
   .oaq {
     display: block;

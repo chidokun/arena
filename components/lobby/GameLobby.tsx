@@ -35,6 +35,14 @@ import {
   type MapKey as McMap,
   type Mines as McMines,
 } from "@/lib/games/mine-control";
+import {
+  DEFAULT_OPTIONS as MS_DEFAULTS,
+  density as msDensity,
+  normOptions as msOptions,
+  SIZE_KEYS as MS_SIZES,
+  SIZES as MS_SIZE,
+  type SizeKey as MsSize,
+} from "@/lib/games/minesweeper";
 import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
 import { DEFAULT_OPTIONS as KW_DEFAULTS, HINT_COST as KW_HINT, normOptions as kwOptions, PAIR_POINTS as KW_PAIR, SIZE_KEYS as KW_SIZES, SIZES as KW_SIZE, type SizeKey as KwSize } from "@/lib/games/kawaii";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
@@ -75,6 +83,7 @@ import { Dialog } from "../Dialog";
 import { HUE } from "../home/hue";
 import { useLobbyView, useNet, useWhere } from "../NetProvider";
 import { Spinner } from "../Spinner";
+import { MineCount } from "../MineCount";
 import { RulesButton } from "./RulesButton";
 
 export function GameLobby({ slug }: { slug: string }) {
@@ -203,6 +212,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const mc = room.game === "mine-control";
   const kw = room.game === "kawaii";
   const tx = room.game === "truc-xanh";
+  const ms = room.game === "minesweeper";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -241,7 +251,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                       ? "Đang nối thú"
                                       : tx
                                         ? "Đang lật ô"
-                                        : "Đang đấu",
+                                        : ms
+                                          ? "Đang gỡ mìn"
+                                          : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -294,6 +306,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <KawaiiChips room={room} />
         ) : tx ? (
           <TrucXanhChips room={room} />
+        ) : ms ? (
+          <MinesweeperChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -535,6 +549,22 @@ function KawaiiChips({ room }: { room: RoomAd }) {
   );
 }
 
+function MinesweeperChips({ room }: { room: RoomAd }) {
+  const { size, mines } = msOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-coral-soft px-2.5 py-1">
+        ▦ {MS_SIZE[size].label} {MS_SIZE[size].w}×{MS_SIZE[size].h}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        💣 {mines} mìn · {msDensity(size, mines)}%
+      </span>
+    </>
+  );
+}
+
 function TrucXanhChips({ room }: { room: RoomAd }) {
   const { size, level } = txOptions(room.opts);
   return (
@@ -641,6 +671,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [kwSize, setKwSize] = useState<KwSize>(KW_DEFAULTS.size);
   const [txSize, setTxSize] = useState<TxSize>(TX_DEFAULTS.size);
   const [txLevel, setTxLevel] = useState<TxLevel>(TX_DEFAULTS.level);
+  const [msSize, setMsSize] = useState<MsSize>(MS_DEFAULTS.size);
+  const [msMines, setMsMines] = useState(MS_DEFAULTS.mines);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -658,6 +690,7 @@ function CreateForm({ slug }: { slug: string }) {
   const mc = slug === "mine-control";
   const kw = slug === "kawaii";
   const tx = slug === "truc-xanh";
+  const ms = slug === "minesweeper";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -687,6 +720,9 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (tx) {
           // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: txSize, level: txLevel } });
+        } else if (ms) {
+          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, số mìn đổi được trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
         } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
@@ -914,6 +950,36 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
             🐾 Không giới hạn người chơi, một mình cũng chơi được. Cả phòng chung một bàn: nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được) —
             ai nối trước được {KW_PAIR} điểm, xin gợi ý −{KW_HINT}. Không tính giờ: dọn sạch bàn là hết ván, nhiều điểm nhất thắng.
+          </p>
+        </>
+      ) : ms ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Cỡ bàn</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {MS_SIZES.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setMsSize(k);
+                    setMsMines(MS_SIZE[k].mines);
+                  }}
+                  aria-pressed={msSize === k}
+                  className={`btn !px-2 ${msSize === k ? "btn-coral" : ""}`}
+                >
+                  {MS_SIZE[k].label} {MS_SIZE[k].w}×{MS_SIZE[k].h}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Số mìn</legend>
+            <MineCount size={msSize} mines={msOptions({ size: msSize, mines: msMines }).mines} onChange={setMsMines} />
+          </fieldset>
+          <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
+            💣 Không giới hạn người chơi, một mình cũng chơi được. Cả phòng chung một bàn, không theo lượt: mở ô an toàn được 1 điểm mỗi ô lộ ra, đạp mìn là bị
+            loại. Mở hết bàn thì ai còn trụ nhiều điểm nhất thắng — còn một người thì phải tự mở hết mới thắng.
           </p>
         </>
       ) : tx ? (

@@ -97,6 +97,50 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  minesweeper: {
+    intro: "Dò mìn cổ điển cho bao nhiêu người cũng được, một mình cũng chơi được: cả phòng chung một bàn, không theo lượt — mở ô an toàn để ghi điểm, đạp mìn là bị loại.",
+    sections: [
+      {
+        emoji: "🧩",
+        title: "Bàn chơi",
+        items: [
+          "Chủ phòng chọn bàn Nhỏ 9×9, Vừa 16×16, Lớn 30×16 hoặc Khổng lồ 40×24, và số mìn (từ 10% tới 30% số ô). Đổi được trong phòng trước mỗi ván.",
+          "Ván bắt đầu sau 3 giây đếm ngược. Lúc lộ bàn có sẵn một vùng xuất phát đã mở (không có mìn, không tính điểm cho ai) để không ai phải đoán mò nước đầu.",
+          "Ô đã mở hiện số mìn trong 8 ô xung quanh; ô số 0 tự lan rộng mở luôn các ô kề như dò mìn cổ điển.",
+        ],
+      },
+      {
+        emoji: "⛏️",
+        title: "Cách chơi",
+        items: [
+          "Không theo lượt: ai trong đội hình cũng bấm mở ô bất cứ lúc nào. Hai người cùng bấm một ô thì người được chủ phòng ghi nhận trước có điểm.",
+          "🚩 Cắm cờ bằng chuột phải, hoặc chuyển sang chế độ “Cắm cờ” trên điện thoại. Cờ là của riêng bạn, người khác không thấy.",
+          "Bấm vào ô số đã mở khi đã cắm đủ cờ quanh nó để mở nhanh các ô còn lại xung quanh — cắm nhầm cờ là đạp mìn đấy!",
+          "Ô đã mở được tô màu người mở, cả phòng nhìn là biết ai đang dẫn.",
+        ],
+      },
+      {
+        emoji: "🏅",
+        title: "Tính điểm & thắng thua",
+        items: [
+          "Mỗi ô an toàn bạn làm lộ ra được 1 điểm — một cú bấm vào ô số 0 lan rộng thì được cả mảng.",
+          "💥 Đạp mìn là bị loại: không mở ô được nữa và không được tính thắng, dù đang nhiều điểm. Ô mìn đã nổ hiện cho cả phòng thấy.",
+          "Mở hết ô an toàn thì hết ván: trong những người còn trụ, ai nhiều điểm nhất thắng (bằng điểm thì đồng hạng).",
+          "Chỉ còn một người trụ lại thì người đó phải tự mở hết ô an toàn mới thắng — đạp mìn nữa thì không ai thắng. Ai cũng đạp mìn thì ván kết thúc, không ai thắng.",
+        ],
+      },
+      {
+        emoji: "🙋",
+        title: "Người chơi",
+        items: [
+          "Không giới hạn số ghế: ai vào phòng cũng có thể bấm “Vào chơi” trước khi ván bắt đầu; vào giữa ván thì xem và chờ ván sau.",
+          "Mất kết nối quá 30 giây (hoặc bị mời ra) thì bị loại như đạp mìn, để người còn lại không phải chờ.",
+          "Chủ phòng dừng ván được bất cứ lúc nào (không tính ai thắng); cả đội hình mất kết nối lâu thì ván tự dừng.",
+        ],
+      },
+    ],
+  },
+
   caro: {
     intro: "Cờ caro kiểu Việt Nam cho 2 người: lần lượt đặt quân trên bàn ô vuông, ai xếp được 5 quân thẳng hàng trước là thắng.",
     sections: [

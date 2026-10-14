@@ -16,6 +16,7 @@ import { Joining } from "./Joining";
 import { KawaiiTable } from "./KawaiiTable";
 import { LotoTable } from "./LotoTable";
 import { MineControlTable } from "./MineControlTable";
+import { MinesweeperTable } from "./MinesweeperTable";
 import { OAnQuanTable } from "./OAnQuanTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
@@ -114,5 +115,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "mine-control") return <MineControlTable id={id} slug={slug} session={session} />;
   if (session.game === "kawaii") return <KawaiiTable id={id} slug={slug} session={session} />;
   if (session.game === "truc-xanh") return <TrucXanhTable id={id} slug={slug} session={session} />;
+  if (session.game === "minesweeper") return <MinesweeperTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }
