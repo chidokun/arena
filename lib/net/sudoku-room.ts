@@ -136,8 +136,8 @@ export class SudokuRoom extends RoomSession<SudokuView> {
   }
 
   /**
-   * Chủ phòng phân xử các nước mới và ghi giờ xong. Cả đội hình bỏ đi thì dừng ván; đối kháng đã có người thắng mà
-   * những người chưa xong đều bỏ đi thì kết thúc ván.
+   * Chủ phòng phân xử các nước mới và ghi giờ xong — người bị xử thua vì gian lận không được điền thêm. Cả đội hình bỏ
+   * đi thì dừng ván; đối kháng đã có người thắng mà những người chưa xong đều bỏ đi (hoặc gian lận) thì kết thúc ván.
    */
   protected hostPlay(m: Meta) {
     const sd = m.sd!;
@@ -145,7 +145,7 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     const judged = judge(
       puzzle,
       sd.mode,
-      m.lineup.map((u) => this.movesOf(m, u)),
+      m.lineup.map((u) => (this.cheated(m, u) ? [] : this.movesOf(m, u))),
       this.board(m),
     );
     const board = judged ?? this.board(m);
@@ -153,7 +153,7 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     const next = stamp(board, s, Math.max(0, Date.now() - sd.t0)) ?? judged;
     if (next) this.gossip.set(`g:${m.round}`, next);
     if (s.over) return;
-    const gone = (u: string) => u !== this.me && this.silentFor(u) >= QUIT_MS;
+    const gone = (u: string) => this.cheated(m, u) || (u !== this.me && this.silentFor(u) >= QUIT_MS);
     const quit = sd.mode === "race" && s.winners.length > 0 && m.lineup.every((u, k) => s.finished.includes(k) || gone(u));
     if (quit || m.lineup.every((u) => u !== this.me && this.silentFor(u) >= ABANDON_MS)) {
       m.status = "ended";

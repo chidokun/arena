@@ -88,10 +88,10 @@ export class XiangqiRoom extends RoomSession<XqView> {
     m.result = { round: m.round, winner: m.lineup.find((u) => u !== gone) ?? null, loser: gone, reason: "leave" };
   }
 
-  protected onKick(m: Meta, uid: string) {
+  protected onKick(m: Meta, uid: string, reason: "kick" | "cheat" = "kick") {
     if (m.status === "playing" && m.lineup.includes(uid)) {
       m.status = "ended";
-      m.result = { round: m.round, winner: m.lineup.find((u) => u !== uid) ?? null, loser: uid, reason: "kick" };
+      m.result = { round: m.round, winner: m.lineup.find((u) => u !== uid) ?? null, loser: uid, reason };
     }
   }
 
@@ -131,19 +131,21 @@ export class XiangqiRoom extends RoomSession<XqView> {
       return `Ván ${r.round} hoà${why ? ` — ${why}` : ""}`;
     }
     const why =
-      r.reason === "resign"
-        ? " (đối thủ xin thua)"
-        : r.reason === "leave"
-          ? " (đối thủ rời trận)"
-          : r.reason === "kick"
-            ? " (đối thủ bị mời ra)"
-            : end === "mate"
-              ? " — chiếu bí!"
-              : end === "stuck"
-                ? " — đối thủ hết nước đi"
-                : end === "perpetual"
-                  ? " — đối thủ phạm luật chiếu dai"
-                  : "";
+      r.reason === "cheat"
+        ? " (đối thủ gian lận)"
+        : r.reason === "resign"
+          ? " (đối thủ xin thua)"
+          : r.reason === "leave"
+            ? " (đối thủ rời trận)"
+            : r.reason === "kick"
+              ? " (đối thủ bị mời ra)"
+              : end === "mate"
+                ? " — chiếu bí!"
+                : end === "stuck"
+                  ? " — đối thủ hết nước đi"
+                  : end === "perpetual"
+                    ? " — đối thủ phạm luật chiếu dai"
+                    : "";
     return `${name(r.winner)} thắng ván ${r.round}${why}`;
   }
 

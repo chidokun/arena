@@ -5038,3 +5038,22 @@
     transform: translate(-50%, 12px);
   }
 }
+
+/* Chống gian lận: còi báo động lắc trong hộp thoại "Phát hiện gian lận!". */
+.cheat-siren {
+  display: inline-block;
+  animation: cheat-siren 500ms ease-in-out 4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cheat-siren {
+    animation: none;
+  }
+}
+@keyframes cheat-siren {
+  25% {
+    transform: rotate(-14deg) scale(1.15);
+  }
+  75% {
+    transform: rotate(14deg) scale(1.15);
+  }
+}

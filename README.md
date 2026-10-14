@@ -27,6 +27,10 @@ npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```
 
+**Chống gian lận.** Người chơi mở công cụ nhà phát triển (DevTools) giữa ván bị xử thua ngay và cả phòng nhận thông
+báo (`lib/devtools.ts`, `z:<ván>:<uid>` trong `lib/net/room.ts`). Chỉ bật ở bản build; muốn thử khi `npm run dev` thì đặt
+`NEXT_PUBLIC_ANTICHEAT=on` (hoặc `off` để tắt ở bản build).
+
 Deploy: đẩy lên nhánh `main`, workflow `.github/workflows/deploy.yml` build và đăng lên GitHub Pages;
 `public/CNAME` trỏ tên miền `arena.nguyentuan.dev`.
 
@@ -44,6 +48,7 @@ hiện "sắp ra mắt", dù API ghi gì.
 2. Viết luật thuần trong `lib/games/<game>.ts` (dựng lại trạng thái tất định từ nhật ký) kèm unit test.
 3. Viết lớp phòng `lib/net/<game>-room.ts` kế thừa `RoomSession`: bắt buộc `begin` (chốt đội hình khi bắt đầu ván),
    `outcome` (kết quả suy ra từ nhật ký), `gameView`, `resultText`; tuỳ chọn `applyIntent`, `hostPlay`, `tidy`,
-   `onKick`, `watch`, `stopped`, `adExtra`, `memberExtra`. Thêm lớp mới vào `acquire` trong `components/room/useRoom.ts`.
+   `onKick` (cũng được gọi với `reason` "cheat" khi người chơi bị bắt gian lận), `watch`, `stopped`, `adExtra`,
+   `memberExtra`. Thêm lớp mới vào `acquire` trong `components/room/useRoom.ts`.
 4. Viết bàn chơi `components/room/<Game>Table.tsx` (dùng `RoomLayout`, `PeoplePanel`, `ChatPanel`) và gắn vào
    `RoomScreen`; thêm tuỳ chọn tạo phòng vào `CreateForm` và thẻ phòng trong `components/lobby/GameLobby.tsx`.

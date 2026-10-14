@@ -107,12 +107,12 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return { round: m.round, winner: winners.length === 1 ? winners[0] : null, winners, reason: "points" };
   }
 
-  /** Chủ phòng phân xử các nước mới; cả đội hình bỏ đi thì dừng ván. */
+  /** Chủ phòng phân xử các nước mới (người bị xử thua vì gian lận không được nối thêm); cả đội hình bỏ đi thì dừng ván. */
   protected hostPlay(m: Meta) {
     const kw = m.kw!;
     const next = judge(
       kw,
-      m.lineup.map((u) => this.movesOf(m, u)),
+      m.lineup.map((u) => (this.cheated(m, u) ? [] : this.movesOf(m, u))),
       this.board(m),
       this.stateOf(m, kw),
     );

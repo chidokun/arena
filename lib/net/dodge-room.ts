@@ -254,12 +254,12 @@ export class DodgeRoom extends RoomSession<DodgeView> {
     m.dg = { ...m.dg, edges };
   }
 
-  protected onKick(m: Meta, uid: string) {
+  protected onKick(m: Meta, uid: string, reason: "kick" | "cheat" = "kick") {
     if (m.status === "playing" && m.lineup.includes(uid)) {
       m.lineup = m.lineup.filter((u) => u !== uid);
       if (m.lineup.length < MIN_PLAYERS) {
         m.status = "ended";
-        m.result = this.endResult(m, "kick");
+        m.result = this.endResult(m, reason);
         this.stopTicker();
       } else if (m.dg?.runner === uid) {
         const next = m.lineup[0];
@@ -318,7 +318,7 @@ export class DodgeRoom extends RoomSession<DodgeView> {
   }
 
   protected resultText(r: Result, name: (uid: string) => string) {
-    if (r.reason === "stop" || r.reason === "leave" || r.reason === "kick") {
+    if (r.reason === "stop" || r.reason === "leave" || r.reason === "kick" || r.reason === "cheat") {
       if (r.winners?.length === 1) return `🏁 Hết trận — ${name(r.winners[0])} sống lâu nhất!`;
       if (r.winners && r.winners.length > 1) return `🏁 Hết trận — đồng hạng: ${r.winners.map(name).join(", ")}`;
       return `🏁 Hết trận Né Bão (ván ${r.round}).`;

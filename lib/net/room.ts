@@ -10,6 +10,7 @@
  *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng; sudoku, nối thú kawaii, trúc xanh,
  *                     dò mìn cổ điển là bàn chung chủ phòng ghi sau khi phân xử nhật ký `m:` của từng người.
  *   x:<round>:<uid> — người chơi xin thua.
+ *   z:<round>:<uid> — chống gian lận: máy người chơi tự báo đã mở công cụ nhà phát triển giữa ván; chủ phòng xử thua.
  *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
  *                     vẽ đoán: người vẽ chọn từ thứ mấy.
  *   a:<round>:<uid> — ma sói: hành động ban đêm; vẽ đoán: các lời đoán trong lượt — niêm phong gửi riêng chủ phòng.
@@ -46,6 +47,7 @@ import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
 import type { XqRolePublic } from "../games/xiangqi-role";
 import { hostTitle } from "../games/registry";
+import { ANTICHEAT, watchDevtools, type DevtoolsSignal } from "../devtools";
 import type { Profile } from "../identity";
 import { isStickerId, type StickerId } from "../stickers";
 import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, RateLimit, TEXT_MAX } from "./chat";
@@ -70,9 +72,9 @@ export type Result = {
    * chiến thuật: "survive" là người cuối cùng chưa bị loại. Trúc xanh: "guess" là có người đoán trúng tranh (`winner`), hoặc
    * lật hết bàn, hết giờ đoán mà không ai đoán ra (`winner` null). Dò mìn cổ điển: "points" là mở hết bàn khi còn nhiều
    * người trụ (nhiều điểm nhất thắng), "solve" là người trụ cuối cùng tự mở hết bàn, "boom" là ai cũng đạp mìn.
-   * Cờ chó: "blocked" là chặn hết đường đi của đối thủ.
+   * Cờ chó: "blocked" là chặn hết đường đi của đối thủ. Mọi game hai người: "cheat" là đối thủ mở công cụ nhà phát triển giữa ván.
    */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked" | "cheat";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -134,6 +136,8 @@ export type Meta = {
   ms?: MsRound;
   ack: Record<string, number>;
   kicked: string[];
+  /** Người chơi bị xử thua vì gian lận (mở công cụ nhà phát triển) trong ván hiện tại; xoá khi ván mới bắt đầu. */
+  cheats?: string[];
   result?: Result;
   /** Caro, cờ tướng: số ván thắng của từng người trong phòng, cộng dồn qua các ván. */
   wins?: Record<string, number>;
@@ -209,6 +213,9 @@ export type RoomView<G = unknown> = {
   joining?: JoinProgress;
 };
 
+/** Thông báo gian lận cho giao diện: `warn` là mình mở DevTools lúc đang ngồi ghế chờ ván (chưa bị phạt). */
+export type CheatAlert = { kind: "cheat"; uid: string; name: string; round: number; mine: boolean } | { kind: "warn" };
+
 export type CreateRoom = { name: string; cap: number; seats: number; opts: Record<string, unknown> };
 
 /** Nhịp đếm ngược 3‑2‑1 lúc mở ván; game có đồng hồ do chủ phòng giữ thì lùi mốc chạy thật lại bấy nhiêu. */
@@ -230,11 +237,15 @@ const DROP_SEAT_MS = 15000;
 const MUTE_GRACE_MS = 2500;
 // Chặn vòng lặp react() tự gọi lại vô hạn nếu một hook cứ ghi mãi.
 const MAX_REACT_PASSES = 8;
+// Thấy bản ghi gian lận cũ hơn ngưỡng này (vào giữa ván, tải lại trang) thì chỉ ghi vào chat, không bật thông báo nữa.
+const CHEAT_FRESH_MS = 15000;
+// Nhắc đóng DevTools trước ván không quá dày.
+const CHEAT_WARN_GAP_MS = 20000;
 
 // Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
-const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:", "d:"];
+const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:", "d:", "z:"];
 // Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
-const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:", "d:"];
+const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:", "d:", "z:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
 const snapKey = (id: string) => `arena:room:${id}`;
@@ -291,6 +302,12 @@ export abstract class RoomSession<G = unknown> {
   private redialer: Redialer;
   private reacting = false;
   private reactAgain = false;
+  private stopDevtools: (() => void) | null = null;
+  private cheatFns = new Set<(a: CheatAlert) => void>();
+  /** Các bản ghi gian lận (`<ván>:<uid>`) đã báo trên máy mình. */
+  private cheatsTold = new Set<string>();
+  private lastWarn = 0;
+  private readyAt = 0;
   readonly store: ViewStore<RoomView<G>>;
 
   /** Mở phiên phòng của một game cụ thể, vd. `LotoRoom.open(...)`. */
@@ -397,6 +414,7 @@ export abstract class RoomSession<G = unknown> {
     this.timers.push(setInterval(() => this.beat(false), HEARTBEAT_MS));
     this.timers.push(setInterval(() => this.react(), 1000));
     this.timers.push(setInterval(() => this.chatRate.sweep(), 10000));
+    if (ANTICHEAT) this.stopDevtools = watchDevtools(() => this.armed(), (how) => this.onDevtools(how));
   }
 
   // ---------- luật riêng của từng game ----------
@@ -420,8 +438,11 @@ export abstract class RoomSession<G = unknown> {
   /** Giữ dữ liệu riêng của game khớp với danh sách ghế sau mỗi lần chủ phòng sửa `meta`. */
   protected tidy?(m: Meta): void;
 
-  /** Một người bị kick (đã bị gỡ khỏi ghế); caro thì kết thúc ván nếu người đó đang đấu. */
-  protected onKick?(m: Meta, uid: string): void;
+  /**
+   * Một người bị kick (đã bị gỡ khỏi ghế), hoặc bị xử thua vì gian lận (`reason` "cheat", vẫn ở ghế): caro thì kết thúc
+   * ván nếu người đó đang đấu, game nhiều người thì loại người đó khỏi ván.
+   */
+  protected onKick?(m: Meta, uid: string, reason?: "kick" | "cheat"): void;
 
   /** Người này đang bị cấm chat theo luật game (ma sói: người chết, ban đêm…): máy họ không gửi, máy khác bỏ tin. */
   protected muted?(uid: string): boolean;
@@ -547,6 +568,7 @@ export abstract class RoomSession<G = unknown> {
             this.shutdown(true);
           } else {
             this.phase = "ready";
+            this.readyAt = now;
             this.prevOnline = this.onlineSet();
           }
         }
@@ -559,6 +581,7 @@ export abstract class RoomSession<G = unknown> {
       this.announceChanges(m);
       this.maybeTakeOver(m);
       if (this.meta()?.host === this.me) this.hostLoop();
+      this.announceCheats(this.meta()!);
       this.watch?.(this.meta()!);
     }
     this.store.invalidate();
@@ -614,12 +637,14 @@ export abstract class RoomSession<G = unknown> {
       }
       m.players = m.players.filter((u) => u === this.me || this.live.silentFor(u) < DROP_SEAT_MS);
     } else {
-      const result = this.outcome(m);
+      this.punishCheats(m);
+      const result = m.status === "playing" ? this.outcome(m) : undefined;
       if (result) {
         m.status = "ended";
         m.result = result;
-      } else this.hostPlay?.(m);
+      } else if (m.status === "playing") this.hostPlay?.(m);
     }
+    this.denyCheaters(m);
     this.tidy?.(m);
     const dirty = JSON.stringify(m) !== JSON.stringify(cur);
     if (dirty) this.gossip.set("meta", m);
@@ -691,6 +716,91 @@ export abstract class RoomSession<G = unknown> {
     if (this.myIntent(m).pending) base.pending = this.want;
     base.game = this.gameView(m, seatOf);
     return base;
+  }
+
+  // ---------- chống gian lận ----------
+
+  /** Người này đã bị xử thua vì gian lận trong ván hiện tại. */
+  protected cheated(m: Meta, uid: string) {
+    return !!m.cheats?.includes(uid);
+  }
+
+  /** Dò DevTools khi mình đang đấu trong ván (chưa bị bắt), hoặc đang ngồi ghế chờ ván (chỉ nhắc). */
+  private armed() {
+    const m = this.meta();
+    if (this.phase !== "ready" || !m) return false;
+    if (m.status === "playing") return m.lineup.includes(this.me) && !this.gossip.get(`z:${m.round}:${this.me}`);
+    return m.players.includes(this.me);
+  }
+
+  private onDevtools(how: DevtoolsSignal) {
+    const m = this.meta();
+    if (!m || !this.armed()) return;
+    if (m.status === "playing") {
+      this.gossip.set(`z:${m.round}:${this.me}`, { at: Date.now(), how });
+      this.react();
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastWarn < CHEAT_WARN_GAP_MS) return;
+    this.lastWarn = now;
+    for (const fn of this.cheatFns) fn({ kind: "warn" });
+  }
+
+  /** Những người trong đội hình ván hiện tại đã tự báo mở DevTools. */
+  private cheatersOf(m: Meta) {
+    if (m.round <= 0) return [];
+    const prefix = `z:${m.round}:`;
+    return this.gossip
+      .scan<{ at?: unknown }>(prefix)
+      .map((e) => ({ uid: e.k.slice(prefix.length), at: Number(e.v?.at) || 0 }))
+      .filter((c) => m.lineup.includes(c.uid) || this.cheated(m, c.uid));
+  }
+
+  /** Chủ phòng, trong ván: xử thua người vừa bị phát hiện gian lận — game hai người kết thúc ván, game nhiều người loại khỏi ván. */
+  private punishCheats(m: Meta) {
+    for (const { uid } of this.cheatersOf(m)) {
+      if (m.status !== "playing" || this.cheated(m, uid)) continue;
+      m.cheats = [...(m.cheats ?? []), uid];
+      this.onKick?.(m, uid, "cheat");
+    }
+  }
+
+  /** Chủ phòng: người gian lận không được tính thắng, ván kết thúc theo đường nào cũng vậy. */
+  private denyCheaters(m: Meta) {
+    const r = m.result;
+    const bad = m.cheats;
+    if (!r || r.round !== m.round || !bad?.length) return;
+    const winners = r.winners?.filter((u) => !bad.includes(u));
+    const winner = r.winner && bad.includes(r.winner) ? (winners?.length === 1 ? winners[0] : null) : r.winner;
+    if (winner === r.winner && winners?.length === r.winners?.length) return;
+    m.result = { ...r, winner, ...(winners ? { winners } : {}) };
+  }
+
+  /** Mọi máy: báo người gian lận vào khung chat và bật thông báo trên giao diện. */
+  private announceCheats(m: Meta) {
+    const now = Date.now();
+    for (const c of this.cheatersOf(m)) {
+      const key = `${m.round}:${c.uid}`;
+      // Bản ghi tới sát lúc hết ván mà chủ phòng chưa kịp xử thì thôi.
+      if (this.cheatsTold.has(key) || (m.status !== "playing" && !this.cheated(m, c.uid))) continue;
+      this.cheatsTold.add(key);
+      const mine = c.uid === this.me;
+      const name = this.nameOf(c.uid);
+      // Id cố định theo ván và người: tải lại trang (khung chat khôi phục từ snapshot) không báo lặp.
+      const text = `🚨 ${mine ? "Bạn" : name} vừa gian lận — mở công cụ nhà phát triển giữa ván ${m.round}, bị xử thua!`;
+      this.pushChat({ id: `cheat:${key}`, uid: "", name: "", avatar: "", color: "", at: now, text, system: true });
+      // Vừa vào phòng / tải lại trang thì bản ghi có sẵn là chuyện cũ — chỉ bật thông báo nếu nó còn mới.
+      const fresh = now - this.readyAt > SETTLE_MS || Math.abs(now - c.at) < CHEAT_FRESH_MS;
+      if (fresh) for (const fn of this.cheatFns) fn({ kind: "cheat", uid: c.uid, name, round: m.round, mine });
+    }
+  }
+
+  onCheat(fn: (a: CheatAlert) => void) {
+    this.cheatFns.add(fn);
+    return () => {
+      this.cheatFns.delete(fn);
+    };
   }
 
   // ---------- chat ----------
@@ -795,6 +905,7 @@ export abstract class RoomSession<G = unknown> {
     if (!cur || cur.host !== this.me) return;
     const m = structuredClone(cur);
     if (fn(m) === false) return;
+    this.denyCheaters(m);
     this.tidy?.(m);
     this.gossip.set("meta", m);
     this.react();
@@ -807,6 +918,7 @@ export abstract class RoomSession<G = unknown> {
       if (!this.begin(m)) return false;
       m.status = "playing";
       delete m.result;
+      delete m.cheats;
     });
   }
 
@@ -885,6 +997,8 @@ export abstract class RoomSession<G = unknown> {
     } catch {}
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    this.stopDevtools?.();
+    this.stopDevtools = null;
     this.stopped?.();
     this.gossip.stop();
     this.channel.release();

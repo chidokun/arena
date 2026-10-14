@@ -147,15 +147,15 @@ export class MinesweeperRoom extends RoomSession<MsView> {
   }
 
   /**
-   * Chủ phòng phân xử các ô mới, loại người rời ván (mất kết nối quá lâu, bị mời ra) và ghi giờ xong. Cả đội hình bỏ đi
-   * thì dừng ván.
+   * Chủ phòng phân xử các ô mới, loại người rời ván (mất kết nối quá lâu, bị mời ra, gian lận) và ghi giờ xong. Cả đội
+   * hình bỏ đi thì dừng ván.
    */
   protected hostPlay(m: Meta) {
     const ms = m.ms!;
     const lay = this.layoutOf(ms);
     const prev = this.board(m);
     const s = this.stateOf(m, ms);
-    const gone = m.lineup.flatMap((u, k) => (s.alive[k] && u !== this.me && (m.kicked.includes(u) || this.silentFor(u) >= QUIT_MS) ? [k] : []));
+    const gone = m.lineup.flatMap((u, k) => (s.alive[k] && (this.cheated(m, u) || (u !== this.me && (m.kicked.includes(u) || this.silentFor(u) >= QUIT_MS))) ? [k] : []));
     const judged = judge(
       lay,
       m.lineup.map((u) => this.movesOf(m, u)),

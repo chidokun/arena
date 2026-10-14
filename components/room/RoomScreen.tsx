@@ -6,6 +6,7 @@ import { gameHref, getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import { useNet, useWhere } from "../NetProvider";
 import { BattleshipTable } from "./BattleshipTable";
 import { CaroTable } from "./CaroTable";
+import { CheatAlert } from "./CheatAlert";
 import { ChessTable } from "./ChessTable";
 import { CoChepTable } from "./CoChepTable";
 import { CoChoTable } from "./CoChoTable";
@@ -27,7 +28,7 @@ import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { XiangqiRoleTable } from "./XiangqiRoleTable";
 import { XiangqiTable } from "./XiangqiTable";
-import { useRoomSession, useRoomView } from "./useRoom";
+import { useRoomSession, useRoomView, type GameRoom } from "./useRoom";
 
 export function RoomScreen({ slug }: { slug: string }) {
   const id = (useSearchParams().get("id") ?? "").trim().toLowerCase();
@@ -99,6 +100,15 @@ export function RoomScreen({ slug }: { slug: string }) {
         {back}
       </Notice>
     );
+  return (
+    <>
+      <GameTable id={id} slug={slug} session={session} />
+      <CheatAlert session={session} />
+    </>
+  );
+}
+
+function GameTable({ id, slug, session }: { id: string; slug: string; session: GameRoom }) {
   // So theo slug thay vì instanceof: nạp lại nóng (HMR) tạo lớp mới khiến phiên cũ không còn là instanceof.
   if (session.game === "loto") return <LotoTable id={id} slug={slug} session={session} />;
   if (session.game === "werewolf") return <WerewolfTable id={id} slug={slug} session={session} />;

@@ -32,6 +32,8 @@ function reasonOf(r: Result, end: End | null) {
       return "đối thủ rời trận";
     case "kick":
       return "đối thủ bị mời ra";
+    case "cheat":
+      return "đối thủ gian lận";
     case "agree":
       return "hai bên đồng ý hoà";
   }

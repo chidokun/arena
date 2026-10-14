@@ -427,7 +427,9 @@ export class DrawGuessRoom extends RoomSession<DwView> {
 
   protected hostPlay(m: Meta) {
     const pub = m.dw!;
-    const gone = (u: string) => m.kicked.includes(u) || (u !== this.me && this.silentFor(u) >= LEFT_MS);
+    // Người bị xử thua vì gian lận coi như đã bị mời ra: mất lượt vẽ, lời đoán không được chấm.
+    const out = (u: string) => m.kicked.includes(u) || this.cheated(m, u);
+    const gone = (u: string) => out(u) || (u !== this.me && this.silentFor(u) >= LEFT_MS);
     if (pub.order.filter((u) => !gone(u)).length < MIN_PLAYERS) {
       m.status = "ended";
       m.result = { round: m.round, winner: null, winners: [], reason: "stop" };
@@ -441,13 +443,13 @@ export class DrawGuessRoom extends RoomSession<DwView> {
       used: m.dwUsed ?? [],
     };
     const guesses: Record<string, Guesses | undefined> = {};
-    for (const u of pub.order) guesses[u] = this.inboxOf(m, u);
+    for (const u of pub.order) guesses[u] = out(u) ? undefined : this.inboxOf(m, u);
     const pick = this.gossip.get<Pick>(`v:${m.round}:${pub.drawer}`);
     const next = tick(state, {
       now: Date.now(),
       rand: Math.random,
-      online: (u) => !m.kicked.includes(u) && this.isOnline(u),
-      silent: (u) => (m.kicked.includes(u) ? Infinity : u === this.me ? 0 : this.silentFor(u)),
+      online: (u) => !out(u) && this.isOnline(u),
+      silent: (u) => (out(u) ? Infinity : u === this.me ? 0 : this.silentFor(u)),
       pick: pick && Number.isInteger(pick.turn) && Number.isInteger(pick.pick) ? pick : undefined,
       guesses,
     });

@@ -160,13 +160,16 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return { round: m.round, winner, winners: winner ? [winner] : [], reason: "guess" };
   }
 
-  /** Chủ phòng phân xử các nước mới, cho qua lượt / hết giờ đoán; cả đội hình bỏ đi thì dừng ván. */
+  /**
+   * Chủ phòng phân xử các nước mới, cho qua lượt / hết giờ đoán — người bị xử thua vì gian lận coi như rời ván (mất lượt,
+   * không được lật / đoán thêm); cả đội hình bỏ đi thì dừng ván.
+   */
   protected hostPlay(m: Meta) {
     const tx = m.tx!;
-    const online = (u: string) => !m.kicked.includes(u) && this.isOnline(u);
+    const online = (u: string) => !m.kicked.includes(u) && !this.cheated(m, u) && this.isOnline(u);
     const next = judge(
       tx,
-      m.lineup.map((u) => this.movesOf(m, u)),
+      m.lineup.map((u) => (this.cheated(m, u) ? [] : this.movesOf(m, u))),
       this.board(m),
       { now: Date.now(), online: (k) => online(m.lineup[k]) },
       this.stateOf(m, tx),

@@ -128,9 +128,10 @@ export function StopButton({ onConfirm }: { onConfirm: () => void }) {
   );
 }
 
-/** Lý do thắng không do luật mà do đối thủ bỏ (xin thua, rời trận, bị mời ra); undefined nếu thắng theo luật. */
+/** Lý do thắng không do luật mà do đối thủ bỏ (xin thua, rời trận, bị mời ra) hoặc bị xử thua vì gian lận; undefined nếu thắng theo luật. */
 export function forfeitWhy(r: Result): string | undefined {
   if (r.reason === "resign") return "Đối thủ xin thua";
   if (r.reason === "leave") return "Đối thủ rời trận";
   if (r.reason === "kick") return "Đối thủ bị mời ra";
+  if (r.reason === "cheat") return "Đối thủ gian lận";
 }
