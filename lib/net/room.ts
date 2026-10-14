@@ -414,7 +414,11 @@ export abstract class RoomSession<G = unknown> {
     this.timers.push(setInterval(() => this.beat(false), HEARTBEAT_MS));
     this.timers.push(setInterval(() => this.react(), 1000));
     this.timers.push(setInterval(() => this.chatRate.sweep(), 10000));
-    if (ANTICHEAT) this.stopDevtools = watchDevtools(() => this.armed(), (how) => this.onDevtools(how));
+    if (ANTICHEAT)
+      this.stopDevtools = watchDevtools(
+        { keys: () => !!this.armed(), probe: () => this.armed() === "play" },
+        (how) => this.onDevtools(how),
+      );
   }
 
   // ---------- luật riêng của từng game ----------
@@ -725,12 +729,15 @@ export abstract class RoomSession<G = unknown> {
     return !!m.cheats?.includes(uid);
   }
 
-  /** Dò DevTools khi mình đang đấu trong ván (chưa bị bắt), hoặc đang ngồi ghế chờ ván (chỉ nhắc). */
-  private armed() {
+  /**
+   * Mức dò DevTools: "play" là đang đấu trong ván (chưa bị bắt) — dò đủ cả phím tắt lẫn worker; "seat" là đang ngồi ghế
+   * chờ ván — chỉ dò phím tắt để nhắc, không phạt; null là không dò.
+   */
+  private armed(): "play" | "seat" | null {
     const m = this.meta();
-    if (this.phase !== "ready" || !m) return false;
-    if (m.status === "playing") return m.lineup.includes(this.me) && !this.gossip.get(`z:${m.round}:${this.me}`);
-    return m.players.includes(this.me);
+    if (this.phase !== "ready" || !m) return null;
+    if (m.status === "playing") return m.lineup.includes(this.me) && !this.gossip.get(`z:${m.round}:${this.me}`) ? "play" : null;
+    return m.players.includes(this.me) ? "seat" : null;
   }
 
   private onDevtools(how: DevtoolsSignal) {
