@@ -5,7 +5,7 @@
  * lượt hoặc vắng mặt thì mất lượt.
  *
  * Tranh ẩn bốc từ một trong hai bộ theo mức chủ phòng chọn: Dễ — danh lam, món ăn, con vật, đồ vật cụ thể; Khó — khái
- * niệm trừu tượng (cảm xúc, xã hội, khoa học…).
+ * niệm trừu tượng (cảm xúc, xã hội, khoa học…), kèm một câu gợi ý hiện cho cả phòng từ lúc mở bàn.
  *
  * Ai trong đội hình cũng được đoán từ khoá của tranh bất cứ lúc nào, không cần tới lượt: đoán đúng là thắng ngay, đoán
  * trật thì thôi (không bị phạt, chỉ giới hạn số lần đoán). Lật hết bàn mà chưa ai đoán ra thì còn `FINAL_MS` để đoán,
@@ -51,7 +51,7 @@ export const GUESS_LEN = 40;
 /** Mức khó: bộ tranh ẩn dùng cho ván. */
 export const LEVELS = {
   easy: { label: "Dễ", emoji: "🟢", about: "Danh lam, món ăn, con vật, đồ vật — nhìn là nhận ra.", pictures: PICTURES },
-  hard: { label: "Khó", emoji: "🔴", about: "Khái niệm trừu tượng: cảm xúc, xã hội, khoa học… — phải suy luận từ tranh.", pictures: ABSTRACT },
+  hard: { label: "Khó", emoji: "🔴", about: "Khái niệm trừu tượng: cảm xúc, xã hội, khoa học… — suy luận từ tranh và câu gợi ý.", pictures: ABSTRACT },
 } as const;
 export type Level = keyof typeof LEVELS;
 export const LEVEL_KEYS: readonly Level[] = ["easy", "hard"];

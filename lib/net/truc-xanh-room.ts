@@ -57,6 +57,8 @@ export type TxMatch = {
   state: TxState;
   /** Ảnh tranh ẩn. */
   img: string;
+  /** Câu gợi ý của tranh (bộ Khó). */
+  hint?: string;
   /** Từ khoá — chỉ có khi đã hết ván. */
   answer?: string;
   /** Các ô mình thấy đang ngửa: ô ngửa trên bàn chung cộng ô mình vừa lật đang chờ chủ phòng ghi nhận. */
@@ -255,6 +257,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
         me,
         state,
         img: pic.img,
+        hint: pic.hint,
         answer: m.status === "ended" || state.over ? pic.w : undefined,
         open: optimistic(state, me, pending),
         guesses,

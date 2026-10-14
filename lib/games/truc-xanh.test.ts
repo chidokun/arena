@@ -31,6 +31,7 @@ import {
   type TxRound,
   type TxState,
 } from "./truc-xanh.ts";
+import { leaks } from "./draw-guess.ts";
 
 const T0 = 1_000_000;
 const pic = PICTURES.findIndex((p) => p.w === "Tháp Eiffel");
@@ -97,6 +98,14 @@ test("bộ tranh: mỗi mức ít nhất 100 tranh, mỗi tranh có từ khoá v
   }
   assert.equal(LEVELS.easy.pictures, PICTURES);
   assert.equal(LEVELS.hard.pictures, ABSTRACT);
+  assert.ok(PICTURES.length >= 300);
+});
+
+test("bộ Khó: tranh nào cũng có câu gợi ý, câu gợi ý không lộ đáp án", () => {
+  for (const p of ABSTRACT) {
+    assert.ok(p.hint?.trim(), p.w);
+    for (const name of [p.w, ...(p.alt ?? [])]) assert.ok(!leaks(p.hint!, name), `${p.w}: ${p.hint}`);
+  }
 });
 
 test("bộ tranh: từ khoá nào cũng chấm đúng tranh của nó, không ăn nhầm tranh khác cùng bộ", () => {

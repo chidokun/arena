@@ -299,6 +299,11 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
           <span style={{ width: `${left * 100}%`, background: s.cleared ? "var(--coral)" : turn === g.me ? "var(--lime)" : "var(--pen)" }} />
         </div>
       )}
+      {g.hint && !counting && (
+        <p className="tx-hint" role="note">
+          💡 Gợi ý: {g.hint}
+        </p>
+      )}
       <div className="tx-board" style={{ "--cols": w } as React.CSSProperties}>
         {/* Tranh ẩn chỉ hiện qua những ô đã lật được; ảnh tải sẵn từ lúc đếm ngược. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

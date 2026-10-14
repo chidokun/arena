@@ -61,7 +61,7 @@ export const RULES: Record<string, GameRules> = {
         title: "Bàn chơi",
         items: [
           "Các ô đánh số úp lên một bức tranh ẩn, bốc ngẫu nhiên theo mức khó chủ phòng chọn — tranh nào phòng đã chơi thì không bốc lại.",
-          "🟢 Dễ: hơn 100 tranh danh lam, món ăn, con vật, đồ vật — nhìn là nhận ra. 🔴 Khó: 100 khái niệm trừu tượng (tình yêu, lạm phát, vô cực…) — phải suy luận từ tranh minh hoạ. Đổi được trong phòng trước mỗi ván.",
+          "🟢 Dễ: hơn 300 tranh danh lam, món ăn, con vật, đồ vật — nhìn là nhận ra. 🔴 Khó: 100 khái niệm trừu tượng (tình yêu, lạm phát, vô cực…) — suy luận từ tranh minh hoạ, có câu gợi ý kiểu “Đây là một loại cảm xúc…”. Đổi được trong phòng trước mỗi ván.",
           "Mặt dưới mỗi ô là một hình emoji, mỗi hình đúng hai ô. Chủ phòng chọn bàn Nhỏ 4×3, Vừa 5×4 (20 ô như truyền hình) hoặc Lớn 6×5.",
         ],
       },

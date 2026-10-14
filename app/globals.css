@@ -3024,6 +3024,19 @@
     border-radius: inherit;
     transition: width 250ms linear;
   }
+  /* Câu gợi ý (mức Khó) ngay trên bàn — cùng bề ngang với bàn. */
+  .tx-hint {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+    padding: 8px 14px;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--sun-soft);
+    box-shadow: var(--shadow-sm);
+    font-size: 15px;
+    font-weight: 700;
+  }
   .tx-player {
     display: flex;
     min-width: 0;
