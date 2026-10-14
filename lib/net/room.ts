@@ -3,7 +3,7 @@
  *
  *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
  *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
- *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô, cờ lật là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
+ *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô, cờ lật, cờ chó là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
  *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
  *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
  *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng; dò mìn chiến thuật là hành động (mở ô, kỹ năng,
@@ -31,7 +31,7 @@
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
  * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
  * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom,
- * TrucXanhRoom, MinesweeperRoom, ReversiRoom)
+ * TrucXanhRoom, MinesweeperRoom, ReversiRoom, CoChoRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { CcPublic } from "../games/co-chep";
@@ -70,8 +70,9 @@ export type Result = {
    * chiến thuật: "survive" là người cuối cùng chưa bị loại. Trúc xanh: "guess" là có người đoán trúng tranh (`winner`), hoặc
    * lật hết bàn, hết giờ đoán mà không ai đoán ra (`winner` null). Dò mìn cổ điển: "points" là mở hết bàn khi còn nhiều
    * người trụ (nhiều điểm nhất thắng), "solve" là người trụ cuối cùng tự mở hết bàn, "boom" là ai cũng đạp mìn.
+   * Cờ chó: "blocked" là chặn hết đường đi của đối thủ.
    */
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked";
   /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
@@ -117,6 +118,8 @@ export type Meta = {
   dwUsed?: number[];
   /** Chấm nối ô: cỡ bàn của ván gần nhất, chốt lúc bắt đầu (chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong). */
   dbSize?: number;
+  /** Cờ chó: cách xếp quân của ván gần nhất, chốt lúc bắt đầu. */
+  cdSetup?: string;
   /** Cò chẹp: seed của ván và những người đã bị loại (bỏ cuộc, mất kết nối, bị mời ra). */
   cc?: CcPublic;
   /** Dò mìn chiến thuật: seed, bản đồ, số mìn của ván và những người đã bị loại vì bỏ cuộc / mất kết nối / bị mời ra. */

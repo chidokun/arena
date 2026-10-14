@@ -238,6 +238,45 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "co-cho": {
+    intro: "Trò dân gian cho 2 người: mỗi bên hai nắp chai trên bàn vuông kẻ chéo, lần lượt đi sang điểm trống — ai bị chặn hết đường là thua.",
+    sections: [
+      {
+        emoji: "🎯",
+        title: "Mục tiêu",
+        items: ["Dồn đối thủ vào thế tới lượt mà không còn quân nào đi được."],
+      },
+      {
+        emoji: "🕹️",
+        title: "Cách chơi",
+        items: [
+          "Bàn là hình vuông kẻ hai đường chéo: năm điểm gồm bốn góc và tâm. Cạnh bên trái có chó canh — không được đi theo cạnh đó.",
+          "Mỗi bên hai quân (nắp chai Đỏ và Xanh), tâm để trống. Chủ phòng chọn cách xếp: hai cạnh (mỗi bên giữ hai góc cùng một cạnh) hoặc chéo nhau (mỗi bên giữ một đường chéo).",
+          "Đỏ đi trước, Xanh đi sau; người đi trước đổi luân phiên sau mỗi ván.",
+          "Mỗi lượt đi một quân của mình theo đường kẻ sang điểm trống ngay cạnh. Bàn chỉ có đúng một điểm trống nên chỉ cần bấm quân muốn đi — quân đi được sẽ sáng lên.",
+        ],
+      },
+      {
+        emoji: "🧠",
+        title: "Mẹo",
+        items: [
+          "Tâm nối với cả bốn góc — quân đứng ở tâm luôn có đường đi; rời tâm là mở đường cho đối thủ.",
+          "Hai góc sát chó chỉ nối được hai điểm: cẩn thận để cả hai quân mắc kẹt ở đó.",
+          "Trước khi đi, nhìn xem điểm mình vừa bỏ trống sẽ kề những quân nào — nếu chỉ toàn quân đối thủ thì có thể bị chặn ngay nước sau.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Tới lượt mà không quân nào đi được thì thua.",
+          "Bàn nhỏ nên hay đi vòng vòng: cùng một thế cờ (vị trí quân và người tới lượt) lặp lại lần thứ ba thì hoà.",
+          "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua.",
+        ],
+      },
+    ],
+  },
+
   "co-chep": {
     intro: "Trò dân gian cho 1–5 người: chọi đá chinh phục từng ô, lên Trời rồi chọi qua lưng để chiếm nhà. Ai có nhiều nhà nhất là thắng.",
     sections: [

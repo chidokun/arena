@@ -8,6 +8,7 @@ import { BattleshipTable } from "./BattleshipTable";
 import { CaroTable } from "./CaroTable";
 import { ChessTable } from "./ChessTable";
 import { CoChepTable } from "./CoChepTable";
+import { CoChoTable } from "./CoChoTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DodgeTable } from "./DodgeTable";
 import { DotsBoxesTable } from "./DotsBoxesTable";
@@ -118,5 +119,6 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (session.game === "truc-xanh") return <TrucXanhTable id={id} slug={slug} session={session} />;
   if (session.game === "minesweeper") return <MinesweeperTable id={id} slug={slug} session={session} />;
   if (session.game === "reversi") return <ReversiTable id={id} slug={slug} session={session} />;
+  if (session.game === "co-cho") return <CoChoTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

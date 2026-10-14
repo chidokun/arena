@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
+import { DEFAULT_OPTIONS as CD_DEFAULTS, normOptions as cdOptions, SETUP_NAME as CD_SETUP_NAME, SETUPS as CD_SETUPS, type Setup as CdSetup } from "@/lib/games/co-cho";
 import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
 import { DEFAULT_OPTIONS as DB_DEFAULTS, normOptions as dbOptions, SIZES as DB_SIZES, type Size as DbSize } from "@/lib/games/dots-boxes";
 import {
@@ -214,6 +215,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const tx = room.game === "truc-xanh";
   const ms = room.game === "minesweeper";
   const rv = room.game === "reversi";
+  const cd = room.game === "co-cho";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -256,7 +258,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                           ? "Đang gỡ mìn"
                                           : rv
                                             ? "Đang lật cờ"
-                                            : "Đang đấu",
+                                            : cd
+                                              ? "Đang chặn chó"
+                                              : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -313,6 +317,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <MinesweeperChips room={room} />
         ) : rv ? (
           <ReversiChips room={room} />
+        ) : cd ? (
+          <CoChoChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -374,6 +380,21 @@ function ReversiChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-lime-soft px-2.5 py-1">▦ 8×8 · lật quân</span>
+    </>
+  );
+}
+
+function CoChoChips({ room }: { room: RoomAd }) {
+  const { setup } = cdOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-sun-soft px-2.5 py-1">🐕 Xếp {CD_SETUP_NAME[setup].toLowerCase()}</span>
     </>
   );
 }
@@ -692,6 +713,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [txLevel, setTxLevel] = useState<TxLevel>(TX_DEFAULTS.level);
   const [msSize, setMsSize] = useState<MsSize>(MS_DEFAULTS.size);
   const [msMines, setMsMines] = useState(MS_DEFAULTS.mines);
+  const [cdSetup, setCdSetup] = useState<CdSetup>(CD_DEFAULTS.setup);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -711,6 +733,7 @@ function CreateForm({ slug }: { slug: string }) {
   const tx = slug === "truc-xanh";
   const ms = slug === "minesweeper";
   const rv = slug === "reversi";
+  const cd = slug === "co-cho";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -744,6 +767,7 @@ function CreateForm({ slug }: { slug: string }) {
           // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, số mìn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize } });
@@ -791,6 +815,27 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
             ⚫ Hai người chơi lần lượt đặt quân trên bàn 8×8 sao cho kẹp được quân đối thủ theo hàng ngang, dọc hoặc chéo — cả dãy bị kẹp lật sang màu
             mình. Hết nước thì bị bỏ lượt; cả hai cùng hết nước thì ai nhiều quân hơn thắng. Quân Đen đi trước, đổi người đi trước sau mỗi ván.
+          </p>
+        </>
+      ) : cd ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Xếp quân</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {CD_SETUPS.map((s) => (
+                <button key={s} type="button" onClick={() => setCdSetup(s)} aria-pressed={cdSetup === s} className={`btn !px-2 ${cdSetup === s ? "btn-sun" : ""}`}>
+                  {CD_SETUP_NAME[s]}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {cdSetup === "side" ? "Mỗi bên giữ hai góc cùng một cạnh — Đỏ đứng phía chó canh." : "Mỗi bên giữ hai góc trên một đường chéo."} Đổi được trong phòng trước mỗi ván.
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            🐕 Bàn hình vuông kẻ hai đường chéo, mỗi bên hai nắp chai, tâm để trống. Lần lượt đi một quân theo đường kẻ sang điểm trống kề nó — cạnh có chó canh
+            thì không được đi. Tới lượt mà không còn quân nào đi được là thua; thế cờ lặp lại 3 lần thì hoà. Quân Đỏ đi trước, đổi người đi trước sau mỗi ván.
           </p>
         </>
       ) : coChep ? (
