@@ -3056,6 +3056,21 @@
     border: 2px solid transparent;
     border-radius: 12px;
   }
+  .tx-player.is-out {
+    opacity: 0.65;
+  }
+  .tx-banned {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+    padding: 10px 14px;
+    border: 2px dashed var(--coral);
+    border-radius: 12px;
+    background: var(--coral-soft);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+  }
   .tx-player.is-turn {
     border-color: var(--lime);
     background: var(--lime-soft);

@@ -41,8 +41,11 @@ function nameIn(view: View, uid: string) {
 /** Người tới lượt (thứ tự trong đội hình) — chưa lật hết bàn, chưa hết ván. */
 const turnOf = (g: TxMatch) => (g.state.cleared || g.state.over ? -1 : g.state.current);
 
-/** Mình đoán được không: người chơi, ván đang chạy, bàn đã mở. */
-const canGuess = (view: View, g: TxMatch, now: number) => isLive(view) && g.me >= 0 && !g.state.over && !!now && now >= g.opensAt;
+/** Mình bị xử thua vì gian lận trong ván này: bị gạch tên, không được lật ô hay đoán nữa. */
+const banned = (g: TxMatch) => g.me >= 0 && !!g.cheats[g.me];
+
+/** Mình đoán được không: người chơi chưa bị xử thua, ván đang chạy, bàn đã mở. */
+const canGuess = (view: View, g: TxMatch, now: number) => isLive(view) && g.me >= 0 && !banned(g) && !g.state.over && !!now && now >= g.opensAt;
 
 export function TrucXanhTable({ id, slug, session }: { id: string; slug: string; session: TrucXanhRoom }) {
   const view = useRoomView(session)!;
@@ -140,7 +143,10 @@ function ActionBar({ view, session, now }: { view: View; session: TrucXanhRoom; 
       tone = TONE.hot;
       message = now ? <>⏳ Chuẩn bị… mở bàn sau {Math.max(1, Math.ceil((g.opensAt - now) / 1000))} giây!</> : <>⏳ Chuẩn bị…</>;
     } else if (s.over) message = <>🎉 Đã có người đoán trúng!</>;
-    else if (s.cleared) {
+    else if (banned(g)) {
+      tone = TONE.alert;
+      message = <>🚫 Bạn đã bị xử thua vì gian lận — bị gạch tên, không được lật ô hay đoán nữa. Ở lại xem mọi người chơi nhé.</>;
+    } else if (s.cleared) {
       tone = TONE.alert;
       message = (
         <>
@@ -245,6 +251,7 @@ function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
 /** Thẻ kết quả: ai đoán trúng, đáp án. */
 function ResultCard({ view, match: g }: { view: View; match: TxMatch }) {
   const r = g.result!;
+  if (r.reason === "cheat") return <StoppedCard round={g.round} sub={`Ván ${g.round} dừng — người chơi bị xử thua vì gian lận, không ai thắng. Đáp án là “${g.answer}”.`} />;
   if (r.reason !== "guess") return <StoppedCard round={g.round} />;
   const opened = `${pairsOf(g.size) - g.state.left}/${pairsOf(g.size)} cặp đã lật`;
   if (!r.winner) return <Result round={g.round} title="😮 Không ai đoán ra!" sub={`Đáp án là “${g.answer}” · ${opened}.`} />;
@@ -283,7 +290,7 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
   const s = g.state;
   const counting = live && (!now || now < g.opensAt);
   const done = !live || s.over;
-  const myTurn = live && !counting && !done && g.me >= 0 && turnOf(g) === g.me && g.open.length < 2;
+  const myTurn = live && !counting && !done && g.me >= 0 && !banned(g) && turnOf(g) === g.me && g.open.length < 2;
   const [pic, setPic] = useState<"wait" | "ok" | "err">("wait");
   // Các ô đã lật được lúc bàn hiện ra (vào giữa ván, tải lại trang) — không diễn lại hiệu ứng lật trúng.
   const [gone] = useState(() => new Set(s.owner.flatMap((o, i) => (o >= 0 ? [i] : []))));
@@ -349,6 +356,11 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
         {live && !done && turn >= 0 && <span className="ml-auto">{turn === g.me ? "🟢 Lượt của bạn" : `Lượt của ${nameIn(view, g.lineup[turn]?.uid ?? "")}`}</span>}
       </div>
       {canGuess(view, g, now) && <GuessBox key={g.round} session={session} match={g} />}
+      {live && !done && banned(g) && (
+        <p className="tx-banned" role="status">
+          🚫 Bạn bị xử thua vì gian lận — ô đoán đã khoá.
+        </p>
+      )}
     </div>
   );
 }
@@ -430,21 +442,22 @@ function Scoreboard({ view, match: g }: { view: View; match: TxMatch }) {
       <ol className="mt-3 grid max-h-[480px] grid-cols-1 gap-2 overflow-y-auto pr-1">
         {g.lineup.map((seat, k) => {
           const p = seat.member;
+          const out = !!g.cheats[k];
           return (
-            <li key={seat.uid} className={`tx-player ${k === turn ? "is-turn" : ""}`} aria-current={k === turn ? "step" : undefined}>
+            <li key={seat.uid} className={`tx-player ${k === turn && !out ? "is-turn" : ""} ${out ? "is-out" : ""}`} aria-current={k === turn && !out ? "step" : undefined}>
               <span className="w-5 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{k + 1}</span>
               <span className="relative shrink-0">
-                {p ? <Avatar p={p} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
-                {winner === seat.uid && (
-                  <span className="absolute -right-2 -bottom-1 text-base" aria-label="Thắng">
-                    🏆
+                {p ? <Avatar p={p} size={34} className={seat.online && !out ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
+                {(winner === seat.uid || out) && (
+                  <span className="absolute -right-2 -bottom-1 text-base" aria-label={out ? "Gian lận — bị xử thua" : "Thắng"}>
+                    {out ? "🚫" : "🏆"}
                   </span>
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="min-w-0 truncate text-[14px] font-bold">{seat.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</p>
-                <p className="text-[11.5px] font-semibold text-ink-3">
-                  {k === turn ? "🔄 đang lật · " : ""}💬 {s.tries[k]} lần đoán
+                <p className={`min-w-0 truncate text-[14px] font-bold ${out ? "line-through decoration-coral decoration-2" : ""}`}>{seat.uid === view.me ? "Bạn" : (p?.name ?? "Ai đó")}</p>
+                <p className={`text-[11.5px] font-semibold ${out ? "text-coral" : "text-ink-3"}`}>
+                  {out ? "🚨 Gian lận — bị xử thua, cấm đoán" : <>{k === turn ? "🔄 đang lật · " : ""}💬 {s.tries[k]} lần đoán</>}
                 </p>
               </div>
               <span className="shrink-0 text-right">

@@ -55,6 +55,8 @@ export type TxMatch = {
   lineup: SeatView[];
   /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
+  /** Người thứ k của đội hình bị xử thua vì gian lận: gạch tên, không được lật ô hay đoán nữa. */
+  cheats: boolean[];
   state: TxState;
   /** Ảnh tranh ẩn. */
   img: string;
@@ -165,7 +167,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
 
   /**
    * Chủ phòng phân xử các nước mới, cho qua lượt / hết giờ đoán — người bị xử thua vì gian lận coi như rời ván (mất lượt,
-   * không được lật / đoán thêm); cả đội hình bỏ đi thì dừng ván.
+   * không được lật / đoán thêm); cả đội hình bỏ đi, hoặc không còn ai chơi được (bị kick / gian lận hết) thì dừng ván.
    */
   protected hostPlay(m: Meta) {
     const tx = m.tx!;
@@ -178,7 +180,11 @@ export class TrucXanhRoom extends RoomSession<TxView> {
       this.stateOf(m, tx),
     );
     if (next) this.gossip.set(`g:${m.round}`, next);
-    if (m.lineup.every((u) => u !== this.me && this.silentFor(u) >= ABANDON_MS)) {
+    const out = (u: string) => m.kicked.includes(u) || this.cheated(m, u);
+    if (m.lineup.every(out)) {
+      m.status = "ended";
+      m.result = { round: m.round, winner: null, winners: [], reason: m.lineup.some((u) => this.cheated(m, u)) ? "cheat" : "stop" };
+    } else if (m.lineup.every((u) => u !== this.me && this.silentFor(u) >= ABANDON_MS)) {
       m.status = "ended";
       m.result = { round: m.round, winner: null, winners: [], reason: "stop" };
     }
@@ -263,6 +269,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
         level: normOptions(tx).level,
         lineup: m.lineup.map(seatOf),
         me,
+        cheats: m.lineup.map((u) => this.cheated(m, u)),
         state,
         img: pic.img,
         hint: hintOpen ? pic.hint : undefined,
@@ -287,11 +294,12 @@ export class TrucXanhRoom extends RoomSession<TxView> {
 
   // ---------- hành động ----------
 
-  /** Ván đang chơi mà mình là người chơi và bàn đã mở. */
+  /** Ván đang chơi mà mình là người chơi (chưa bị xử thua vì gian lận) và bàn đã mở. */
   private playable() {
     const m = this.meta();
     const g = this.store.get().game?.match;
     if (!m || m.status !== "playing" || !g || g.round !== m.round || g.me < 0 || g.state.over || Date.now() < g.opensAt) return null;
+    if (this.cheated(m, this.me)) return null;
     return { m, g };
   }
 
@@ -333,6 +341,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     const pic = m?.tx && m.status === "playing" ? pictureOf(m.tx) : undefined;
     if ("text" in content && m && pic && isAnswer(content.text, pic)) {
       if (!m.lineup.includes(this.me)) this.system("🤫 Người xem đừng nhắc đáp án nhé!");
+      else if (this.cheated(m, this.me)) this.system("🚫 Bạn đã bị xử thua vì gian lận — không được đoán nữa.");
       else if (this.playable()) this.guess(content.text);
       else this.system("🤫 Tin nhắn trông như một lời đoán nên chưa được gửi — chờ mở bàn rồi gõ vào ô đoán nhé!");
       return;
