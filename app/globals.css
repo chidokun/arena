@@ -520,6 +520,89 @@
     }
   }
 
+  /* ---------- Bàn cờ lật ---------- */
+  .rv {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .rv .rv-frame {
+    fill: #145c3b;
+    stroke: var(--edge);
+    stroke-width: 3;
+  }
+  .rv .rv-felt {
+    fill: #1f8a55;
+  }
+  .rv .rv-lines {
+    stroke: #0f4d31;
+    stroke-width: 2;
+  }
+  .rv .rv-star {
+    fill: #0f4d31;
+  }
+  .rv .rv-hint {
+    opacity: 0.45;
+    pointer-events: none;
+    transition: opacity 120ms;
+  }
+  .rv .rv-ghost {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms;
+  }
+  .rv .rv-hit {
+    fill: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  .rv .rv-slot:hover .rv-hint,
+  .rv .rv-slot:focus-within .rv-hint {
+    opacity: 0;
+  }
+  .rv .rv-slot:hover .rv-ghost,
+  .rv .rv-slot:focus-within .rv-ghost {
+    opacity: 0.6;
+  }
+  .rv .rv-preview {
+    stroke: #050312;
+    stroke-width: 2;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .rv .rv-last {
+    fill: var(--coral);
+    stroke: #050312;
+    stroke-width: 1.5;
+    pointer-events: none;
+    animation: c4-dot 200ms 260ms both;
+  }
+  .rv .rv-put,
+  .rv .rv-flip {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .rv .rv-put {
+    animation: rv-put 320ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+  .rv .rv-flip {
+    animation: rv-flip 440ms ease-in-out var(--d, 0ms) both;
+  }
+  .rv .rv-was {
+    opacity: 0;
+    animation: rv-was 440ms var(--d, 0ms) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rv .rv-put,
+    .rv .rv-flip,
+    .rv .rv-was,
+    .rv .rv-last {
+      animation: none;
+    }
+  }
+
   /* ---------- Sân cò chẹp ---------- */
   .cc {
     --cc-ground: color-mix(in srgb, var(--sun) 16%, var(--board));
@@ -4229,6 +4312,34 @@
 }
 @keyframes c4-dot {
   from {
+    opacity: 0;
+  }
+}
+/* Cờ lật: quân vừa đặt bật lên; quân bị lật xoay quanh trục dọc, mặt cũ (.rv-was) che tới nửa vòng rồi biến mất. */
+@keyframes rv-put {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+@keyframes rv-flip {
+  0% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: translateY(-5px) scaleX(0.04);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes rv-was {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
     opacity: 0;
   }
 }

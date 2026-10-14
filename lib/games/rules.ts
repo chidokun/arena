@@ -199,6 +199,45 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "reversi": {
+    intro: "Cờ lật cho 2 người: đặt quân kẹp quân đối thủ để lật chúng sang màu mình — hết nước cả hai thì ai nhiều quân hơn là thắng.",
+    sections: [
+      {
+        emoji: "🎯",
+        title: "Mục tiêu",
+        items: ["Kết thúc ván với nhiều quân cùng màu trên bàn hơn đối thủ."],
+      },
+      {
+        emoji: "🕹️",
+        title: "Cách chơi",
+        items: [
+          "Bàn 8×8, khai cuộc có sẵn 2 quân Đen và 2 quân Trắng đặt chéo nhau ở giữa.",
+          "Đen đi trước, Trắng đi sau; người đi trước đổi luân phiên sau mỗi ván.",
+          "Mỗi lượt đặt một quân vào ô trống sao cho giữa quân mới và một quân mình có sẵn là một dãy liền quân đối thủ (ngang, dọc hoặc chéo) — cả dãy đó bị lật sang màu mình. Một nước có thể lật nhiều hướng cùng lúc.",
+          "Chỉ được đặt vào ô lật được ít nhất một quân — các ô đặt được hiện chấm gợi ý, rê chuột vào để xem những quân sẽ bị lật.",
+          "Không còn ô nào đặt được thì bị bỏ lượt, đối thủ đi tiếp.",
+        ],
+      },
+      {
+        emoji: "🧠",
+        title: "Mẹo",
+        items: [
+          "Bốn góc không bao giờ bị lật lại — giành được góc là lợi thế lớn.",
+          "Tránh đặt vào ô sát góc khi góc còn trống: dễ mở đường cho đối thủ chiếm góc.",
+          "Lật nhiều quân chưa chắc đã tốt — giữ ít quân mà nhiều nước đi thường mạnh hơn, đối thủ sẽ bị dồn vào thế phải đi nước xấu.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Thắng thua",
+        items: [
+          "Cả hai cùng hết nước (thường là kín bàn) thì ván kết thúc: ai nhiều quân hơn thắng, bằng nhau là hoà.",
+          "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua.",
+        ],
+      },
+    ],
+  },
+
   "co-chep": {
     intro: "Trò dân gian cho 1–5 người: chọi đá chinh phục từng ô, lên Trời rồi chọi qua lưng để chiếm nhà. Ai có nhiều nhà nhất là thắng.",
     sections: [

@@ -213,6 +213,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const kw = room.game === "kawaii";
   const tx = room.game === "truc-xanh";
   const ms = room.game === "minesweeper";
+  const rv = room.game === "reversi";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   // Lô tô: hết tờ thì chỉ vào xem được.
@@ -253,7 +254,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                         ? "Đang lật ô"
                                         : ms
                                           ? "Đang gỡ mìn"
-                                          : "Đang đấu",
+                                          : rv
+                                            ? "Đang lật cờ"
+                                            : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -308,6 +311,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <TrucXanhChips room={room} />
         ) : ms ? (
           <MinesweeperChips room={room} />
+        ) : rv ? (
+          <ReversiChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -355,6 +360,20 @@ function ConnectFourChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-sky-soft px-2.5 py-1">▦ 7×6 · nối 4</span>
+    </>
+  );
+}
+
+function ReversiChips({ room }: { room: RoomAd }) {
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🪑 {room.players}/{room.seats} ghế
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👥 {room.members}/{room.cap} người
+      </span>
+      <span className="rounded-lg bg-lime-soft px-2.5 py-1">▦ 8×8 · lật quân</span>
     </>
   );
 }
@@ -691,6 +710,7 @@ function CreateForm({ slug }: { slug: string }) {
   const kw = slug === "kawaii";
   const tx = slug === "truc-xanh";
   const ms = slug === "minesweeper";
+  const rv = slug === "reversi";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -723,7 +743,7 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (ms) {
           // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, số mìn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
-        } else if (xiangqi || c4 || chess) stashCreate(id, { name: clean, cap, seats, opts: {} });
+        } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize } });
@@ -763,6 +783,14 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
             🔵 Hai người chơi lần lượt thả quân vào bàn 7 cột × 6 hàng — quân rơi xuống ô trống thấp nhất. Ai nối được 4 quân liên tiếp theo hàng ngang,
             dọc hoặc chéo trước thì thắng; đầy bàn là hoà. Quân Đỏ đi trước, đổi người đi trước sau mỗi ván.
+          </p>
+        </>
+      ) : rv ? (
+        <>
+          <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
+          <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
+            ⚫ Hai người chơi lần lượt đặt quân trên bàn 8×8 sao cho kẹp được quân đối thủ theo hàng ngang, dọc hoặc chéo — cả dãy bị kẹp lật sang màu
+            mình. Hết nước thì bị bỏ lượt; cả hai cùng hết nước thì ai nhiều quân hơn thắng. Quân Đen đi trước, đổi người đi trước sau mỗi ván.
           </p>
         </>
       ) : coChep ? (

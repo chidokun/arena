@@ -16,6 +16,7 @@ import { LotoRoom } from "@/lib/net/loto-room";
 import { MineControlRoom } from "@/lib/net/mine-control-room";
 import { MinesweeperRoom } from "@/lib/net/minesweeper-room";
 import { OAnQuanRoom } from "@/lib/net/oanquan-room";
+import { ReversiRoom } from "@/lib/net/reversi-room";
 import type { ChatMsg, RoomSession, RoomView } from "@/lib/net/room";
 import { SudokuRoom } from "@/lib/net/sudoku-room";
 import { TrucXanhRoom } from "@/lib/net/truc-xanh-room";
@@ -25,7 +26,7 @@ import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom | ReversiRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -74,7 +75,9 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                                         ? TrucXanhRoom.open(id, uid, profile, lobby)
                                         : game === "minesweeper"
                                           ? MinesweeperRoom.open(id, uid, profile, lobby)
-                                          : CaroRoom.open(id, uid, profile, lobby);
+                                          : game === "reversi"
+                                            ? ReversiRoom.open(id, uid, profile, lobby)
+                                            : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);
   }
