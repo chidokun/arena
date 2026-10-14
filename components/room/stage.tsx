@@ -41,14 +41,33 @@ export function useStageHost() {
   return { ctx, available, enter: () => setOn(true) };
 }
 
+/** Bàn chơi đang được trình chiếu không — để bàn đổi bố cục cho vừa màn hình (vd. hai hải đồ cạnh nhau khi màn hình ngang). */
+export const useStaged = () => !!useContext(StageCtx)?.on;
+
 /**
  * Khối bàn chơi được trình chiếu. Bình thường chỉ là một `div` mang `className`; lúc trình chiếu thì nổi phủ cả màn hình.
  * Bàn nằm trong ô `container-type: size` chiếm phần còn trống, nên `fit` tính cỡ bàn theo `cqw` / `cqh` của ô (khối mang
- * `fit` vẫn `relative` để sticker bay đúng chỗ). `flanks`: hai người chơi chỉ hiện lúc trình chiếu — màn hình ngang thì đứng
- * hai bên bàn, màn hình dọc thì một trên một dưới. Các `div` bọc luôn đứng yên trong cây nên bật / tắt không dựng lại bàn
- * chơi (giữ nét vẽ, trạng thái…). Bàn phải vừa ô — phần tràn bị cắt.
+ * `fit` vẫn `relative` để sticker bay đúng chỗ). Người chơi chỉ hiện lúc trình chiếu, một trong hai kiểu:
+ * - `flanks`: màn hình ngang thì đứng hai bên bàn, màn hình dọc thì một trên một dưới — hợp với bàn vuông (caro);
+ * - `head`: một hàng phía trên bàn — hợp với bàn bè ngang (hai hải đồ của bắn tàu).
+ * Các `div` bọc luôn đứng yên trong cây nên bật / tắt không dựng lại bàn chơi (giữ nét vẽ, trạng thái…). Bàn phải vừa ô —
+ * phần tràn bị cắt; `scroll` thì cho cuộn dọc (sticker bay bị cắt ở mép ô), dành cho lúc bàn tạm thời cao hơn màn hình.
  */
-export function StageArea({ className, fit = "w-full", flanks, children }: { className?: string; fit?: string; flanks?: [ReactNode, ReactNode]; children: ReactNode }) {
+export function StageArea({
+  className,
+  fit = "w-full",
+  flanks,
+  head,
+  scroll,
+  children,
+}: {
+  className?: string;
+  fit?: string;
+  flanks?: [ReactNode, ReactNode];
+  head?: ReactNode;
+  scroll?: boolean;
+  children: ReactNode;
+}) {
   const stage = useContext(StageCtx);
   const mount = stage?.mount;
   useEffect(() => mount?.(), [mount]);
@@ -64,9 +83,9 @@ export function StageArea({ className, fit = "w-full", flanks, children }: { cla
           ← Quay lại
         </button>
       )}
-      <div className={on ? `stage-body${flanks ? " has-flanks" : ""}` : "contents"}>
-        {on && flanks && <div className="stage-flank is-a">{flanks[0]}</div>}
-        <div className={on ? "stage-cell" : "contents"}>
+      <div className={on ? `stage-body${flanks ? " has-flanks" : head ? " has-head" : ""}` : "contents"}>
+        {on && (flanks ? <div className="stage-flank is-a">{flanks[0]}</div> : head && <div className="stage-head">{head}</div>)}
+        <div className={on ? `stage-cell${scroll ? " is-scroll" : ""}` : "contents"}>
           <div className={on ? `relative ${fit}` : className}>{children}</div>
         </div>
         {on && flanks && <div className="stage-flank is-b">{flanks[1]}</div>}

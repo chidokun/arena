@@ -446,7 +446,8 @@
   /* ---------- Trình chiếu (components/room/stage.tsx) ---------- */
   /* Bàn chơi phủ cả màn hình: trên thanh đầu trang và chat (z 40), dưới thông báo (50) và các cảnh mở / hết ván (60).
      Cắt phần tràn để sticker bay vào từ hai bên không làm hiện thanh cuộn. Bàn nằm trong `.stage-cell` (container) chiếm
-     phần còn trống: màn hình dọc thì hai người chơi (`.stage-flank`) ở trên / dưới, ngang thì hai bên. */
+     phần còn trống: màn hình dọc thì hai người chơi (`.stage-flank`) ở trên / dưới, ngang thì hai bên; hoặc một hàng người
+     chơi phía trên (`.stage-head`). */
   html[data-stage] {
     overflow: hidden;
   }
@@ -480,12 +481,26 @@
     grid-template-rows: auto minmax(0, 100cqw) auto;
     align-content: center;
   }
+  .stage-body.has-head {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .stage-head {
+    width: min(100%, 960px);
+  }
   .stage-cell {
     container-type: size;
     display: grid;
     place-items: center;
     width: 100%;
     height: 100%;
+  }
+  /* Cao hơn ô thì cuộn dọc; `margin: auto` thay cho canh giữa để phần đầu không bị đẩy ra ngoài, không cuộn tới được. */
+  .stage-cell.is-scroll {
+    place-items: start stretch;
+    overflow: hidden auto;
+  }
+  .stage-cell.is-scroll > * {
+    margin: auto;
   }
   .stage-flank {
     display: flex;

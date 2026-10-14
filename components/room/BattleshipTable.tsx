@@ -11,6 +11,7 @@ import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScen
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useRoomView } from "./useRoom";
 
@@ -19,6 +20,13 @@ type View = RoomView<BsView>;
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
 /** Phát bắn chìm chiếc tàu cuối: chờ một nhịp cho hiệu ứng nổ kịp diễn rồi mới vào cảnh chiến thắng. */
 const SUNK_PAUSE_MS = 2200;
+/**
+ * Cỡ khối bàn lúc trình chiếu (theo ô còn trống, `cqw` / `cqh`). Màn hình ngang: hai hải đồ cạnh nhau (hoặc bộ bày tàu)
+ * vừa khít chiều cao — mỗi hải đồ là hình vuông cộng phần chữ (dòng phát bắn cuối, tiêu đề, danh sách tàu), các số px là
+ * phần chữ đó. Màn hình dọc không đủ chỗ cho hai hải đồ nên mỗi cái rộng hết bề ngang, chồng lên nhau và cuộn dọc.
+ */
+const WATERS_FIT = "w-full landscape:w-[min(100cqw,200cqh_-_290px)]";
+const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
 
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const view = useRoomView(session)!;
@@ -35,6 +43,14 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
   const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   const busy = (i: 0 | 1) => live && (g.phase === "setup" ? !g.sides[i].ready : g.turn === i);
+  // Thanh đối đầu kèm tỉ số — lúc trình chiếu cũng hiện phía trên hai hải đồ.
+  const seatRow = (
+    <div className="flex items-stretch gap-2 sm:gap-4">
+      {([0, 1] as const).map((i) => (
+        <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} busy={busy(i)} />
+      ))}
+    </div>
+  );
 
   return (
     <RoomLayout
@@ -52,19 +68,17 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
         </span>
       </RoomHeader>
 
-      <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
-        {([0, 1] as const).map((i) => (
-          <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} busy={busy(i)} />
-        ))}
-      </div>
+      <div className="mb-4">{seatRow}</div>
 
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div ref={boardRef} className="relative mt-4">
-        {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
-        <Flyers flyers={flyers} />
-      </div>
+      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={seatRow} scroll>
+        <div ref={boardRef} className="relative">
+          {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
+          <Flyers flyers={flyers} />
+        </div>
+      </StageArea>
       {!seated && !(g && g.me >= 0) && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
@@ -209,10 +223,12 @@ function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
 function Waters({ view, session, locked }: { view: View; session: BattleshipRoom; locked: boolean }) {
   const g = view.game!.match;
   const m = view.meta!;
+  // Lúc trình chiếu xếp theo hướng màn hình (ngang: cạnh nhau, dọc: chồng lên), khớp với WATERS_FIT.
+  const cols = useStaged() ? "landscape:grid-cols-2" : "md:grid-cols-2";
   if (!g)
     return (
       <div className="relative">
-        <div className="grid gap-4 md:grid-cols-2" aria-hidden="true">
+        <div className={`grid gap-4 ${cols}`} aria-hidden="true">
           {[0, 1].map((i) => (
             <section key={i} className="card p-2 opacity-60 sm:p-3">
               <SeaBoard label="Hải đồ trống" />
@@ -226,7 +242,7 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
   return (
     <>
       {g.phase === "battle" && <LastShot g={g} view={view} />}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={`grid gap-4 ${cols}`}>
         {order.map((i) => (
           <Side key={i} i={i} g={g} view={view} session={session} locked={locked} />
         ))}
