@@ -5,7 +5,7 @@
  * lượt hoặc vắng mặt thì mất lượt.
  *
  * Tranh ẩn bốc từ một trong hai bộ theo mức chủ phòng chọn: Dễ — danh lam, món ăn, con vật, đồ vật cụ thể; Khó — khái
- * niệm trừu tượng (cảm xúc, xã hội, khoa học…), kèm một câu gợi ý hiện cho cả phòng từ lúc mở bàn.
+ * niệm trừu tượng (cảm xúc, xã hội, khoa học…), kèm một câu gợi ý chỉ mở cho cả phòng khi đã lật được nửa bàn.
  *
  * Ai trong đội hình cũng được đoán từ khoá của tranh bất cứ lúc nào, không cần tới lượt: đoán đúng là thắng ngay, đoán
  * trật thì thôi (không bị phạt, chỉ giới hạn số lần đoán). Lật hết bàn mà chưa ai đoán ra thì còn `FINAL_MS` để đoán,
@@ -51,7 +51,7 @@ export const GUESS_LEN = 40;
 /** Mức khó: bộ tranh ẩn dùng cho ván. */
 export const LEVELS = {
   easy: { label: "Dễ", emoji: "🟢", about: "Danh lam, món ăn, con vật, đồ vật — nhìn là nhận ra.", pictures: PICTURES },
-  hard: { label: "Khó", emoji: "🔴", about: "Khái niệm trừu tượng: cảm xúc, xã hội, khoa học… — suy luận từ tranh và câu gợi ý.", pictures: ABSTRACT },
+  hard: { label: "Khó", emoji: "🔴", about: "Khái niệm trừu tượng: cảm xúc, xã hội, khoa học… — suy luận từ tranh, lật được nửa bàn thì có câu gợi ý.", pictures: ABSTRACT },
 } as const;
 export type Level = keyof typeof LEVELS;
 export const LEVEL_KEYS: readonly Level[] = ["easy", "hard"];
@@ -221,6 +221,15 @@ export function newGame(r: Pick<TxRound, "seed" | "size" | "t0">, players: numbe
 
 const isInt = (x: unknown): x is number => Number.isInteger(x);
 const isTime = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+
+/** Câu gợi ý (bộ Khó) mở khi đã lật được chừng này phần số ô trên bàn. */
+export const HINT_AT = 0.5;
+/** Số ô đã lật được (các cặp trùng đã biến mất). */
+export const openedOf = (s: TxState) => s.owner.filter((o) => o >= 0).length;
+/** Số ô phải lật được để mở câu gợi ý. */
+export const hintNeed = (s: TxState) => Math.ceil(s.tiles.length * HINT_AT);
+/** Câu gợi ý đã mở chưa: lật được nửa bàn, hoặc ván đã xong. */
+export const hintShown = (s: TxState) => s.over || openedOf(s) >= hintNeed(s);
 
 /** Lật được ô `cell` không: tới lượt, chưa đủ hai ô ngửa, ô còn úp. */
 export const canFlip = (s: TxState, cell: number, open = s.open) =>

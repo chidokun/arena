@@ -7,12 +7,15 @@ import {
   FINAL_MS,
   GUESS_MAX,
   guessesIn,
+  hintNeed,
+  hintShown,
   isAnswer,
   isClose,
   judge,
   LEVEL_KEYS,
   LEVELS,
   normOptions,
+  openedOf,
   optimistic,
   pairsOf,
   PEEK_MS,
@@ -246,6 +249,29 @@ test("mỗi người đoán tối đa GUESS_MAX lần", () => {
   assert.equal(s.tries[0], GUESS_MAX);
   assert.equal(s.over, false);
   assert.equal(guessesIn(g.moves[0]).length, GUESS_MAX + 4);
+});
+
+test("câu gợi ý mở khi lật được nửa bàn, hoặc khi đã có người đoán trúng", () => {
+  const g = match(1);
+  let s = g.tick(T0);
+  let now = T0;
+  assert.equal(hintNeed(s), 6);
+  // Bàn nhỏ 12 ô: lật được 2 cặp (4 ô) chưa mở, cặp thứ 3 (6 ô) thì mở.
+  for (let pair = 1; pair <= 3; pair++) {
+    assert.equal(hintShown(s), false);
+    const a = s.owner.findIndex((o) => o < 0);
+    const b = s.tiles.findIndex((t, i) => i !== a && s.owner[i] < 0 && t === s.tiles[a]);
+    g.flip(0, a);
+    g.flip(0, b);
+    s = g.tick((now += 100));
+    assert.equal(openedOf(s), pair * 2);
+  }
+  assert.equal(hintShown(s), true);
+  // Ván xong sớm (đoán trúng ngay) thì cũng hiện.
+  const h = match(1);
+  h.guess(0, "Tháp Eiffel");
+  assert.equal(hintShown(h.tick(T0)), true);
+  assert.equal(hintShown(match(1).tick(T0)), false);
 });
 
 test("lật hết bàn: còn FINAL_MS để đoán, hết giờ thì không ai thắng", () => {

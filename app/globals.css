@@ -3037,6 +3037,16 @@
     font-size: 15px;
     font-weight: 700;
   }
+  .tx-hint.is-open {
+    animation: tx-hint 450ms ease-out both;
+  }
+  .tx-hint.is-locked {
+    border-style: dashed;
+    background: var(--sunken);
+    box-shadow: none;
+    color: var(--ink-3);
+    font-size: 13.5px;
+  }
   .tx-player {
     display: flex;
     min-width: 0;
@@ -5030,6 +5040,12 @@
   to {
     opacity: 0;
     transform: scale(0.85);
+  }
+}
+@keyframes tx-hint {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
   }
 }
 @keyframes tx-answer {

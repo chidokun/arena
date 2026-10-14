@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTDOWN_MS, FINAL_MS, GUESS_LEN, GUESS_MAX, LEVEL_KEYS, LEVELS, pairsOf, SIZE_KEYS, SIZES, TILES, TURN_MS } from "@/lib/games/truc-xanh";
+import { COUNTDOWN_MS, FINAL_MS, GUESS_LEN, GUESS_MAX, hintNeed, LEVEL_KEYS, LEVELS, openedOf, pairsOf, SIZE_KEYS, SIZES, TILES, TURN_MS } from "@/lib/games/truc-xanh";
 import type { GuessState, TrucXanhRoom, TxMatch, TxView } from "@/lib/net/truc-xanh-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
@@ -300,8 +300,13 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
         </div>
       )}
       {g.hint && !counting && (
-        <p className="tx-hint" role="note">
+        <p key="hint" className="tx-hint is-open" role="note">
           💡 Gợi ý: {g.hint}
+        </p>
+      )}
+      {g.hintLocked && !counting && (
+        <p key="locked" className="tx-hint is-locked" role="note">
+          🔒 Câu gợi ý mở khi lật được nửa bàn — đã lật {openedOf(s)}/{hintNeed(s)} ô
         </p>
       )}
       <div className="tx-board" style={{ "--cols": w } as React.CSSProperties}>

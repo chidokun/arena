@@ -20,6 +20,7 @@ import {
   GUESS_LEN,
   GUESS_MAX,
   guessesIn,
+  hintShown,
   isAnswer,
   judge,
   MIN_PLAYERS,
@@ -57,8 +58,10 @@ export type TxMatch = {
   state: TxState;
   /** Ảnh tranh ẩn. */
   img: string;
-  /** Câu gợi ý của tranh (bộ Khó). */
+  /** Câu gợi ý của tranh (bộ Khó) — chỉ có khi đã mở (lật được nửa bàn, hoặc hết ván). */
   hint?: string;
+  /** Tranh có câu gợi ý nhưng chưa mở. */
+  hintLocked: boolean;
   /** Từ khoá — chỉ có khi đã hết ván. */
   answer?: string;
   /** Các ô mình thấy đang ngửa: ô ngửa trên bàn chung cộng ô mình vừa lật đang chờ chủ phòng ghi nhận. */
@@ -250,6 +253,8 @@ export class TrucXanhRoom extends RoomSession<TxView> {
       const g = judged[i];
       return { text, state: !g ? "wait" : g.right ? "right" : g.near ? "near" : "wrong" };
     });
+    // Câu gợi ý chỉ gửi xuống khi đã mở, để không soi được từ dữ liệu trước giờ.
+    const hintOpen = m.status === "ended" || hintShown(state);
     return {
       ...base,
       match: {
@@ -260,7 +265,8 @@ export class TrucXanhRoom extends RoomSession<TxView> {
         me,
         state,
         img: pic.img,
-        hint: pic.hint,
+        hint: hintOpen ? pic.hint : undefined,
+        hintLocked: !!pic.hint && !hintOpen,
         answer: m.status === "ended" || state.over ? pic.w : undefined,
         open: optimistic(state, me, pending),
         guesses,
