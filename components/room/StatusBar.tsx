@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 import { seatOpen, type Result, type RoomSession, type RoomView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 
+/** Phần view các câu nhắc / nút vào ghế cần: `RoomView` (view gộp) hoặc ghép từ `roomStore` + `peopleStore`. */
+export type SeatState = Pick<RoomView, "pending" | "mySeat" | "isHost" | "meta" | "seats">;
+
 /**
  * Thanh trạng thái dưới thanh người chơi, dùng chung cho các game: một câu nói mình đang ở đâu / cần làm gì, nền đổi màu
  * theo tình huống, và các nút hành động bên phải. Game chỉ cấp nội dung; khuôn, cỡ chữ, vị trí nút là của chung.
@@ -34,7 +37,7 @@ export const TONE = {
  * người chưa vào ghế.
  */
 export function seatMessage(
-  view: RoomView,
+  view: SeatState,
   {
     enough = isFull(view),
     startHint = "Bấm Bắt đầu khi sẵn sàng.",
@@ -51,10 +54,10 @@ export function seatMessage(
   return isFull(view) ? <>🪑 Hết ghế — bạn có thể ngồi xem và trò chuyện.</> : <>{join}</>;
 }
 
-const isFull = (view: RoomView) => !seatOpen(view.meta!);
+const isFull = (view: SeatState) => !seatOpen(view.meta!);
 
 /** Lý do chủ phòng chưa bấm bắt đầu được (rỗng là bắt đầu được): mặc định cần kín ghế và mọi người chơi còn kết nối. */
-export function startBlocker(view: RoomView, { min }: { min?: number } = {}): string {
+export function startBlocker(view: SeatState, { min }: { min?: number } = {}): string {
   const n = view.meta!.players.length;
   if (min === undefined ? !isFull(view) : n < min) return min === undefined ? "Cần đủ người vào ghế" : min <= 1 ? "Cần ít nhất một người vào ghế" : `Cần ít nhất ${min} người vào ghế`;
   if (!view.seats.every((s) => s.online)) return "Có người chơi đang mất kết nối";
@@ -72,7 +75,7 @@ export function SeatButtons({
   joinLabel = "🙋 Vào chơi",
   onStart,
 }: {
-  view: RoomView;
+  view: SeatState;
   session: RoomSession;
   blocked?: string;
   joinLabel?: ReactNode;

@@ -28,14 +28,18 @@ import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { XiangqiRoleTable } from "./XiangqiRoleTable";
 import { XiangqiTable } from "./XiangqiTable";
-import { useRoomSession, useRoomView, type GameRoom } from "./useRoom";
+import type { RoomState } from "@/lib/net/room";
+import { shallowEqual, useRoomSession, useStore, type GameRoom } from "./useRoom";
+
+/** Màn phòng chỉ cần biết đang ở bước nào (`roomStore`): bàn chơi tự đăng ký phần nó cần, nên nước đi không làm cả màn vẽ lại. */
+const gateOf = (r: RoomState) => ({ phase: r.phase, joining: r.joining, ready: !!r.meta, cap: r.meta?.cap, name: r.meta?.name, game: r.meta?.game });
 
 export function RoomScreen({ slug }: { slug: string }) {
   const id = (useSearchParams().get("id") ?? "").trim().toLowerCase();
   const { uid, profile, lobby } = useNet();
   useWhere({ game: slug, room: id || undefined });
   const session = useRoomSession(slug, id, uid, profile, lobby);
-  const view = useRoomView<unknown>(session);
+  const view = useStore(session?.roomStore, gateOf, shallowEqual);
   const game = getGame(slug)!;
   const ad = lobby?.roomAd(id);
 
@@ -68,19 +72,19 @@ export function RoomScreen({ slug }: { slug: string }) {
   if (view.phase === "full")
     return (
       <Notice emoji="🈵" title="Phòng đã đầy">
-        Phòng đã đủ {view.meta?.cap} người. Thử lại sau hoặc chọn phòng khác nhé.
+        Phòng đã đủ {view.cap} người. Thử lại sau hoặc chọn phòng khác nhé.
         {back}
       </Notice>
     );
   if (view.phase === "kicked")
     return (
       <Notice emoji="🚪" title="Bạn đã bị mời ra khỏi phòng">
-        {hostTitle(view.meta?.game)} đã mời bạn ra khỏi “{view.meta?.name}”.
+        {hostTitle(view.game)} đã mời bạn ra khỏi “{view.name}”.
         {back}
       </Notice>
     );
   if (view.phase === "elsewhere") {
-    const other = getGame(view.meta?.game ?? "");
+    const other = getGame(view.game ?? "");
     return (
       <Notice emoji="🔀" title="Phòng này của game khác">
         Phòng #{id} đang chơi {other?.name ?? "một game khác"}.
@@ -94,7 +98,7 @@ export function RoomScreen({ slug }: { slug: string }) {
       </Notice>
     );
   }
-  if (view.phase === "left" || !session || !view.meta)
+  if (view.phase === "left" || !session || !view.ready)
     return (
       <Notice emoji="👋" title="Bạn đã rời phòng">
         {back}

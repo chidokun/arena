@@ -11,7 +11,7 @@ import { Flyers } from "./RoomLayout";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { StickerArt } from "./Sticker";
 import { useFlyers } from "./useFlyers";
-import { useBalloons } from "./useRoom";
+import { useBalloons, useRoomChat } from "./useRoom";
 
 const ROOM_KEY = "arena:chat-open";
 const PUBLIC_KEY = "arena:public-chat-open";
@@ -610,7 +610,22 @@ function usePublicChannel(): Channel | null {
  * `locked`: lý do tạm không cho gửi tin trong phòng (ma sói: ban đêm, người đã chết) — vẫn đọc được. `placeholder`: gợi ý
  * trong ô nhập (vẽ đoán: đang lượt vẽ thì tin của người đoán là lời đoán).
  */
-export function ChatPanel({ session, chat, me, locked, placeholder }: { session: RoomSession; chat: ChatMsg[]; me: string; locked?: string; placeholder?: string }) {
+export const ChatPanel = memo(function ChatPanel({
+  session,
+  chat: given,
+  me = session.me,
+  locked,
+  placeholder,
+}: {
+  session: RoomSession;
+  /** Không truyền thì tự đăng ký `chatStore` (bàn chơi đã tách theo store). */
+  chat?: ChatMsg[];
+  me?: string;
+  locked?: string;
+  placeholder?: string;
+}) {
+  const fromStore = useRoomChat(session);
+  const chat = given ?? fromStore;
   const pub = usePublicChannel();
   const room: Channel = {
     key: "room",
@@ -645,7 +660,7 @@ export function ChatPanel({ session, chat, me, locked, placeholder }: { session:
       bubbles={bubbles}
     />
   );
-}
+});
 
 /** Đếm khung chat phòng đang hiện, để khung chat công cộng nhường chỗ (khung phòng đã có tab Công cộng). */
 const roomChat = (() => {

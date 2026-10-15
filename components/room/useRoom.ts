@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Profile } from "@/lib/identity";
 import { BattleshipRoom } from "@/lib/net/battleship-room";
 import { CaroRoom } from "@/lib/net/caro-room";
@@ -18,10 +18,11 @@ import { MineControlRoom } from "@/lib/net/mine-control-room";
 import { MinesweeperRoom } from "@/lib/net/minesweeper-room";
 import { OAnQuanRoom } from "@/lib/net/oanquan-room";
 import { ReversiRoom } from "@/lib/net/reversi-room";
-import type { ChatMsg, RoomSession, RoomView } from "@/lib/net/room";
+import type { ChatMsg, PeopleView, RoomSession, RoomState, RoomView } from "@/lib/net/room";
 import { SudokuRoom } from "@/lib/net/sudoku-room";
 import { TrucXanhRoom } from "@/lib/net/truc-xanh-room";
 import { UndercoverRoom } from "@/lib/net/undercover-room";
+import type { ViewStore } from "@/lib/net/view-store";
 import { WerewolfRoom } from "@/lib/net/werewolf-room";
 import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
@@ -135,6 +136,70 @@ export function useRoomView<G>(session: RoomSession<G> | null): RoomView<G> | nu
     session ? session.store.get : () => null,
     () => null,
   );
+}
+
+/** So nông: cùng các khoá, từng giá trị bằng nhau theo `Object.is`. */
+export function shallowEqual<T>(a: T, b: T): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false;
+  const ka = Object.keys(a) as (keyof T)[];
+  if (ka.length !== Object.keys(b).length) return false;
+  return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && Object.is(a[k], b[k]));
+}
+
+type Store<V> = Pick<ViewStore<V>, "subscribe" | "get">;
+
+/**
+ * Đăng ký một store và lấy một phần của nó: store báo đổi mà phần đó vẫn như cũ (theo `equal`, mặc định `Object.is`)
+ * thì component không vẽ lại. Chọn nhiều trường vào object mới thì truyền `shallowEqual`. `store` null thì trả về null.
+ */
+export function useStore<V, T>(store: Store<V>, select: (v: V) => T, equal?: (a: T, b: T) => boolean): T;
+export function useStore<V, T>(store: Store<V> | null | undefined, select: (v: V) => T, equal?: (a: T, b: T) => boolean): T | null;
+export function useStore<V, T>(store: Store<V> | null | undefined, select: (v: V) => T, equal: (a: T, b: T) => boolean = Object.is): T | null {
+  const cache = useRef<{ view?: V; select?: (v: V) => T; out?: T; has: boolean }>({ has: false });
+  const get = () => {
+    if (!store) return null;
+    const v = store.get();
+    const c = cache.current;
+    if (c.has && c.view === v && c.select === select) return c.out as T;
+    const out = select(v);
+    c.view = v;
+    c.select = select;
+    if (!c.has || !equal(c.out as T, out)) {
+      c.out = out;
+      c.has = true;
+    }
+    return c.out as T;
+  };
+  return useSyncExternalStore(store?.subscribe ?? noopSub, get, () => null);
+}
+
+const whole = <V,>(v: V) => v;
+
+/** `roomStore`: pha, meta, vai trò của mình. */
+export function useRoomState(session: RoomSession): RoomState;
+export function useRoomState<T>(session: RoomSession, select: (r: RoomState) => T, equal?: (a: T, b: T) => boolean): T;
+export function useRoomState<T>(session: RoomSession, select: (r: RoomState) => T = whole as (r: RoomState) => T, equal?: (a: T, b: T) => boolean) {
+  return useStore(session.roomStore, select, equal);
+}
+
+/** `peopleStore`: người trong phòng, ghế, ai còn kết nối. */
+export function usePeople(session: RoomSession): PeopleView;
+export function usePeople<T>(session: RoomSession, select: (p: PeopleView) => T, equal?: (a: T, b: T) => boolean): T;
+export function usePeople<T>(session: RoomSession, select: (p: PeopleView) => T = whole as (p: PeopleView) => T, equal?: (a: T, b: T) => boolean) {
+  return useStore(session.peopleStore, select, equal);
+}
+
+/** `gameStore`: phần riêng của game (bàn, lượt, điểm). */
+export function useGame<G>(session: RoomSession<G>): G | undefined;
+export function useGame<G, T>(session: RoomSession<G>, select: (g: G | undefined) => T, equal?: (a: T, b: T) => boolean): T;
+export function useGame<G, T>(session: RoomSession<G>, select: (g: G | undefined) => T = whole as (g: G | undefined) => T, equal?: (a: T, b: T) => boolean) {
+  return useStore(session.gameStore, select, equal);
+}
+
+/** `chatStore`: tin chat phòng. */
+export function useRoomChat(session: RoomSession): ChatMsg[] {
+  return useSyncExternalStore(session.chatStore.subscribe, session.chatStore.get, session.chatStore.get);
 }
 
 /**

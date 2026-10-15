@@ -194,6 +194,29 @@ export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "l
 
 export type SeatView = { uid: string; member?: Member; online: boolean };
 
+/** `roomStore`: trạng thái chung của phòng — pha, meta, vai trò của mình. Đổi khi meta / pha / số peer đổi. */
+export type RoomState = {
+  phase: Phase;
+  me: string;
+  meta?: Meta;
+  isHost: boolean;
+  peers: number;
+  mySeat: number;
+  pending: "play" | "watch" | null;
+  /** Chỉ có lúc đang vào phòng (`connecting`). */
+  joining?: JoinProgress;
+};
+
+/** `peopleStore`: ai đang ở phòng, ai ngồi ghế nào, ai còn kết nối. Đổi khi có người vào / ra / đổi ghế / rớt mạng. */
+export type PeopleView = {
+  /** Người đang trong phòng (còn kết nối). */
+  members: Member[];
+  online: Set<string>;
+  seats: SeatView[];
+  spectators: Member[];
+};
+
+/** View gộp cả phòng trong một store — các bàn chơi chưa tách theo store đọc cái này. */
 export type RoomView<G = unknown> = {
   phase: Phase;
   me: string;
@@ -309,6 +332,19 @@ export abstract class RoomSession<G = unknown> {
   private lastWarn = 0;
   private readyAt = 0;
   readonly store: ViewStore<RoomView<G>>;
+  /**
+   * Các store tách theo phần cho giao diện: mỗi phần của bàn chơi đăng ký đúng store mình cần, và mỗi store chỉ được báo
+   * khi đúng nguồn dữ liệu của nó đổi — nên chỉ phần đọc store đó vẽ lại.
+   */
+  readonly roomStore = new ViewStore<RoomState>(() => this.computeRoom());
+  readonly peopleStore = new ViewStore<PeopleView>(() => this.computePeople());
+  readonly gameStore = new ViewStore<G | undefined>(() => this.computeGame());
+  /** Khung chat phòng: chỉ báo khi có tin mới. */
+  readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
+  /** Nguồn đổi theo thời gian đã báo store lần trước (`syncViews`). */
+  private viewSeen = { phase: "" as Phase | "", online: "" };
+  /** Phần hiển thị đã báo của từng bản ghi hiện diện (`shownChanged`). */
+  private viewShown = new Map<string, string>();
 
   /** Mở phiên phòng của một game cụ thể, vd. `LotoRoom.open(...)`. */
   static async open<T extends RoomSession>(this: RoomCtor<T>, id: string, me: string, profile: Profile, lobby: Lobby): Promise<T> {
@@ -388,7 +424,16 @@ export abstract class RoomSession<G = unknown> {
         if (k.startsWith("p:")) {
           const m = this.gossip.get<Member>(k);
           if (m) this.live.observe(k.slice(2), m.hb, !!m.left);
-        }
+          // Nhịp tim chỉ tăng `hb`: không ai trên giao diện cần biết. Đổi tên, avatar, ý định… mới báo.
+          if (this.shownChanged(k, m)) {
+            this.peopleStore.invalidate();
+            this.gameStore.invalidate();
+          }
+        } else if (k === "meta") {
+          this.roomStore.invalidate();
+          this.peopleStore.invalidate();
+          this.gameStore.invalidate();
+        } else this.gameStore.invalidate();
         if (k === "meta") this.onMeta();
       }
       this.trackMutes();
@@ -404,8 +449,12 @@ export abstract class RoomSession<G = unknown> {
         peer,
       );
       this.store.invalidate();
+      this.roomStore.invalidate();
     });
-    this.channel.onPeerLeave(() => this.store.invalidate());
+    this.channel.onPeerLeave(() => {
+      this.store.invalidate();
+      this.roomStore.invalidate();
+    });
 
     for (const e of this.gossip.scan<Member>("p:")) this.live.observe(e.k.slice(2), e.v.hb, !!e.v.left);
     if (this.meta()) this.onMeta();
@@ -589,6 +638,7 @@ export abstract class RoomSession<G = unknown> {
       this.watch?.(this.meta()!);
     }
     this.store.invalidate();
+    this.syncViews();
   }
 
   private onlineSet() {
@@ -676,6 +726,117 @@ export abstract class RoomSession<G = unknown> {
         dirty,
       );
     }
+  }
+
+  // ---------- các store tách theo phần ----------
+
+  /**
+   * Báo mọi store tách theo phần tính lại — gọi khi trạng thái riêng của game (không đi qua gossip) vừa đổi, vd. vừa
+   * giải mã xong bí mật. Game đã tách store thì gọi cái này thay cho `store.invalidate()`.
+   */
+  protected refreshViews() {
+    this.roomStore.invalidate();
+    this.peopleStore.invalidate();
+    this.gameStore.invalidate();
+    this.store.invalidate();
+  }
+
+  /**
+   * Nguồn không đi qua gossip mà đổi theo thời gian (gọi mỗi lượt vòng lặp chính): pha của phòng và ai còn kết nối (nhịp
+   * tim im quá lâu là rớt mạng — không có sự kiện nào báo). Chỉ báo store có nguồn vừa đổi.
+   */
+  private syncViews() {
+    const phase = this.phase !== this.viewSeen.phase;
+    const online = this.onlineKey();
+    const people = online !== this.viewSeen.online;
+    this.viewSeen.phase = this.phase;
+    this.viewSeen.online = online;
+    // Đang vào phòng: tiến độ bắt tay (sảnh, peer, nhịp tim) đổi liên tục, cứ tính lại mỗi lượt cho tới khi vào xong.
+    if (phase || this.phase === "connecting") this.roomStore.invalidate();
+    if (phase || people) {
+      this.peopleStore.invalidate();
+      this.gameStore.invalidate();
+    }
+  }
+
+  /** Dấu vết tập người còn kết nối, để biết lượt này có ai vừa rớt / vừa nối lại không. */
+  private onlineKey() {
+    const kicked = this.meta()?.kicked ?? [];
+    return this.members()
+      .filter((p) => this.isOnline(p.uid) && !kicked.includes(p.uid))
+      .map((p) => p.uid)
+      .sort()
+      .join(",");
+  }
+
+  /** Phần hiển thị của bản ghi hiện diện `k` (bỏ hb, seq, peer — đổi mỗi nhịp tim) có khác lần trước không. */
+  private shownChanged(k: string, m: Member | undefined) {
+    const sig = m ? JSON.stringify(m, (key, v) => (key === "hb" || key === "seq" || key === "peer" ? undefined : v)) : "";
+    if (this.viewShown.get(k) === sig) return false;
+    this.viewShown.set(k, sig);
+    return true;
+  }
+
+  /** Meta dùng được cho bàn chơi game này không (phòng của game khác thì không có ghế, không có ván). */
+  private ownMeta() {
+    const m = this.meta();
+    return m && m.game === this.game ? m : undefined;
+  }
+
+  /** Bản ghi hiện diện (kể cả người đã rớt mạng, để còn tên người ở ghế) và tập người còn kết nối. */
+  private presence() {
+    const m = this.meta();
+    const members = this.members();
+    const byUid = new Map(members.map((p) => [p.uid, p]));
+    const online = new Set(members.filter((p) => this.isOnline(p.uid) && !m?.kicked.includes(p.uid)).map((p) => p.uid));
+    const seatOf = (uid: string): SeatView => ({ uid, member: byUid.get(uid), online: online.has(uid) });
+    return { members, online, seatOf };
+  }
+
+  private computeRoom(): RoomState {
+    const m = this.meta();
+    const own = this.ownMeta();
+    const r: RoomState = {
+      phase: this.phase,
+      me: this.me,
+      meta: m,
+      isHost: m?.host === this.me,
+      peers: this.channel.peers().length,
+      mySeat: own ? own.players.indexOf(this.me) : -1,
+      pending: own && this.myIntent(own).pending ? this.want : null,
+    };
+    if (this.phase === "connecting")
+      r.joining = joinProgress({
+        me: this.me,
+        room: this.id,
+        host: m?.host ?? this.lobby.roomAd(this.id)?.host,
+        lobby: this.lobby.store.get().users,
+        // Bản ghi còn trong snapshot (tải lại trang) có thể của người đã đi; chỉ tính người còn nhịp tim.
+        members: this.members().filter((p) => this.live.alive(p.uid)),
+        peers: this.channel.peers(),
+        kicked: m?.kicked,
+        synced: !!m,
+        unreachable: this.channel.unreachable(),
+      });
+    return r;
+  }
+
+  private computePeople(): PeopleView {
+    const m = this.ownMeta();
+    const { members, online, seatOf } = this.presence();
+    return {
+      members: members.filter((p) => online.has(p.uid)),
+      online,
+      seats: m ? m.players.map(seatOf) : [],
+      spectators: m
+        ? members.filter((p) => online.has(p.uid) && !m.players.includes(p.uid) && !m.kicked.includes(p.uid)).sort((a, b) => a.joined - b.joined)
+        : [],
+    };
+  }
+
+  private computeGame(): G | undefined {
+    const m = this.ownMeta();
+    return m ? this.gameView(m, this.presence().seatOf) : undefined;
   }
 
   private compute(): RoomView<G> {
@@ -851,6 +1012,7 @@ export abstract class RoomSession<G = unknown> {
     for (const fn of this.chatFns) fn(msg);
     this.schedulePersist();
     this.store.invalidate();
+    this.chatStore.invalidate();
   }
 
   protected system(text: string) {
@@ -888,6 +1050,8 @@ export abstract class RoomSession<G = unknown> {
     // Vào lại phòng sau khi rời (không còn snapshot) thì số thứ tự phải vượt mức chủ phòng đã ghi nhận, nếu không
     // ý định mới bị coi là cũ và bỏ qua.
     this.seq = Math.max(this.seq, this.meta()?.ack[this.me] ?? 0) + 1;
+    // `pending` (đang chờ chủ phòng ghi nhận ý định) nằm ở roomStore.
+    this.roomStore.invalidate();
     this.beat(true);
     this.react();
   }
@@ -1010,6 +1174,7 @@ export abstract class RoomSession<G = unknown> {
     this.gossip.stop();
     this.channel.release();
     this.store.invalidate();
+    this.syncViews();
   }
 
   /** Huỷ phiên khi component unmount (vd. chuyển trang); khác `leave()` ở chỗ giữ snapshot nếu chỉ là tải lại. */

@@ -1,15 +1,32 @@
 "use client";
 
-import { useContext, useEffect, useId, useState, type ReactNode } from "react";
-import { seatOpen, type Member, type RoomSession, type RoomView, type SeatView } from "@/lib/net/room";
+import { memo, useContext, useEffect, useId, useState, type ReactNode } from "react";
+import { seatOpen, type Member, type Meta, type RoomSession, type RoomState, type SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { Dialog } from "../Dialog";
 import { useLobbyView, useNet } from "../NetProvider";
 import { hostTitle } from "@/lib/games/registry";
 import { PeopleOpenerCtx, PeopleVariantCtx } from "./side";
+import { shallowEqual, usePeople, useRoomState } from "./useRoom";
 
 const FOLD_KEY = "arena:people-folded";
+
+/** Phần view danh sách người cần — `RoomView` (view gộp) cũng đáp ứng. */
+type PeopleSlice = {
+  me: string;
+  isHost: boolean;
+  online: Set<string>;
+  seats: SeatView[];
+  spectators: Member[];
+  meta?: Pick<Meta, "host" | "game" | "name" | "status" | "lineup" | "cap" | "players" | "seats">;
+};
+
+/** Phần `roomStore` danh sách người cần (đổi luật, điểm… của phòng không làm danh sách vẽ lại). */
+const roomBitsOf = (r: RoomState) => {
+  const { host, game, name, status, lineup, cap, players, seats } = r.meta!;
+  return { me: r.me, isHost: r.isHost, host, game, name, status, lineup, cap, players, seats };
+};
 
 /** Thẻ người chơi trong thanh đối đầu. Mặc định huy hiệu là X / O (caro); game khác đặt `badge`, `tone`. */
 export function SeatCard({
@@ -97,21 +114,25 @@ export function SeatCard({
  * Game tuỳ biến được dòng mô tả từng người (`detail`), có cho kéo người xem vào ghế không (`canSeat`) và nhãn nút mời ra ghế.
  * Cách vẽ theo chỗ RoomLayout đặt (`PeopleVariantCtx`): khối thu gọn được trong sidebar, tab Người, hay dải avatar.
  */
-export function PeoplePanel({
-  view,
+export const PeoplePanel = memo(function PeoplePanel({
+  view: given,
   session,
   roomId,
   detail,
   canSeat = true,
   unseatLabel = "Rời ghế",
 }: {
-  view: RoomView;
+  /** Không truyền thì tự đăng ký `peopleStore` + một phần `roomStore` (bàn chơi đã tách theo store). */
+  view?: PeopleSlice;
   session: RoomSession;
   roomId: string;
   detail?: (p: Member, seated: boolean) => React.ReactNode;
   canSeat?: boolean;
   unseatLabel?: string;
 }) {
+  const people = usePeople(session);
+  const bits = useRoomState(session, roomBitsOf, shallowEqual);
+  const view: PeopleSlice = given ?? { me: bits.me, isHost: bits.isHost, online: people.online, seats: people.seats, spectators: people.spectators, meta: bits };
   const m = view.meta!;
   const variant = useContext(PeopleVariantCtx);
   const headId = useId();
@@ -221,7 +242,7 @@ export function PeoplePanel({
       {invite}
     </section>
   );
-}
+});
 
 /** Hàng avatar chồng lên nhau (tối đa `max` người, còn lại hiện +n). */
 function AvatarStack({ people, online, max = 5 }: { people: Member[]; online: Set<string>; max?: number }) {
@@ -333,7 +354,7 @@ function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMa
   );
 }
 
-function InviteList({ view, roomId }: { view: RoomView; roomId: string }) {
+function InviteList({ view, roomId }: { view: PeopleSlice; roomId: string }) {
   const { lobby } = useNet();
   const lobbyView = useLobbyView();
   const [sent, setSent] = useState<Set<string>>(new Set());
