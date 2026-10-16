@@ -15,8 +15,8 @@ export const CHAT_PERSIST = 100;
 /** Độ dài tối đa một tin. */
 export const TEXT_MAX = 300;
 /** Mỗi người tối đa CHAT_RATE tin / CHAT_RATE_WINDOW_MS (máy gửi tự giữ, máy nhận bỏ phần vượt). */
-export const CHAT_RATE = 10;
-export const CHAT_RATE_WINDOW_MS = 10_000;
+export const CHAT_RATE = 5;
+export const CHAT_RATE_WINDOW_MS = 5_000;
 /** Chat công cộng: tin cũ hơn mốc này bị bỏ (khi nhận, khi gửi lại cho người mới, khi khôi phục sau F5). */
 export const PUBLIC_TTL_MS = 60 * 60_000;
 
