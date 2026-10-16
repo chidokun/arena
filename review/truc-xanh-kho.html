@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trúc Xanh — bộ đề Khó</title>
+<style>
+  :root { --bg:#f6f7f5; --card:#fff; --fg:#1d2420; --muted:#6b746f; --line:#e2e6e3; --accent:#1f7a4d; --hint:#fff6dc; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121614; --card:#1b201d; --fg:#e7ece9; --muted:#9aa49f; --line:#2b322e; --accent:#4fc187; --hint:#3a3220; --bad:#ff6b5b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; z-index:1; background:var(--bg); border-bottom:1px solid var(--line); padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+  header h1 { font-size:18px; margin:0; }
+  header .stat { color:var(--muted); font-size:13px; }
+  header input { flex:1; min-width:180px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; }
+  header label { font-size:13px; color:var(--muted); display:flex; gap:4px; align-items:center; }
+  main { padding:16px; display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .card.broken { border-color:var(--bad); }
+  .head { display:flex; gap:8px; align-items:baseline; }
+  .no { font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  h2 { font-size:17px; margin:0; }
+  .alt { font-size:13px; color:var(--muted); }
+  .hint { background:var(--hint); border-radius:8px; padding:6px 8px; font-size:14px; }
+  .warn { color:var(--bad); font-weight:600; }
+  .pic { display:block; aspect-ratio:4/3; background:var(--line); border-radius:8px; overflow:hidden; margin-top:auto; }
+  .pic img { width:100%; height:100%; object-fit:cover; display:block; }
+  .meta { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; min-height:1em; }
+  .meta.bad { color:var(--bad); font-weight:600; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trúc Xanh — bộ đề Khó</h1>
+  <span class="stat" id="stat">100 tranh</span>
+  <input id="q" type="search" placeholder="Lọc theo từ khoá…">
+  <label><input id="onlyBad" type="checkbox"> Chỉ tranh có vấn đề</label>
+</header>
+<main id="list">
+<article class="card" data-s="tình yêu yêu ái tình đây là một thứ tình cảm">
+  <div class="head"><span class="no">#1</span><h2>Tình yêu</h2></div>
+  <div class="alt">Cũng đúng: Yêu, Ái tình</div><div class="hint">💡 Đây là một thứ tình cảm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Love_in_snowy_tehran.jpg/960px-Love_in_snowy_tehran.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Love_in_snowy_tehran.jpg/960px-Love_in_snowy_tehran.jpg" alt="Tình yêu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tự do đây là một giá trị con người khao khát">
+  <div class="head"><span class="no">#2</span><h2>Tự do</h2></div>
+  <div class="hint">💡 Đây là một giá trị con người khao khát</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/D%C3%BClmen%2C_Kirchspiel%2C_B%C3%B6rnste%2C_Felder_und_B%C3%A4ume_--_2017_--_3238.jpg/960px-D%C3%BClmen%2C_Kirchspiel%2C_B%C3%B6rnste%2C_Felder_und_B%C3%A4ume_--_2017_--_3238.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/D%C3%BClmen%2C_Kirchspiel%2C_B%C3%B6rnste%2C_Felder_und_B%C3%A4ume_--_2017_--_3238.jpg/960px-D%C3%BClmen%2C_Kirchspiel%2C_B%C3%B6rnste%2C_Felder_und_B%C3%A4ume_--_2017_--_3238.jpg" alt="Tự do"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoà bình hòa bình đây là một trạng thái của thế giới">
+  <div class="head"><span class="no">#3</span><h2>Hoà bình</h2></div>
+  <div class="alt">Cũng đúng: Hòa bình</div><div class="hint">💡 Đây là một trạng thái của thế giới</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/I_come_in_peace.jpg/960px-I_come_in_peace.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/I_come_in_peace.jpg/960px-I_come_in_peace.jpg" alt="Hoà bình"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hạnh phúc niềm vui vui vẻ đây là một loại cảm xúc">
+  <div class="head"><span class="no">#4</span><h2>Hạnh phúc</h2></div>
+  <div class="alt">Cũng đúng: Niềm vui, Vui vẻ</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/5/52/Girl_of_Vietnam.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/5/52/Girl_of_Vietnam.jpg" alt="Hạnh phúc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thời gian đây là một đại lượng vật lý">
+  <div class="head"><span class="no">#5</span><h2>Thời gian</h2></div>
+  <div class="hint">💡 Đây là một đại lượng vật lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Praha_Astronomical_Clock_Dial_01.jpg/960px-Praha_Astronomical_Clock_Dial_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Praha_Astronomical_Clock_Dial_01.jpg/960px-Praha_Astronomical_Clock_Dial_01.jpg" alt="Thời gian"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cô đơn sự cô đơn nỗi cô đơn đây là một loại cảm xúc">
+  <div class="head"><span class="no">#6</span><h2>Cô đơn</h2></div>
+  <div class="alt">Cũng đúng: Sự cô đơn, Nỗi cô đơn</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Man_sitting_bench_sunset_%28Unsplash%29.jpg/960px-Man_sitting_bench_sunset_%28Unsplash%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Man_sitting_bench_sunset_%28Unsplash%29.jpg/960px-Man_sitting_bench_sunset_%28Unsplash%29.jpg" alt="Cô đơn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hy vọng hi vọng đây là một loại cảm xúc">
+  <div class="head"><span class="no">#7</span><h2>Hy vọng</h2></div>
+  <div class="alt">Cũng đúng: Hi vọng</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Hopeful.jpg/960px-Hopeful.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Hopeful.jpg/960px-Hopeful.jpg" alt="Hy vọng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tình bạn bạn bè đây là một mối quan hệ">
+  <div class="head"><span class="no">#8</span><h2>Tình bạn</h2></div>
+  <div class="alt">Cũng đúng: Bạn bè</div><div class="hint">💡 Đây là một mối quan hệ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Two_friends_sitting_together%2C_chatting_and_laughing.jpg/960px-Two_friends_sitting_together%2C_chatting_and_laughing.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Two_friends_sitting_together%2C_chatting_and_laughing.jpg/960px-Two_friends_sitting_together%2C_chatting_and_laughing.jpg" alt="Tình bạn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gia đình đây là một tập thể nhỏ trong xã hội">
+  <div class="head"><span class="no">#9</span><h2>Gia đình</h2></div>
+  <div class="hint">💡 Đây là một tập thể nhỏ trong xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Picnic_in_Japan%2C_Taisho_era_%281915-06_by_Elstner_Hilton%29.jpg/960px-Picnic_in_Japan%2C_Taisho_era_%281915-06_by_Elstner_Hilton%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Picnic_in_Japan%2C_Taisho_era_%281915-06_by_Elstner_Hilton%29.jpg/960px-Picnic_in_Japan%2C_Taisho_era_%281915-06_by_Elstner_Hilton%29.jpg" alt="Gia đình"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chiến tranh đây là một sự kiện lịch sử">
+  <div class="head"><span class="no">#10</span><h2>Chiến tranh</h2></div>
+  <div class="hint">💡 Đây là một sự kiện lịch sử</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/World_War_One%3B_wounded_tended_on_the_battlefield_Wellcome_L0009341.jpg/960px-World_War_One%3B_wounded_tended_on_the_battlefield_Wellcome_L0009341.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/World_War_One%3B_wounded_tended_on_the_battlefield_Wellcome_L0009341.jpg/960px-World_War_One%3B_wounded_tended_on_the_battlefield_Wellcome_L0009341.jpg" alt="Chiến tranh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nghèo đói nghèo đói nghèo đây là một vấn đề xã hội">
+  <div class="head"><span class="no">#11</span><h2>Nghèo đói</h2></div>
+  <div class="alt">Cũng đúng: Nghèo, Đói nghèo</div><div class="hint">💡 Đây là một vấn đề xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Homeless_man_in_Toronto_across_from_old_City_Hall.jpg/960px-Homeless_man_in_Toronto_across_from_old_City_Hall.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Homeless_man_in_Toronto_across_from_old_City_Hall.jpg/960px-Homeless_man_in_Toronto_across_from_old_City_Hall.jpg" alt="Nghèo đói"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="giàu có sự giàu có đây là một hoàn cảnh sống">
+  <div class="head"><span class="no">#12</span><h2>Giàu có</h2></div>
+  <div class="alt">Cũng đúng: Sự giàu có</div><div class="hint">💡 Đây là một hoàn cảnh sống</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Gold_bullion_bars.jpg/960px-Gold_bullion_bars.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Gold_bullion_bars.jpg/960px-Gold_bullion_bars.jpg" alt="Giàu có"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nỗi buồn buồn buồn bã đây là một loại cảm xúc">
+  <div class="head"><span class="no">#13</span><h2>Nỗi buồn</h2></div>
+  <div class="alt">Cũng đúng: Buồn, Buồn bã</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Sad_girl_with_head_in_hands.jpg/960px-Sad_girl_with_head_in_hands.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Sad_girl_with_head_in_hands.jpg/960px-Sad_girl_with_head_in_hands.jpg" alt="Nỗi buồn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ghen tị đố kỵ ghen tỵ đây là một loại cảm xúc">
+  <div class="head"><span class="no">#14</span><h2>Ghen tị</h2></div>
+  <div class="alt">Cũng đúng: Đố kỵ, Ghen tỵ</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Edvard_Munch_-_Jealousy_-_Google_Art_Project.jpg/960px-Edvard_Munch_-_Jealousy_-_Google_Art_Project.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Edvard_Munch_-_Jealousy_-_Google_Art_Project.jpg/960px-Edvard_Munch_-_Jealousy_-_Google_Art_Project.jpg" alt="Ghen tị"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lười biếng lười đây là một tính xấu">
+  <div class="head"><span class="no">#15</span><h2>Lười biếng</h2></div>
+  <div class="alt">Cũng đúng: Lười</div><div class="hint">💡 Đây là một tính xấu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Lazy_Cat_at_Tum_Bur_in_Hattingen_Ruhr.jpg/960px-Lazy_Cat_at_Tum_Bur_in_Hattingen_Ruhr.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Lazy_Cat_at_Tum_Bur_in_Hattingen_Ruhr.jpg/960px-Lazy_Cat_at_Tum_Bur_in_Hattingen_Ruhr.jpg" alt="Lười biếng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="công lý công bằng đây là một giá trị xã hội">
+  <div class="head"><span class="no">#16</span><h2>Công lý</h2></div>
+  <div class="alt">Cũng đúng: Công bằng</div><div class="hint">💡 Đây là một giá trị xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Close-up_of_Lady_Justice_statue_holding_scales%2C_symbolizing_justice_and_fairness.jpg/960px-Close-up_of_Lady_Justice_statue_holding_scales%2C_symbolizing_justice_and_fairness.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Close-up_of_Lady_Justice_statue_holding_scales%2C_symbolizing_justice_and_fairness.jpg/960px-Close-up_of_Lady_Justice_statue_holding_scales%2C_symbolizing_justice_and_fairness.jpg" alt="Công lý"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bầu cử đây là một hoạt động chính trị">
+  <div class="head"><span class="no">#17</span><h2>Bầu cử</h2></div>
+  <div class="hint">💡 Đây là một hoạt động chính trị</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Election_MG_3455.JPG/960px-Election_MG_3455.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Election_MG_3455.JPG/960px-Election_MG_3455.JPG" alt="Bầu cử"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="giáo dục học tập đây là một lĩnh vực xã hội">
+  <div class="head"><span class="no">#18</span><h2>Giáo dục</h2></div>
+  <div class="alt">Cũng đúng: Học tập</div><div class="hint">💡 Đây là một lĩnh vực xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Schoolgirls_in_Bamozai.JPG/960px-Schoolgirls_in_Bamozai.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Schoolgirls_in_Bamozai.JPG/960px-Schoolgirls_in_Bamozai.JPG" alt="Giáo dục"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tri thức kiến thức đây là một thứ vô hình">
+  <div class="head"><span class="no">#19</span><h2>Tri thức</h2></div>
+  <div class="alt">Cũng đúng: Kiến thức</div><div class="hint">💡 Đây là một thứ vô hình</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Hamamatsu_Municipal_Sakuma_Library_reading_room_ac_%281%29.jpg/960px-Hamamatsu_Municipal_Sakuma_Library_reading_room_ac_%281%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Hamamatsu_Municipal_Sakuma_Library_reading_room_ac_%281%29.jpg/960px-Hamamatsu_Municipal_Sakuma_Library_reading_room_ac_%281%29.jpg" alt="Tri thức"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sáng tạo sự sáng tạo đây là một khả năng của con người">
+  <div class="head"><span class="no">#20</span><h2>Sáng tạo</h2></div>
+  <div class="alt">Cũng đúng: Sự sáng tạo</div><div class="hint">💡 Đây là một khả năng của con người</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Primary_school_art_class%2C_n.d.%2C_by_Sam_Hood_%286094300269%29.jpg/960px-Primary_school_art_class%2C_n.d.%2C_by_Sam_Hood_%286094300269%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Primary_school_art_class%2C_n.d.%2C_by_Sam_Hood_%286094300269%29.jpg/960px-Primary_school_art_class%2C_n.d.%2C_by_Sam_Hood_%286094300269%29.jpg" alt="Sáng tạo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="giấc mơ mơ giấc mộng đây là một trải nghiệm của tâm trí">
+  <div class="head"><span class="no">#21</span><h2>Giấc mơ</h2></div>
+  <div class="alt">Cũng đúng: Mơ, Giấc mộng</div><div class="hint">💡 Đây là một trải nghiệm của tâm trí</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/A_dream_%28BM_1868%2C0808.9057%29.jpg/960px-A_dream_%28BM_1868%2C0808.9057%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/A_dream_%28BM_1868%2C0808.9057%29.jpg/960px-A_dream_%28BM_1868%2C0808.9057%29.jpg" alt="Giấc mơ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ký ức kí ức trí nhớ đây là một thứ trong tâm trí">
+  <div class="head"><span class="no">#22</span><h2>Ký ức</h2></div>
+  <div class="alt">Cũng đúng: Kí ức, Trí nhớ</div><div class="hint">💡 Đây là một thứ trong tâm trí</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Hungarian_family_photo_album%2C_page_35.jpg/960px-Hungarian_family_photo_album%2C_page_35.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Hungarian_family_photo_album%2C_page_35.jpg/960px-Hungarian_family_photo_album%2C_page_35.jpg" alt="Ký ức"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tuổi thơ đây là một quãng đời">
+  <div class="head"><span class="no">#23</span><h2>Tuổi thơ</h2></div>
+  <div class="hint">💡 Đây là một quãng đời</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/African_Children_Playing_in_the_village.jpg/960px-African_Children_Playing_in_the_village.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/African_Children_Playing_in_the_village.jpg/960px-African_Children_Playing_in_the_village.jpg" alt="Tuổi thơ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tuổi già già đây là một quãng đời">
+  <div class="head"><span class="no">#24</span><h2>Tuổi già</h2></div>
+  <div class="alt">Cũng đúng: Già</div><div class="hint">💡 Đây là một quãng đời</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/My_Grandfather_Photo_from_January_17.JPG/960px-My_Grandfather_Photo_from_January_17.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/My_Grandfather_Photo_from_January_17.JPG/960px-My_Grandfather_Photo_from_January_17.JPG" alt="Tuổi già"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cái chết chết đây là một điều hệ trọng của đời người">
+  <div class="head"><span class="no">#25</span><h2>Cái chết</h2></div>
+  <div class="alt">Cũng đúng: Chết</div><div class="hint">💡 Đây là một điều hệ trọng của đời người</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Hendrick_Andriessen_-_Vanitas_still_life_with_a_skull%2C_a_broken_Roemer.jpg/960px-Hendrick_Andriessen_-_Vanitas_still_life_with_a_skull%2C_a_broken_Roemer.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Hendrick_Andriessen_-_Vanitas_still_life_with_a_skull%2C_a_broken_Roemer.jpg/960px-Hendrick_Andriessen_-_Vanitas_still_life_with_a_skull%2C_a_broken_Roemer.jpg" alt="Cái chết"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sinh nhật đây là một dịp đặc biệt">
+  <div class="head"><span class="no">#26</span><h2>Sinh nhật</h2></div>
+  <div class="hint">💡 Đây là một dịp đặc biệt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Happy_family_2.jpg/960px-Happy_family_2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Happy_family_2.jpg/960px-Happy_family_2.jpg" alt="Sinh nhật"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đám cưới hôn nhân kết hôn đây là một sự kiện trọng đại">
+  <div class="head"><span class="no">#27</span><h2>Đám cưới</h2></div>
+  <div class="alt">Cũng đúng: Hôn nhân, Kết hôn</div><div class="hint">💡 Đây là một sự kiện trọng đại</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Hindu_wedding_rituals_b_%28cropped%29.jpg/960px-Hindu_wedding_rituals_b_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Hindu_wedding_rituals_b_%28cropped%29.jpg/960px-Hindu_wedding_rituals_b_%28cropped%29.jpg" alt="Đám cưới"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tôn giáo đây là một lĩnh vực tâm linh">
+  <div class="head"><span class="no">#28</span><h2>Tôn giáo</h2></div>
+  <div class="hint">💡 Đây là một lĩnh vực tâm linh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Praying_bhikkhus_inside_Wat_Mai_Suwannaphumaham_in_Luang_Prabang_Laos.jpg/960px-Praying_bhikkhus_inside_Wat_Mai_Suwannaphumaham_in_Luang_Prabang_Laos.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Praying_bhikkhus_inside_Wat_Mai_Suwannaphumaham_in_Luang_Prabang_Laos.jpg/960px-Praying_bhikkhus_inside_Wat_Mai_Suwannaphumaham_in_Luang_Prabang_Laos.jpg" alt="Tôn giáo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thiền thiền định đây là một phương pháp tu tập">
+  <div class="head"><span class="no">#29</span><h2>Thiền</h2></div>
+  <div class="alt">Cũng đúng: Thiền định</div><div class="hint">💡 Đây là một phương pháp tu tập</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Yoga_and_meditation.jpg/960px-Yoga_and_meditation.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Yoga_and_meditation.jpg/960px-Yoga_and_meditation.jpg" alt="Thiền"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="âm nhạc nhạc đây là một loại hình nghệ thuật">
+  <div class="head"><span class="no">#30</span><h2>Âm nhạc</h2></div>
+  <div class="alt">Cũng đúng: Nhạc</div><div class="hint">💡 Đây là một loại hình nghệ thuật</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Orchestra_Wellington_in_concert_at_the_MFC.jpg/960px-Orchestra_Wellington_in_concert_at_the_MFC.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Orchestra_Wellington_in_concert_at_the_MFC.jpg/960px-Orchestra_Wellington_in_concert_at_the_MFC.jpg" alt="Âm nhạc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nghệ thuật đây là một lĩnh vực văn hoá">
+  <div class="head"><span class="no">#31</span><h2>Nghệ thuật</h2></div>
+  <div class="hint">💡 Đây là một lĩnh vực văn hoá</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Auguste_Lev%C3%AAque_-_Painter_at_the_Easel.jpg/960px-Auguste_Lev%C3%AAque_-_Painter_at_the_Easel.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Auguste_Lev%C3%AAque_-_Painter_at_the_Easel.jpg/960px-Auguste_Lev%C3%AAque_-_Painter_at_the_Easel.jpg" alt="Nghệ thuật"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thể thao đây là một lĩnh vực đời sống">
+  <div class="head"><span class="no">#32</span><h2>Thể thao</h2></div>
+  <div class="hint">💡 Đây là một lĩnh vực đời sống</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Youth-soccer-indiana.jpg/960px-Youth-soccer-indiana.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Youth-soccer-indiana.jpg/960px-Youth-soccer-indiana.jpg" alt="Thể thao"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="du lịch đây là một hoạt động giải trí">
+  <div class="head"><span class="no">#33</span><h2>Du lịch</h2></div>
+  <div class="hint">💡 Đây là một hoạt động giải trí</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/New_york_times_square-terabass.jpg/960px-New_york_times_square-terabass.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/New_york_times_square-terabass.jpg/960px-New_york_times_square-terabass.jpg" alt="Du lịch"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thời trang đây là một lĩnh vực đời sống">
+  <div class="head"><span class="no">#34</span><h2>Thời trang</h2></div>
+  <div class="hint">💡 Đây là một lĩnh vực đời sống</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/a/a6/Carolina_Herrera_AW14_12.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Carolina_Herrera_AW14_12.jpg" alt="Thời trang"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="công nghệ đây là một lĩnh vực khoa học">
+  <div class="head"><span class="no">#35</span><h2>Công nghệ</h2></div>
+  <div class="hint">💡 Đây là một lĩnh vực khoa học</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Kramer_Electronics_PT-102AN_-_board-9846.jpg/960px-Kramer_Electronics_PT-102AN_-_board-9846.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Kramer_Electronics_PT-102AN_-_board-9846.jpg/960px-Kramer_Electronics_PT-102AN_-_board-9846.jpg" alt="Công nghệ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="internet mạng internet đây là một phát minh">
+  <div class="head"><span class="no">#36</span><h2>Internet</h2></div>
+  <div class="alt">Cũng đúng: Mạng internet</div><div class="hint">💡 Đây là một phát minh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Racks_Amravati_Data_Center.jpg/960px-Racks_Amravati_Data_Center.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Racks_Amravati_Data_Center.jpg/960px-Racks_Amravati_Data_Center.jpg" alt="Internet"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trí tuệ nhân tạo ai đây là một công nghệ">
+  <div class="head"><span class="no">#37</span><h2>Trí tuệ nhân tạo</h2></div>
+  <div class="alt">Cũng đúng: AI</div><div class="hint">💡 Đây là một công nghệ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/5CNCTI_%2853904693598%29.jpg/960px-5CNCTI_%2853904693598%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/5CNCTI_%2853904693598%29.jpg/960px-5CNCTI_%2853904693598%29.jpg" alt="Trí tuệ nhân tạo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="toàn cầu hoá toàn cầu hóa đây là một xu thế thời đại">
+  <div class="head"><span class="no">#38</span><h2>Toàn cầu hoá</h2></div>
+  <div class="alt">Cũng đúng: Toàn cầu hóa</div><div class="hint">💡 Đây là một xu thế thời đại</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/MAERSK_HANOI_Container_Ship_%28Port_Koper_SIKOP%2C_2023%29.jpg/960px-MAERSK_HANOI_Container_Ship_%28Port_Koper_SIKOP%2C_2023%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/MAERSK_HANOI_Container_Ship_%28Port_Koper_SIKOP%2C_2023%29.jpg/960px-MAERSK_HANOI_Container_Ship_%28Port_Koper_SIKOP%2C_2023%29.jpg" alt="Toàn cầu hoá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ô nhiễm ô nhiễm môi trường đây là một vấn đề môi trường">
+  <div class="head"><span class="no">#39</span><h2>Ô nhiễm</h2></div>
+  <div class="alt">Cũng đúng: Ô nhiễm môi trường</div><div class="hint">💡 Đây là một vấn đề môi trường</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Air_pollution3.jpg/960px-Air_pollution3.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Air_pollution3.jpg/960px-Air_pollution3.jpg" alt="Ô nhiễm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="biến đổi khí hậu nóng lên toàn cầu đây là một vấn đề môi trường">
+  <div class="head"><span class="no">#40</span><h2>Biến đổi khí hậu</h2></div>
+  <div class="alt">Cũng đúng: Nóng lên toàn cầu</div><div class="hint">💡 Đây là một vấn đề môi trường</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/Fridays_for_Future_Heidelberg_08.jpg/960px-Fridays_for_Future_Heidelberg_08.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/Fridays_for_Future_Heidelberg_08.jpg/960px-Fridays_for_Future_Heidelberg_08.jpg" alt="Biến đổi khí hậu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tiến hoá tiến hóa đây là một học thuyết khoa học">
+  <div class="head"><span class="no">#41</span><h2>Tiến hoá</h2></div>
+  <div class="alt">Cũng đúng: Tiến hóa</div><div class="hint">💡 Đây là một học thuyết khoa học</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/c/c0/Czaszki_z_legend%C4%85.png" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/c/c0/Czaszki_z_legend%C4%85.png" alt="Tiến hoá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quang hợp đây là một quá trình sinh học">
+  <div class="head"><span class="no">#42</span><h2>Quang hợp</h2></div>
+  <div class="hint">💡 Đây là một quá trình sinh học</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Calitzdorp_%28ZA%29%2C_Weingut%2C_Weinbl%C3%A4tter_--_2024_--_2709.jpg/960px-Calitzdorp_%28ZA%29%2C_Weingut%2C_Weinbl%C3%A4tter_--_2024_--_2709.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Calitzdorp_%28ZA%29%2C_Weingut%2C_Weinbl%C3%A4tter_--_2024_--_2709.jpg/960px-Calitzdorp_%28ZA%29%2C_Weingut%2C_Weinbl%C3%A4tter_--_2024_--_2709.jpg" alt="Quang hợp"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="điện điện năng dòng điện đây là một dạng năng lượng">
+  <div class="head"><span class="no">#43</span><h2>Điện</h2></div>
+  <div class="alt">Cũng đúng: Điện năng, Dòng điện</div><div class="hint">💡 Đây là một dạng năng lượng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Anchor_pylon_of_high-voltage_overhead_power_line_750_kV.jpg/960px-Anchor_pylon_of_high-voltage_overhead_power_line_750_kV.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Anchor_pylon_of_high-voltage_overhead_power_line_750_kV.jpg/960px-Anchor_pylon_of_high-voltage_overhead_power_line_750_kV.jpg" alt="Điện"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="từ tính từ trường nam châm đây là một hiện tượng vật lý">
+  <div class="head"><span class="no">#44</span><h2>Từ tính</h2></div>
+  <div class="alt">Cũng đúng: Từ trường, Nam châm</div><div class="hint">💡 Đây là một hiện tượng vật lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Metal_shavings_around_bar_magnet_%28close-up%29.jpg/960px-Metal_shavings_around_bar_magnet_%28close-up%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Metal_shavings_around_bar_magnet_%28close-up%29.jpg/960px-Metal_shavings_around_bar_magnet_%28close-up%29.jpg" alt="Từ tính"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="năng lượng mặt trời điện mặt trời đây là một nguồn năng lượng">
+  <div class="head"><span class="no">#45</span><h2>Năng lượng mặt trời</h2></div>
+  <div class="alt">Cũng đúng: Điện mặt trời</div><div class="hint">💡 Đây là một nguồn năng lượng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Sunset_over_the_gulf_of_Mexico_-_iss042e034066.jpg/960px-Sunset_over_the_gulf_of_Mexico_-_iss042e034066.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Sunset_over_the_gulf_of_Mexico_-_iss042e034066.jpg/960px-Sunset_over_the_gulf_of_Mexico_-_iss042e034066.jpg" alt="Năng lượng mặt trời"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tốc độ vận tốc đây là một đại lượng vật lý">
+  <div class="head"><span class="no">#46</span><h2>Tốc độ</h2></div>
+  <div class="alt">Cũng đúng: Vận tốc</div><div class="hint">💡 Đây là một đại lượng vật lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Motorcyclist_in_Midtown_Manhattan-L1002704.jpg/960px-Motorcyclist_in_Midtown_Manhattan-L1002704.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Motorcyclist_in_Midtown_Manhattan-L1002704.jpg/960px-Motorcyclist_in_Midtown_Manhattan-L1002704.jpg" alt="Tốc độ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="giao thông kẹt xe tắc đường đây là một vấn đề đô thị">
+  <div class="head"><span class="no">#47</span><h2>Giao thông</h2></div>
+  <div class="alt">Cũng đúng: Kẹt xe, Tắc đường</div><div class="hint">💡 Đây là một vấn đề đô thị</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee%2C_New_Jersey_to_Manhattan%2C_New_York_%287237796950%29.jpg/960px-Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee%2C_New_Jersey_to_Manhattan%2C_New_York_%287237796950%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee%2C_New_Jersey_to_Manhattan%2C_New_York_%287237796950%29.jpg/960px-Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee%2C_New_Jersey_to_Manhattan%2C_New_York_%287237796950%29.jpg" alt="Giao thông"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đô thị hoá đô thị hóa đây là một quá trình xã hội">
+  <div class="head"><span class="no">#48</span><h2>Đô thị hoá</h2></div>
+  <div class="alt">Cũng đúng: Đô thị hóa</div><div class="hint">💡 Đây là một quá trình xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Canton_Tower_20220626.jpg/960px-Canton_Tower_20220626.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Canton_Tower_20220626.jpg/960px-Canton_Tower_20220626.jpg" alt="Đô thị hoá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="di cư nhập cư đây là một hiện tượng xã hội">
+  <div class="head"><span class="no">#49</span><h2>Di cư</h2></div>
+  <div class="alt">Cũng đúng: Nhập cư</div><div class="hint">💡 Đây là một hiện tượng xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Oxfam_East_Africa_-_Hundreds_of_families_are_arriving_in_Dadaab_camp_every_day.jpg/960px-Oxfam_East_Africa_-_Hundreds_of_families_are_arriving_in_Dadaab_camp_every_day.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Oxfam_East_Africa_-_Hundreds_of_families_are_arriving_in_Dadaab_camp_every_day.jpg/960px-Oxfam_East_Africa_-_Hundreds_of_families_are_arriving_in_Dadaab_camp_every_day.jpg" alt="Di cư"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lạm phát đây là một hiện tượng kinh tế">
+  <div class="head"><span class="no">#50</span><h2>Lạm phát</h2></div>
+  <div class="hint">💡 Đây là một hiện tượng kinh tế</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/German_Railways_Banknote_5_Billionen_Mark_1923_Hyperinflation_Notgeld_Stuttgart%2C_obverse.jpg/960px-German_Railways_Banknote_5_Billionen_Mark_1923_Hyperinflation_Notgeld_Stuttgart%2C_obverse.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/German_Railways_Banknote_5_Billionen_Mark_1923_Hyperinflation_Notgeld_Stuttgart%2C_obverse.jpg/960px-German_Railways_Banknote_5_Billionen_Mark_1923_Hyperinflation_Notgeld_Stuttgart%2C_obverse.jpg" alt="Lạm phát"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tham nhũng hối lộ đây là một tệ nạn">
+  <div class="head"><span class="no">#51</span><h2>Tham nhũng</h2></div>
+  <div class="alt">Cũng đúng: Hối lộ</div><div class="hint">💡 Đây là một tệ nạn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/10_-_hands_shaking_with_euro_bank_notes_inside_handshake_-_royalty_free%2C_without_copyright%2C_public_domain_photo_image_01.JPG/960px-10_-_hands_shaking_with_euro_bank_notes_inside_handshake_-_royalty_free%2C_without_copyright%2C_public_domain_photo_image_01.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/10_-_hands_shaking_with_euro_bank_notes_inside_handshake_-_royalty_free%2C_without_copyright%2C_public_domain_photo_image_01.JPG/960px-10_-_hands_shaking_with_euro_bank_notes_inside_handshake_-_royalty_free%2C_without_copyright%2C_public_domain_photo_image_01.JPG" alt="Tham nhũng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tiền bạc tiền tiền tệ đây là một khái niệm kinh tế">
+  <div class="head"><span class="no">#52</span><h2>Tiền bạc</h2></div>
+  <div class="alt">Cũng đúng: Tiền, Tiền tệ</div><div class="hint">💡 Đây là một khái niệm kinh tế</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Euro_coins_and_banknotes_%28cropped%29.jpg/960px-Euro_coins_and_banknotes_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Euro_coins_and_banknotes_%28cropped%29.jpg/960px-Euro_coins_and_banknotes_%28cropped%29.jpg" alt="Tiền bạc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chứng khoán thị trường chứng khoán đây là một khái niệm tài chính">
+  <div class="head"><span class="no">#53</span><h2>Chứng khoán</h2></div>
+  <div class="alt">Cũng đúng: Thị trường chứng khoán</div><div class="hint">💡 Đây là một khái niệm tài chính</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg/960px-Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg/960px-Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg" alt="Chứng khoán"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quảng cáo đây là một hoạt động kinh doanh">
+  <div class="head"><span class="no">#54</span><h2>Quảng cáo</h2></div>
+  <div class="hint">💡 Đây là một hoạt động kinh doanh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/The_Ladies%27_home_journal_%281948%29_%2814785694143%29.jpg/960px-The_Ladies%27_home_journal_%281948%29_%2814785694143%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/The_Ladies%27_home_journal_%281948%29_%2814785694143%29.jpg/960px-The_Ladies%27_home_journal_%281948%29_%2814785694143%29.jpg" alt="Quảng cáo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lao động đây là một hoạt động của con người">
+  <div class="head"><span class="no">#55</span><h2>Lao động</h2></div>
+  <div class="hint">💡 Đây là một hoạt động của con người</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/WomanFactory1940s.jpg/960px-WomanFactory1940s.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/WomanFactory1940s.jpg/960px-WomanFactory1940s.jpg" alt="Lao động"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tình nguyện thiện nguyện đây là một hoạt động xã hội">
+  <div class="head"><span class="no">#56</span><h2>Tình nguyện</h2></div>
+  <div class="alt">Cũng đúng: Thiện nguyện</div><div class="hint">💡 Đây là một hoạt động xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Vilnius_Marathon_2015_volunteers_by_Augustas_Didzgalvis.jpg/960px-Vilnius_Marathon_2015_volunteers_by_Augustas_Didzgalvis.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Vilnius_Marathon_2015_volunteers_by_Augustas_Didzgalvis.jpg/960px-Vilnius_Marathon_2015_volunteers_by_Augustas_Didzgalvis.jpg" alt="Tình nguyện"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="can đảm dũng cảm lòng dũng cảm đây là một phẩm chất">
+  <div class="head"><span class="no">#57</span><h2>Can đảm</h2></div>
+  <div class="alt">Cũng đúng: Dũng cảm, Lòng dũng cảm</div><div class="hint">💡 Đây là một phẩm chất</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Aircraft_Rescue_Firefighting_training.jpg/960px-Aircraft_Rescue_Firefighting_training.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Aircraft_Rescue_Firefighting_training.jpg/960px-Aircraft_Rescue_Firefighting_training.jpg" alt="Can đảm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đoàn kết làm việc nhóm hợp tác đây là một phẩm chất tập thể">
+  <div class="head"><span class="no">#58</span><h2>Đoàn kết</h2></div>
+  <div class="alt">Cũng đúng: Làm việc nhóm, Hợp tác</div><div class="hint">💡 Đây là một phẩm chất tập thể</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Rowers_on_a_long_racing_pirogue_during_a_competition_in_Don_Khong_Laos.jpg/960px-Rowers_on_a_long_racing_pirogue_during_a_competition_in_Don_Khong_Laos.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Rowers_on_a_long_racing_pirogue_during_a_competition_in_Don_Khong_Laos.jpg/960px-Rowers_on_a_long_racing_pirogue_during_a_competition_in_Don_Khong_Laos.jpg" alt="Đoàn kết"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cạnh tranh thi đấu đây là một mối quan hệ">
+  <div class="head"><span class="no">#59</span><h2>Cạnh tranh</h2></div>
+  <div class="alt">Cũng đúng: Thi đấu</div><div class="hint">💡 Đây là một mối quan hệ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Heat_1_of_the_Womens_100m_Semi-Final.jpg/960px-Heat_1_of_the_Womens_100m_Semi-Final.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Heat_1_of_the_Womens_100m_Semi-Final.jpg/960px-Heat_1_of_the_Womens_100m_Semi-Final.jpg" alt="Cạnh tranh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chiến thắng thắng lợi đây là một kết quả">
+  <div class="head"><span class="no">#60</span><h2>Chiến thắng</h2></div>
+  <div class="alt">Cũng đúng: Thắng lợi</div><div class="hint">💡 Đây là một kết quả</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Vice_Admiral_Satish_Soni_presenting_a_trophy_to_a_winner_of_the_Hindi_Fortnight_celebrations_by_ENC_%281%29.JPG/960px-Vice_Admiral_Satish_Soni_presenting_a_trophy_to_a_winner_of_the_Hindi_Fortnight_celebrations_by_ENC_%281%29.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Vice_Admiral_Satish_Soni_presenting_a_trophy_to_a_winner_of_the_Hindi_Fortnight_celebrations_by_ENC_%281%29.JPG/960px-Vice_Admiral_Satish_Soni_presenting_a_trophy_to_a_winner_of_the_Hindi_Fortnight_celebrations_by_ENC_%281%29.JPG" alt="Chiến thắng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tốt nghiệp lễ tốt nghiệp đây là một cột mốc trong đời">
+  <div class="head"><span class="no">#61</span><h2>Tốt nghiệp</h2></div>
+  <div class="alt">Cũng đúng: Lễ tốt nghiệp</div><div class="hint">💡 Đây là một cột mốc trong đời</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/U.S._Naval_Academy_graduates_throw_their_caps_in_the_air_during_the_class_of_2013_graduation_and_commissioning_ceremony_May_24%2C_2013%2C_in_Annapolis%2C_Md_130524-N-AC887-010.jpg/960px-thumbnail.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/U.S._Naval_Academy_graduates_throw_their_caps_in_the_air_during_the_class_of_2013_graduation_and_commissioning_ceremony_May_24%2C_2013%2C_in_Annapolis%2C_Md_130524-N-AC887-010.jpg/960px-thumbnail.jpg" alt="Tốt nghiệp"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="may mắn vận may đây là một điều ai cũng cầu mong">
+  <div class="head"><span class="no">#62</span><h2>May mắn</h2></div>
+  <div class="alt">Cũng đúng: Vận may</div><div class="hint">💡 Đây là một điều ai cũng cầu mong</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Three_four_leaf_clovers.jpg/960px-Three_four_leaf_clovers.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Three_four_leaf_clovers.jpg/960px-Three_four_leaf_clovers.jpg" alt="May mắn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="im lặng sự im lặng đây là một trạng thái của âm thanh">
+  <div class="head"><span class="no">#63</span><h2>Im lặng</h2></div>
+  <div class="alt">Cũng đúng: Sự im lặng</div><div class="hint">💡 Đây là một trạng thái của âm thanh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Secret_%28Unsplash%29.jpg/960px-Secret_%28Unsplash%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Secret_%28Unsplash%29.jpg/960px-Secret_%28Unsplash%29.jpg" alt="Im lặng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bóng tối đây là một trạng thái của ánh sáng">
+  <div class="head"><span class="no">#64</span><h2>Bóng tối</h2></div>
+  <div class="hint">💡 Đây là một trạng thái của ánh sáng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Road_bend_in_a_dark_forest_%28Unsplash%29.jpg/960px-Road_bend_in_a_dark_forest_%28Unsplash%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Road_bend_in_a_dark_forest_%28Unsplash%29.jpg/960px-Road_bend_in_a_dark_forest_%28Unsplash%29.jpg" alt="Bóng tối"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ánh sáng đây là một hiện tượng vật lý">
+  <div class="head"><span class="no">#65</span><h2>Ánh sáng</h2></div>
+  <div class="hint">💡 Đây là một hiện tượng vật lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Dichroitisches_Prisma_--_2020_--_5123.jpg/960px-Dichroitisches_Prisma_--_2020_--_5123.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Dichroitisches_Prisma_--_2020_--_5123.jpg/960px-Dichroitisches_Prisma_--_2020_--_5123.jpg" alt="Ánh sáng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="vô cực vô tận đây là một khái niệm toán học">
+  <div class="head"><span class="no">#66</span><h2>Vô cực</h2></div>
+  <div class="alt">Cũng đúng: Vô tận</div><div class="hint">💡 Đây là một khái niệm toán học</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Infinity_Mirror_Effect.jpg/960px-Infinity_Mirror_Effect.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Infinity_Mirror_Effect.jpg/960px-Infinity_Mirror_Effect.jpg" alt="Vô cực"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hỗn loạn đây là một trạng thái của sự vật">
+  <div class="head"><span class="no">#67</span><h2>Hỗn loạn</h2></div>
+  <div class="hint">💡 Đây là một trạng thái của sự vật</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Gfp-stack-of-magazines-and-books.jpg/960px-Gfp-stack-of-magazines-and-books.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Gfp-stack-of-magazines-and-books.jpg/960px-Gfp-stack-of-magazines-and-books.jpg" alt="Hỗn loạn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cân bằng thăng bằng đây là một trạng thái vật lý">
+  <div class="head"><span class="no">#68</span><h2>Cân bằng</h2></div>
+  <div class="alt">Cũng đúng: Thăng bằng</div><div class="hint">💡 Đây là một trạng thái vật lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Kreta_%28GR%29%2C_Rethymno%2C_Fortezza%2C_Festungsmauer%2C_Steint%C3%BCrmchen_--_2023_--_8295.jpg/960px-Kreta_%28GR%29%2C_Rethymno%2C_Fortezza%2C_Festungsmauer%2C_Steint%C3%BCrmchen_--_2023_--_8295.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Kreta_%28GR%29%2C_Rethymno%2C_Fortezza%2C_Festungsmauer%2C_Steint%C3%BCrmchen_--_2023_--_8295.jpg/960px-Kreta_%28GR%29%2C_Rethymno%2C_Fortezza%2C_Festungsmauer%2C_Steint%C3%BCrmchen_--_2023_--_8295.jpg" alt="Cân bằng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ảo ảnh ảo giác ảo ảnh thị giác đây là một hiện tượng thị giác">
+  <div class="head"><span class="no">#69</span><h2>Ảo ảnh</h2></div>
+  <div class="alt">Cũng đúng: Ảo giác, Ảo ảnh thị giác</div><div class="hint">💡 Đây là một hiện tượng thị giác</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Checker_shadow_illusion.svg/960px-Checker_shadow_illusion.svg.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Checker_shadow_illusion.svg/960px-Checker_shadow_illusion.svg.png" alt="Ảo ảnh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mùa xuân đây là một thời điểm trong năm">
+  <div class="head"><span class="no">#70</span><h2>Mùa xuân</h2></div>
+  <div class="hint">💡 Đây là một thời điểm trong năm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Blossoms_at_Sky_Meadows_State_Park_1st_day_of_Spring_%286862462674%29_%282%29.jpg/960px-Blossoms_at_Sky_Meadows_State_Park_1st_day_of_Spring_%286862462674%29_%282%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Blossoms_at_Sky_Meadows_State_Park_1st_day_of_Spring_%286862462674%29_%282%29.jpg/960px-Blossoms_at_Sky_Meadows_State_Park_1st_day_of_Spring_%286862462674%29_%282%29.jpg" alt="Mùa xuân"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mùa đông đây là một thời điểm trong năm">
+  <div class="head"><span class="no">#71</span><h2>Mùa đông</h2></div>
+  <div class="hint">💡 Đây là một thời điểm trong năm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Winter_forest_silver.jpg/960px-Winter_forest_silver.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Winter_forest_silver.jpg/960px-Winter_forest_silver.jpg" alt="Mùa đông"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bình minh rạng đông đây là một thời khắc trong ngày">
+  <div class="head"><span class="no">#72</span><h2>Bình minh</h2></div>
+  <div class="alt">Cũng đúng: Rạng đông</div><div class="hint">💡 Đây là một thời khắc trong ngày</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Desert_Dawn.jpg/960px-Desert_Dawn.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Desert_Dawn.jpg/960px-Desert_Dawn.jpg" alt="Bình minh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoàng hôn đây là một thời khắc trong ngày">
+  <div class="head"><span class="no">#73</span><h2>Hoàng hôn</h2></div>
+  <div class="hint">💡 Đây là một thời khắc trong ngày</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Full_cycle_of_a_Sunset_on_the_high_plains_of_the_Mojave_Desert.jpg/960px-Full_cycle_of_a_Sunset_on_the_high_plains_of_the_Mojave_Desert.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Full_cycle_of_a_Sunset_on_the_high_plains_of_the_Mojave_Desert.jpg/960px-Full_cycle_of_a_Sunset_on_the_high_plains_of_the_Mojave_Desert.jpg" alt="Hoàng hôn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="giấc ngủ ngủ đây là một nhu cầu cơ thể">
+  <div class="head"><span class="no">#74</span><h2>Giấc ngủ</h2></div>
+  <div class="alt">Cũng đúng: Ngủ</div><div class="hint">💡 Đây là một nhu cầu cơ thể</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Newborn_infant%2C_Newborn_baby_girl%2C_Moscow%2C_Russia.jpg/960px-Newborn_infant%2C_Newborn_baby_girl%2C_Moscow%2C_Russia.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Newborn_infant%2C_Newborn_baby_girl%2C_Moscow%2C_Russia.jpg/960px-Newborn_infant%2C_Newborn_baby_girl%2C_Moscow%2C_Russia.jpg" alt="Giấc ngủ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cơn đói đói đây là một cảm giác của cơ thể">
+  <div class="head"><span class="no">#75</span><h2>Cơn đói</h2></div>
+  <div class="alt">Cũng đúng: Đói</div><div class="hint">💡 Đây là một cảm giác của cơ thể</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/The_Hunger_March_in_Copenhagen_%28dk%29.JPG/960px-The_Hunger_March_in_Copenhagen_%28dk%29.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/The_Hunger_March_in_Copenhagen_%28dk%29.JPG/960px-The_Hunger_March_in_Copenhagen_%28dk%29.JPG" alt="Cơn đói"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sức khoẻ sức khỏe đây là một trạng thái cơ thể">
+  <div class="head"><span class="no">#76</span><h2>Sức khoẻ</h2></div>
+  <div class="alt">Cũng đúng: Sức khỏe</div><div class="hint">💡 Đây là một trạng thái cơ thể</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Jogging_couple_-_legs.jpg/960px-Jogging_couple_-_legs.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Jogging_couple_-_legs.jpg/960px-Jogging_couple_-_legs.jpg" alt="Sức khoẻ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bệnh tật bệnh đây là một trạng thái cơ thể">
+  <div class="head"><span class="no">#77</span><h2>Bệnh tật</h2></div>
+  <div class="alt">Cũng đúng: Bệnh</div><div class="hint">💡 Đây là một trạng thái cơ thể</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Hospital_patient_on_floor.jpg/960px-Hospital_patient_on_floor.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Hospital_patient_on_floor.jpg/960px-Hospital_patient_on_floor.jpg" alt="Bệnh tật"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tình mẫu tử mẫu tử đây là một thứ tình cảm">
+  <div class="head"><span class="no">#78</span><h2>Tình mẫu tử</h2></div>
+  <div class="alt">Cũng đúng: Mẫu tử</div><div class="hint">💡 Đây là một thứ tình cảm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Young_mother_smiling_while_holding_her_baby_in_Laos.jpg/960px-Young_mother_smiling_while_holding_her_baby_in_Laos.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Young_mother_smiling_while_holding_her_baby_in_Laos.jpg/960px-Young_mother_smiling_while_holding_her_baby_in_Laos.jpg" alt="Tình mẫu tử"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lễ hội đây là một hoạt động văn hoá">
+  <div class="head"><span class="no">#79</span><h2>Lễ hội</h2></div>
+  <div class="hint">💡 Đây là một hoạt động văn hoá</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Holi_Festival_of_Colors_Utah%2C_United_States_2013.jpg/960px-Holi_Festival_of_Colors_Utah%2C_United_States_2013.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Holi_Festival_of_Colors_Utah%2C_United_States_2013.jpg/960px-Holi_Festival_of_Colors_Utah%2C_United_States_2013.jpg" alt="Lễ hội"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tết tết nguyên đán đây là một dịp trong năm">
+  <div class="head"><span class="no">#80</span><h2>Tết</h2></div>
+  <div class="alt">Cũng đúng: Tết Nguyên Đán</div><div class="hint">💡 Đây là một dịp trong năm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Xuan_2016_Binh_Than%2C_duong_nguyen_hue%2C_phuong_ben_nghe%2C_Qu%E1%BA%ADn_1%2C_TPHCM%2C_Vi%E1%BB%87t_Nam_-_panoramio.jpg/960px-Xuan_2016_Binh_Than%2C_duong_nguyen_hue%2C_phuong_ben_nghe%2C_Qu%E1%BA%ADn_1%2C_TPHCM%2C_Vi%E1%BB%87t_Nam_-_panoramio.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Xuan_2016_Binh_Than%2C_duong_nguyen_hue%2C_phuong_ben_nghe%2C_Qu%E1%BA%ADn_1%2C_TPHCM%2C_Vi%E1%BB%87t_Nam_-_panoramio.jpg/960px-Xuan_2016_Binh_Than%2C_duong_nguyen_hue%2C_phuong_ben_nghe%2C_Qu%E1%BA%ADn_1%2C_TPHCM%2C_Vi%E1%BB%87t_Nam_-_panoramio.jpg" alt="Tết"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="truyền thống đây là một giá trị văn hoá">
+  <div class="head"><span class="no">#81</span><h2>Truyền thống</h2></div>
+  <div class="hint">💡 Đây là một giá trị văn hoá</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Traditional_Palace_Guards_Ceremony_13.jpg/960px-Traditional_Palace_Guards_Ceremony_13.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Traditional_Palace_Guards_Ceremony_13.jpg/960px-Traditional_Palace_Guards_Ceremony_13.jpg" alt="Truyền thống"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="văn minh nền văn minh đây là một khái niệm lịch sử">
+  <div class="head"><span class="no">#82</span><h2>Văn minh</h2></div>
+  <div class="alt">Cũng đúng: Nền văn minh</div><div class="hint">💡 Đây là một khái niệm lịch sử</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Egypt.Giza.Sphinx.02.jpg/960px-Egypt.Giza.Sphinx.02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Egypt.Giza.Sphinx.02.jpg/960px-Egypt.Giza.Sphinx.02.jpg" alt="Văn minh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thám hiểm khám phá đây là một hoạt động mạo hiểm">
+  <div class="head"><span class="no">#83</span><h2>Thám hiểm</h2></div>
+  <div class="alt">Cũng đúng: Khám phá</div><div class="hint">💡 Đây là một hoạt động mạo hiểm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Antarctic_model%2C_Natural_History_Museum%2C_London_-_DSCF0397.JPG/960px-Antarctic_model%2C_Natural_History_Museum%2C_London_-_DSCF0397.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Antarctic_model%2C_Natural_History_Museum%2C_London_-_DSCF0397.JPG/960px-Antarctic_model%2C_Natural_History_Museum%2C_London_-_DSCF0397.JPG" alt="Thám hiểm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đam mê niềm đam mê đây là một loại cảm xúc">
+  <div class="head"><span class="no">#84</span><h2>Đam mê</h2></div>
+  <div class="alt">Cũng đúng: Niềm đam mê</div><div class="hint">💡 Đây là một loại cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Flamenco_en_el_Palacio_Andaluz%2C_Sevilla%2C_Espa%C3%B1a%2C_2015-12-06%2C_DD_19.JPG/960px-Flamenco_en_el_Palacio_Andaluz%2C_Sevilla%2C_Espa%C3%B1a%2C_2015-12-06%2C_DD_19.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Flamenco_en_el_Palacio_Andaluz%2C_Sevilla%2C_Espa%C3%B1a%2C_2015-12-06%2C_DD_19.JPG/960px-Flamenco_en_el_Palacio_Andaluz%2C_Sevilla%2C_Espa%C3%B1a%2C_2015-12-06%2C_DD_19.JPG" alt="Đam mê"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mạng xã hội đây là một sản phẩm công nghệ">
+  <div class="head"><span class="no">#85</span><h2>Mạng xã hội</h2></div>
+  <div class="hint">💡 Đây là một sản phẩm công nghệ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Social_media_platter.svg/960px-Social_media_platter.svg.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Social_media_platter.svg/960px-Social_media_platter.svg.png" alt="Mạng xã hội"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tin giả đây là một vấn nạn thời đại số">
+  <div class="head"><span class="no">#86</span><h2>Tin giả</h2></div>
+  <div class="hint">💡 Đây là một vấn nạn thời đại số</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/The_fin_de_si%C3%A8cle_newspaper_proprietor_%28cropped%29.jpg/960px-The_fin_de_si%C3%A8cle_newspaper_proprietor_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/The_fin_de_si%C3%A8cle_newspaper_proprietor_%28cropped%29.jpg/960px-The_fin_de_si%C3%A8cle_newspaper_proprietor_%28cropped%29.jpg" alt="Tin giả"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tái chế đây là một việc làm bảo vệ môi trường">
+  <div class="head"><span class="no">#87</span><h2>Tái chế</h2></div>
+  <div class="hint">💡 Đây là một việc làm bảo vệ môi trường</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Kuala_Lumpur_Malaysia_KLIA-Recycling-Bin-01.jpg/960px-Kuala_Lumpur_Malaysia_KLIA-Recycling-Bin-01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Kuala_Lumpur_Malaysia_KLIA-Recycling-Bin-01.jpg/960px-Kuala_Lumpur_Malaysia_KLIA-Recycling-Bin-01.jpg" alt="Tái chế"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="phá rừng nạn phá rừng đây là một vấn đề môi trường">
+  <div class="head"><span class="no">#88</span><h2>Phá rừng</h2></div>
+  <div class="alt">Cũng đúng: Nạn phá rừng</div><div class="hint">💡 Đây là một vấn đề môi trường</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/WITHIN_A_MILE_OF_MAGNIFICENT_REDWOODS_ARE_SITES_OF_SOME_OF_THE_WORST_LOGGING_AND_CLEAR_CUTTING_-_NARA_-_542855.jpg/960px-WITHIN_A_MILE_OF_MAGNIFICENT_REDWOODS_ARE_SITES_OF_SOME_OF_THE_WORST_LOGGING_AND_CLEAR_CUTTING_-_NARA_-_542855.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/WITHIN_A_MILE_OF_MAGNIFICENT_REDWOODS_ARE_SITES_OF_SOME_OF_THE_WORST_LOGGING_AND_CLEAR_CUTTING_-_NARA_-_542855.jpg/960px-WITHIN_A_MILE_OF_MAGNIFICENT_REDWOODS_ARE_SITES_OF_SOME_OF_THE_WORST_LOGGING_AND_CLEAR_CUTTING_-_NARA_-_542855.jpg" alt="Phá rừng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hạn hán đây là một thiên tai">
+  <div class="head"><span class="no">#89</span><h2>Hạn hán</h2></div>
+  <div class="hint">💡 Đây là một thiên tai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Lac_de_l%27Entonnoir_-_img_49473.jpg/960px-Lac_de_l%27Entonnoir_-_img_49473.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Lac_de_l%27Entonnoir_-_img_49473.jpg/960px-Lac_de_l%27Entonnoir_-_img_49473.jpg" alt="Hạn hán"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lũ lụt lũ đây là một thiên tai">
+  <div class="head"><span class="no">#90</span><h2>Lũ lụt</h2></div>
+  <div class="alt">Cũng đúng: Lũ</div><div class="hint">💡 Đây là một thiên tai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Flooded_building_and_tree_trunk_in_the_muddy_water_of_the_Mekong_in_Si_Phan_Don%2C_Laos%2C_September_2019.jpg/960px-Flooded_building_and_tree_trunk_in_the_muddy_water_of_the_Mekong_in_Si_Phan_Don%2C_Laos%2C_September_2019.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Flooded_building_and_tree_trunk_in_the_muddy_water_of_the_Mekong_in_Si_Phan_Don%2C_Laos%2C_September_2019.jpg/960px-Flooded_building_and_tree_trunk_in_the_muddy_water_of_the_Mekong_in_Si_Phan_Don%2C_Laos%2C_September_2019.jpg" alt="Lũ lụt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nụ cười đây là một biểu hiện trên khuôn mặt">
+  <div class="head"><span class="no">#91</span><h2>Nụ cười</h2></div>
+  <div class="hint">💡 Đây là một biểu hiện trên khuôn mặt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Smiling_Laotian_boy.jpg/960px-Smiling_Laotian_boy.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Smiling_Laotian_boy.jpg/960px-Smiling_Laotian_boy.jpg" alt="Nụ cười"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nước mắt khóc đây là một biểu hiện cảm xúc">
+  <div class="head"><span class="no">#92</span><h2>Nước mắt</h2></div>
+  <div class="alt">Cũng đúng: Khóc</div><div class="hint">💡 Đây là một biểu hiện cảm xúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/USMC-04952.jpg/960px-USMC-04952.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/USMC-04952.jpg/960px-USMC-04952.jpg" alt="Nước mắt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sự tò mò tò mò đây là một trạng thái tâm lý">
+  <div class="head"><span class="no">#93</span><h2>Sự tò mò</h2></div>
+  <div class="alt">Cũng đúng: Tò mò</div><div class="hint">💡 Đây là một trạng thái tâm lý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Kom%C3%A9ta_C-2020_F3_%28NEOWISE%29.jpg/960px-Kom%C3%A9ta_C-2020_F3_%28NEOWISE%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Kom%C3%A9ta_C-2020_F3_%28NEOWISE%29.jpg/960px-Kom%C3%A9ta_C-2020_F3_%28NEOWISE%29.jpg" alt="Sự tò mò"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="năng lượng gió điện gió phong điện đây là một nguồn năng lượng">
+  <div class="head"><span class="no">#94</span><h2>Năng lượng gió</h2></div>
+  <div class="alt">Cũng đúng: Điện gió, Phong điện</div><div class="hint">💡 Đây là một nguồn năng lượng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Power_County_Wind_Farm_002.jpg/960px-Power_County_Wind_Farm_002.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Power_County_Wind_Farm_002.jpg/960px-Power_County_Wind_Farm_002.jpg" alt="Năng lượng gió"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="động đất địa chấn đây là một thiên tai">
+  <div class="head"><span class="no">#95</span><h2>Động đất</h2></div>
+  <div class="alt">Cũng đúng: Địa chấn</div><div class="hint">💡 Đây là một thiên tai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Partially_collapsed_apartment_building%2C_1994_Northridge_Earthquake.jpg/960px-Partially_collapsed_apartment_building%2C_1994_Northridge_Earthquake.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Partially_collapsed_apartment_building%2C_1994_Northridge_Earthquake.jpg/960px-Partially_collapsed_apartment_building%2C_1994_Northridge_Earthquake.jpg" alt="Động đất"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bão cơn bão siêu bão đây là một thiên tai">
+  <div class="head"><span class="no">#96</span><h2>Bão</h2></div>
+  <div class="alt">Cũng đúng: Cơn bão, Siêu bão</div><div class="hint">💡 Đây là một thiên tai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Super_Typhoon_Chaba_churns_away_in_the_western_Pacific_Ocean_while_Typhoon_Aere_passes_over_Taiwan_%282268-314%29.jpg/960px-Super_Typhoon_Chaba_churns_away_in_the_western_Pacific_Ocean_while_Typhoon_Aere_passes_over_Taiwan_%282268-314%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Super_Typhoon_Chaba_churns_away_in_the_western_Pacific_Ocean_while_Typhoon_Aere_passes_over_Taiwan_%282268-314%29.jpg/960px-Super_Typhoon_Chaba_churns_away_in_the_western_Pacific_Ocean_while_Typhoon_Aere_passes_over_Taiwan_%282268-314%29.jpg" alt="Bão"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quyền lực quyền uy đây là một khái niệm xã hội">
+  <div class="head"><span class="no">#97</span><h2>Quyền lực</h2></div>
+  <div class="alt">Cũng đúng: Quyền uy</div><div class="hint">💡 Đây là một khái niệm xã hội</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/The_Throne_of_Kandyan_Kings.jpg/960px-The_Throne_of_Kandyan_Kings.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/The_Throne_of_Kandyan_Kings.jpg/960px-The_Throne_of_Kandyan_Kings.jpg" alt="Quyền lực"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nổi tiếng danh tiếng người nổi tiếng đây là một trạng thái của con người">
+  <div class="head"><span class="no">#98</span><h2>Nổi tiếng</h2></div>
+  <div class="alt">Cũng đúng: Danh tiếng, Người nổi tiếng</div><div class="hint">💡 Đây là một trạng thái của con người</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Sonic_Boom_2011_-_The_Blue_Carpet.jpg/960px-Sonic_Boom_2011_-_The_Blue_Carpet.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Sonic_Boom_2011_-_The_Blue_Carpet.jpg/960px-Sonic_Boom_2011_-_The_Blue_Carpet.jpg" alt="Nổi tiếng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="toán học toán đây là một môn học">
+  <div class="head"><span class="no">#99</span><h2>Toán học</h2></div>
+  <div class="alt">Cũng đúng: Toán</div><div class="hint">💡 Đây là một môn học</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/CMAP_-_Centre_de_Math%C3%A9matiques_Appliqu%C3%A9es_de_l%27Ecole_polytechnique.jpg/960px-CMAP_-_Centre_de_Math%C3%A9matiques_Appliqu%C3%A9es_de_l%27Ecole_polytechnique.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/CMAP_-_Centre_de_Math%C3%A9matiques_Appliqu%C3%A9es_de_l%27Ecole_polytechnique.jpg/960px-CMAP_-_Centre_de_Math%C3%A9matiques_Appliqu%C3%A9es_de_l%27Ecole_polytechnique.jpg" alt="Toán học"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khoa học nghiên cứu khoa học đây là một lĩnh vực hiểu biết">
+  <div class="head"><span class="no">#100</span><h2>Khoa học</h2></div>
+  <div class="alt">Cũng đúng: Nghiên cứu khoa học</div><div class="hint">💡 Đây là một lĩnh vực hiểu biết</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Scientist_prepares_samples_in_laboratory_using_various_tools_and_equipment.jpg/960px-Scientist_prepares_samples_in_laboratory_using_various_tools_and_equipment.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Scientist_prepares_samples_in_laboratory_using_various_tools_and_equipment.jpg/960px-Scientist_prepares_samples_in_laboratory_using_various_tools_and_equipment.jpg" alt="Khoa học"></a>
+  <div class="meta"></div>
+</article>
+</main>
+<script>
+  const cards = [...document.querySelectorAll(".card")];
+  const stat = document.getElementById("stat");
+  let bad = 0;
+  const flag = (card, msg) => { card.classList.add("broken"); card.dataset.bad = "1"; const m = card.querySelector(".meta"); m.textContent = msg; m.classList.add("bad"); };
+  for (const card of cards) {
+    if (card.querySelector(".warn")) card.dataset.bad = "1";
+    const img = card.querySelector("img");
+    const meta = card.querySelector(".meta");
+    const check = () => {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const r = w / h;
+      meta.textContent = w + "×" + h + " · tỉ lệ " + r.toFixed(2);
+      if (r < 1.25 || r > 1.9) flag(card, meta.textContent + " — ngoài khoảng 1,25–1,9");
+    };
+    if (img.complete && img.naturalWidth) check(); else img.addEventListener("load", check);
+    img.addEventListener("error", () => { bad++; flag(card, "⚠ Không tải được ảnh"); update(); });
+  }
+  const q = document.getElementById("q"), onlyBad = document.getElementById("onlyBad");
+  function update() {
+    const s = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const c of cards) {
+      const hide = (s && !c.dataset.s.includes(s)) || (onlyBad.checked && !c.dataset.bad);
+      c.classList.toggle("hidden", hide);
+      if (!hide) shown++;
+    }
+    stat.textContent = shown + " / " + cards.length + " tranh" + (bad ? " · " + bad + " ảnh lỗi" : "");
+  }
+  q.addEventListener("input", update);
+  onlyBad.addEventListener("change", update);
+</script>
+</body>
+</html>

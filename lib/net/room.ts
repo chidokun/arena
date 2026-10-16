@@ -433,7 +433,7 @@ export abstract class RoomSession<G = unknown> {
           this.roomStore.invalidate();
           this.peopleStore.invalidate();
           this.gameStore.invalidate();
-        } else this.gameStore.invalidate();
+        } else if (this.viewKey?.(k) ?? true) this.gameStore.invalidate();
         if (k === "meta") this.onMeta();
       }
       this.trackMutes();
@@ -776,6 +776,12 @@ export abstract class RoomSession<G = unknown> {
     this.viewShown.set(k, sig);
     return true;
   }
+
+  /**
+   * Bản ghi gossip `k` (ngoài `meta` và `p:*`) có ảnh hưởng tới `gameView` không — không thì đổi nó chẳng báo `gameStore`.
+   * Mặc định là có; game có bản ghi chỉ máy khác đọc (vd. hộp niêm phong gửi quản trò) thì loại ra.
+   */
+  protected viewKey?(k: string): boolean;
 
   /** Meta dùng được cho bàn chơi game này không (phòng của game khác thì không có ghế, không có ván). */
   private ownMeta() {

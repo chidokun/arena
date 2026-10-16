@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   autoWolves,
@@ -21,7 +21,7 @@ import {
   type Side,
   type WolfOptions,
 } from "@/lib/games/werewolf";
-import type { RoomView } from "@/lib/net/room";
+import type { Member, RoomState, RoomView } from "@/lib/net/room";
 import type { Scene, WerewolfRoom, WolfView } from "@/lib/net/werewolf-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
@@ -29,9 +29,24 @@ import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<WolfView>;
+/** View các phần của bàn ma sói đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<WolfView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useWolfView(session: WerewolfRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
+
+/** Lượt hiện tại (vòng · ngày · giai đoạn) — Phù Thủy chọn đầu độc gắn với lượt này, sang lượt khác tự tắt. */
+const turnOf = (view: View) => `${view.game!.pub?.round}:${view.game!.pub?.day}:${view.game!.pub?.stage}`;
 
 /** Một lựa chọn đang mở trên bàn: bấm vào người trong làng để chọn (Cupid chọn hai người). */
 type Pick = { verb: string; can: (uid: string) => boolean; chosen: string[]; onPick: (uid: string) => void };
@@ -156,68 +171,141 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
 }
 
 /** Lý do khoá ô chat: ban đêm cả làng ngủ, người chết không được nói, người xem biết hết vai. Khớp `WerewolfRoom.muted`. */
-function chatLock(view: View) {
-  const g = view.game!;
+function chatLock(g: WolfView, isHost: boolean) {
   if (!g.playing) return undefined;
-  if (!g.me.inGame) return !view.isHost ?"👀 Bạn đang xem và thấy hết vai — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
+  if (!g.me.inGame) return !isHost ?"👀 Bạn đang xem và thấy hết vai — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
   if (!g.me.alive) return "💀 Bạn đã chết — người chết không được nói nữa.";
   if (isNight(g)) return "🌙 Ban đêm cả làng ngủ — chờ trời sáng rồi trò chuyện.";
 }
 
+/**
+ * Bàn ma sói tách theo store: khung chỉ đọc vài trường của `roomStore`; mỗi phần (sân khấu, hành động, làng, vai…) tự
+ * đăng ký store và bọc `memo`, nên nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
+ */
 export function WerewolfTable({ id, slug, session }: { id: string; slug: string; session: WerewolfRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const g = view.game!;
+  const head = useRoomState(session, headOf, shallowEqual);
+  const playing = useGame(session, (g) => !!g?.playing);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
-  // Phù Thủy đang chọn người đầu độc — gắn với đêm hiện tại, sang đêm khác tự tắt.
-  const turn = `${g.pub?.round}:${g.pub?.day}:${g.pub?.stage}`;
+  // Phù Thủy đang chọn người đầu độc ở lượt nào (rỗng: không chọn) — ActionCard bật / tắt, Village dùng để chọn người.
   const [poisonTurn, setPoisonTurn] = useState("");
-  const poisoning = poisonTurn === turn;
-  const setPoisoning = (on: boolean) => setPoisonTurn(on ? turn : "");
   const [rules, setRules] = useState(false);
-  const pick = pickOf(view, session, poisoning);
+  const detail = useCallback((p: Member, seated: boolean) => <PersonLinePart session={session} uid={p.uid} seated={seated} />, [session]);
 
   return (
     <RoomLayout
       id={id}
       slug={slug}
-      people={
-        <PeoplePanel
-          view={view}
-          session={session}
-          roomId={id}
-          canSeat={false}
-          unseatLabel="Huỷ sẵn sàng"
-          detail={(p, seated) => <PersonLine view={view} uid={p.uid} seated={seated} />}
-        />
-      }
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} locked={chatLock(view)} />}
+      people={<PeoplePanel session={session} roomId={id} canSeat={false} unseatLabel="Huỷ sẵn sàng" detail={detail} />}
+      chat={<WolfChat session={session} />}
     >
-      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang chơi">
-        {!g.playing && <span className="chip text-ink-2">🙋 {m.players.length} người sẵn sàng</span>}
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing="đang chơi">
+        {!playing && <span className="chip text-ink-2">🙋 {head.players} người sẵn sàng</span>}
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRules(true)}>
           📜 Luật chơi
         </button>
       </RoomHeader>
 
       <div ref={areaRef} className="relative grid gap-4">
-        <StageCard view={view} session={session} />
-        {g.result && <ResultCard view={view} />}
-        {g.playing && <ActionCard view={view} session={session} pick={pick} poisoning={poisoning} setPoisoning={setPoisoning} />}
-        {g.playing && g.me.secret?.role === "wolf" && <WolfDen view={view} session={session} />}
-        <Village view={view} pick={pick} />
-        {g.me.inGame && g.me.role && <RoleCard view={view} />}
-        {!g.playing && <Settings view={view} session={session} />}
+        <StagePart session={session} />
+        <ResultPart session={session} />
+        <ActionPart session={session} poisonTurn={poisonTurn} setPoisonTurn={setPoisonTurn} />
+        <WolfDenPart session={session} />
+        <VillagePart session={session} poisonTurn={poisonTurn} />
+        <RoleCardPart session={session} />
+        <SettingsPart session={session} />
         <Flyers flyers={flyers} />
       </div>
 
-      <Cinema view={view} session={session} />
+      <CinemaPart session={session} />
       <Dialog open={rules} onClose={() => setRules(false)} title="Luật Ma Sói">
-        {rules && <Rules opts={g.opts} />}
+        {rules && <RulesPart session={session} />}
       </Dialog>
     </RoomLayout>
   );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round, players: r.meta!.players.length });
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Khung chat: chỉ cần biết lý do khoá chat (chuỗi) — đổi giai đoạn / chết mới vẽ lại, còn tin mới thì ChatPanel tự lo. */
+const WolfChat = memo(function WolfChat({ session }: { session: WerewolfRoom }) {
+  const isHost = useRoomState(session, (r) => r.isHost);
+  const locked = useGame(session, (g) => (g ? chatLock(g, isHost) : undefined));
+  return <ChatPanel session={session} locked={locked} />;
+});
+
+const PersonLinePart = memo(function PersonLinePart({ session, uid, seated }: { session: WerewolfRoom; uid: string; seated: boolean }) {
+  const view = useWolfView(session);
+  return <PersonLine view={view} uid={uid} seated={seated} />;
+});
+
+const StagePart = memo(function StagePart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  return <StageCard view={view} session={session} />;
+});
+
+const ResultPart = memo(function ResultPart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  return view.game!.result ? <ResultCard view={view} /> : null;
+});
+
+const ActionPart = memo(function ActionPart({
+  session,
+  poisonTurn,
+  setPoisonTurn,
+}: {
+  session: WerewolfRoom;
+  poisonTurn: string;
+  setPoisonTurn: (turn: string) => void;
+}) {
+  const view = useWolfView(session);
+  if (!view.game!.playing) return null;
+  const turn = turnOf(view);
+  const poisoning = poisonTurn === turn;
+  return (
+    <ActionCard
+      view={view}
+      session={session}
+      pick={pickOf(view, session, poisoning)}
+      poisoning={poisoning}
+      setPoisoning={(on) => setPoisonTurn(on ? turn : "")}
+    />
+  );
+});
+
+const WolfDenPart = memo(function WolfDenPart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  const g = view.game!;
+  return g.playing && g.me.secret?.role === "wolf" ? <WolfDen view={view} session={session} /> : null;
+});
+
+const VillagePart = memo(function VillagePart({ session, poisonTurn }: { session: WerewolfRoom; poisonTurn: string }) {
+  const view = useWolfView(session);
+  return <Village view={view} pick={pickOf(view, session, poisonTurn === turnOf(view))} />;
+});
+
+const RoleCardPart = memo(function RoleCardPart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  const g = view.game!;
+  return g.me.inGame && g.me.role ? <RoleCard view={view} /> : null;
+});
+
+const SettingsPart = memo(function SettingsPart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  return view.game!.playing ? null : <Settings view={view} session={session} />;
+});
+
+const CinemaPart = memo(function CinemaPart({ session }: { session: WerewolfRoom }) {
+  const view = useWolfView(session);
+  return <Cinema view={view} session={session} />;
+});
+
+function RulesPart({ session }: { session: WerewolfRoom }) {
+  const opts = useGame(session, (g) => g!.opts);
+  return <Rules opts={opts} />;
 }
 
 /** Dòng mô tả từng người trong danh sách phòng. */

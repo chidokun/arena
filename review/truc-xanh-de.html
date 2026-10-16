@@ -1,0 +1,1881 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trúc Xanh — bộ đề Dễ</title>
+<style>
+  :root { --bg:#f6f7f5; --card:#fff; --fg:#1d2420; --muted:#6b746f; --line:#e2e6e3; --accent:#1f7a4d; --hint:#fff6dc; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121614; --card:#1b201d; --fg:#e7ece9; --muted:#9aa49f; --line:#2b322e; --accent:#4fc187; --hint:#3a3220; --bad:#ff6b5b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; z-index:1; background:var(--bg); border-bottom:1px solid var(--line); padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+  header h1 { font-size:18px; margin:0; }
+  header .stat { color:var(--muted); font-size:13px; }
+  header input { flex:1; min-width:180px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; }
+  header label { font-size:13px; color:var(--muted); display:flex; gap:4px; align-items:center; }
+  main { padding:16px; display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .card.broken { border-color:var(--bad); }
+  .head { display:flex; gap:8px; align-items:baseline; }
+  .no { font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  h2 { font-size:17px; margin:0; }
+  .alt { font-size:13px; color:var(--muted); }
+  .hint { background:var(--hint); border-radius:8px; padding:6px 8px; font-size:14px; }
+  .warn { color:var(--bad); font-weight:600; }
+  .pic { display:block; aspect-ratio:4/3; background:var(--line); border-radius:8px; overflow:hidden; margin-top:auto; }
+  .pic img { width:100%; height:100%; object-fit:cover; display:block; }
+  .meta { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; min-height:1em; }
+  .meta.bad { color:var(--bad); font-weight:600; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trúc Xanh — bộ đề Dễ</h1>
+  <span class="stat" id="stat">301 tranh</span>
+  <input id="q" type="search" placeholder="Lọc theo từ khoá…">
+  <label><input id="onlyBad" type="checkbox"> Chỉ tranh có vấn đề</label>
+</header>
+<main id="list">
+<article class="card" data-s="vịnh hạ long hạ long ">
+  <div class="head"><span class="no">#1</span><h2>Vịnh Hạ Long</h2></div>
+  <div class="alt">Cũng đúng: Hạ Long</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/960px-Ha_Long_Bay_in_2019.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/960px-Ha_Long_Bay_in_2019.jpg" alt="Vịnh Hạ Long"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùa một cột ">
+  <div class="head"><span class="no">#2</span><h2>Chùa Một Cột</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Hanoi%2C_Vietnam_%2812041825854%29.jpg/960px-Hanoi%2C_Vietnam_%2812041825854%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Hanoi%2C_Vietnam_%2812041825854%29.jpg/960px-Hanoi%2C_Vietnam_%2812041825854%29.jpg" alt="Chùa Một Cột"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hồ gươm hồ hoàn kiếm ">
+  <div class="head"><span class="no">#3</span><h2>Hồ Gươm</h2></div>
+  <div class="alt">Cũng đúng: Hồ Hoàn Kiếm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Hanoi_-_Turtle_Tower_%28Th%C3%A1p_R%C3%B9a%29%2C_Ho%C3%A0n_Ki%E1%BA%BFm_Lake.jpg/960px-Hanoi_-_Turtle_Tower_%28Th%C3%A1p_R%C3%B9a%29%2C_Ho%C3%A0n_Ki%E1%BA%BFm_Lake.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Hanoi_-_Turtle_Tower_%28Th%C3%A1p_R%C3%B9a%29%2C_Ho%C3%A0n_Ki%E1%BA%BFm_Lake.jpg/960px-Hanoi_-_Turtle_Tower_%28Th%C3%A1p_R%C3%B9a%29%2C_Ho%C3%A0n_Ki%E1%BA%BFm_Lake.jpg" alt="Hồ Gươm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu vàng ">
+  <div class="head"><span class="no">#4</span><h2>Cầu Vàng</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Golden_Bridge_at_Ba_Na_Hills_20250718.jpg/960px-Golden_Bridge_at_Ba_Na_Hills_20250718.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Golden_Bridge_at_Ba_Na_Hills_20250718.jpg/960px-Golden_Bridge_at_Ba_Na_Hills_20250718.jpg" alt="Cầu Vàng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="phố cổ hội an hội an ">
+  <div class="head"><span class="no">#5</span><h2>Phố cổ Hội An</h2></div>
+  <div class="alt">Cũng đúng: Hội An</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-07.jpg/960px-H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-07.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-07.jpg/960px-H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-07.jpg" alt="Phố cổ Hội An"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="văn miếu văn miếu quốc tử giám ">
+  <div class="head"><span class="no">#6</span><h2>Văn Miếu</h2></div>
+  <div class="alt">Cũng đúng: Văn Miếu Quốc Tử Giám</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Hanoi_Temple_of_Literature_%28cropped%29.jpg/960px-Hanoi_Temple_of_Literature_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Hanoi_Temple_of_Literature_%28cropped%29.jpg/960px-Hanoi_Temple_of_Literature_%28cropped%29.jpg" alt="Văn Miếu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chợ bến thành ">
+  <div class="head"><span class="no">#7</span><h2>Chợ Bến Thành</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Ben_Thanh%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_01.JPG/960px-Ben_Thanh%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_01.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Ben_Thanh%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_01.JPG/960px-Ben_Thanh%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_01.JPG" alt="Chợ Bến Thành"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lăng bác lăng chủ tịch hồ chí minh ">
+  <div class="head"><span class="no">#8</span><h2>Lăng Bác</h2></div>
+  <div class="alt">Cũng đúng: Lăng Chủ tịch Hồ Chí Minh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/L%C4%83ng_B%C3%A1c_-_NKS.jpg/960px-L%C4%83ng_B%C3%A1c_-_NKS.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/L%C4%83ng_B%C3%A1c_-_NKS.jpg/960px-L%C4%83ng_B%C3%A1c_-_NKS.jpg" alt="Lăng Bác"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhà thờ đức bà nhà thờ đức bà sài gòn ">
+  <div class="head"><span class="no">#9</span><h2>Nhà thờ Đức Bà</h2></div>
+  <div class="alt">Cũng đúng: Nhà thờ Đức Bà Sài Gòn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Bas%C3%ADlica_de_Nuestra_Se%C3%B1ora%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_03.JPG/960px-Bas%C3%ADlica_de_Nuestra_Se%C3%B1ora%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_03.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Bas%C3%ADlica_de_Nuestra_Se%C3%B1ora%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_03.JPG/960px-Bas%C3%ADlica_de_Nuestra_Se%C3%B1ora%2C_Ciudad_Ho_Chi_Minh%2C_Vietnam%2C_2013-08-14%2C_DD_03.JPG" alt="Nhà thờ Đức Bà"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu rồng ">
+  <div class="head"><span class="no">#10</span><h2>Cầu Rồng</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/C%E1%BA%A7u_R%E1%BB%93ng.jpg/960px-C%E1%BA%A7u_R%E1%BB%93ng.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/C%E1%BA%A7u_R%E1%BB%93ng.jpg/960px-C%E1%BA%A7u_R%E1%BB%93ng.jpg" alt="Cầu Rồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùa thiên mụ ">
+  <div class="head"><span class="no">#11</span><h2>Chùa Thiên Mụ</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Hue_Vietnam_Thien-Mu-Temple-and-Pagoda-01.jpg/960px-Hue_Vietnam_Thien-Mu-Temple-and-Pagoda-01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Hue_Vietnam_Thien-Mu-Temple-and-Pagoda-01.jpg/960px-Hue_Vietnam_Thien-Mu-Temple-and-Pagoda-01.jpg" alt="Chùa Thiên Mụ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đại nội huế kinh thành huế đại nội ">
+  <div class="head"><span class="no">#12</span><h2>Đại Nội Huế</h2></div>
+  <div class="alt">Cũng đúng: Kinh thành Huế, Đại Nội</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg" alt="Đại Nội Huế"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="landmark 81 ">
+  <div class="head"><span class="no">#13</span><h2>Landmark 81</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Landmark_81_and_Saigon_Waterbus.png/960px-Landmark_81_and_Saigon_Waterbus.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Landmark_81_and_Saigon_Waterbus.png/960px-Landmark_81_and_Saigon_Waterbus.png" alt="Landmark 81"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu long biên ">
+  <div class="head"><span class="no">#14</span><h2>Cầu Long Biên</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Long_Bi%C3%AAn_Bridge_-_panoramio.jpg/960px-Long_Bi%C3%AAn_Bridge_-_panoramio.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Long_Bi%C3%AAn_Bridge_-_panoramio.jpg/960px-Long_Bi%C3%AAn_Bridge_-_panoramio.jpg" alt="Cầu Long Biên"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="dinh độc lập hội trường thống nhất ">
+  <div class="head"><span class="no">#15</span><h2>Dinh Độc Lập</h2></div>
+  <div class="alt">Cũng đúng: Hội trường Thống Nhất</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/20190923_Independence_Palace-10.jpg/960px-20190923_Independence_Palace-10.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/20190923_Independence_Palace-10.jpg/960px-20190923_Independence_Palace-10.jpg" alt="Dinh Độc Lập"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cột cờ hà nội ">
+  <div class="head"><span class="no">#16</span><h2>Cột cờ Hà Nội</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/ARMY_MUSEUM_HA_NOI_VIETNAM_FEB_2012_%286832986568%29.jpg/960px-ARMY_MUSEUM_HA_NOI_VIETNAM_FEB_2012_%286832986568%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/ARMY_MUSEUM_HA_NOI_VIETNAM_FEB_2012_%286832986568%29.jpg/960px-ARMY_MUSEUM_HA_NOI_VIETNAM_FEB_2012_%286832986568%29.jpg" alt="Cột cờ Hà Nội"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hang sơn đoòng sơn đoòng ">
+  <div class="head"><span class="no">#17</span><h2>Hang Sơn Đoòng</h2></div>
+  <div class="alt">Cũng đúng: Sơn Đoòng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Son_Doong_Cave_DB_%281%29.jpg/960px-Son_Doong_Cave_DB_%281%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Son_Doong_Cave_DB_%281%29.jpg/960px-Son_Doong_Cave_DB_%281%29.jpg" alt="Hang Sơn Đoòng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tháp eiffel ">
+  <div class="head"><span class="no">#18</span><h2>Tháp Eiffel</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/960px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/960px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg" alt="Tháp Eiffel"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kim tự tháp kim tự tháp ai cập ">
+  <div class="head"><span class="no">#19</span><h2>Kim tự tháp</h2></div>
+  <div class="alt">Cũng đúng: Kim tự tháp Ai Cập</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/All_Gizah_Pyramids.jpg/960px-All_Gizah_Pyramids.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/All_Gizah_Pyramids.jpg/960px-All_Gizah_Pyramids.jpg" alt="Kim tự tháp"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="vạn lý trường thành ">
+  <div class="head"><span class="no">#20</span><h2>Vạn Lý Trường Thành</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/The_Great_Wall_of_China_at_Jinshanling-edit.jpg/960px-The_Great_Wall_of_China_at_Jinshanling-edit.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/The_Great_Wall_of_China_at_Jinshanling-edit.jpg/960px-The_Great_Wall_of_China_at_Jinshanling-edit.jpg" alt="Vạn Lý Trường Thành"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tượng nữ thần tự do nữ thần tự do ">
+  <div class="head"><span class="no">#21</span><h2>Tượng Nữ thần Tự do</h2></div>
+  <div class="alt">Cũng đúng: Nữ thần Tự do</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg/960px-New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg/960px-New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg" alt="Tượng Nữ thần Tự do"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="taj mahal đền taj mahal ">
+  <div class="head"><span class="no">#22</span><h2>Taj Mahal</h2></div>
+  <div class="alt">Cũng đúng: Đền Taj Mahal</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/960px-Taj_Mahal_%28Edited%29.jpeg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/960px-Taj_Mahal_%28Edited%29.jpeg" alt="Taj Mahal"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tháp nghiêng pisa tháp pisa ">
+  <div class="head"><span class="no">#23</span><h2>Tháp nghiêng Pisa</h2></div>
+  <div class="alt">Cũng đúng: Tháp Pisa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Piazza_dei_Miracoli_%28Pisa%29_2023.jpg/960px-Piazza_dei_Miracoli_%28Pisa%29_2023.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Piazza_dei_Miracoli_%28Pisa%29_2023.jpg/960px-Piazza_dei_Miracoli_%28Pisa%29_2023.jpg" alt="Tháp nghiêng Pisa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đấu trường la mã đấu trường colosseum colosseum ">
+  <div class="head"><span class="no">#24</span><h2>Đấu trường La Mã</h2></div>
+  <div class="alt">Cũng đúng: Đấu trường Colosseum, Colosseum</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/960px-Colosseo_2020.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/960px-Colosseo_2020.jpg" alt="Đấu trường La Mã"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="núi phú sĩ ">
+  <div class="head"><span class="no">#25</span><h2>Núi Phú Sĩ</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg/960px-View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg/960px-View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg" alt="Núi Phú Sĩ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhà hát opera sydney nhà hát sydney ">
+  <div class="head"><span class="no">#26</span><h2>Nhà hát Opera Sydney</h2></div>
+  <div class="alt">Cũng đúng: Nhà hát Sydney</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Sydney_Australia._%2821339175489%29.jpg/960px-Sydney_Australia._%2821339175489%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Sydney_Australia._%2821339175489%29.jpg/960px-Sydney_Australia._%2821339175489%29.jpg" alt="Nhà hát Opera Sydney"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="angkor wat đền angkor wat ">
+  <div class="head"><span class="no">#27</span><h2>Angkor Wat</h2></div>
+  <div class="alt">Cũng đúng: Đền Angkor Wat</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Angkor_Wat.jpg/960px-Angkor_Wat.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Angkor_Wat.jpg/960px-Angkor_Wat.jpg" alt="Angkor Wat"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tháp đồng hồ big ben big ben ">
+  <div class="head"><span class="no">#28</span><h2>Tháp đồng hồ Big Ben</h2></div>
+  <div class="alt">Cũng đúng: Big Ben</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Big_Ben_at_sunrise%2C_2016.jpg/960px-Big_Ben_at_sunrise%2C_2016.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Big_Ben_at_sunrise%2C_2016.jpg/960px-Big_Ben_at_sunrise%2C_2016.jpg" alt="Tháp đồng hồ Big Ben"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tượng chúa cứu thế ">
+  <div class="head"><span class="no">#29</span><h2>Tượng Chúa Cứu Thế</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Redentor_Over_Clouds_1.jpg/960px-Redentor_Over_Clouds_1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Redentor_Over_Clouds_1.jpg/960px-Redentor_Over_Clouds_1.jpg" alt="Tượng Chúa Cứu Thế"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đỉnh everest everest núi everest ">
+  <div class="head"><span class="no">#30</span><h2>Đỉnh Everest</h2></div>
+  <div class="alt">Cũng đúng: Everest, Núi Everest</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Mt._Everest_from_Gokyo_Ri_November_5%2C_2012.jpg/960px-Mt._Everest_from_Gokyo_Ri_November_5%2C_2012.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Mt._Everest_from_Gokyo_Ri_November_5%2C_2012.jpg/960px-Mt._Everest_from_Gokyo_Ri_November_5%2C_2012.jpg" alt="Đỉnh Everest"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thác niagara ">
+  <div class="head"><span class="no">#31</span><h2>Thác Niagara</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg" alt="Thác Niagara"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="machu picchu ">
+  <div class="head"><span class="no">#32</span><h2>Machu Picchu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Machu_Picchu%2C_2023_%28012%29.jpg/960px-Machu_Picchu%2C_2023_%28012%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Machu_Picchu%2C_2023_%28012%29.jpg/960px-Machu_Picchu%2C_2023_%28012%29.jpg" alt="Machu Picchu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tháp đôi petronas tháp petronas ">
+  <div class="head"><span class="no">#33</span><h2>Tháp đôi Petronas</h2></div>
+  <div class="alt">Cũng đúng: Tháp Petronas</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg/960px-Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg/960px-Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg" alt="Tháp đôi Petronas"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="burj khalifa tháp burj khalifa ">
+  <div class="head"><span class="no">#34</span><h2>Burj Khalifa</h2></div>
+  <div class="alt">Cũng đúng: Tháp Burj Khalifa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Burj_Khalifa_%2816260269606%29.jpg/960px-Burj_Khalifa_%2816260269606%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Burj_Khalifa_%2816260269606%29.jpg/960px-Burj_Khalifa_%2816260269606%29.jpg" alt="Burj Khalifa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu cổng vàng golden gate ">
+  <div class="head"><span class="no">#35</span><h2>Cầu Cổng Vàng</h2></div>
+  <div class="alt">Cũng đúng: Golden Gate</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Golden_Gate_Bridge_as_seen_from_Battery_East.jpg/960px-Golden_Gate_Bridge_as_seen_from_Battery_East.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Golden_Gate_Bridge_as_seen_from_Battery_East.jpg/960px-Golden_Gate_Bridge_as_seen_from_Battery_East.jpg" alt="Cầu Cổng Vàng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tượng nhân sư nhân sư ">
+  <div class="head"><span class="no">#36</span><h2>Tượng Nhân sư</h2></div>
+  <div class="alt">Cũng đúng: Nhân sư</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Sphinx_with_the_third_pyramid.jpg/960px-Sphinx_with_the_third_pyramid.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Sphinx_with_the_third_pyramid.jpg/960px-Sphinx_with_the_third_pyramid.jpg" alt="Tượng Nhân sư"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="phở phở bò ">
+  <div class="head"><span class="no">#37</span><h2>Phở</h2></div>
+  <div class="alt">Cũng đúng: Phở bò</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Bowl_of_Meatball_pho.jpg/960px-Bowl_of_Meatball_pho.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Bowl_of_Meatball_pho.jpg/960px-Bowl_of_Meatball_pho.jpg" alt="Phở"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh mì ">
+  <div class="head"><span class="no">#38</span><h2>Bánh mì</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Viet_Korner_%40_Springwood_Place%2C_Gawler_East_20260305-125006.jpg/960px-Viet_Korner_%40_Springwood_Place%2C_Gawler_East_20260305-125006.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Viet_Korner_%40_Springwood_Place%2C_Gawler_East_20260305-125006.jpg/960px-Viet_Korner_%40_Springwood_Place%2C_Gawler_East_20260305-125006.jpg" alt="Bánh mì"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh chưng ">
+  <div class="head"><span class="no">#39</span><h2>Bánh chưng</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Banh_chung_2.JPG/960px-Banh_chung_2.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Banh_chung_2.JPG/960px-Banh_chung_2.JPG" alt="Bánh chưng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bún chả ">
+  <div class="head"><span class="no">#40</span><h2>Bún chả</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/B%C3%BAn_ch%E1%BA%A3_Vietnamese_food.jpg/960px-B%C3%BAn_ch%E1%BA%A3_Vietnamese_food.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/B%C3%BAn_ch%E1%BA%A3_Vietnamese_food.jpg/960px-B%C3%BAn_ch%E1%BA%A3_Vietnamese_food.jpg" alt="Bún chả"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gỏi cuốn ">
+  <div class="head"><span class="no">#41</span><h2>Gỏi cuốn</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Homemade_spring_rolls_%287010969349%29.jpg/960px-Homemade_spring_rolls_%287010969349%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Homemade_spring_rolls_%287010969349%29.jpg/960px-Homemade_spring_rolls_%287010969349%29.jpg" alt="Gỏi cuốn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh xèo ">
+  <div class="head"><span class="no">#42</span><h2>Bánh xèo</h2></div>
+  
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/5/59/Banh_Xeo_with_fish_sauce_and_vegetables.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/5/59/Banh_Xeo_with_fish_sauce_and_vegetables.jpg" alt="Bánh xèo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cà phê sữa đá cà phê sữa ">
+  <div class="head"><span class="no">#43</span><h2>Cà phê sữa đá</h2></div>
+  <div class="alt">Cũng đúng: Cà phê sữa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Danh%27s_Garden%2C_Shreveport%2C_LA_-_Vietnamese_Coffee.jpg/960px-Danh%27s_Garden%2C_Shreveport%2C_LA_-_Vietnamese_Coffee.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Danh%27s_Garden%2C_Shreveport%2C_LA_-_Vietnamese_Coffee.jpg/960px-Danh%27s_Garden%2C_Shreveport%2C_LA_-_Vietnamese_Coffee.jpg" alt="Cà phê sữa đá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cơm tấm ">
+  <div class="head"><span class="no">#44</span><h2>Cơm tấm</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/C%C6%A1m_T%E1%BA%A5m%2C_Da_Nang%2C_Vietnam.jpg/960px-C%C6%A1m_T%E1%BA%A5m%2C_Da_Nang%2C_Vietnam.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/C%C6%A1m_T%E1%BA%A5m%2C_Da_Nang%2C_Vietnam.jpg/960px-C%C6%A1m_T%E1%BA%A5m%2C_Da_Nang%2C_Vietnam.jpg" alt="Cơm tấm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bún bò huế bún bò ">
+  <div class="head"><span class="no">#45</span><h2>Bún bò Huế</h2></div>
+  <div class="alt">Cũng đúng: Bún bò</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/B%C3%BAn_b%C3%B2_Hu%E1%BA%BF_minh28397.jpg/960px-B%C3%BAn_b%C3%B2_Hu%E1%BA%BF_minh28397.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/B%C3%BAn_b%C3%B2_Hu%E1%BA%BF_minh28397.jpg/960px-B%C3%BAn_b%C3%B2_Hu%E1%BA%BF_minh28397.jpg" alt="Bún bò Huế"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh trung thu ">
+  <div class="head"><span class="no">#46</span><h2>Bánh trung thu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Festival_de_la_Lluna_MMXXIV_55.jpg/960px-Festival_de_la_Lluna_MMXXIV_55.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Festival_de_la_Lluna_MMXXIV_55.jpg/960px-Festival_de_la_Lluna_MMXXIV_55.jpg" alt="Bánh trung thu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sushi ">
+  <div class="head"><span class="no">#47</span><h2>Sushi</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Grocery_store_sushi_from_Pittsburgh_2.jpg/960px-Grocery_store_sushi_from_Pittsburgh_2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Grocery_store_sushi_from_Pittsburgh_2.jpg/960px-Grocery_store_sushi_from_Pittsburgh_2.jpg" alt="Sushi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="pizza ">
+  <div class="head"><span class="no">#48</span><h2>Pizza</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Pizza-3007395.jpg/960px-Pizza-3007395.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Pizza-3007395.jpg/960px-Pizza-3007395.jpg" alt="Pizza"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hamburger bánh hamburger ">
+  <div class="head"><span class="no">#49</span><h2>Hamburger</h2></div>
+  <div class="alt">Cũng đúng: Bánh hamburger</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/RedDot_Burger.jpg/960px-RedDot_Burger.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/RedDot_Burger.jpg/960px-RedDot_Burger.jpg" alt="Hamburger"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trà sữa trân châu trà sữa ">
+  <div class="head"><span class="no">#50</span><h2>Trà sữa trân châu</h2></div>
+  <div class="alt">Cũng đúng: Trà sữa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg/960px-Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg/960px-Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg" alt="Trà sữa trân châu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sầu riêng ">
+  <div class="head"><span class="no">#51</span><h2>Sầu riêng</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Durian_on_sale_at_fruits_market%2C_Jalan%2C_Kota_Kinabalu_19.jpg/960px-Durian_on_sale_at_fruits_market%2C_Jalan%2C_Kota_Kinabalu_19.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Durian_on_sale_at_fruits_market%2C_Jalan%2C_Kota_Kinabalu_19.jpg/960px-Durian_on_sale_at_fruits_market%2C_Jalan%2C_Kota_Kinabalu_19.jpg" alt="Sầu riêng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thanh long ">
+  <div class="head"><span class="no">#52</span><h2>Thanh long</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Pitaya_cross_section_ed2.jpg/960px-Pitaya_cross_section_ed2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Pitaya_cross_section_ed2.jpg/960px-Pitaya_cross_section_ed2.jpg" alt="Thanh long"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="dưa hấu ">
+  <div class="head"><span class="no">#53</span><h2>Dưa hấu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Man_cuting_watermelon_in_the_yard.jpg/960px-Man_cuting_watermelon_in_the_yard.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Man_cuting_watermelon_in_the_yard.jpg/960px-Man_cuting_watermelon_in_the_yard.jpg" alt="Dưa hấu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="măng cụt ">
+  <div class="head"><span class="no">#54</span><h2>Măng cụt</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Sweet_mangosteen.jpg/960px-Sweet_mangosteen.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Sweet_mangosteen.jpg/960px-Sweet_mangosteen.jpg" alt="Măng cụt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="áo dài ">
+  <div class="head"><span class="no">#55</span><h2>Áo dài</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Portrait_094.jpg/960px-Portrait_094.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Portrait_094.jpg/960px-Portrait_094.jpg" alt="Áo dài"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nón lá ">
+  <div class="head"><span class="no">#56</span><h2>Nón lá</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Woman_in_the_shadow_of_a_conical_hat_made_of_repurposed_bags_of_laundry_detergent_in_Don_Det_Laos.jpg/960px-Woman_in_the_shadow_of_a_conical_hat_made_of_repurposed_bags_of_laundry_detergent_in_Don_Det_Laos.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Woman_in_the_shadow_of_a_conical_hat_made_of_repurposed_bags_of_laundry_detergent_in_Don_Det_Laos.jpg/960px-Woman_in_the_shadow_of_a_conical_hat_made_of_repurposed_bags_of_laundry_detergent_in_Don_Det_Laos.jpg" alt="Nón lá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="múa lân ">
+  <div class="head"><span class="no">#57</span><h2>Múa lân</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/20091004_lion_dance_Hong_Kong_Kowloon_6823.jpg/960px-20091004_lion_dance_Hong_Kong_Kowloon_6823.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/20091004_lion_dance_Hong_Kong_Kowloon_6823.jpg/960px-20091004_lion_dance_Hong_Kong_Kowloon_6823.jpg" alt="Múa lân"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="múa rối nước rối nước ">
+  <div class="head"><span class="no">#58</span><h2>Múa rối nước</h2></div>
+  <div class="alt">Cũng đúng: Rối nước</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Thang_Long_Water_Puppet_Theatre2.JPG/960px-Thang_Long_Water_Puppet_Theatre2.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Thang_Long_Water_Puppet_Theatre2.JPG/960px-Thang_Long_Water_Puppet_Theatre2.JPG" alt="Múa rối nước"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đàn bầu ">
+  <div class="head"><span class="no">#59</span><h2>Đàn bầu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Musicians_from_Hanoi.jpg/960px-Musicians_from_Hanoi.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Musicians_from_Hanoi.jpg/960px-Musicians_from_Hanoi.jpg" alt="Đàn bầu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xích lô ">
+  <div class="head"><span class="no">#60</span><h2>Xích lô</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Hue%2C_les_cyclos-pousses.jpg/960px-Hue%2C_les_cyclos-pousses.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Hue%2C_les_cyclos-pousses.jpg/960px-Hue%2C_les_cyclos-pousses.jpg" alt="Xích lô"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đèn lồng lồng đèn ">
+  <div class="head"><span class="no">#61</span><h2>Đèn lồng</h2></div>
+  <div class="alt">Cũng đúng: Lồng đèn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Lanterns_in_Hoi_An_6.jpg/960px-Lanterns_in_Hoi_An_6.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Lanterns_in_Hoi_An_6.jpg/960px-Lanterns_in_Hoi_An_6.jpg" alt="Đèn lồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa sen sen ">
+  <div class="head"><span class="no">#62</span><h2>Hoa sen</h2></div>
+  <div class="alt">Cũng đúng: Sen</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Nelumbo_nucifera_01.JPG/960px-Nelumbo_nucifera_01.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Nelumbo_nucifera_01.JPG/960px-Nelumbo_nucifera_01.JPG" alt="Hoa sen"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa mai mai vàng ">
+  <div class="head"><span class="no">#63</span><h2>Hoa mai</h2></div>
+  <div class="alt">Cũng đúng: Mai vàng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Ochna_integerrima_02.JPG/960px-Ochna_integerrima_02.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Ochna_integerrima_02.JPG/960px-Ochna_integerrima_02.JPG" alt="Hoa mai"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa anh đào anh đào ">
+  <div class="head"><span class="no">#64</span><h2>Hoa anh đào</h2></div>
+  <div class="alt">Cũng đúng: Anh đào</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Hakodate_Gory%C5%8Dkaku_Park_Sakura_May_2016_5.jpg/960px-Hakodate_Gory%C5%8Dkaku_Park_Sakura_May_2016_5.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Hakodate_Gory%C5%8Dkaku_Park_Sakura_May_2016_5.jpg/960px-Hakodate_Gory%C5%8Dkaku_Park_Sakura_May_2016_5.jpg" alt="Hoa anh đào"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cây tre tre ">
+  <div class="head"><span class="no">#65</span><h2>Cây tre</h2></div>
+  <div class="alt">Cũng đúng: Tre</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Bamboo_Forest%2C_Arashiyama%2C_Kyoto%2C_Japan.jpg/960px-Bamboo_Forest%2C_Arashiyama%2C_Kyoto%2C_Japan.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Bamboo_Forest%2C_Arashiyama%2C_Kyoto%2C_Japan.jpg/960px-Bamboo_Forest%2C_Arashiyama%2C_Kyoto%2C_Japan.jpg" alt="Cây tre"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trống đồng trống đồng đông sơn ">
+  <div class="head"><span class="no">#66</span><h2>Trống đồng</h2></div>
+  <div class="alt">Cũng đúng: Trống đồng Đông Sơn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Dong_Son_Bronze_Drum_%289980530256%29.jpg/960px-Dong_Son_Bronze_Drum_%289980530256%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Dong_Son_Bronze_Drum_%289980530256%29.jpg/960px-Dong_Son_Bronze_Drum_%289980530256%29.jpg" alt="Trống đồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="pháo hoa ">
+  <div class="head"><span class="no">#67</span><h2>Pháo hoa</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Colourful_Fireworks_Expanding_Across_the_Night_Sky.jpg/960px-Colourful_Fireworks_Expanding_Across_the_Night_Sky.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Colourful_Fireworks_Expanding_Across_the_Night_Sky.jpg/960px-Colourful_Fireworks_Expanding_Across_the_Night_Sky.jpg" alt="Pháo hoa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gấu trúc ">
+  <div class="head"><span class="no">#68</span><h2>Gấu trúc</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/960px-Grosser_Panda.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/960px-Grosser_Panda.JPG" alt="Gấu trúc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hươu cao cổ ">
+  <div class="head"><span class="no">#69</span><h2>Hươu cao cổ</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Three_giraffes_01.jpg/960px-Three_giraffes_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Three_giraffes_01.jpg/960px-Three_giraffes_01.jpg" alt="Hươu cao cổ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chim cánh cụt ">
+  <div class="head"><span class="no">#70</span><h2>Chim cánh cụt</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Penguins_at_Boulders_Beach_04.jpg/960px-Penguins_at_Boulders_Beach_04.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Penguins_at_Boulders_Beach_04.jpg/960px-Penguins_at_Boulders_Beach_04.jpg" alt="Chim cánh cụt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá heo ">
+  <div class="head"><span class="no">#71</span><h2>Cá heo</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Tursiops_truncatus_01.jpg/960px-Tursiops_truncatus_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Tursiops_truncatus_01.jpg/960px-Tursiops_truncatus_01.jpg" alt="Cá heo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bạch tuộc ">
+  <div class="head"><span class="no">#72</span><h2>Bạch tuộc</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Octopus2.jpg/960px-Octopus2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Octopus2.jpg/960px-Octopus2.jpg" alt="Bạch tuộc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ngựa vằn ">
+  <div class="head"><span class="no">#73</span><h2>Ngựa vằn</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Equus_zebra_hartmannae_-_Etosha_2015.jpg/960px-Equus_zebra_hartmannae_-_Etosha_2015.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Equus_zebra_hartmannae_-_Etosha_2015.jpg/960px-Equus_zebra_hartmannae_-_Etosha_2015.jpg" alt="Ngựa vằn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con công chim công ">
+  <div class="head"><span class="no">#74</span><h2>Con công</h2></div>
+  <div class="alt">Cũng đúng: Chim công</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Paonroue.JPG/960px-Paonroue.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Paonroue.JPG/960px-Paonroue.JPG" alt="Con công"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tắc kè hoa ">
+  <div class="head"><span class="no">#75</span><h2>Tắc kè hoa</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Panther_Chameleon_738367_%28cropped%29.jpg/960px-Panther_Chameleon_738367_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Panther_Chameleon_738367_%28cropped%29.jpg/960px-Panther_Chameleon_738367_%28cropped%29.jpg" alt="Tắc kè hoa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sao biển ">
+  <div class="head"><span class="no">#76</span><h2>Sao biển</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Starfish_montage.png/960px-Starfish_montage.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Starfish_montage.png/960px-Starfish_montage.png" alt="Sao biển"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chuồn chuồn ">
+  <div class="head"><span class="no">#77</span><h2>Chuồn chuồn</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Red_grasshawk_%28Neurothemis_fluctuans%29_male_Phuket_2.jpg/960px-Red_grasshawk_%28Neurothemis_fluctuans%29_male_Phuket_2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Red_grasshawk_%28Neurothemis_fluctuans%29_male_Phuket_2.jpg/960px-Red_grasshawk_%28Neurothemis_fluctuans%29_male_Phuket_2.jpg" alt="Chuồn chuồn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chuột túi kangaroo ">
+  <div class="head"><span class="no">#78</span><h2>Chuột túi</h2></div>
+  <div class="alt">Cũng đúng: Kangaroo</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Forester_kangaroo_%28Macropus_giganteus_tasmaniensis%29_juvenile_hopping_Esk_Valley.jpg/960px-Forester_kangaroo_%28Macropus_giganteus_tasmaniensis%29_juvenile_hopping_Esk_Valley.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Forester_kangaroo_%28Macropus_giganteus_tasmaniensis%29_juvenile_hopping_Esk_Valley.jpg/960px-Forester_kangaroo_%28Macropus_giganteus_tasmaniensis%29_juvenile_hopping_Esk_Valley.jpg" alt="Chuột túi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hồng hạc chim hồng hạc ">
+  <div class="head"><span class="no">#79</span><h2>Hồng hạc</h2></div>
+  <div class="alt">Cũng đúng: Chim hồng hạc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Flamingos_Laguna_Colorada.jpg/960px-Flamingos_Laguna_Colorada.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Flamingos_Laguna_Colorada.jpg/960px-Flamingos_Laguna_Colorada.jpg" alt="Hồng hạc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá sấu ">
+  <div class="head"><span class="no">#80</span><h2>Cá sấu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Nile_crocodile_head.jpg/960px-Nile_crocodile_head.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Nile_crocodile_head.jpg/960px-Nile_crocodile_head.jpg" alt="Cá sấu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gấu bắc cực gấu trắng ">
+  <div class="head"><span class="no">#81</span><h2>Gấu Bắc Cực</h2></div>
+  <div class="alt">Cũng đúng: Gấu trắng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Polar_bear_%28Ursus_maritimus%29_in_the_drift_ice_region_north_of_Svalbard.jpg/960px-Polar_bear_%28Ursus_maritimus%29_in_the_drift_ice_region_north_of_Svalbard.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Polar_bear_%28Ursus_maritimus%29_in_the_drift_ice_region_north_of_Svalbard.jpg/960px-Polar_bear_%28Ursus_maritimus%29_in_the_drift_ice_region_north_of_Svalbard.jpg" alt="Gấu Bắc Cực"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu vồng ">
+  <div class="head"><span class="no">#82</span><h2>Cầu vồng</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Double-alaskan-rainbow.jpg/960px-Double-alaskan-rainbow.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Double-alaskan-rainbow.jpg/960px-Double-alaskan-rainbow.jpg" alt="Cầu vồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="núi lửa ">
+  <div class="head"><span class="no">#83</span><h2>Núi lửa</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Augustine_volcano_Jan_24_2006_-_Cyrus_Read.jpg/960px-Augustine_volcano_Jan_24_2006_-_Cyrus_Read.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Augustine_volcano_Jan_24_2006_-_Cyrus_Read.jpg/960px-Augustine_volcano_Jan_24_2006_-_Cyrus_Read.jpg" alt="Núi lửa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cực quang ">
+  <div class="head"><span class="no">#84</span><h2>Cực quang</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg/960px-Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg/960px-Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg" alt="Cực quang"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa hướng dương hướng dương ">
+  <div class="head"><span class="no">#85</span><h2>Hoa hướng dương</h2></div>
+  <div class="alt">Cũng đúng: Hướng dương</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Sunflower_fields_in_%C5%A0umadija.jpg/960px-Sunflower_fields_in_%C5%A0umadija.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Sunflower_fields_in_%C5%A0umadija.jpg/960px-Sunflower_fields_in_%C5%A0umadija.jpg" alt="Hoa hướng dương"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cối xay gió ">
+  <div class="head"><span class="no">#86</span><h2>Cối xay gió</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/The_windmills_of_Kinderdijk.JPG/960px-The_windmills_of_Kinderdijk.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/The_windmills_of_Kinderdijk.JPG/960px-The_windmills_of_Kinderdijk.JPG" alt="Cối xay gió"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khinh khí cầu ">
+  <div class="head"><span class="no">#87</span><h2>Khinh khí cầu</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Hot-air_balloon_in_Tambov_-_02.jpg/960px-Hot-air_balloon_in_Tambov_-_02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Hot-air_balloon_in_Tambov_-_02.jpg/960px-Hot-air_balloon_in_Tambov_-_02.jpg" alt="Khinh khí cầu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xe đạp ">
+  <div class="head"><span class="no">#88</span><h2>Xe đạp</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Left_side_of_Flying_Pigeon.jpg/960px-Left_side_of_Flying_Pigeon.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Left_side_of_Flying_Pigeon.jpg/960px-Left_side_of_Flying_Pigeon.jpg" alt="Xe đạp"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đàn piano piano dương cầm ">
+  <div class="head"><span class="no">#89</span><h2>Đàn piano</h2></div>
+  <div class="alt">Cũng đúng: Piano, Dương cầm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Boesendorfer-5075415.jpg/960px-Boesendorfer-5075415.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Boesendorfer-5075415.jpg/960px-Boesendorfer-5075415.jpg" alt="Đàn piano"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đồng hồ cát ">
+  <div class="head"><span class="no">#90</span><h2>Đồng hồ cát</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/GLAM_Wiki_2015_-_Day_3_DSC_0488.jpg/960px-GLAM_Wiki_2015_-_Day_3_DSC_0488.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/GLAM_Wiki_2015_-_Day_3_DSC_0488.jpg/960px-GLAM_Wiki_2015_-_Day_3_DSC_0488.jpg" alt="Đồng hồ cát"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kính thiên văn ">
+  <div class="head"><span class="no">#91</span><h2>Kính thiên văn</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Choose_your_fighter_-_apo_vs._RC.jpg/960px-Choose_your_fighter_-_apo_vs._RC.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Choose_your_fighter_-_apo_vs._RC.jpg/960px-Choose_your_fighter_-_apo_vs._RC.jpg" alt="Kính thiên văn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ngọn hải đăng hải đăng ">
+  <div class="head"><span class="no">#92</span><h2>Ngọn hải đăng</h2></div>
+  <div class="alt">Cũng đúng: Hải đăng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/2016-11-13_01_Kjeungskj%C3%A6r_Lighthouse%2C_S%C3%B8r-Tr%C3%B8ndelag%2C_Norway.jpg/960px-2016-11-13_01_Kjeungskj%C3%A6r_Lighthouse%2C_S%C3%B8r-Tr%C3%B8ndelag%2C_Norway.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/2016-11-13_01_Kjeungskj%C3%A6r_Lighthouse%2C_S%C3%B8r-Tr%C3%B8ndelag%2C_Norway.jpg/960px-2016-11-13_01_Kjeungskj%C3%A6r_Lighthouse%2C_S%C3%B8r-Tr%C3%B8ndelag%2C_Norway.jpg" alt="Ngọn hải đăng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="người tuyết ">
+  <div class="head"><span class="no">#93</span><h2>Người tuyết</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Snowman_in_CP_%2840920%29.jpg/960px-Snowman_in_CP_%2840920%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Snowman_in_CP_%2840920%29.jpg/960px-Snowman_in_CP_%2840920%29.jpg" alt="Người tuyết"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trực thăng máy bay trực thăng ">
+  <div class="head"><span class="no">#94</span><h2>Trực thăng</h2></div>
+  <div class="alt">Cũng đúng: Máy bay trực thăng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/VH-SUF_Taking_Off.jpg/960px-VH-SUF_Taking_Off.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/VH-SUF_Taking_Off.jpg/960px-VH-SUF_Taking_Off.jpg" alt="Trực thăng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cây thông noel cây thông giáng sinh ">
+  <div class="head"><span class="no">#95</span><h2>Cây thông Noel</h2></div>
+  <div class="alt">Cũng đúng: Cây thông Giáng sinh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Looking_up_at_a_large_Christmas_tree.jpg/960px-Looking_up_at_a_large_Christmas_tree.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Looking_up_at_a_large_Christmas_tree.jpg/960px-Looking_up_at_a_large_Christmas_tree.jpg" alt="Cây thông Noel"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khối rubik rubik ">
+  <div class="head"><span class="no">#96</span><h2>Khối Rubik</h2></div>
+  <div class="alt">Cũng đúng: Rubik</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Rubik%27s_cube%2C_CN_II.jpg/960px-Rubik%27s_cube%2C_CN_II.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Rubik%27s_cube%2C_CN_II.jpg/960px-Rubik%27s_cube%2C_CN_II.jpg" alt="Khối Rubik"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bóng đá quả bóng đá ">
+  <div class="head"><span class="no">#97</span><h2>Bóng đá</h2></div>
+  <div class="alt">Cũng đúng: Quả bóng đá</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Adidas_Trionda_ball.jpg/960px-Adidas_Trionda_ball.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Adidas_Trionda_ball.jpg/960px-Adidas_Trionda_ball.jpg" alt="Bóng đá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tàu vũ trụ tàu con thoi ">
+  <div class="head"><span class="no">#98</span><h2>Tàu vũ trụ</h2></div>
+  <div class="alt">Cũng đúng: Tàu con thoi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Space_Shuttle_Enterprise..JPG/960px-Space_Shuttle_Enterprise..JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Space_Shuttle_Enterprise..JPG/960px-Space_Shuttle_Enterprise..JPG" alt="Tàu vũ trụ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kỳ lân biển ">
+  <div class="head"><span class="no">#99</span><h2>Kỳ lân biển</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg/960px-%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg/960px-%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg" alt="Kỳ lân biển"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá voi xanh ">
+  <div class="head"><span class="no">#100</span><h2>Cá voi xanh</h2></div>
+  
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg/960px-Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg/960px-Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg" alt="Cá voi xanh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lúa cây lúa ruộng lúa ">
+  <div class="head"><span class="no">#101</span><h2>Lúa</h2></div>
+  <div class="alt">Cũng đúng: Cây lúa, Ruộng lúa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg/960px-20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg/960px-20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg" alt="Lúa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhà hát lớn hà nội nhà hát lớn ">
+  <div class="head"><span class="no">#102</span><h2>Nhà hát Lớn Hà Nội</h2></div>
+  <div class="alt">Cũng đúng: Nhà hát Lớn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Hanoi_Opera_House%2C_24_December_2016.jpg/960px-Hanoi_Opera_House%2C_24_December_2016.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Hanoi_Opera_House%2C_24_December_2016.jpg/960px-Hanoi_Opera_House%2C_24_December_2016.jpg" alt="Nhà hát Lớn Hà Nội"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùa bái đính bái đính ">
+  <div class="head"><span class="no">#103</span><h2>Chùa Bái Đính</h2></div>
+  <div class="alt">Cũng đúng: Bái Đính</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Chua_Bai_Dinh_X8.JPG/960px-Chua_Bai_Dinh_X8.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Chua_Bai_Dinh_X8.JPG/960px-Chua_Bai_Dinh_X8.JPG" alt="Chùa Bái Đính"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tràng an quần thể tràng an ">
+  <div class="head"><span class="no">#104</span><h2>Tràng An</h2></div>
+  <div class="alt">Cũng đúng: Quần thể Tràng An</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Trang_An_Landscape_Complex%2C_Ninh_Binh_Province%2C_Vietnam%2C_20240202_1456_5313.jpg/960px-Trang_An_Landscape_Complex%2C_Ninh_Binh_Province%2C_Vietnam%2C_20240202_1456_5313.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Trang_An_Landscape_Complex%2C_Ninh_Binh_Province%2C_Vietnam%2C_20240202_1456_5313.jpg/960px-Trang_An_Landscape_Complex%2C_Ninh_Binh_Province%2C_Vietnam%2C_20240202_1456_5313.jpg" alt="Tràng An"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ruộng bậc thang ruộng bậc thang sa pa ">
+  <div class="head"><span class="no">#105</span><h2>Ruộng bậc thang</h2></div>
+  <div class="alt">Cũng đúng: Ruộng bậc thang Sa Pa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/NKS07164.jpg/960px-NKS07164.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/NKS07164.jpg/960px-NKS07164.jpg" alt="Ruộng bậc thang"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thác bản giốc bản giốc ">
+  <div class="head"><span class="no">#106</span><h2>Thác Bản Giốc</h2></div>
+  <div class="alt">Cũng đúng: Bản Giốc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Bangioc9tam.jpg/960px-Bangioc9tam.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Bangioc9tam.jpg/960px-Bangioc9tam.jpg" alt="Thác Bản Giốc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùa cầu chùa cầu hội an cầu nhật bản ">
+  <div class="head"><span class="no">#107</span><h2>Chùa Cầu</h2></div>
+  <div class="alt">Cũng đúng: Chùa Cầu Hội An, Cầu Nhật Bản</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/2024_H%E1%BB%99i_An_-_Japanese_Covered_Bridge_%28Ch%C3%B9a_C%E1%BA%A7u%29_after_renovation_-_img_11.jpg/960px-2024_H%E1%BB%99i_An_-_Japanese_Covered_Bridge_%28Ch%C3%B9a_C%E1%BA%A7u%29_after_renovation_-_img_11.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/2024_H%E1%BB%99i_An_-_Japanese_Covered_Bridge_%28Ch%C3%B9a_C%E1%BA%A7u%29_after_renovation_-_img_11.jpg/960px-2024_H%E1%BB%99i_An_-_Japanese_Covered_Bridge_%28Ch%C3%B9a_C%E1%BA%A7u%29_after_renovation_-_img_11.jpg" alt="Chùa Cầu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu trường tiền trường tiền ">
+  <div class="head"><span class="no">#108</span><h2>Cầu Trường Tiền</h2></div>
+  <div class="alt">Cũng đúng: Trường Tiền</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/2024-07_C%E1%BA%A7u_Tr%C6%B0%E1%BB%9Dng_Ti%E1%BB%81n_-_Truong_Tien_Bridge_-_Hu%E1%BA%BF_-_img_09.jpg/960px-2024-07_C%E1%BA%A7u_Tr%C6%B0%E1%BB%9Dng_Ti%E1%BB%81n_-_Truong_Tien_Bridge_-_Hu%E1%BA%BF_-_img_09.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/2024-07_C%E1%BA%A7u_Tr%C6%B0%E1%BB%9Dng_Ti%E1%BB%81n_-_Truong_Tien_Bridge_-_Hu%E1%BA%BF_-_img_09.jpg/960px-2024-07_C%E1%BA%A7u_Tr%C6%B0%E1%BB%9Dng_Ti%E1%BB%81n_-_Truong_Tien_Bridge_-_Hu%E1%BA%BF_-_img_09.jpg" alt="Cầu Trường Tiền"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lăng khải định lăng vua khải định ">
+  <div class="head"><span class="no">#109</span><h2>Lăng Khải Định</h2></div>
+  <div class="alt">Cũng đúng: Lăng vua Khải Định</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Emperor_Khai_Dinh_in_Hue_%2839543600561%29.jpg/960px-Emperor_Khai_Dinh_in_Hue_%2839543600561%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Emperor_Khai_Dinh_in_Hue_%2839543600561%29.jpg/960px-Emperor_Khai_Dinh_in_Hue_%2839543600561%29.jpg" alt="Lăng Khải Định"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thánh địa mỹ sơn mỹ sơn ">
+  <div class="head"><span class="no">#110</span><h2>Thánh địa Mỹ Sơn</h2></div>
+  <div class="alt">Cũng đúng: Mỹ Sơn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/2024_-_M%E1%BB%B9_S%C6%A1n_Group_B%2C_C_and_D_-_img_23.jpg/960px-2024_-_M%E1%BB%B9_S%C6%A1n_Group_B%2C_C_and_D_-_img_23.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/2024_-_M%E1%BB%B9_S%C6%A1n_Group_B%2C_C_and_D_-_img_23.jpg/960px-2024_-_M%E1%BB%B9_S%C6%A1n_Group_B%2C_C_and_D_-_img_23.jpg" alt="Thánh địa Mỹ Sơn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="động phong nha phong nha ">
+  <div class="head"><span class="no">#111</span><h2>Động Phong Nha</h2></div>
+  <div class="alt">Cũng đúng: Phong Nha</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Dong_Hoi_Phong_Nha_grotten.jpg/960px-Dong_Hoi_Phong_Nha_grotten.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Dong_Hoi_Phong_Nha_grotten.jpg/960px-Dong_Hoi_Phong_Nha_grotten.jpg" alt="Động Phong Nha"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cột cờ lũng cú lũng cú ">
+  <div class="head"><span class="no">#112</span><h2>Cột cờ Lũng Cú</h2></div>
+  <div class="alt">Cũng đúng: Lũng Cú</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/To%C3%A0n_c%E1%BA%A3nh.jpg/960px-To%C3%A0n_c%E1%BA%A3nh.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/To%C3%A0n_c%E1%BA%A3nh.jpg/960px-To%C3%A0n_c%E1%BA%A3nh.jpg" alt="Cột cờ Lũng Cú"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chợ nổi chợ nổi cái răng ">
+  <div class="head"><span class="no">#113</span><h2>Chợ nổi</h2></div>
+  <div class="alt">Cũng đúng: Chợ nổi Cái Răng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Cai_Rang_Floating_Market_1.jpg/960px-Cai_Rang_Floating_Market_1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Cai_Rang_Floating_Market_1.jpg/960px-Cai_Rang_Floating_Market_1.jpg" alt="Chợ nổi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu nhật tân nhật tân ">
+  <div class="head"><span class="no">#114</span><h2>Cầu Nhật Tân</h2></div>
+  <div class="alt">Cũng đúng: Nhật Tân</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/4am_view_of_Nhat_Tan_Bridge_in_Hanoi.jpg/960px-4am_view_of_Nhat_Tan_Bridge_in_Hanoi.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/4am_view_of_Nhat_Tan_Bridge_in_Hanoi.jpg/960px-4am_view_of_Nhat_Tan_Bridge_in_Hanoi.jpg" alt="Cầu Nhật Tân"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoàng thành thăng long hoàng thành đoan môn ">
+  <div class="head"><span class="no">#115</span><h2>Hoàng thành Thăng Long</h2></div>
+  <div class="alt">Cũng đúng: Hoàng thành, Đoan Môn</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/4/41/Thang_Long_Citadel.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/4/41/Thang_Long_Citadel.jpg" alt="Hoàng thành Thăng Long"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bưu điện sài gòn bưu điện thành phố ">
+  <div class="head"><span class="no">#116</span><h2>Bưu điện Sài Gòn</h2></div>
+  <div class="alt">Cũng đúng: Bưu điện Thành phố</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Saigon_Central_Post_Office_%2852681461470%29.jpg/960px-Saigon_Central_Post_Office_%2852681461470%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Saigon_Central_Post_Office_%2852681461470%29.jpg/960px-Saigon_Central_Post_Office_%2852681461470%29.jpg" alt="Bưu điện Sài Gòn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đồi cát đồi cát mũi né ">
+  <div class="head"><span class="no">#117</span><h2>Đồi cát</h2></div>
+  <div class="alt">Cũng đúng: Đồi cát Mũi Né</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Vietnam%2C_Mui_Ne_sand_dune.jpg/960px-Vietnam%2C_Mui_Ne_sand_dune.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Vietnam%2C_Mui_Ne_sand_dune.jpg/960px-Vietnam%2C_Mui_Ne_sand_dune.jpg" alt="Đồi cát"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùa hương hương sơn ">
+  <div class="head"><span class="no">#118</span><h2>Chùa Hương</h2></div>
+  <div class="alt">Cũng đúng: Hương Sơn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Thi%C3%AAn_Tr%C3%B9_Pagoda.jpg/960px-Thi%C3%AAn_Tr%C3%B9_Pagoda.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Thi%C3%AAn_Tr%C3%B9_Pagoda.jpg/960px-Thi%C3%AAn_Tr%C3%B9_Pagoda.jpg" alt="Chùa Hương"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khải hoàn môn khải hoàn môn paris ">
+  <div class="head"><span class="no">#119</span><h2>Khải Hoàn Môn</h2></div>
+  <div class="alt">Cũng đúng: Khải hoàn môn Paris</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg/960px-Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg/960px-Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg" alt="Khải Hoàn Môn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bảo tàng louvre louvre kim tự tháp louvre ">
+  <div class="head"><span class="no">#120</span><h2>Bảo tàng Louvre</h2></div>
+  <div class="alt">Cũng đúng: Louvre, Kim tự tháp Louvre</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Louvre_museum_01.jpg/960px-Louvre_museum_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Louvre_museum_01.jpg/960px-Louvre_museum_01.jpg" alt="Bảo tàng Louvre"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="stonehenge bãi đá cổ stonehenge ">
+  <div class="head"><span class="no">#121</span><h2>Stonehenge</h2></div>
+  <div class="alt">Cũng đúng: Bãi đá cổ Stonehenge</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Stonehenge2007_07_30.jpg/960px-Stonehenge2007_07_30.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Stonehenge2007_07_30.jpg/960px-Stonehenge2007_07_30.jpg" alt="Stonehenge"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu tháp london tower bridge cầu tháp ">
+  <div class="head"><span class="no">#122</span><h2>Cầu Tháp London</h2></div>
+  <div class="alt">Cũng đúng: Tower Bridge, Cầu Tháp</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Tower_Bridge_at_Dawn.jpg/960px-Tower_Bridge_at_Dawn.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Tower_Bridge_at_Dawn.jpg/960px-Tower_Bridge_at_Dawn.jpg" alt="Cầu Tháp London"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhà thờ thánh basil thánh basil ">
+  <div class="head"><span class="no">#123</span><h2>Nhà thờ Thánh Basil</h2></div>
+  <div class="alt">Cũng đúng: Thánh Basil</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Moscow._Saint_Basil%27s_Cathedral_P4162276_2750.jpg/960px-Moscow._Saint_Basil%27s_Cathedral_P4162276_2750.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Moscow._Saint_Basil%27s_Cathedral_P4162276_2750.jpg/960px-Moscow._Saint_Basil%27s_Cathedral_P4162276_2750.jpg" alt="Nhà thờ Thánh Basil"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="điện kremlin kremlin ">
+  <div class="head"><span class="no">#124</span><h2>Điện Kremlin</h2></div>
+  <div class="alt">Cũng đúng: Kremlin</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Moscow_Kremlin_%288281675670%29.jpg/960px-Moscow_Kremlin_%288281675670%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Moscow_Kremlin_%288281675670%29.jpg/960px-Moscow_Kremlin_%288281675670%29.jpg" alt="Điện Kremlin"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thành cổ petra petra ">
+  <div class="head"><span class="no">#125</span><h2>Thành cổ Petra</h2></div>
+  <div class="alt">Cũng đúng: Petra</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Al_Deir_Petra.JPG/960px-Al_Deir_Petra.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Al_Deir_Petra.JPG/960px-Al_Deir_Petra.JPG" alt="Thành cổ Petra"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đền parthenon parthenon acropolis ">
+  <div class="head"><span class="no">#126</span><h2>Đền Parthenon</h2></div>
+  <div class="alt">Cũng đúng: Parthenon, Acropolis</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/The_Parthenon_in_Athens.jpg/960px-The_Parthenon_in_Athens.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/The_Parthenon_in_Athens.jpg/960px-The_Parthenon_in_Athens.jpg" alt="Đền Parthenon"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lâu đài neuschwanstein neuschwanstein ">
+  <div class="head"><span class="no">#127</span><h2>Lâu đài Neuschwanstein</h2></div>
+  <div class="alt">Cũng đúng: Neuschwanstein</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Schloss_Neuschwanstein_2013.jpg/960px-Schloss_Neuschwanstein_2013.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Schloss_Neuschwanstein_2013.jpg/960px-Schloss_Neuschwanstein_2013.jpg" alt="Lâu đài Neuschwanstein"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cổng brandenburg brandenburg ">
+  <div class="head"><span class="no">#128</span><h2>Cổng Brandenburg</h2></div>
+  <div class="alt">Cũng đúng: Brandenburg</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Brandenburger_Tor_abends.jpg/960px-Brandenburger_Tor_abends.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Brandenburger_Tor_abends.jpg/960px-Brandenburger_Tor_abends.jpg" alt="Cổng Brandenburg"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tử cấm thành cố cung ">
+  <div class="head"><span class="no">#129</span><h2>Tử Cấm Thành</h2></div>
+  <div class="alt">Cũng đúng: Cố Cung</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Beijing_forbidden_city_Belvedere_of_Embodying_Benevolence-20071018-RM-142403.jpg/960px-Beijing_forbidden_city_Belvedere_of_Embodying_Benevolence-20071018-RM-142403.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Beijing_forbidden_city_Belvedere_of_Embodying_Benevolence-20071018-RM-142403.jpg/960px-Beijing_forbidden_city_Belvedere_of_Embodying_Benevolence-20071018-RM-142403.jpg" alt="Tử Cấm Thành"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hẻm núi grand canyon grand canyon ">
+  <div class="head"><span class="no">#130</span><h2>Hẻm núi Grand Canyon</h2></div>
+  <div class="alt">Cũng đúng: Grand Canyon</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Canyon_River_Tree_%28165872763%29.jpeg/960px-Canyon_River_Tree_%28165872763%29.jpeg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Canyon_River_Tree_%28165872763%29.jpeg/960px-Canyon_River_Tree_%28165872763%29.jpeg" alt="Hẻm núi Grand Canyon"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="núi rushmore rushmore ">
+  <div class="head"><span class="no">#131</span><h2>Núi Rushmore</h2></div>
+  <div class="alt">Cũng đúng: Rushmore</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Mount_Rushmore_detail_view_%28100MP%29.jpg/960px-Mount_Rushmore_detail_view_%28100MP%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Mount_Rushmore_detail_view_%28100MP%29.jpg/960px-Mount_Rushmore_detail_view_%28100MP%29.jpg" alt="Núi Rushmore"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhà trắng bạch ốc ">
+  <div class="head"><span class="no">#132</span><h2>Nhà Trắng</h2></div>
+  <div class="alt">Cũng đúng: Bạch Ốc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/The_White_House%2C_Washington%2C_D.C._USA2.jpg/960px-The_White_House%2C_Washington%2C_D.C._USA2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/The_White_House%2C_Washington%2C_D.C._USA2.jpg/960px-The_White_House%2C_Washington%2C_D.C._USA2.jpg" alt="Nhà Trắng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đền borobudur borobudur ">
+  <div class="head"><span class="no">#133</span><h2>Đền Borobudur</h2></div>
+  <div class="alt">Cũng đúng: Borobudur</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Pradaksina.jpg/960px-Pradaksina.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Pradaksina.jpg/960px-Pradaksina.jpg" alt="Đền Borobudur"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cung điện potala potala ">
+  <div class="head"><span class="no">#134</span><h2>Cung điện Potala</h2></div>
+  <div class="alt">Cũng đúng: Potala</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Potala_Palace_HQ.jpg/960px-Potala_Palace_HQ.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Potala_Palace_HQ.jpg/960px-Potala_Palace_HQ.jpg" alt="Cung điện Potala"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="santorini đảo santorini ">
+  <div class="head"><span class="no">#135</span><h2>Santorini</h2></div>
+  <div class="alt">Cũng đúng: Đảo Santorini</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/1000_Three_domes_of_Oia_in_Santorini_Photo_by_Giles_Laurent.jpg/960px-1000_Three_domes_of_Oia_in_Santorini_Photo_by_Giles_Laurent.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/1000_Three_domes_of_Oia_in_Santorini_Photo_by_Giles_Laurent.jpg/960px-1000_Three_domes_of_Oia_in_Santorini_Photo_by_Giles_Laurent.jpg" alt="Santorini"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="venice thành phố venice ">
+  <div class="head"><span class="no">#136</span><h2>Venice</h2></div>
+  <div class="alt">Cũng đúng: Thành phố Venice</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg/960px-Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg/960px-Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg" alt="Venice"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="marina bay sands khách sạn marina bay sands ">
+  <div class="head"><span class="no">#137</span><h2>Marina Bay Sands</h2></div>
+  <div class="alt">Cũng đúng: Khách sạn Marina Bay Sands</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Marina_Bay_Sands_%28I%29.jpg/960px-Marina_Bay_Sands_%28I%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Marina_Bay_Sands_%28I%29.jpg/960px-Marina_Bay_Sands_%28I%29.jpg" alt="Marina Bay Sands"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tượng merlion merlion sư tử biển ">
+  <div class="head"><span class="no">#138</span><h2>Tượng Merlion</h2></div>
+  <div class="alt">Cũng đúng: Merlion, Sư tử biển</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Singapore_Skyline_2019-10.jpg/960px-Singapore_Skyline_2019-10.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Singapore_Skyline_2019-10.jpg/960px-Singapore_Skyline_2019-10.jpg" alt="Tượng Merlion"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tượng moai moai ">
+  <div class="head"><span class="no">#139</span><h2>Tượng Moai</h2></div>
+  <div class="alt">Cũng đúng: Moai</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/5/50/AhuTongariki.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/5/50/AhuTongariki.JPG" alt="Tượng Moai"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chichen itza kim tự tháp chichen itza ">
+  <div class="head"><span class="no">#140</span><h2>Chichen Itza</h2></div>
+  <div class="alt">Cũng đúng: Kim tự tháp Chichen Itza</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Chichen_Itza_3.jpg/960px-Chichen_Itza_3.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Chichen_Itza_3.jpg/960px-Chichen_Itza_3.jpg" alt="Chichen Itza"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu cảng sydney cầu sydney harbour ">
+  <div class="head"><span class="no">#141</span><h2>Cầu cảng Sydney</h2></div>
+  <div class="alt">Cũng đúng: Cầu Sydney Harbour</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Sydney_Harbour_Bridge-16_October_2025.jpg/960px-Sydney_Harbour_Bridge-16_October_2025.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Sydney_Harbour_Bridge-16_October_2025.jpg/960px-Sydney_Harbour_Bridge-16_October_2025.jpg" alt="Cầu cảng Sydney"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="burj al arab khách sạn cánh buồm ">
+  <div class="head"><span class="no">#142</span><h2>Burj Al Arab</h2></div>
+  <div class="alt">Cũng đúng: Khách sạn cánh buồm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Madinat_Jumeirah-Dubai3303.JPG/960px-Madinat_Jumeirah-Dubai3303.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Madinat_Jumeirah-Dubai3303.JPG/960px-Madinat_Jumeirah-Dubai3303.JPG" alt="Burj Al Arab"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cung điện versailles versailles ">
+  <div class="head"><span class="no">#143</span><h2>Cung điện Versailles</h2></div>
+  <div class="alt">Cũng đúng: Versailles</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_081_%28cropped%29.jpg/960px-Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_081_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_081_%28cropped%29.jpg/960px-Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_081_%28cropped%29.jpg" alt="Cung điện Versailles"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hagia sophia thánh đường hagia sophia ">
+  <div class="head"><span class="no">#144</span><h2>Hagia Sophia</h2></div>
+  <div class="alt">Cũng đúng: Thánh đường Hagia Sophia</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Hagia_Sophia_%28228968325%29.jpeg/960px-Hagia_Sophia_%28228968325%29.jpeg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Hagia_Sophia_%28228968325%29.jpeg/960px-Hagia_Sophia_%28228968325%29.jpeg" alt="Hagia Sophia"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đá uluru uluru ayers rock ">
+  <div class="head"><span class="no">#145</span><h2>Đá Uluru</h2></div>
+  <div class="alt">Cũng đúng: Uluru, Ayers Rock</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/ULURU.jpg/960px-ULURU.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/ULURU.jpg/960px-ULURU.jpg" alt="Đá Uluru"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đền vàng kinkaku-ji kinkaku-ji chùa vàng ">
+  <div class="head"><span class="no">#146</span><h2>Đền Vàng Kinkaku-ji</h2></div>
+  <div class="alt">Cũng đúng: Kinkaku-ji, Chùa Vàng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg/960px-Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg/960px-Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg" alt="Đền Vàng Kinkaku-ji"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bún riêu bún riêu cua ">
+  <div class="head"><span class="no">#147</span><h2>Bún riêu</h2></div>
+  <div class="alt">Cũng đúng: Bún riêu cua</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/B%C3%BAn_ri%C3%AAu_%C4%91%E1%BA%B7c_bi%E1%BB%87t.jpg/960px-B%C3%BAn_ri%C3%AAu_%C4%91%E1%BA%B7c_bi%E1%BB%87t.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/B%C3%BAn_ri%C3%AAu_%C4%91%E1%BA%B7c_bi%E1%BB%87t.jpg/960px-B%C3%BAn_ri%C3%AAu_%C4%91%E1%BA%B7c_bi%E1%BB%87t.jpg" alt="Bún riêu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh cuốn bánh cuốn nóng ">
+  <div class="head"><span class="no">#148</span><h2>Bánh cuốn</h2></div>
+  <div class="alt">Cũng đúng: Bánh cuốn nóng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/B%C3%A1nh_cu%E1%BB%91n_Thanh_Tr%C3%AC.jpg/960px-B%C3%A1nh_cu%E1%BB%91n_Thanh_Tr%C3%AC.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/B%C3%A1nh_cu%E1%BB%91n_Thanh_Tr%C3%AC.jpg/960px-B%C3%A1nh_cu%E1%BB%91n_Thanh_Tr%C3%AC.jpg" alt="Bánh cuốn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh bao bánh bao nhân thịt ">
+  <div class="head"><span class="no">#149</span><h2>Bánh bao</h2></div>
+  <div class="alt">Cũng đúng: Bánh bao nhân thịt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Baozi_Chengdu.JPG/960px-Baozi_Chengdu.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Baozi_Chengdu.JPG/960px-Baozi_Chengdu.JPG" alt="Bánh bao"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xôi xôi gấc ">
+  <div class="head"><span class="no">#150</span><h2>Xôi</h2></div>
+  <div class="alt">Cũng đúng: Xôi gấc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/X%C3%B4i_s%E1%BA%AFn.jpg/960px-X%C3%B4i_s%E1%BA%AFn.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/X%C3%B4i_s%E1%BA%AFn.jpg/960px-X%C3%B4i_s%E1%BA%AFn.jpg" alt="Xôi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chả giò nem rán nem ">
+  <div class="head"><span class="no">#151</span><h2>Chả giò</h2></div>
+  <div class="alt">Cũng đúng: Nem rán, Nem</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Vietnamese_fried_spring_rolls_in_Ho_Chi_Minh_City%2C_Vietnam.jpg/960px-Vietnamese_fried_spring_rolls_in_Ho_Chi_Minh_City%2C_Vietnam.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Vietnamese_fried_spring_rolls_in_Ho_Chi_Minh_City%2C_Vietnam.jpg/960px-Vietnamese_fried_spring_rolls_in_Ho_Chi_Minh_City%2C_Vietnam.jpg" alt="Chả giò"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mì quảng mỳ quảng ">
+  <div class="head"><span class="no">#152</span><h2>Mì Quảng</h2></div>
+  <div class="alt">Cũng đúng: Mỳ Quảng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/M%C3%AC_Qu%E1%BA%A3ng%2C_Da_Nang%2C_Vietnam.jpg/960px-M%C3%AC_Qu%E1%BA%A3ng%2C_Da_Nang%2C_Vietnam.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/M%C3%AC_Qu%E1%BA%A3ng%2C_Da_Nang%2C_Vietnam.jpg/960px-M%C3%AC_Qu%E1%BA%A3ng%2C_Da_Nang%2C_Vietnam.jpg" alt="Mì Quảng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bún đậu mắm tôm bún đậu ">
+  <div class="head"><span class="no">#153</span><h2>Bún đậu mắm tôm</h2></div>
+  <div class="alt">Cũng đúng: Bún đậu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/B%C3%BAn_%C4%91%E1%BA%ADu_m%E1%BA%AFm_t%C3%B4m.jpg/960px-B%C3%BAn_%C4%91%E1%BA%ADu_m%E1%BA%AFm_t%C3%B4m.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/B%C3%BAn_%C4%91%E1%BA%ADu_m%E1%BA%AFm_t%C3%B4m.jpg/960px-B%C3%BAn_%C4%91%E1%BA%ADu_m%E1%BA%AFm_t%C3%B4m.jpg" alt="Bún đậu mắm tôm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gà rán gà chiên giòn ">
+  <div class="head"><span class="no">#154</span><h2>Gà rán</h2></div>
+  <div class="alt">Cũng đúng: Gà chiên giòn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Fried-Chicken-Set.jpg/960px-Fried-Chicken-Set.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Fried-Chicken-Set.jpg/960px-Fried-Chicken-Set.jpg" alt="Gà rán"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khoai tây chiên khoai chiên ">
+  <div class="head"><span class="no">#155</span><h2>Khoai tây chiên</h2></div>
+  <div class="alt">Cũng đúng: Khoai chiên</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Cajun_fries_from_Popeyes_Louisiana_Kitchen%2C_Stratford%2C_Ontario%2C_2025-08-04.jpg/960px-Cajun_fries_from_Popeyes_Louisiana_Kitchen%2C_Stratford%2C_Ontario%2C_2025-08-04.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Cajun_fries_from_Popeyes_Louisiana_Kitchen%2C_Stratford%2C_Ontario%2C_2025-08-04.jpg/960px-Cajun_fries_from_Popeyes_Louisiana_Kitchen%2C_Stratford%2C_Ontario%2C_2025-08-04.jpg" alt="Khoai tây chiên"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mì ý spaghetti mỳ ý ">
+  <div class="head"><span class="no">#156</span><h2>Mì Ý</h2></div>
+  <div class="alt">Cũng đúng: Spaghetti, Mỳ Ý</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Penne_with_eggplant_and_basil_in_yogurt-tomato_sauce.jpg/960px-Penne_with_eggplant_and_basil_in_yogurt-tomato_sauce.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Penne_with_eggplant_and_basil_in_yogurt-tomato_sauce.jpg/960px-Penne_with_eggplant_and_basil_in_yogurt-tomato_sauce.jpg" alt="Mì Ý"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kem kem ốc quế kem que ">
+  <div class="head"><span class="no">#157</span><h2>Kem</h2></div>
+  <div class="alt">Cũng đúng: Kem ốc quế, Kem que</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/2_ice_cream_cones_2025-05-02.jpg/960px-2_ice_cream_cones_2025-05-02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/2_ice_cream_cones_2025-05-02.jpg/960px-2_ice_cream_cones_2025-05-02.jpg" alt="Kem"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh kem bánh sinh nhật bánh gato ">
+  <div class="head"><span class="no">#158</span><h2>Bánh kem</h2></div>
+  <div class="alt">Cũng đúng: Bánh sinh nhật, Bánh gato</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Italy_-_birthday_cake_with_candles_5.jpg/960px-Italy_-_birthday_cake_with_candles_5.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Italy_-_birthday_cake_with_candles_5.jpg/960px-Italy_-_birthday_cake_with_candles_5.jpg" alt="Bánh kem"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh donut donut bánh vòng ">
+  <div class="head"><span class="no">#159</span><h2>Bánh donut</h2></div>
+  <div class="alt">Cũng đúng: Donut, Bánh vòng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Glazed-Donut.jpg/960px-Glazed-Donut.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Glazed-Donut.jpg/960px-Glazed-Donut.jpg" alt="Bánh donut"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh sừng bò croissant ">
+  <div class="head"><span class="no">#160</span><h2>Bánh sừng bò</h2></div>
+  <div class="alt">Cũng đúng: Croissant</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Croissant-Petr_Kratochvil.jpg/960px-Croissant-Petr_Kratochvil.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Croissant-Petr_Kratochvil.jpg/960px-Croissant-Petr_Kratochvil.jpg" alt="Bánh sừng bò"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kim chi kimchi ">
+  <div class="head"><span class="no">#161</span><h2>Kim chi</h2></div>
+  <div class="alt">Cũng đúng: Kimchi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Fufufu_Otai_20201029-02.jpg/960px-Fufufu_Otai_20201029-02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Fufufu_Otai_20201029-02.jpg/960px-Fufufu_Otai_20201029-02.jpg" alt="Kim chi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="há cảo dim sum ">
+  <div class="head"><span class="no">#162</span><h2>Há cảo</h2></div>
+  <div class="alt">Cũng đúng: Dim sum</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Steamed_prawn_dumplings.jpg/960px-Steamed_prawn_dumplings.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Steamed_prawn_dumplings.jpg/960px-Steamed_prawn_dumplings.jpg" alt="Há cảo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tôm hùm tôm hùm đất ">
+  <div class="head"><span class="no">#163</span><h2>Tôm hùm</h2></div>
+  <div class="alt">Cũng đúng: Tôm hùm đất</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/KreeftbijDenOsse.jpg/960px-KreeftbijDenOsse.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/KreeftbijDenOsse.jpg/960px-KreeftbijDenOsse.jpg" alt="Tôm hùm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cua con cua cua biển ">
+  <div class="head"><span class="no">#164</span><h2>Cua</h2></div>
+  <div class="alt">Cũng đúng: Con cua, Cua biển</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Cancer_pagurus.jpg/960px-Cancer_pagurus.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Cancer_pagurus.jpg/960px-Cancer_pagurus.jpg" alt="Cua"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hàu con hàu ">
+  <div class="head"><span class="no">#165</span><h2>Hàu</h2></div>
+  <div class="alt">Cũng đúng: Con hàu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Crassostrea_gigas_p1040848.jpg/960px-Crassostrea_gigas_p1040848.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Crassostrea_gigas_p1040848.jpg/960px-Crassostrea_gigas_p1040848.jpg" alt="Hàu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trứng ốp la trứng chiên ốp la ">
+  <div class="head"><span class="no">#166</span><h2>Trứng ốp la</h2></div>
+  <div class="alt">Cũng đúng: Trứng chiên, Ốp la</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Fried_Egg_2.jpg/960px-Fried_Egg_2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Fried_Egg_2.jpg/960px-Fried_Egg_2.jpg" alt="Trứng ốp la"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bỏng ngô bắp rang bơ ">
+  <div class="head"><span class="no">#167</span><h2>Bỏng ngô</h2></div>
+  <div class="alt">Cũng đúng: Bắp rang bơ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/0842Malolos_Historic_Town_Center_Bulacan_Landmarks_01.jpg/960px-0842Malolos_Historic_Town_Center_Bulacan_Landmarks_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/0842Malolos_Historic_Town_Center_Bulacan_Landmarks_01.jpg/960px-0842Malolos_Historic_Town_Center_Bulacan_Landmarks_01.jpg" alt="Bỏng ngô"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sô-cô-la socola chocolate sôcôla ">
+  <div class="head"><span class="no">#168</span><h2>Sô-cô-la</h2></div>
+  <div class="alt">Cũng đúng: Socola, Chocolate, Sôcôla</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Three_Bars_%281%29.jpg/960px-Three_Bars_%281%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Three_Bars_%281%29.jpg/960px-Three_Bars_%281%29.jpg" alt="Sô-cô-la"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mật ong tổ ong ">
+  <div class="head"><span class="no">#169</span><h2>Mật ong</h2></div>
+  <div class="alt">Cũng đúng: Tổ ong</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Pike_Place_Farmers_Market_Express_%289080291960%29.jpg/960px-Pike_Place_Farmers_Market_Express_%289080291960%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Pike_Place_Farmers_Market_Express_%289080291960%29.jpg/960px-Pike_Place_Farmers_Market_Express_%289080291960%29.jpg" alt="Mật ong"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="phô mai pho mát phomai ">
+  <div class="head"><span class="no">#170</span><h2>Phô mai</h2></div>
+  <div class="alt">Cũng đúng: Pho mát, Phomai</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/a/a8/Cheese_platter.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/a/a8/Cheese_platter.jpg" alt="Phô mai"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xoài quả xoài ">
+  <div class="head"><span class="no">#171</span><h2>Xoài</h2></div>
+  <div class="alt">Cũng đúng: Quả xoài</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Mangos_-_single_and_halved.jpg/960px-Mangos_-_single_and_halved.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Mangos_-_single_and_halved.jpg/960px-Mangos_-_single_and_halved.jpg" alt="Xoài"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="dứa quả dứa thơm khóm ">
+  <div class="head"><span class="no">#172</span><h2>Dứa</h2></div>
+  <div class="alt">Cũng đúng: Quả dứa, Thơm, Khóm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/%E0%B4%95%E0%B5%88%E0%B4%A4%E0%B4%9A%E0%B5%8D%E0%B4%9A%E0%B4%95%E0%B5%8D%E0%B4%95.jpg/960px-%E0%B4%95%E0%B5%88%E0%B4%A4%E0%B4%9A%E0%B5%8D%E0%B4%9A%E0%B4%95%E0%B5%8D%E0%B4%95.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/%E0%B4%95%E0%B5%88%E0%B4%A4%E0%B4%9A%E0%B5%8D%E0%B4%9A%E0%B4%95%E0%B5%8D%E0%B4%95.jpg/960px-%E0%B4%95%E0%B5%88%E0%B4%A4%E0%B4%9A%E0%B5%8D%E0%B4%9A%E0%B4%95%E0%B5%8D%E0%B4%95.jpg" alt="Dứa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="mít quả mít ">
+  <div class="head"><span class="no">#173</span><h2>Mít</h2></div>
+  <div class="alt">Cũng đúng: Quả mít</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/%28Artocarpus_heterophyllus%29_Jack_fruits_on_Simhachalam_Hills_01.jpg/960px-%28Artocarpus_heterophyllus%29_Jack_fruits_on_Simhachalam_Hills_01.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/%28Artocarpus_heterophyllus%29_Jack_fruits_on_Simhachalam_Hills_01.jpg/960px-%28Artocarpus_heterophyllus%29_Jack_fruits_on_Simhachalam_Hills_01.jpg" alt="Mít"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chôm chôm quả chôm chôm ">
+  <div class="head"><span class="no">#174</span><h2>Chôm chôm</h2></div>
+  <div class="alt">Cũng đúng: Quả chôm chôm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Rambutan_white_background_alt.jpg/960px-Rambutan_white_background_alt.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Rambutan_white_background_alt.jpg/960px-Rambutan_white_background_alt.jpg" alt="Chôm chôm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="vải thiều vải quả vải ">
+  <div class="head"><span class="no">#175</span><h2>Vải thiều</h2></div>
+  <div class="alt">Cũng đúng: Vải, Quả vải</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Litchi_chinensis_fruits.JPG/960px-Litchi_chinensis_fruits.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Litchi_chinensis_fruits.JPG/960px-Litchi_chinensis_fruits.JPG" alt="Vải thiều"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quả cam cam ">
+  <div class="head"><span class="no">#176</span><h2>Quả cam</h2></div>
+  <div class="alt">Cũng đúng: Cam</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Oranges_-_whole-halved-segment.jpg/960px-Oranges_-_whole-halved-segment.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Oranges_-_whole-halved-segment.jpg/960px-Oranges_-_whole-halved-segment.jpg" alt="Quả cam"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chùm nho nho quả nho ">
+  <div class="head"><span class="no">#177</span><h2>Chùm nho</h2></div>
+  <div class="alt">Cũng đúng: Nho, Quả nho</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/960px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/960px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg" alt="Chùm nho"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="dâu tây quả dâu tây ">
+  <div class="head"><span class="no">#178</span><h2>Dâu tây</h2></div>
+  <div class="alt">Cũng đúng: Quả dâu tây</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/960px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/960px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg" alt="Dâu tây"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quả lựu lựu ">
+  <div class="head"><span class="no">#179</span><h2>Quả lựu</h2></div>
+  <div class="alt">Cũng đúng: Lựu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Pomegranate_Juice_%282019%29.jpg/960px-Pomegranate_Juice_%282019%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Pomegranate_Juice_%282019%29.jpg/960px-Pomegranate_Juice_%282019%29.jpg" alt="Quả lựu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đu đủ quả đu đủ ">
+  <div class="head"><span class="no">#180</span><h2>Đu đủ</h2></div>
+  <div class="alt">Cũng đúng: Quả đu đủ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Papaya_-_longitudinal_section.jpg/960px-Papaya_-_longitudinal_section.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Papaya_-_longitudinal_section.jpg/960px-Papaya_-_longitudinal_section.jpg" alt="Đu đủ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quả khế khế ">
+  <div class="head"><span class="no">#181</span><h2>Quả khế</h2></div>
+  <div class="alt">Cũng đúng: Khế</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Star_fruit_%28Averrhoa_carambola%29.jpg/960px-Star_fruit_%28Averrhoa_carambola%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Star_fruit_%28Averrhoa_carambola%29.jpg/960px-Star_fruit_%28Averrhoa_carambola%29.jpg" alt="Quả khế"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bí ngô bí đỏ quả bí ngô ">
+  <div class="head"><span class="no">#182</span><h2>Bí ngô</h2></div>
+  <div class="alt">Cũng đúng: Bí đỏ, Quả bí ngô</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/FrenchMarketPumpkinsB.jpg/960px-FrenchMarketPumpkinsB.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/FrenchMarketPumpkinsB.jpg/960px-FrenchMarketPumpkinsB.jpg" alt="Bí ngô"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cà rốt củ cà rốt ">
+  <div class="head"><span class="no">#183</span><h2>Cà rốt</h2></div>
+  <div class="alt">Cũng đúng: Củ cà rốt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/960px-Vegetable-Carrot-Bundle-wStalks.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/960px-Vegetable-Carrot-Bundle-wStalks.jpg" alt="Cà rốt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con voi voi ">
+  <div class="head"><span class="no">#184</span><h2>Con voi</h2></div>
+  <div class="alt">Cũng đúng: Voi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/African_bush_elephants_%28Loxodonta_africana%29_female_with_six-week-old_baby.jpg/960px-African_bush_elephants_%28Loxodonta_africana%29_female_with_six-week-old_baby.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/African_bush_elephants_%28Loxodonta_africana%29_female_with_six-week-old_baby.jpg/960px-African_bush_elephants_%28Loxodonta_africana%29_female_with_six-week-old_baby.jpg" alt="Con voi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con hổ hổ cọp ">
+  <div class="head"><span class="no">#185</span><h2>Con hổ</h2></div>
+  <div class="alt">Cũng đúng: Hổ, Cọp</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/960px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/960px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg" alt="Con hổ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sư tử con sư tử ">
+  <div class="head"><span class="no">#186</span><h2>Sư tử</h2></div>
+  <div class="alt">Cũng đúng: Con sư tử</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/960px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/960px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" alt="Sư tử"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="báo đốm báo báo hoa mai ">
+  <div class="head"><span class="no">#187</span><h2>Báo đốm</h2></div>
+  <div class="alt">Cũng đúng: Báo, Báo hoa mai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Leopard_%28Panthera_pardus_pardus%29_Kruger.jpg/960px-Leopard_%28Panthera_pardus_pardus%29_Kruger.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Leopard_%28Panthera_pardus_pardus%29_Kruger.jpg/960px-Leopard_%28Panthera_pardus_pardus%29_Kruger.jpg" alt="Báo đốm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="khỉ đột gorilla ">
+  <div class="head"><span class="no">#188</span><h2>Khỉ đột</h2></div>
+  <div class="alt">Cũng đúng: Gorilla</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Mountain_gorilla_%28Gorilla_beringei_beringei%29_female_eating_root.jpg/960px-Mountain_gorilla_%28Gorilla_beringei_beringei%29_female_eating_root.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Mountain_gorilla_%28Gorilla_beringei_beringei%29_female_eating_root.jpg/960px-Mountain_gorilla_%28Gorilla_beringei_beringei%29_female_eating_root.jpg" alt="Khỉ đột"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tinh tinh con tinh tinh ">
+  <div class="head"><span class="no">#189</span><h2>Tinh tinh</h2></div>
+  <div class="alt">Cũng đúng: Con tinh tinh</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/013_Alpha_male_chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg/960px-013_Alpha_male_chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/013_Alpha_male_chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg/960px-013_Alpha_male_chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg" alt="Tinh tinh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đười ươi con đười ươi ">
+  <div class="head"><span class="no">#190</span><h2>Đười ươi</h2></div>
+  <div class="alt">Cũng đúng: Con đười ươi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Orangutan_Kalimantan.jpg/960px-Orangutan_Kalimantan.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Orangutan_Kalimantan.jpg/960px-Orangutan_Kalimantan.jpg" alt="Đười ươi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lạc đà con lạc đà ">
+  <div class="head"><span class="no">#191</span><h2>Lạc đà</h2></div>
+  <div class="alt">Cũng đúng: Con lạc đà</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Camels_in_Sabiyah_Desert_1.png/960px-Camels_in_Sabiyah_Desert_1.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Camels_in_Sabiyah_Desert_1.png/960px-Camels_in_Sabiyah_Desert_1.png" alt="Lạc đà"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hà mã con hà mã ">
+  <div class="head"><span class="no">#192</span><h2>Hà mã</h2></div>
+  <div class="alt">Cũng đúng: Con hà mã</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Portrait_Hippopotamus_in_the_water.jpg/960px-Portrait_Hippopotamus_in_the_water.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Portrait_Hippopotamus_in_the_water.jpg/960px-Portrait_Hippopotamus_in_the_water.jpg" alt="Hà mã"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tê giác con tê giác ">
+  <div class="head"><span class="no">#193</span><h2>Tê giác</h2></div>
+  <div class="alt">Cũng đúng: Con tê giác</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/081_White_rhinoceros_%28male%29_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg/960px-081_White_rhinoceros_%28male%29_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/081_White_rhinoceros_%28male%29_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg/960px-081_White_rhinoceros_%28male%29_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg" alt="Tê giác"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá mập con cá mập ">
+  <div class="head"><span class="no">#194</span><h2>Cá mập</h2></div>
+  <div class="alt">Cũng đúng: Con cá mập</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Corl0207_%2828225976491%29.jpg/960px-Corl0207_%2828225976491%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Corl0207_%2828225976491%29.jpg/960px-Corl0207_%2828225976491%29.jpg" alt="Cá mập"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="rùa biển con rùa biển ">
+  <div class="head"><span class="no">#195</span><h2>Rùa biển</h2></div>
+  <div class="alt">Cũng đúng: Con rùa biển</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Chelonia_mydas_is_going_for_the_air_edit.jpg/960px-Chelonia_mydas_is_going_for_the_air_edit.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Chelonia_mydas_is_going_for_the_air_edit.jpg/960px-Chelonia_mydas_is_going_for_the_air_edit.jpg" alt="Rùa biển"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con sứa sứa ">
+  <div class="head"><span class="no">#196</span><h2>Con sứa</h2></div>
+  <div class="alt">Cũng đúng: Sứa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Jelly_cc11.jpg/960px-Jelly_cc11.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Jelly_cc11.jpg/960px-Jelly_cc11.jpg" alt="Con sứa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá hề cá nemo ">
+  <div class="head"><span class="no">#197</span><h2>Cá hề</h2></div>
+  <div class="alt">Cũng đúng: Cá Nemo</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg/960px-Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg/960px-Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg" alt="Cá hề"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đại bàng chim đại bàng ">
+  <div class="head"><span class="no">#198</span><h2>Đại bàng</h2></div>
+  <div class="alt">Cũng đúng: Chim đại bàng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Bald_eagle_at_the_Hawk_Conservancy_Trust_2-2.jpg/960px-Bald_eagle_at_the_Hawk_Conservancy_Trust_2-2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Bald_eagle_at_the_Hawk_Conservancy_Trust_2-2.jpg/960px-Bald_eagle_at_the_Hawk_Conservancy_Trust_2-2.jpg" alt="Đại bàng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cú mèo con cú chim cú ">
+  <div class="head"><span class="no">#199</span><h2>Cú mèo</h2></div>
+  <div class="alt">Cũng đúng: Con cú, Chim cú</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Eurasian_eagle-owl_%2844088%29.jpg/960px-Eurasian_eagle-owl_%2844088%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Eurasian_eagle-owl_%2844088%29.jpg/960px-Eurasian_eagle-owl_%2844088%29.jpg" alt="Cú mèo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con vẹt vẹt chim vẹt ">
+  <div class="head"><span class="no">#200</span><h2>Con vẹt</h2></div>
+  <div class="alt">Cũng đúng: Vẹt, Chim vẹt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Red-and-green_macaw_%28Ara_chloropterus%29_juvenile.JPG/960px-Red-and-green_macaw_%28Ara_chloropterus%29_juvenile.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Red-and-green_macaw_%28Ara_chloropterus%29_juvenile.JPG/960px-Red-and-green_macaw_%28Ara_chloropterus%29_juvenile.JPG" alt="Con vẹt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thiên nga con thiên nga ">
+  <div class="head"><span class="no">#201</span><h2>Thiên nga</h2></div>
+  <div class="alt">Cũng đúng: Con thiên nga</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Mute_Swan_Emsworth2.JPG/960px-Mute_Swan_Emsworth2.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Mute_Swan_Emsworth2.JPG/960px-Mute_Swan_Emsworth2.JPG" alt="Thiên nga"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bồ nông chim bồ nông ">
+  <div class="head"><span class="no">#202</span><h2>Bồ nông</h2></div>
+  <div class="alt">Cũng đúng: Chim bồ nông</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Pelikan_Walvis_Bay.jpg/960px-Pelikan_Walvis_Bay.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Pelikan_Walvis_Bay.jpg/960px-Pelikan_Walvis_Bay.jpg" alt="Bồ nông"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chim ruồi con chim ruồi ">
+  <div class="head"><span class="no">#203</span><h2>Chim ruồi</h2></div>
+  <div class="alt">Cũng đúng: Con chim ruồi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Vervain_hummingbird_%28Mellisuga_minima%29.jpg/960px-Vervain_hummingbird_%28Mellisuga_minima%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Vervain_hummingbird_%28Mellisuga_minima%29.jpg/960px-Vervain_hummingbird_%28Mellisuga_minima%29.jpg" alt="Chim ruồi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chim gõ kiến gõ kiến ">
+  <div class="head"><span class="no">#204</span><h2>Chim gõ kiến</h2></div>
+  <div class="alt">Cũng đúng: Gõ kiến</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Downy_woodpecker_in_PP_%2890879%29.jpg/960px-Downy_woodpecker_in_PP_%2890879%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Downy_woodpecker_in_PP_%2890879%29.jpg/960px-Downy_woodpecker_in_PP_%2890879%29.jpg" alt="Chim gõ kiến"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con bướm bướm ">
+  <div class="head"><span class="no">#205</span><h2>Con bướm</h2></div>
+  <div class="alt">Cũng đúng: Bướm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Charaxes_brutus_natalensis.jpg/960px-Charaxes_brutus_natalensis.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Charaxes_brutus_natalensis.jpg/960px-Charaxes_brutus_natalensis.jpg" alt="Con bướm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con ong ong ong mật ">
+  <div class="head"><span class="no">#206</span><h2>Con ong</h2></div>
+  <div class="alt">Cũng đúng: Ong, Ong mật</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/The_Lone_Pollinator.jpg/960px-The_Lone_Pollinator.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/The_Lone_Pollinator.jpg/960px-The_Lone_Pollinator.jpg" alt="Con ong"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bọ rùa con bọ rùa ">
+  <div class="head"><span class="no">#207</span><h2>Bọ rùa</h2></div>
+  <div class="alt">Cũng đúng: Con bọ rùa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Coccinella-septempunctata-15-fws.jpg/960px-Coccinella-septempunctata-15-fws.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Coccinella-septempunctata-15-fws.jpg/960px-Coccinella-septempunctata-15-fws.jpg" alt="Bọ rùa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ốc sên con ốc sên ">
+  <div class="head"><span class="no">#208</span><h2>Ốc sên</h2></div>
+  <div class="alt">Cũng đúng: Con ốc sên</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Snail.jpg/960px-Snail.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Snail.jpg/960px-Snail.jpg" alt="Ốc sên"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con ếch ếch ">
+  <div class="head"><span class="no">#209</span><h2>Con ếch</h2></div>
+  <div class="alt">Cũng đúng: Ếch</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Red-eyed_Leaf_Frog_%2849661076226%29.jpg/960px-Red-eyed_Leaf_Frog_%2849661076226%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Red-eyed_Leaf_Frog_%2849661076226%29.jpg/960px-Red-eyed_Leaf_Frog_%2849661076226%29.jpg" alt="Con ếch"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con rắn rắn ">
+  <div class="head"><span class="no">#210</span><h2>Con rắn</h2></div>
+  <div class="alt">Cũng đúng: Rắn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Trimeresurus_sabahi_fucatus%2C_Banded_pit_viper_-_Takua_Pa_District%2C_Phang-nga_Province_%2846710893582%29.jpg/960px-Trimeresurus_sabahi_fucatus%2C_Banded_pit_viper_-_Takua_Pa_District%2C_Phang-nga_Province_%2846710893582%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Trimeresurus_sabahi_fucatus%2C_Banded_pit_viper_-_Takua_Pa_District%2C_Phang-nga_Province_%2846710893582%29.jpg/960px-Trimeresurus_sabahi_fucatus%2C_Banded_pit_viper_-_Takua_Pa_District%2C_Phang-nga_Province_%2846710893582%29.jpg" alt="Con rắn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hải cẩu con hải cẩu ">
+  <div class="head"><span class="no">#211</span><h2>Hải cẩu</h2></div>
+  <div class="alt">Cũng đúng: Con hải cẩu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Seehund_%28Phoca_vitulina%29_auf_Spiekeroog_05.jpg/960px-Seehund_%28Phoca_vitulina%29_auf_Spiekeroog_05.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Seehund_%28Phoca_vitulina%29_auf_Spiekeroog_05.jpg/960px-Seehund_%28Phoca_vitulina%29_auf_Spiekeroog_05.jpg" alt="Hải cẩu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hải mã con hải mã ">
+  <div class="head"><span class="no">#212</span><h2>Hải mã</h2></div>
+  <div class="alt">Cũng đúng: Con hải mã</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg/960px-Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg/960px-Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg" alt="Hải mã"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con cáo cáo ">
+  <div class="head"><span class="no">#213</span><h2>Con cáo</h2></div>
+  <div class="alt">Cũng đúng: Cáo</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Vulpes_vulpes_ssp_fulvus.jpg/960px-Vulpes_vulpes_ssp_fulvus.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Vulpes_vulpes_ssp_fulvus.jpg/960px-Vulpes_vulpes_ssp_fulvus.jpg" alt="Con cáo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="chó sói sói ">
+  <div class="head"><span class="no">#214</span><h2>Chó sói</h2></div>
+  <div class="alt">Cũng đúng: Sói</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Eurasian_wolf_2.jpg/960px-Eurasian_wolf_2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Eurasian_wolf_2.jpg/960px-Eurasian_wolf_2.jpg" alt="Chó sói"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con nai nai hươu ">
+  <div class="head"><span class="no">#215</span><h2>Con nai</h2></div>
+  <div class="alt">Cũng đúng: Nai, Hươu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Cervus_elaphus_Luc_Viatour_1.jpg/960px-Cervus_elaphus_Luc_Viatour_1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Cervus_elaphus_Luc_Viatour_1.jpg/960px-Cervus_elaphus_Luc_Viatour_1.jpg" alt="Con nai"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gấu túi koala ">
+  <div class="head"><span class="no">#216</span><h2>Gấu túi</h2></div>
+  <div class="alt">Cũng đúng: Koala</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Koala_in_Zoo_Duisburg.jpg/960px-Koala_in_Zoo_Duisburg.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Koala_in_Zoo_Duisburg.jpg/960px-Koala_in_Zoo_Duisburg.jpg" alt="Gấu túi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con lười lười ">
+  <div class="head"><span class="no">#217</span><h2>Con lười</h2></div>
+  <div class="alt">Cũng đúng: Lười</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Bicho-pregui%C3%A7a_3.jpg/960px-Bicho-pregui%C3%A7a_3.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Bicho-pregui%C3%A7a_3.jpg/960px-Bicho-pregui%C3%A7a_3.jpg" alt="Con lười"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con trâu trâu ">
+  <div class="head"><span class="no">#218</span><h2>Con trâu</h2></div>
+  <div class="alt">Cũng đúng: Trâu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Water_buffalo_at_Rinca.jpg/960px-Water_buffalo_at_Rinca.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Water_buffalo_at_Rinca.jpg/960px-Water_buffalo_at_Rinca.jpg" alt="Con trâu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bò sữa con bò bò ">
+  <div class="head"><span class="no">#219</span><h2>Bò sữa</h2></div>
+  <div class="alt">Cũng đúng: Con bò, Bò</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/960px-Cow_female_black_white.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/960px-Cow_female_black_white.jpg" alt="Bò sữa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con ngựa ngựa ">
+  <div class="head"><span class="no">#220</span><h2>Con ngựa</h2></div>
+  <div class="alt">Cũng đúng: Ngựa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Horse_December_2014-1.jpg/960px-Horse_December_2014-1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Horse_December_2014-1.jpg/960px-Horse_December_2014-1.jpg" alt="Con ngựa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con dê dê ">
+  <div class="head"><span class="no">#221</span><h2>Con dê</h2></div>
+  <div class="alt">Cũng đúng: Dê</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Capra_aegagrus_hircus_in_isla_Margarita.jpg/960px-Capra_aegagrus_hircus_in_isla_Margarita.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Capra_aegagrus_hircus_in_isla_Margarita.jpg/960px-Capra_aegagrus_hircus_in_isla_Margarita.jpg" alt="Con dê"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con cừu cừu ">
+  <div class="head"><span class="no">#222</span><h2>Con cừu</h2></div>
+  <div class="alt">Cũng đúng: Cừu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Ascain_-_Oveja_-BT-_02.jpg/960px-Ascain_-_Oveja_-BT-_02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Ascain_-_Oveja_-BT-_02.jpg/960px-Ascain_-_Oveja_-BT-_02.jpg" alt="Con cừu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="gà trống con gà gà ">
+  <div class="head"><span class="no">#223</span><h2>Gà trống</h2></div>
+  <div class="alt">Cũng đúng: Con gà, Gà</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Thai_Game_chicken_-_red_3.JPG/960px-Thai_Game_chicken_-_red_3.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Thai_Game_chicken_-_red_3.JPG/960px-Thai_Game_chicken_-_red_3.JPG" alt="Gà trống"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con vịt vịt ">
+  <div class="head"><span class="no">#224</span><h2>Con vịt</h2></div>
+  <div class="alt">Cũng đúng: Vịt</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Bucephala-albeola-010.jpg/960px-Bucephala-albeola-010.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Bucephala-albeola-010.jpg/960px-Bucephala-albeola-010.jpg" alt="Con vịt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con chó chó ">
+  <div class="head"><span class="no">#225</span><h2>Con chó</h2></div>
+  <div class="alt">Cũng đúng: Chó</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Huskiesatrest.jpg/960px-Huskiesatrest.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Huskiesatrest.jpg/960px-Huskiesatrest.jpg" alt="Con chó"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con thỏ thỏ ">
+  <div class="head"><span class="no">#226</span><h2>Con thỏ</h2></div>
+  <div class="alt">Cũng đúng: Thỏ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Oryctolagus_cuniculus.010_-_Culleredo.jpg/960px-Oryctolagus_cuniculus.010_-_Culleredo.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Oryctolagus_cuniculus.010_-_Culleredo.jpg/960px-Oryctolagus_cuniculus.010_-_Culleredo.jpg" alt="Con thỏ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con sóc sóc ">
+  <div class="head"><span class="no">#227</span><h2>Con sóc</h2></div>
+  <div class="alt">Cũng đúng: Sóc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Grey_squirrel_%28Sciurus_carolinensis%29_02.jpg/960px-Grey_squirrel_%28Sciurus_carolinensis%29_02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Grey_squirrel_%28Sciurus_carolinensis%29_02.jpg/960px-Grey_squirrel_%28Sciurus_carolinensis%29_02.jpg" alt="Con sóc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con nhím nhím ">
+  <div class="head"><span class="no">#228</span><h2>Con nhím</h2></div>
+  <div class="alt">Cũng đúng: Nhím</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Igel.JPG/960px-Igel.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Igel.JPG/960px-Igel.JPG" alt="Con nhím"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="rái cá con rái cá ">
+  <div class="head"><span class="no">#229</span><h2>Rái cá</h2></div>
+  <div class="alt">Cũng đúng: Con rái cá</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/d/d3/Fischotter%2C_Lutra_Lutra.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/d/d3/Fischotter%2C_Lutra_Lutra.JPG" alt="Rái cá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hải ly con hải ly ">
+  <div class="head"><span class="no">#230</span><h2>Hải ly</h2></div>
+  <div class="alt">Cũng đúng: Con hải ly</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Beaver_%2848876665228%29.jpg/960px-Beaver_%2848876665228%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Beaver_%2848876665228%29.jpg/960px-Beaver_%2848876665228%29.jpg" alt="Hải ly"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lạc đà không bướu alpaca ">
+  <div class="head"><span class="no">#231</span><h2>Lạc đà không bướu</h2></div>
+  <div class="alt">Cũng đúng: Alpaca</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Alpaca_in_Higashiyama_Zoo_-_1.jpg/960px-Alpaca_in_Higashiyama_Zoo_-_1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Alpaca_in_Higashiyama_Zoo_-_1.jpg/960px-Alpaca_in_Higashiyama_Zoo_-_1.jpg" alt="Lạc đà không bướu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cá koi cá chép koi ">
+  <div class="head"><span class="no">#232</span><h2>Cá koi</h2></div>
+  <div class="alt">Cũng đúng: Cá chép Koi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Ojiya_Nishikigoi_no_Sato_ac_%283%29.jpg/960px-Ojiya_Nishikigoi_no_Sato_ac_%283%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Ojiya_Nishikigoi_no_Sato_ac_%283%29.jpg/960px-Ojiya_Nishikigoi_no_Sato_ac_%283%29.jpg" alt="Cá koi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con kiến kiến ">
+  <div class="head"><span class="no">#233</span><h2>Con kiến</h2></div>
+  <div class="alt">Cũng đúng: Kiến</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Red_Ant_-_March_2025.jpg/960px-Red_Ant_-_March_2025.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Red_Ant_-_March_2025.jpg/960px-Red_Ant_-_March_2025.jpg" alt="Con kiến"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thác nước thác ">
+  <div class="head"><span class="no">#234</span><h2>Thác nước</h2></div>
+  <div class="alt">Cũng đúng: Thác</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Air_terjun_yeh_labuh_bali.jpg/960px-Air_terjun_yeh_labuh_bali.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Air_terjun_yeh_labuh_bali.jpg/960px-Air_terjun_yeh_labuh_bali.jpg" alt="Thác nước"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sa mạc sa mạc sahara ">
+  <div class="head"><span class="no">#235</span><h2>Sa mạc</h2></div>
+  <div class="alt">Cũng đúng: Sa mạc Sahara</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Rub_al_Khali_002.JPG/960px-Rub_al_Khali_002.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Rub_al_Khali_002.JPG/960px-Rub_al_Khali_002.JPG" alt="Sa mạc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tảng băng trôi băng trôi ">
+  <div class="head"><span class="no">#236</span><h2>Tảng băng trôi</h2></div>
+  <div class="alt">Cũng đúng: Băng trôi</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Iceberg_in_the_Arctic_with_its_underside_exposed.jpg/960px-Iceberg_in_the_Arctic_with_its_underside_exposed.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Iceberg_in_the_Arctic_with_its_underside_exposed.jpg/960px-Iceberg_in_the_Arctic_with_its_underside_exposed.jpg" alt="Tảng băng trôi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tia sét sét tia chớp ">
+  <div class="head"><span class="no">#237</span><h2>Tia sét</h2></div>
+  <div class="alt">Cũng đúng: Sét, Tia chớp</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg/960px-Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg/960px-Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg" alt="Tia sét"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="vòi rồng lốc xoáy ">
+  <div class="head"><span class="no">#238</span><h2>Vòi rồng</h2></div>
+  <div class="alt">Cũng đúng: Lốc xoáy</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/F5_tornado_Elie_Manitoba_2007.jpg/960px-F5_tornado_Elie_Manitoba_2007.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/F5_tornado_Elie_Manitoba_2007.jpg/960px-F5_tornado_Elie_Manitoba_2007.jpg" alt="Vòi rồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="nhật thực nhật thực toàn phần ">
+  <div class="head"><span class="no">#239</span><h2>Nhật thực</h2></div>
+  <div class="alt">Cũng đúng: Nhật thực toàn phần</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Eclipse-totale-2026-couronne-Luc-Viatour.jpg/960px-Eclipse-totale-2026-couronne-Luc-Viatour.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Eclipse-totale-2026-couronne-Luc-Viatour.jpg/960px-Eclipse-totale-2026-couronne-Luc-Viatour.jpg" alt="Nhật thực"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="trăng tròn mặt trăng ">
+  <div class="head"><span class="no">#240</span><h2>Trăng tròn</h2></div>
+  <div class="alt">Cũng đúng: Mặt trăng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Pournami.jpg/960px-Pournami.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Pournami.jpg/960px-Pournami.jpg" alt="Trăng tròn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="dải ngân hà ngân hà ">
+  <div class="head"><span class="no">#241</span><h2>Dải Ngân Hà</h2></div>
+  <div class="alt">Cũng đúng: Ngân Hà</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/ESO-VLT-Laser-phot-33a-07.jpg/960px-ESO-VLT-Laser-phot-33a-07.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/ESO-VLT-Laser-phot-33a-07.jpg/960px-ESO-VLT-Laser-phot-33a-07.jpg" alt="Dải Ngân Hà"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="sao chổi chổi sao ">
+  <div class="head"><span class="no">#242</span><h2>Sao chổi</h2></div>
+  <div class="alt">Cũng đúng: Chổi sao</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/2020-07-21_-_Neowise_-_D_Rousseau.jpg/960px-2020-07-21_-_Neowise_-_D_Rousseau.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/2020-07-21_-_Neowise_-_D_Rousseau.jpg/960px-2020-07-21_-_Neowise_-_D_Rousseau.jpg" alt="Sao chổi"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bãi biển biển ">
+  <div class="head"><span class="no">#243</span><h2>Bãi biển</h2></div>
+  <div class="alt">Cũng đúng: Biển</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Beach_at_Fort_Lauderdale.jpg/960px-Beach_at_Fort_Lauderdale.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Beach_at_Fort_Lauderdale.jpg/960px-Beach_at_Fort_Lauderdale.jpg" alt="Bãi biển"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa tulip tulip uất kim hương ">
+  <div class="head"><span class="no">#244</span><h2>Hoa tulip</h2></div>
+  <div class="alt">Cũng đúng: Tulip, Uất kim hương</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/%D7%A6%D7%91%D7%A2%D7%95%D7%A0%D7%99%D7%9D.JPG/960px-%D7%A6%D7%91%D7%A2%D7%95%D7%A0%D7%99%D7%9D.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/%D7%A6%D7%91%D7%A2%D7%95%D7%A0%D7%99%D7%9D.JPG/960px-%D7%A6%D7%91%D7%A2%D7%95%D7%A0%D7%99%D7%9D.JPG" alt="Hoa tulip"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa hồng hồng ">
+  <div class="head"><span class="no">#245</span><h2>Hoa hồng</h2></div>
+  <div class="alt">Cũng đúng: Hồng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Red-Rose-Sitia-Crete.jpg/960px-Red-Rose-Sitia-Crete.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Red-Rose-Sitia-Crete.jpg/960px-Red-Rose-Sitia-Crete.jpg" alt="Hoa hồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa cúc cúc ">
+  <div class="head"><span class="no">#246</span><h2>Hoa cúc</h2></div>
+  <div class="alt">Cũng đúng: Cúc</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Flowers_in_snow_2022_G4.jpg/960px-Flowers_in_snow_2022_G4.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Flowers_in_snow_2022_G4.jpg/960px-Flowers_in_snow_2022_G4.jpg" alt="Hoa cúc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa phượng phượng vĩ ">
+  <div class="head"><span class="no">#247</span><h2>Hoa phượng</h2></div>
+  <div class="alt">Cũng đúng: Phượng vĩ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Royal_Poinciana.jpg/960px-Royal_Poinciana.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Royal_Poinciana.jpg/960px-Royal_Poinciana.jpg" alt="Hoa phượng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa súng súng ">
+  <div class="head"><span class="no">#248</span><h2>Hoa súng</h2></div>
+  <div class="alt">Cũng đúng: Súng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Nymphaea_nouchali5.JPG/960px-Nymphaea_nouchali5.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Nymphaea_nouchali5.JPG/960px-Nymphaea_nouchali5.JPG" alt="Hoa súng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="hoa oải hương oải hương lavender ">
+  <div class="head"><span class="no">#249</span><h2>Hoa oải hương</h2></div>
+  <div class="alt">Cũng đúng: Oải hương, Lavender</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Single_lavender_flower02.jpg/960px-Single_lavender_flower02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Single_lavender_flower02.jpg/960px-Single_lavender_flower02.jpg" alt="Hoa oải hương"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xương rồng cây xương rồng ">
+  <div class="head"><span class="no">#250</span><h2>Xương rồng</h2></div>
+  <div class="alt">Cũng đúng: Cây xương rồng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Carnegiea_gigantea_Saguaro_cactus_plant.jpg/960px-Carnegiea_gigantea_Saguaro_cactus_plant.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Carnegiea_gigantea_Saguaro_cactus_plant.jpg/960px-Carnegiea_gigantea_Saguaro_cactus_plant.jpg" alt="Xương rồng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cây nấm nấm ">
+  <div class="head"><span class="no">#251</span><h2>Cây nấm</h2></div>
+  <div class="alt">Cũng đúng: Nấm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Sparrige_Sch%C3%BCppling_%28Pholiota_squarrosa%29.jpg/960px-Sparrige_Sch%C3%BCppling_%28Pholiota_squarrosa%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Sparrige_Sch%C3%BCppling_%28Pholiota_squarrosa%29.jpg/960px-Sparrige_Sch%C3%BCppling_%28Pholiota_squarrosa%29.jpg" alt="Cây nấm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="máy bay máy bay chở khách ">
+  <div class="head"><span class="no">#252</span><h2>Máy bay</h2></div>
+  <div class="alt">Cũng đúng: Máy bay chở khách</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/United_A320_N405UA_at_BOS_%2833787222465%29.jpg/960px-United_A320_N405UA_at_BOS_%2833787222465%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/United_A320_N405UA_at_BOS_%2833787222465%29.jpg/960px-United_A320_N405UA_at_BOS_%2833787222465%29.jpg" alt="Máy bay"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tàu hỏa tàu lửa tàu ">
+  <div class="head"><span class="no">#253</span><h2>Tàu hỏa</h2></div>
+  <div class="alt">Cũng đúng: Tàu lửa, Tàu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/%D0%9F%D0%BE%D0%B5%D0%B7%D0%B4_%D0%BD%D0%B0_%D1%84%D0%BE%D0%BD%D0%B5_%D0%B3%D0%BE%D1%80%D1%8B_%D0%A8%D0%B0%D1%82%D1%80%D0%B8%D1%89%D0%B5._%D0%92%D0%BE%D1%80%D0%BE%D0%BD%D0%B5%D0%B6%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C.jpg/960px-%D0%9F%D0%BE%D0%B5%D0%B7%D0%B4_%D0%BD%D0%B0_%D1%84%D0%BE%D0%BD%D0%B5_%D0%B3%D0%BE%D1%80%D1%8B_%D0%A8%D0%B0%D1%82%D1%80%D0%B8%D1%89%D0%B5._%D0%92%D0%BE%D1%80%D0%BE%D0%BD%D0%B5%D0%B6%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/%D0%9F%D0%BE%D0%B5%D0%B7%D0%B4_%D0%BD%D0%B0_%D1%84%D0%BE%D0%BD%D0%B5_%D0%B3%D0%BE%D1%80%D1%8B_%D0%A8%D0%B0%D1%82%D1%80%D0%B8%D1%89%D0%B5._%D0%92%D0%BE%D1%80%D0%BE%D0%BD%D0%B5%D0%B6%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C.jpg/960px-%D0%9F%D0%BE%D0%B5%D0%B7%D0%B4_%D0%BD%D0%B0_%D1%84%D0%BE%D0%BD%D0%B5_%D0%B3%D0%BE%D1%80%D1%8B_%D0%A8%D0%B0%D1%82%D1%80%D0%B8%D1%89%D0%B5._%D0%92%D0%BE%D1%80%D0%BE%D0%BD%D0%B5%D0%B6%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C.jpg" alt="Tàu hỏa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xe buýt buýt xe bus ">
+  <div class="head"><span class="no">#254</span><h2>Xe buýt</h2></div>
+  <div class="alt">Cũng đúng: Buýt, Xe bus</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/LTZ1328-19-20241030-160332.jpg/960px-LTZ1328-19-20241030-160332.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/LTZ1328-19-20241030-160332.jpg/960px-LTZ1328-19-20241030-160332.jpg" alt="Xe buýt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xe máy xe gắn máy ">
+  <div class="head"><span class="no">#255</span><h2>Xe máy</h2></div>
+  <div class="alt">Cũng đúng: Xe gắn máy</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Five_children_on_a_motorcycle.jpg/960px-Five_children_on_a_motorcycle.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Five_children_on_a_motorcycle.jpg/960px-Five_children_on_a_motorcycle.jpg" alt="Xe máy"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="xe cứu hỏa xe chữa cháy ">
+  <div class="head"><span class="no">#256</span><h2>Xe cứu hỏa</h2></div>
+  <div class="alt">Cũng đúng: Xe chữa cháy</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Dublin_Fire_Brigade_Pump_Ladder_D32.jpg/960px-Dublin_Fire_Brigade_Pump_Ladder_D32.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Dublin_Fire_Brigade_Pump_Ladder_D32.jpg/960px-Dublin_Fire_Brigade_Pump_Ladder_D32.jpg" alt="Xe cứu hỏa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tàu ngầm tàu lặn ">
+  <div class="head"><span class="no">#257</span><h2>Tàu ngầm</h2></div>
+  <div class="alt">Cũng đúng: Tàu lặn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/US_Navy_040730-N-1234E-002_PCU_Virginia_%28SSN_774%29_returns_to_the_General_Dynamics_Electric_Boat_shipyard.jpg/960px-US_Navy_040730-N-1234E-002_PCU_Virginia_%28SSN_774%29_returns_to_the_General_Dynamics_Electric_Boat_shipyard.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/US_Navy_040730-N-1234E-002_PCU_Virginia_%28SSN_774%29_returns_to_the_General_Dynamics_Electric_Boat_shipyard.jpg/960px-US_Navy_040730-N-1234E-002_PCU_Virginia_%28SSN_774%29_returns_to_the_General_Dynamics_Electric_Boat_shipyard.jpg" alt="Tàu ngầm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thuyền buồm tàu buồm ">
+  <div class="head"><span class="no">#258</span><h2>Thuyền buồm</h2></div>
+  <div class="alt">Cũng đúng: Tàu buồm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Zoutelande_%28NL%29%2C_Strand%2C_Blick_auf_die_Nordsee_--_2022_--_4984.jpg/960px-Zoutelande_%28NL%29%2C_Strand%2C_Blick_auf_die_Nordsee_--_2022_--_4984.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Zoutelande_%28NL%29%2C_Strand%2C_Blick_auf_die_Nordsee_--_2022_--_4984.jpg/960px-Zoutelande_%28NL%29%2C_Strand%2C_Blick_auf_die_Nordsee_--_2022_--_4984.jpg" alt="Thuyền buồm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thuyền thúng thúng chai ">
+  <div class="head"><span class="no">#259</span><h2>Thuyền thúng</h2></div>
+  <div class="alt">Cũng đúng: Thúng chai</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Da-Nang_Vietnam_Coracles-02.jpg/960px-Da-Nang_Vietnam_Coracles-02.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Da-Nang_Vietnam_Coracles-02.jpg/960px-Da-Nang_Vietnam_Coracles-02.jpg" alt="Thuyền thúng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đầu máy hơi nước tàu hơi nước ">
+  <div class="head"><span class="no">#260</span><h2>Đầu máy hơi nước</h2></div>
+  <div class="alt">Cũng đúng: Tàu hơi nước</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Number_4468_Mallard_in_York.jpg/960px-Number_4468_Mallard_in_York.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Number_4468_Mallard_in_York.jpg/960px-Number_4468_Mallard_in_York.jpg" alt="Đầu máy hơi nước"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cáp treo cáp treo bà nà ">
+  <div class="head"><span class="no">#261</span><h2>Cáp treo</h2></div>
+  <div class="alt">Cũng đúng: Cáp treo Bà Nà</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Seceda_aerial_lift_-_gondola.jpg/960px-Seceda_aerial_lift_-_gondola.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Seceda_aerial_lift_-_gondola.jpg/960px-Seceda_aerial_lift_-_gondola.jpg" alt="Cáp treo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đu quay vòng quay vòng đu quay ">
+  <div class="head"><span class="no">#262</span><h2>Đu quay</h2></div>
+  <div class="alt">Cũng đúng: Vòng quay, Vòng đu quay</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/D%C3%BClmen%2C_Viktorkirmes_auf_dem_Overbergplatz_--_2014_--_3738_%282%29.jpg/960px-D%C3%BClmen%2C_Viktorkirmes_auf_dem_Overbergplatz_--_2014_--_3738_%282%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/D%C3%BClmen%2C_Viktorkirmes_auf_dem_Overbergplatz_--_2014_--_3738_%282%29.jpg/960px-D%C3%BClmen%2C_Viktorkirmes_auf_dem_Overbergplatz_--_2014_--_3738_%282%29.jpg" alt="Đu quay"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tàu lượn siêu tốc tàu lượn ">
+  <div class="head"><span class="no">#263</span><h2>Tàu lượn siêu tốc</h2></div>
+  <div class="alt">Cũng đúng: Tàu lượn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Rainbow%27s_End_Downhill_View.jpg/960px-Rainbow%27s_End_Downhill_View.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Rainbow%27s_End_Downhill_View.jpg/960px-Rainbow%27s_End_Downhill_View.jpg" alt="Tàu lượn siêu tốc"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lều cắm trại lều cắm trại ">
+  <div class="head"><span class="no">#264</span><h2>Lều cắm trại</h2></div>
+  <div class="alt">Cũng đúng: Lều, Cắm trại</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Campement_-_20150802_15h44_%2810723%29.jpg/960px-Campement_-_20150802_15h44_%2810723%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Campement_-_20150802_15h44_%2810723%29.jpg/960px-Campement_-_20150802_15h44_%2810723%29.jpg" alt="Lều cắm trại"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đàn guitar guitar ghi-ta đàn ghi ta ">
+  <div class="head"><span class="no">#265</span><h2>Đàn guitar</h2></div>
+  <div class="alt">Cũng đúng: Guitar, Ghi-ta, Đàn ghi ta</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/A_man_sits_comfortably_on_a_sofa_in_a_living_room%2C_focused_on_playing_his_acoustic_guitar.jpg/960px-A_man_sits_comfortably_on_a_sofa_in_a_living_room%2C_focused_on_playing_his_acoustic_guitar.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/A_man_sits_comfortably_on_a_sofa_in_a_living_room%2C_focused_on_playing_his_acoustic_guitar.jpg/960px-A_man_sits_comfortably_on_a_sofa_in_a_living_room%2C_focused_on_playing_his_acoustic_guitar.jpg" alt="Đàn guitar"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="vĩ cầm violin đàn violin ">
+  <div class="head"><span class="no">#266</span><h2>Vĩ cầm</h2></div>
+  <div class="alt">Cũng đúng: Violin, Đàn violin</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/A_depiction_Bow_and_Violin.JPG/960px-A_depiction_Bow_and_Violin.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/A_depiction_Bow_and_Violin.JPG/960px-A_depiction_Bow_and_Violin.JPG" alt="Vĩ cầm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kèn saxophone saxophone ">
+  <div class="head"><span class="no">#267</span><h2>Kèn saxophone</h2></div>
+  <div class="alt">Cũng đúng: Saxophone</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Eight_saxophone_sizes_smaller.png/960px-Eight_saxophone_sizes_smaller.png" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Eight_saxophone_sizes_smaller.png/960px-Eight_saxophone_sizes_smaller.png" alt="Kèn saxophone"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kèn trumpet trumpet kèn đồng ">
+  <div class="head"><span class="no">#268</span><h2>Kèn trumpet</h2></div>
+  <div class="alt">Cũng đúng: Trumpet, Kèn đồng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Yamaha_Trumpet_YTR-8335LA_crop.jpg/960px-Yamaha_Trumpet_YTR-8335LA_crop.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Yamaha_Trumpet_YTR-8335LA_crop.jpg/960px-Yamaha_Trumpet_YTR-8335LA_crop.jpg" alt="Kèn trumpet"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đàn tranh đàn thập lục ">
+  <div class="head"><span class="no">#269</span><h2>Đàn tranh</h2></div>
+  <div class="alt">Cũng đúng: Đàn thập lục</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Flickr_-_dalbera_-_Huong_Thanh_Trio%2C_%28mus%C3%A9e_Guimet%2C_Paris%29.jpg/960px-Flickr_-_dalbera_-_Huong_Thanh_Trio%2C_%28mus%C3%A9e_Guimet%2C_Paris%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Flickr_-_dalbera_-_Huong_Thanh_Trio%2C_%28mus%C3%A9e_Guimet%2C_Paris%29.jpg/960px-Flickr_-_dalbera_-_Huong_Thanh_Trio%2C_%28mus%C3%A9e_Guimet%2C_Paris%29.jpg" alt="Đàn tranh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cồng chiêng chiêng ">
+  <div class="head"><span class="no">#270</span><h2>Cồng chiêng</h2></div>
+  <div class="alt">Cũng đúng: Chiêng</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Nezu_Museum_Gong-20091020-RM-111948.jpg/960px-Nezu_Museum_Gong-20091020-RM-111948.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Nezu_Museum_Gong-20091020-RM-111948.jpg/960px-Nezu_Museum_Gong-20091020-RM-111948.jpg" alt="Cồng chiêng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cái ô dù cây dù ô dù ">
+  <div class="head"><span class="no">#271</span><h2>Cái ô</h2></div>
+  <div class="alt">Cũng đúng: Dù, Cây dù, Ô dù</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/M0354_000727-005_1.jpg/960px-M0354_000727-005_1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/M0354_000727-005_1.jpg/960px-M0354_000727-005_1.jpg" alt="Cái ô"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="điện thoại điện thoại di động smartphone ">
+  <div class="head"><span class="no">#272</span><h2>Điện thoại</h2></div>
+  <div class="alt">Cũng đúng: Điện thoại di động, Smartphone</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Wikipedia_homepage_on_a_large_Android_phone%2C_2015-04-16.jpg/960px-Wikipedia_homepage_on_a_large_Android_phone%2C_2015-04-16.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Wikipedia_homepage_on_a_large_Android_phone%2C_2015-04-16.jpg/960px-Wikipedia_homepage_on_a_large_Android_phone%2C_2015-04-16.jpg" alt="Điện thoại"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="máy ảnh máy chụp ảnh camera ">
+  <div class="head"><span class="no">#273</span><h2>Máy ảnh</h2></div>
+  <div class="alt">Cũng đúng: Máy chụp ảnh, Camera</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg/960px-LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg/960px-LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg" alt="Máy ảnh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="máy tính xách tay laptop ">
+  <div class="head"><span class="no">#274</span><h2>Máy tính xách tay</h2></div>
+  <div class="alt">Cũng đúng: Laptop</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Laptop_collage.jpg/960px-Laptop_collage.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Laptop_collage.jpg/960px-Laptop_collage.jpg" alt="Máy tính xách tay"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tủ lạnh tủ đá ">
+  <div class="head"><span class="no">#275</span><h2>Tủ lạnh</h2></div>
+  <div class="alt">Cũng đúng: Tủ đá</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Vestel%2C_IFA_2018%2C_Berlin_%28P1070201%29.jpg/960px-Vestel%2C_IFA_2018%2C_Berlin_%28P1070201%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Vestel%2C_IFA_2018%2C_Berlin_%28P1070201%29.jpg/960px-Vestel%2C_IFA_2018%2C_Berlin_%28P1070201%29.jpg" alt="Tủ lạnh"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ấm trà bình trà ấm ">
+  <div class="head"><span class="no">#276</span><h2>Ấm trà</h2></div>
+  <div class="alt">Cũng đúng: Bình trà, Ấm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Teapot_2010_G1.jpg/960px-Teapot_2010_G1.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Teapot_2010_G1.jpg/960px-Teapot_2010_G1.jpg" alt="Ấm trà"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cái kéo kéo ">
+  <div class="head"><span class="no">#277</span><h2>Cái kéo</h2></div>
+  <div class="alt">Cũng đúng: Kéo</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Small_pair_of_blue_scissors.jpg/960px-Small_pair_of_blue_scissors.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Small_pair_of_blue_scissors.jpg/960px-Small_pair_of_blue_scissors.jpg" alt="Cái kéo"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cái búa búa ">
+  <div class="head"><span class="no">#278</span><h2>Cái búa</h2></div>
+  <div class="alt">Cũng đúng: Búa</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Hammer_Time_%2849790892297%29.jpg/960px-Hammer_Time_%2849790892297%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Hammer_Time_%2849790892297%29.jpg/960px-Hammer_Time_%2849790892297%29.jpg" alt="Cái búa"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ổ khoá ổ khóa khoá ">
+  <div class="head"><span class="no">#279</span><h2>Ổ khoá</h2></div>
+  <div class="alt">Cũng đúng: Ổ khóa, Khoá</div>
+  <a class="pic" href="https://upload.wikimedia.org/wikipedia/commons/4/48/Padlock_kl%C3%B3dka_ubt.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/4/48/Padlock_kl%C3%B3dka_ubt.JPG" alt="Ổ khoá"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cây nến nến ">
+  <div class="head"><span class="no">#280</span><h2>Cây nến</h2></div>
+  <div class="alt">Cũng đúng: Nến</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/%D0%9C%D0%B0%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80_%D0%9C%D0%BE%D1%88%D1%82%D0%B0%D0%BD%D0%B8%D1%86%D0%B0-%D0%BA%D0%B0%D0%BF%D0%B5%D0%BB%D0%B0_%D0%B7%D0%B0_%D0%BF%D0%B0%D1%99%D0%B5%D1%9A%D0%B5_%D1%81%D0%B2%D0%B5%D1%9B%D0%B0_%28Mo%C5%A1tanica_Monastery%2C_chapel_for_lighting_candles%29.jpg/960px-%D0%9C%D0%B0%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80_%D0%9C%D0%BE%D1%88%D1%82%D0%B0%D0%BD%D0%B8%D1%86%D0%B0-%D0%BA%D0%B0%D0%BF%D0%B5%D0%BB%D0%B0_%D0%B7%D0%B0_%D0%BF%D0%B0%D1%99%D0%B5%D1%9A%D0%B5_%D1%81%D0%B2%D0%B5%D1%9B%D0%B0_%28Mo%C5%A1tanica_Monastery%2C_chapel_for_lighting_candles%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/%D0%9C%D0%B0%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80_%D0%9C%D0%BE%D1%88%D1%82%D0%B0%D0%BD%D0%B8%D1%86%D0%B0-%D0%BA%D0%B0%D0%BF%D0%B5%D0%BB%D0%B0_%D0%B7%D0%B0_%D0%BF%D0%B0%D1%99%D0%B5%D1%9A%D0%B5_%D1%81%D0%B2%D0%B5%D1%9B%D0%B0_%28Mo%C5%A1tanica_Monastery%2C_chapel_for_lighting_candles%29.jpg/960px-%D0%9C%D0%B0%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80_%D0%9C%D0%BE%D1%88%D1%82%D0%B0%D0%BD%D0%B8%D1%86%D0%B0-%D0%BA%D0%B0%D0%BF%D0%B5%D0%BB%D0%B0_%D0%B7%D0%B0_%D0%BF%D0%B0%D1%99%D0%B5%D1%9A%D0%B5_%D1%81%D0%B2%D0%B5%D1%9B%D0%B0_%28Mo%C5%A1tanica_Monastery%2C_chapel_for_lighting_candles%29.jpg" alt="Cây nến"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bút chì cây bút chì ">
+  <div class="head"><span class="no">#281</span><h2>Bút chì</h2></div>
+  <div class="alt">Cũng đúng: Cây bút chì</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/5%281%29%D9%85%D8%AD%D9%85%D8%AF_%D8%AD%D9%85%D9%8A%D8%AF_%D8%B9%D9%84%D9%8A_%D8%AC%D8%B3%D8%A7%D9%85.jpg/960px-5%281%29%D9%85%D8%AD%D9%85%D8%AF_%D8%AD%D9%85%D9%8A%D8%AF_%D8%B9%D9%84%D9%8A_%D8%AC%D8%B3%D8%A7%D9%85.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/5%281%29%D9%85%D8%AD%D9%85%D8%AF_%D8%AD%D9%85%D9%8A%D8%AF_%D8%B9%D9%84%D9%8A_%D8%AC%D8%B3%D8%A7%D9%85.jpg/960px-5%281%29%D9%85%D8%AD%D9%85%D8%AF_%D8%AD%D9%85%D9%8A%D8%AF_%D8%B9%D9%84%D9%8A_%D8%AC%D8%B3%D8%A7%D9%85.jpg" alt="Bút chì"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quả địa cầu địa cầu ">
+  <div class="head"><span class="no">#282</span><h2>Quả địa cầu</h2></div>
+  <div class="alt">Cũng đúng: Địa cầu</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Collezione_globi.JPG/960px-Collezione_globi.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Collezione_globi.JPG/960px-Collezione_globi.JPG" alt="Quả địa cầu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="la bàn cái la bàn ">
+  <div class="head"><span class="no">#283</span><h2>La bàn</h2></div>
+  <div class="alt">Cũng đúng: Cái la bàn</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Compass_IMG_1223.jpg/960px-Compass_IMG_1223.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Compass_IMG_1223.jpg/960px-Compass_IMG_1223.jpg" alt="La bàn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kính lúp cái kính lúp ">
+  <div class="head"><span class="no">#284</span><h2>Kính lúp</h2></div>
+  <div class="alt">Cũng đúng: Cái kính lúp</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Magnifying_glass2.jpg/960px-Magnifying_glass2.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Magnifying_glass2.jpg/960px-Magnifying_glass2.jpg" alt="Kính lúp"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="ống nhòm cái ống nhòm ">
+  <div class="head"><span class="no">#285</span><h2>Ống nhòm</h2></div>
+  <div class="alt">Cũng đúng: Cái ống nhòm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Binocular_with_8x_magnification_and_42_mm_lens_diameter.jpg/960px-Binocular_with_8x_magnification_and_42_mm_lens_diameter.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Binocular_with_8x_magnification_and_42_mm_lens_diameter.jpg/960px-Binocular_with_8x_magnification_and_42_mm_lens_diameter.jpg" alt="Ống nhòm"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="micro mic micrô ">
+  <div class="head"><span class="no">#286</span><h2>Micro</h2></div>
+  <div class="alt">Cũng đúng: Mic, Micrô</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/2018-11-02_Konzert_-The_Hellfreaks-_in_-Ilvers_Musikbar-_in_Erfurt_IMG_3414_LR10_by_Stepro.jpg/960px-2018-11-02_Konzert_-The_Hellfreaks-_in_-Ilvers_Musikbar-_in_Erfurt_IMG_3414_LR10_by_Stepro.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/2018-11-02_Konzert_-The_Hellfreaks-_in_-Ilvers_Musikbar-_in_Erfurt_IMG_3414_LR10_by_Stepro.jpg/960px-2018-11-02_Konzert_-The_Hellfreaks-_in_-Ilvers_Musikbar-_in_Erfurt_IMG_3414_LR10_by_Stepro.jpg" alt="Micro"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tai nghe headphone ">
+  <div class="head"><span class="no">#287</span><h2>Tai nghe</h2></div>
+  <div class="alt">Cũng đúng: Headphone</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Bose_QuietComfort_25_Acoustic_Noise_Cancelling_Headphones_with_Carry_Case.jpg/960px-Bose_QuietComfort_25_Acoustic_Noise_Cancelling_Headphones_with_Carry_Case.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Bose_QuietComfort_25_Acoustic_Noise_Cancelling_Headphones_with_Carry_Case.jpg/960px-Bose_QuietComfort_25_Acoustic_Noise_Cancelling_Headphones_with_Carry_Case.jpg" alt="Tai nghe"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="con diều diều thả diều ">
+  <div class="head"><span class="no">#288</span><h2>Con diều</h2></div>
+  <div class="alt">Cũng đúng: Diều, Thả diều</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Impian_Kite_at_Borneo_International_Kite_Festival.jpg/960px-Impian_Kite_at_Borneo_International_Kite_Festival.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Impian_Kite_at_Borneo_International_Kite_Festival.jpg/960px-Impian_Kite_at_Borneo_International_Kite_Festival.jpg" alt="Con diều"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bóng rổ quả bóng rổ ">
+  <div class="head"><span class="no">#289</span><h2>Bóng rổ</h2></div>
+  <div class="alt">Cũng đúng: Quả bóng rổ</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/USA_vs._China_Mens_Basketball_-_Beijing_2008_Olympic_Games_%282751923597%29.jpg/960px-USA_vs._China_Mens_Basketball_-_Beijing_2008_Olympic_Games_%282751923597%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/USA_vs._China_Mens_Basketball_-_Beijing_2008_Olympic_Games_%282751923597%29.jpg/960px-USA_vs._China_Mens_Basketball_-_Beijing_2008_Olympic_Games_%282751923597%29.jpg" alt="Bóng rổ"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="quần vợt tennis ">
+  <div class="head"><span class="no">#290</span><h2>Quần vợt</h2></div>
+  <div class="alt">Cũng đúng: Tennis</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/P%C3%B6rtschach_Johannes-Brahms-Promenade_Werzer-Tennis-Arena_27052017_8932.jpg/960px-P%C3%B6rtschach_Johannes-Brahms-Promenade_Werzer-Tennis-Arena_27052017_8932.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/P%C3%B6rtschach_Johannes-Brahms-Promenade_Werzer-Tennis-Arena_27052017_8932.jpg/960px-P%C3%B6rtschach_Johannes-Brahms-Promenade_Werzer-Tennis-Arena_27052017_8932.jpg" alt="Quần vợt"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cầu lông đánh cầu lông ">
+  <div class="head"><span class="no">#291</span><h2>Cầu lông</h2></div>
+  <div class="alt">Cũng đúng: Đánh cầu lông</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Olympics_2012_Mixed_Doubles_Final.jpg/960px-Olympics_2012_Mixed_Doubles_Final.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Olympics_2012_Mixed_Doubles_Final.jpg/960px-Olympics_2012_Mixed_Doubles_Final.jpg" alt="Cầu lông"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bóng bàn ping pong ">
+  <div class="head"><span class="no">#292</span><h2>Bóng bàn</h2></div>
+  <div class="alt">Cũng đúng: Ping pong</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Mondial_Ping_-_Men%27s_Singles_-_Round_4_-_Kenta_Matsudaira-Vladimir_Samsonov_-_57.jpg/960px-Mondial_Ping_-_Men%27s_Singles_-_Round_4_-_Kenta_Matsudaira-Vladimir_Samsonov_-_57.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Mondial_Ping_-_Men%27s_Singles_-_Round_4_-_Kenta_Matsudaira-Vladimir_Samsonov_-_57.jpg/960px-Mondial_Ping_-_Men%27s_Singles_-_Round_4_-_Kenta_Matsudaira-Vladimir_Samsonov_-_57.jpg" alt="Bóng bàn"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="cờ vua bàn cờ vua ">
+  <div class="head"><span class="no">#293</span><h2>Cờ vua</h2></div>
+  <div class="alt">Cũng đúng: Bàn cờ vua</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Chess_game_Staunton_No._6_perfil_view_8.jpg/960px-Chess_game_Staunton_No._6_perfil_view_8.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Chess_game_Staunton_No._6_perfil_view_8.jpg/960px-Chess_game_Staunton_No._6_perfil_view_8.jpg" alt="Cờ vua"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bowling bóng bowling ">
+  <div class="head"><span class="no">#294</span><h2>Bowling</h2></div>
+  <div class="alt">Cũng đúng: Bóng bowling</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/US_Navy_090819-N-2259V-119_A_Sailor_releases_the_ball_down_the_lane_at_a_bowling_competition_during_the_2009_San_Diego_Surface_Line_Week.jpg/960px-US_Navy_090819-N-2259V-119_A_Sailor_releases_the_ball_down_the_lane_at_a_bowling_competition_during_the_2009_San_Diego_Surface_Line_Week.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/US_Navy_090819-N-2259V-119_A_Sailor_releases_the_ball_down_the_lane_at_a_bowling_competition_during_the_2009_San_Diego_Surface_Line_Week.jpg/960px-US_Navy_090819-N-2259V-119_A_Sailor_releases_the_ball_down_the_lane_at_a_bowling_competition_during_the_2009_San_Diego_Surface_Line_Week.jpg" alt="Bowling"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="lướt sóng lướt ván ">
+  <div class="head"><span class="no">#295</span><h2>Lướt sóng</h2></div>
+  <div class="alt">Cũng đúng: Lướt ván</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Mavericks_Surf_Contest_2010b.jpg/960px-Mavericks_Surf_Contest_2010b.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Mavericks_Surf_Contest_2010b.jpg/960px-Mavericks_Surf_Contest_2010b.jpg" alt="Lướt sóng"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="đá cầu đá cầu lông gà ">
+  <div class="head"><span class="no">#296</span><h2>Đá cầu</h2></div>
+  <div class="alt">Cũng đúng: Đá cầu lông gà</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Jianzi_players.jpg/960px-Jianzi_players.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Jianzi_players.jpg/960px-Jianzi_players.jpg" alt="Đá cầu"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="kéo co trò kéo co ">
+  <div class="head"><span class="no">#297</span><h2>Kéo co</h2></div>
+  <div class="alt">Cũng đúng: Trò kéo co</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Queen_Mary%27s_Auxilary_Army_Corps_tug-o-war%2C_3_August_1918_%28cropped%29.jpg/960px-Queen_Mary%27s_Auxilary_Army_Corps_tug-o-war%2C_3_August_1918_%28cropped%29.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Queen_Mary%27s_Auxilary_Army_Corps_tug-o-war%2C_3_August_1918_%28cropped%29.jpg/960px-Queen_Mary%27s_Auxilary_Army_Corps_tug-o-war%2C_3_August_1918_%28cropped%29.jpg" alt="Kéo co"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="tò he tò he xuân la ">
+  <div class="head"><span class="no">#298</span><h2>Tò he</h2></div>
+  <div class="alt">Cũng đúng: Tò he Xuân La</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/T%C3%B2_he_2.JPG/960px-T%C3%B2_he_2.JPG" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/T%C3%B2_he_2.JPG/960px-T%C3%B2_he_2.JPG" alt="Tò he"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="bánh tét bánh tét lá cẩm ">
+  <div class="head"><span class="no">#299</span><h2>Bánh tét</h2></div>
+  <div class="alt">Cũng đúng: Bánh tét lá cẩm</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Banhtet.jpg/960px-Banhtet.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Banhtet.jpg/960px-Banhtet.jpg" alt="Bánh tét"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="thác victoria victoria ">
+  <div class="head"><span class="no">#300</span><h2>Thác Victoria</h2></div>
+  <div class="alt">Cũng đúng: Victoria</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Inbound5442952690655976611.jpg/960px-Inbound5442952690655976611.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Inbound5442952690655976611.jpg/960px-Inbound5442952690655976611.jpg" alt="Thác Victoria"></a>
+  <div class="meta"></div>
+</article>
+<article class="card" data-s="máy giặt máy giặt quần áo ">
+  <div class="head"><span class="no">#301</span><h2>Máy giặt</h2></div>
+  <div class="alt">Cũng đúng: Máy giặt quần áo</div>
+  <a class="pic" href="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/1_LAVAMAT.jpg/960px-1_LAVAMAT.jpg" target="_blank" rel="noopener"><img loading="lazy" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/1_LAVAMAT.jpg/960px-1_LAVAMAT.jpg" alt="Máy giặt"></a>
+  <div class="meta"></div>
+</article>
+</main>
+<script>
+  const cards = [...document.querySelectorAll(".card")];
+  const stat = document.getElementById("stat");
+  let bad = 0;
+  const flag = (card, msg) => { card.classList.add("broken"); card.dataset.bad = "1"; const m = card.querySelector(".meta"); m.textContent = msg; m.classList.add("bad"); };
+  for (const card of cards) {
+    if (card.querySelector(".warn")) card.dataset.bad = "1";
+    const img = card.querySelector("img");
+    const meta = card.querySelector(".meta");
+    const check = () => {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const r = w / h;
+      meta.textContent = w + "×" + h + " · tỉ lệ " + r.toFixed(2);
+      if (r < 1.25 || r > 1.9) flag(card, meta.textContent + " — ngoài khoảng 1,25–1,9");
+    };
+    if (img.complete && img.naturalWidth) check(); else img.addEventListener("load", check);
+    img.addEventListener("error", () => { bad++; flag(card, "⚠ Không tải được ảnh"); update(); });
+  }
+  const q = document.getElementById("q"), onlyBad = document.getElementById("onlyBad");
+  function update() {
+    const s = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const c of cards) {
+      const hide = (s && !c.dataset.s.includes(s)) || (onlyBad.checked && !c.dataset.bad);
+      c.classList.toggle("hidden", hide);
+      if (!hide) shown++;
+    }
+    stat.textContent = shown + " / " + cards.length + " tranh" + (bad ? " · " + bad + " ảnh lỗi" : "");
+  }
+  q.addEventListener("input", update);
+  onlyBad.addEventListener("change", update);
+</script>
+</body>
+</html>

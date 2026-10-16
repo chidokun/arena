@@ -165,6 +165,11 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
+  /** Bàn chơi không đọc hộp niêm phong thô: `a:` chỉ quản trò mở để tính ván, `s:` thì đọc qua bản đã mở (`opened`). */
+  protected viewKey(k: string) {
+    return !k.startsWith("a:") && !k.startsWith("s:");
+  }
+
   protected memberExtra(): Partial<Member> {
     return this.keys ? { key: this.keys.pub } : {};
   }
@@ -195,6 +200,8 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       if (cur) {
         this.opened.delete(k);
         this.store.invalidate();
+        // Bí mật của mình (đã mở, nằm ngoài gossip) vừa mất: báo bàn chơi. Hộp hành động quản trò mở thì bàn không đọc.
+        if (kind === "s") this.gameStore.invalidate();
       }
       return;
     }
@@ -204,6 +211,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     void keys.open(peer, k, e.v).then((v) => {
       this.opening.delete(k);
       this.opened.set(k, { c: e.c, w: e.w, peer, v });
+      if (kind === "s") this.gameStore.invalidate();
       this.react();
       // Bản ghi có thể đã đổi trong lúc đang mở.
       this.unseal(k);
@@ -329,6 +337,8 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       try {
         sessionStorage.setItem(gmKey(this.id), raw);
       } catch {}
+      // Quản trò đứng xem thì thấy hết (`seeAll`), phần bí mật đó có thể đổi mà `meta.ww` công khai vẫn như cũ.
+      if (!m.lineup.includes(this.me)) this.gameStore.invalidate();
     }
   }
 
@@ -574,7 +584,9 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     const n = this.tonight(live.pub);
     if (n.act.done) return;
     n.act = { ...n.act, ...change };
+    // Lựa chọn đêm nay của mình (`me.act`) nằm ngoài gossip tới nhịp gửi kế tiếp.
     this.store.invalidate();
+    this.gameStore.invalidate();
   }
 
   /** Chọn người để cắn (Sói), bảo vệ (Bảo Vệ) hoặc soi (Tiên Tri). */
