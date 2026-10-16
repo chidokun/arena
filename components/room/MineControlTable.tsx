@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   canFort,
   canGrab,
@@ -25,7 +25,7 @@ import {
   type McState,
 } from "@/lib/games/mine-control";
 import { TURN_MS, type McMatch, type McView, type MineControlRoom } from "@/lib/net/mine-control-room";
-import type { Member, RoomView, SeatView } from "@/lib/net/room";
+import type { Member, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
@@ -35,7 +35,32 @@ import { PeoplePanel } from "./People";
 import { ResultCard, Standings } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<McView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useMcView(session: MineControlRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
+
+/** Bàn đang hiện: ván đang chơi / vừa xong, hoặc bàn trống theo tuỳ chọn phòng (căn theo số ghế đã có người). */
+function useBoard(view: View) {
+  const m = view.meta!;
+  const { match: g, opts } = view.game!;
+  const live = m.status === "playing" && g?.round === m.round && !g.result;
+  const showGame = !!g && m.status !== "waiting";
+  const preview = useMemo(() => newGame({ seed: 1, map: opts.map, mines: 0, out: {} }, Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, m.players.length))), [opts.map, m.players.length]);
+  const s = showGame ? g!.state : preview;
+  return { m, g, opts, live, showGame, s, me: g && showGame ? g.me : -1 };
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "💣", "🚩"];
 
@@ -54,25 +79,81 @@ const hasTarget = (s: McState, k: number, tool: McTool) => {
   return false;
 };
 
+/**
+ * Bàn dò mìn chiến thuật tách theo store: khung chỉ đọc vài trường của `roomStore`; thông tin bàn, thẻ người chơi và
+ * phần chơi (thanh trạng thái, công cụ, bàn mìn, cảnh diễn) tự đăng ký store và bọc `memo`.
+ */
 export function MineControlTable({ id, slug, session }: { id: string; slug: string; session: MineControlRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const { match: g, wins, opts } = view.game!;
+  const head = useRoomState(session, headOf, shallowEqual);
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing="đang dò mìn">
+        <HeadChips session={session} />
+      </RoomHeader>
+      <PlayersPart session={session} />
+      <PlayPart session={session} />
+    </RoomLayout>
+  );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Cỡ bàn, số mìn (và luật ván tới nếu khác), số ô an toàn còn lại. */
+const HeadChips = memo(function HeadChips({ session }: { session: MineControlRoom }) {
+  const view = useMcView(session);
+  const { m, opts, live, showGame, s } = useBoard(view);
+  const nextMines = minesFor(opts, Math.max(MIN_PLAYERS, m.players.length));
+  const nextDiffers = !live && showGame && (opts.map !== m.mc?.map || nextMines !== m.mc?.mines);
+  return (
+    <>
+      <span className="chip text-ink-2">
+        ▦ {s.w}×{s.h} · 💣 {showGame ? s.mines : nextMines}
+        {nextDiffers && ` · ván tới ${MAPS[opts.map].w}×${MAPS[opts.map].h}, ${nextMines} mìn`}
+      </span>
+      {live && <span className="chip text-ink-2">🟩 Còn {s.safeLeft} ô an toàn</span>}
+    </>
+  );
+});
+
+/** Thẻ từng người chơi: điểm, lượt, số ván thắng. */
+const PlayersPart = memo(function PlayersPart({ session }: { session: MineControlRoom }) {
+  const view = useMcView(session);
+  const { m, g, live, showGame, s } = useBoard(view);
+  const wins = view.game!.wins;
+  const players = showGame ? g!.lineup : view.seats;
+  const cards = showGame ? players.length : m.seats;
+  return (
+    <ul className={`mb-4 grid grid-cols-2 gap-2 ${cards === 3 ? "lg:grid-cols-3" : cards === 4 ? "lg:grid-cols-4" : ""}`}>
+      {Array.from({ length: cards }, (_, k) => (
+        <PlayerCard
+          key={k}
+          k={k}
+          seat={players[k]}
+          p={showGame ? s.players[k] : undefined}
+          active={live && s.turn === k}
+          wins={players[k] ? (wins[players[k].uid] ?? 0) : 0}
+          isHost={players[k]?.uid === m.host}
+          me={view.me}
+        />
+      ))}
+    </ul>
+  );
+});
+
+/** Thanh trạng thái, công cụ, kết quả, bàn mìn, sticker bay, cảnh đếm ngược / hết ván — dùng chung công cụ đang chọn và nhịp đếm ngược. */
+const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom }) {
+  const view = useMcView(session);
+  const { m, g, live, showGame, s, me } = useBoard(view);
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
-  const live = m.status === "playing" && g?.round === m.round && !g.result;
   const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
   const iWon = !!g?.result?.winners?.includes(view.me);
   const end = useEndScene(g?.result ? g.round : 0, { delay: 900, cheer: iWon || (g?.me ?? -1) < 0, emojis: CHEERS });
-
-  const showGame = !!g && m.status !== "waiting";
-  // Chưa có ván: bàn trống theo tuỳ chọn của phòng, căn cứ theo số ghế đã có người.
-  const preview = useMemo(() => newGame({ seed: 1, map: opts.map, mines: 0, out: {} }, Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, m.players.length))), [opts.map, m.players.length]);
-  const s = showGame ? g!.state : preview;
   const players = showGame ? g!.lineup : view.seats;
   const avatars = players.map((p) => p.member?.avatar ?? "🏠");
-  const me = g && showGame ? g.me : -1;
-  const cards = showGame ? players.length : m.seats;
 
   // Việc đang chọn quay về "Mở ô" sau mỗi hành động.
   const [tool, setTool] = useState<McTool>("open");
@@ -100,39 +181,8 @@ export function MineControlTable({ id, slug, session }: { id: string; slug: stri
     else session.grab(c);
   };
 
-  const nextMines = minesFor(opts, Math.max(MIN_PLAYERS, m.players.length));
-  const nextDiffers = !live && showGame && (opts.map !== m.mc?.map || nextMines !== m.mc?.mines);
-
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
-      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang dò mìn">
-        <span className="chip text-ink-2">
-          ▦ {s.w}×{s.h} · 💣 {showGame ? s.mines : nextMines}
-          {nextDiffers && ` · ván tới ${MAPS[opts.map].w}×${MAPS[opts.map].h}, ${nextMines} mìn`}
-        </span>
-        {live && <span className="chip text-ink-2">🟩 Còn {s.safeLeft} ô an toàn</span>}
-      </RoomHeader>
-
-      <ul className={`mb-4 grid grid-cols-2 gap-2 ${cards === 3 ? "lg:grid-cols-3" : cards === 4 ? "lg:grid-cols-4" : ""}`}>
-        {Array.from({ length: cards }, (_, k) => (
-          <PlayerCard
-            key={k}
-            k={k}
-            seat={players[k]}
-            p={showGame ? s.players[k] : undefined}
-            active={live && s.turn === k}
-            wins={players[k] ? (wins[players[k].uid] ?? 0) : 0}
-            isHost={players[k]?.uid === m.host}
-            me={view.me}
-          />
-        ))}
-      </ul>
-
+    <>
       <ActionBar view={view} session={session} counting={count > 0} />
       {live && me >= 0 && !s.players[me].out && <Toolbar state={s} me={me} myTurn={myTurn} tool={tool} setTool={setTool} session={session} />}
       {m.status === "ended" && g?.result && <Result match={g} me={view.me} />}
@@ -152,9 +202,9 @@ export function MineControlTable({ id, slug, session }: { id: string; slug: stri
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 function PlayerCard({ k, seat, p, active, wins, isHost, me }: { k: number; seat?: SeatView; p?: McPlayer; active: boolean; wins: number; isHost: boolean; me: string }) {
   const who = seat?.member;
@@ -278,7 +328,7 @@ function useTurnLeft(since: number | undefined, on: boolean) {
   return since ? Math.max(0, Math.ceil((since + TURN_MS - now) / 1000)) : 0;
 }
 
-function ActionBar({ view, session, counting }: { view: RoomView<McView>; session: MineControlRoom; counting: boolean }) {
+function ActionBar({ view, session, counting }: { view: View; session: MineControlRoom; counting: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const opts = view.game!.opts;

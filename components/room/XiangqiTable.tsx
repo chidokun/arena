@@ -234,6 +234,10 @@ const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiR
   );
 });
 
+/**
+ * Các cảnh diễn khi khoảnh khắc xảy ra ngay trước mắt: mở ván (ván mới chưa ai đi), hết ván (kèm pháo giấy, trừ người
+ * thua), chiếu tướng. Vào phòng / tải lại trang giữa chừng thì không diễn lại.
+ */
 function useScenes(view: View) {
   const m = view.meta!;
   const g = view.game?.match;

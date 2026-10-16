@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { emptyState, KING, material, PIECES, type ChessState, type End, type Side } from "@/lib/games/chess";
-import type { Result, RoomView, SeatView } from "@/lib/net/room";
+import type { Result, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import type { ChessMatch, ChessRoom, ChessView } from "@/lib/net/chess-room";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
@@ -12,9 +12,21 @@ import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<ChessView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<ChessView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useChessView(session: ChessRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const SIDE_NAME = { 1: "Trắng", 2: "Đen" } as const;
 const SIDE_TONE = { 1: "var(--sun)", 2: "var(--grape)" } as const;
@@ -52,36 +64,50 @@ function reasonOf(r: Result, end: End | null) {
   return "";
 }
 
+/**
+ * Bàn cờ vua tách theo store: khung chỉ đọc vài trường của `roomStore`; thanh đối đầu, thanh trạng thái, thẻ kết quả,
+ * bàn cờ tự đăng ký store và bọc `memo`.
+ */
 export function ChessTable({ id, slug, session }: { id: string; slug: string; session: ChessRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const { match: g, wins, draws } = view.game!;
-  const boardRef = useRef<HTMLDivElement>(null);
-  const flyers = useFlyers(session, boardRef);
-  const scenes = useScenes(view);
-
-  const showGame = !!g && (m.status !== "waiting" || g.state.count > 0);
-  const state = showGame ? g!.state : emptyState();
-  const playing = m.status === "playing";
-  const seated = view.mySeat >= 0;
-  const inLineup = !!g && g.mySide > 0;
-  const flip = showGame && g!.mySide === 2;
-  const lead = material(state.board);
-
-  // Thanh đối đầu: trong ván thì Trắng bên trái, Đen bên phải; khi chờ thì theo ghế.
-  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
-
+  const head = useRoomState(session, headOf, shallowEqual);
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
-      <RoomHeader name={m.name} status={m.status} round={m.round}>
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <RoomHeader name={head.name} status={head.status} round={head.round}>
         <span className="chip text-ink-2">⚪ Trắng đi trước</span>
       </RoomHeader>
 
+      <DuelPart session={session} />
+      <ActionPart session={session} />
+      <ResultPart session={session} />
+      <PlayPart session={session} />
+    </RoomLayout>
+  );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+/** Đang có ván để hiện (đang chơi, hoặc đã có nước đi). */
+const showOf = (view: View) => {
+  const g = view.game?.match;
+  return !!g && (view.meta!.status !== "waiting" || g.state.count > 0);
+};
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Thanh đối đầu (hai thẻ người chơi, tỉ số) và quân đã bị ăn. */
+const DuelPart = memo(function DuelPart({ session }: { session: ChessRoom }) {
+  const view = useChessView(session);
+  const m = view.meta!;
+  const { match: g, wins, draws } = view.game!;
+  const showGame = showOf(view);
+  const state = showGame ? g!.state : emptyState();
+  const playing = m.status === "playing";
+  const lead = material(state.board);
+  // Thanh đối đầu: trong ván thì Trắng bên trái, Đen bên phải; khi chờ thì theo ghế.
+  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  return (
+    <>
       <div className="mb-2 flex items-stretch gap-2 sm:gap-4">
         <SeatCard
           seat={slots[0]}
@@ -110,10 +136,39 @@ export function ChessTable({ id, slug, session }: { id: string; slug: string; se
           <Captured pieces={state.captured.filter((v) => v > 0)} lead={-lead} align="right" />
         </div>
       )}
+    </>
+  );
+});
 
-      <ActionBar view={view} session={session} />
-      {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
+const ActionPart = memo(function ActionPart({ session }: { session: ChessRoom }) {
+  const view = useChessView(session);
+  return <ActionBar view={view} session={session} />;
+});
 
+/** Thẻ kết quả ván vừa xong. */
+const ResultPart = memo(function ResultPart({ session }: { session: ChessRoom }) {
+  const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
+  const g = useGame(session, (v) => v?.match);
+  return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
+});
+
+/** Bàn cờ, danh sách nước đi, sticker bay, chiếu, cảnh mở ván / hết ván. */
+const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
+  const view = useChessView(session);
+  const m = view.meta!;
+  const g = view.game!.match;
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flyers = useFlyers(session, boardRef);
+  const scenes = useScenes(view);
+  const showGame = showOf(view);
+  const state = useMemo(() => (showGame ? g!.state : emptyState()), [showGame, g]);
+  const seated = view.mySeat >= 0;
+  const inLineup = !!g && g.mySide > 0;
+  const flip = showGame && g!.mySide === 2;
+  const onMove = useCallback((from: number, to: number, promo?: number) => session.move(from, to, promo), [session]);
+
+  return (
+    <>
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_210px]">
         <div className="relative">
           <div ref={boardRef} className="card mx-auto max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
@@ -123,7 +178,7 @@ export function ChessTable({ id, slug, session }: { id: string; slug: string; se
               canPlay={!!g?.myTurn && !scenes.intro.shown}
               mySide={g?.mySide ?? 0}
               flip={flip}
-              onMove={(from, to, promo) => session.move(from, to, promo)}
+              onMove={onMove}
             />
           </div>
           <Flyers flyers={flyers} />
@@ -141,9 +196,9 @@ export function ChessTable({ id, slug, session }: { id: string; slug: string; se
       {g && scenes.intro.shown && <IntroScene match={g} me={view.me} onClose={scenes.intro.close} />}
       {g?.result && scenes.end.shown && <EndScene match={g} me={view.me} onClose={scenes.end.close} />}
       <Party bits={scenes.end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Quân Vua trên huy hiệu ghế, co theo khung huy hiệu. */
 const SeatPiece = ({ v }: { v: number }) => <ChessPieceIcon v={v} className="h-[88%] w-[88%]" />;

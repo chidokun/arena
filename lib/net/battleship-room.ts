@@ -209,6 +209,8 @@ export class BattleshipRoom extends RoomSession<BsView> {
           .then((ok) => {
             this.checks.set(key, ok);
             this.store.invalidate();
+            // Kết quả đối chiếu (`honest`) nằm ngoài gossip.
+            this.gameStore.invalidate();
           }),
       );
     }

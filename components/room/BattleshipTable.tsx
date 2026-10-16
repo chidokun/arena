@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { coord, FLEET, fleetGrid, randomFleet, shipCells, SIZE, type Fleet, type Ship } from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
-import type { RoomView } from "@/lib/net/room";
+import type { RoomState, RoomView } from "@/lib/net/room";
 import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
@@ -13,9 +13,21 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<BsView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<BsView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useBsView(session: BattleshipRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
 /** Phát bắn chìm chiếc tàu cuối: chờ một nhịp cho hiệu ứng nổ kịp diễn rồi mới vào cảnh chiến thắng. */
@@ -28,52 +40,86 @@ const SUNK_PAUSE_MS = 2200;
 const WATERS_FIT = "w-full landscape:w-[min(100cqw,200cqh_-_290px)]";
 const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
 
+/**
+ * Bàn bắn tàu tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; thanh đối đầu, thanh trạng thái,
+ * thẻ kết quả, hải đồ tự đăng ký store và bọc `memo`.
+ */
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const { opts, match: g } = view.game!;
-  const boardRef = useRef<HTMLDivElement>(null);
-  const flyers = useFlyers(session, boardRef);
+  const head = useRoomState(session, headOf, shallowEqual);
+  const rules = useGame(session, (v) => ({ setup: v?.match?.phase === "setup", chain: !!v?.opts.chain }), shallowEqual);
 
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing={rules.setup ? "đang bày tàu" : "đang giao chiến"}>
+        <span className="chip text-ink-2">
+          ▦ {SIZE}×{SIZE} · {FLEET.length} tàu
+        </span>
+        <span className="chip" style={{ color: rules.chain ? "var(--sun)" : "var(--ink-3)" }}>
+          {rules.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
+        </span>
+      </RoomHeader>
+
+      <div className="mb-4">
+        <SeatRowPart session={session} />
+      </div>
+
+      <ActionPart session={session} />
+      <ResultPart session={session} />
+      <PlayPart session={session} />
+    </RoomLayout>
+  );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Thanh đối đầu kèm tỉ số — lúc trình chiếu cũng hiện phía trên hai hải đồ. */
+const SeatRowPart = memo(function SeatRowPart({ session }: { session: BattleshipRoom }) {
+  const view = useBsView(session);
+  const m = view.meta!;
+  const g = view.game!.match;
   const live = m.status === "playing" && !!g && !g.result;
-  const seated = view.mySeat >= 0;
   // Thanh đối đầu: trong ván theo thứ tự bắn; khi chờ thì theo ghế.
   const slots = g ? g.sides.map((s) => s.seat) : [view.seats[0], view.seats[1]];
-  // Đếm ngược khi hai bên bày xong và vào trận (chưa ai khai hoả); trong lúc đếm chưa được bắn.
-  const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
-  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   const busy = (i: 0 | 1) => live && (g.phase === "setup" ? !g.sides[i].ready : g.turn === i);
-  // Thanh đối đầu kèm tỉ số — lúc trình chiếu cũng hiện phía trên hai hải đồ.
-  const seatRow = (
+  return (
     <div className="flex items-stretch gap-2 sm:gap-4">
       {([0, 1] as const).map((i) => (
         <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} busy={busy(i)} />
       ))}
     </div>
   );
+});
 
+const ActionPart = memo(function ActionPart({ session }: { session: BattleshipRoom }) {
+  const view = useBsView(session);
+  return <ActionBar view={view} session={session} />;
+});
+
+/** Thẻ kết quả ván vừa xong. */
+const ResultPart = memo(function ResultPart({ session }: { session: BattleshipRoom }) {
+  const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
+  const g = useGame(session, (v) => v?.match);
+  return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
+});
+
+/** Hải đồ (hoặc bộ bày tàu), sticker bay, đếm ngược vào trận (khoá bắn trong lúc đếm), cảnh hết ván. */
+const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }) {
+  const view = useBsView(session);
+  const m = view.meta!;
+  const g = view.game!.match;
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flyers = useFlyers(session, boardRef);
+  const live = m.status === "playing" && !!g && !g.result;
+  const seated = view.mySeat >= 0;
+  // Đếm ngược khi hai bên bày xong và vào trận (chưa ai khai hoả); trong lúc đếm chưa được bắn.
+  const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
+  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
-      <RoomHeader name={m.name} status={m.status} round={m.round} playing={g?.phase === "setup" ? "đang bày tàu" : "đang giao chiến"}>
-        <span className="chip text-ink-2">
-          ▦ {SIZE}×{SIZE} · {FLEET.length} tàu
-        </span>
-        <span className="chip" style={{ color: opts.chain ? "var(--sun)" : "var(--ink-3)" }}>
-          {opts.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
-        </span>
-      </RoomHeader>
-
-      <div className="mb-4">{seatRow}</div>
-
-      <ActionBar view={view} session={session} />
-      {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
-
-      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={seatRow} scroll>
+    <>
+      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={<SeatRowPart session={session} />} scroll>
         <div ref={boardRef} className="relative">
           {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
           <Flyers flyers={flyers} />
@@ -84,9 +130,9 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 const RING = ["#ff5a5f", "#2f7bff"] as const;
 
