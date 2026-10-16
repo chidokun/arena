@@ -242,6 +242,11 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return m.status === "playing" ? { players: m.lineup.length } : {};
   }
 
+  /** Bàn chơi chỉ đọc nước đi `m:` của chính mình — của người khác thì chủ phòng đã gộp vào bàn chung `g:`. */
+  protected viewKey(k: string) {
+    return !k.startsWith("m:") || k.endsWith(`:${this.me}`);
+  }
+
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): TxView {
     const opts = normOptions(m.opts);
     const base: TxView = { opts, pics: { used: usedOf(m.txUsed ?? [], opts.level).length, total: LEVELS[opts.level].pictures.length } };

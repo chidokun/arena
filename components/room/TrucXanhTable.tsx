@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { COUNTDOWN_MS, FINAL_MS, GUESS_LEN, GUESS_MAX, hintNeed, LEVEL_KEYS, LEVELS, openedOf, pairsOf, SIZE_KEYS, SIZES, TILES, TURN_MS } from "@/lib/games/truc-xanh";
 import type { GuessState, TrucXanhRoom, TxMatch, TxView } from "@/lib/net/truc-xanh-room";
 import type { RoomView } from "@/lib/net/room";
@@ -11,9 +11,18 @@ import { PeoplePanel } from "./People";
 import { ResultCard as Result, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<TxView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<TxView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useTxView(session: TrucXanhRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CONFETTI = ["🎉", "🏆", "✨", "🎋", "🎊", "⭐"];
 const WIN_SCENE_MS = 6500;
@@ -31,6 +40,17 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
+/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ. */
+function useReached(at: number | undefined) {
+  const [hit, setHit] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (at === undefined) return;
+    const t = setTimeout(() => setHit(at), Math.max(0, at - Date.now()));
+    return () => clearTimeout(t);
+  }, [at]);
+  return at !== undefined && hit === at;
+}
+
 const isLive = (view: View) => view.meta!.status === "playing" && view.game?.match?.round === view.meta!.round;
 
 function nameIn(view: View, uid: string) {
@@ -45,30 +65,45 @@ const turnOf = (g: TxMatch) => (g.state.cleared || g.state.over ? -1 : g.state.c
 const banned = (g: TxMatch) => g.me >= 0 && !!g.cheats[g.me];
 
 /** Mình đoán được không: người chơi chưa bị xử thua, ván đang chạy, bàn đã mở. */
-const canGuess = (view: View, g: TxMatch, now: number) => isLive(view) && g.me >= 0 && !banned(g) && !g.state.over && !!now && now >= g.opensAt;
+const canGuess = (view: View, g: TxMatch, opened: boolean) => isLive(view) && g.me >= 0 && !banned(g) && !g.state.over && opened;
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function TrucXanhTable({ id, slug, session }: { id: string; slug: string; session: TrucXanhRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<TxChat session={session} />}>
+      <TrucXanhBody session={session} />
+    </RoomLayout>
+  );
+}
+
+/** Khung chat: gợi ý trong ô nhập theo vai (người chơi thì đoán ở ô dưới tranh, người xem đừng nhắc đáp án). */
+const TxChat = memo(function TxChat({ session }: { session: TrucXanhRoom }) {
+  const live = useRoomState(session, (r) => r.meta!.status === "playing" && r.meta!.round);
+  const game = useGame(session, (v) => (v?.match ? { round: v.match.round, player: v.match.me >= 0 } : null), shallowEqual);
+  const playing = !!live && game?.round === live;
+  const placeholder = playing && game.player ? "Thảo luận — đoán ở ô dưới tranh nhé" : playing ? "Người xem đừng nhắc đáp án nhé!" : undefined;
+  return <ChatPanel session={session} placeholder={placeholder} />;
+});
+
+const TrucXanhBody = memo(function TrucXanhBody({ session }: { session: TrucXanhRoom }) {
+  const view = useTxView(session);
   const m = view.meta!;
   const { opts, match: g } = view.game!;
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
-  const now = useNow(live);
   // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc mở bàn.
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const end = useEndScene(g?.result?.reason === "guess" && g.result.winner ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const size = live && g ? g.size : opts.size;
   const level = LEVELS[live && g ? g.level : opts.level];
-  const placeholder = live && g && g.me >= 0 ? "Thảo luận — đoán ở ô dưới tranh nhé" : live ? "Người xem đừng nhắc đáp án nhé!" : undefined;
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} placeholder={placeholder} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang lật ô">
         <span className="chip text-ink-2">
           ▦ {SIZES[size].label} {SIZES[size].w}×{SIZES[size].h}
@@ -79,12 +114,12 @@ export function TrucXanhTable({ id, slug, session }: { id: string; slug: string;
         <span className="chip text-ink-2">🙋 {m.players.length} người chơi · không giới hạn</span>
       </RoomHeader>
 
-      <ActionBar view={view} session={session} now={now} />
+      <ActionBar view={view} session={session} />
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
       <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        {g ? <Play key={g.round} view={view} session={session} match={g} now={now} /> : <EmptyBoard view={view} />}
+        {g ? <Play key={g.round} view={view} session={session} match={g} /> : <EmptyBoard view={view} />}
         {g && <Scoreboard view={view} match={g} />}
         <Flyers flyers={flyers} />
       </div>
@@ -92,9 +127,9 @@ export function TrucXanhTable({ id, slug, session }: { id: string; slug: string;
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
       {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Cảnh mở ván: những người chơi theo thứ tự lượt, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ view, match: g, n }: { view: View; match: TxMatch; n: number }) {
@@ -129,10 +164,12 @@ function WinScene({ view, match: g, onClose }: { view: View; match: TxMatch; onC
 }
 
 /** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
-function ActionBar({ view, session, now }: { view: View; session: TrucXanhRoom; now: number }) {
+function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
+  // Thanh trạng thái đếm giây tới hết lượt suốt ván — chỉ thanh này chạy theo nhịp đồng hồ.
+  const now = useNow(live);
 
   if (live && g) {
     const s = g.state;
@@ -284,11 +321,24 @@ function EmptyBoard({ view }: { view: View }) {
   );
 }
 
+/** Thanh thời gian còn lại của lượt — tách riêng để nhịp đồng hồ chỉ vẽ lại thanh này. Chưa mở bàn thì trống. */
+function TurnTimer({ deadline, total, color }: { deadline?: number; total: number; color: string }) {
+  const now = useNow(deadline !== undefined);
+  const left = deadline !== undefined && now ? Math.max(0, Math.min(1, (deadline - now) / total)) : 0;
+  return (
+    <div className="tx-timer" aria-hidden="true">
+      <span style={{ width: `${left * 100}%`, background: color }} />
+    </div>
+  );
+}
+
 /** Bàn chơi: tranh ẩn dưới lưới ô; tới lượt thì bấm ô để lật. Dưới tranh là đồng hồ lượt và ô đoán. */
-function Play({ view, session, match: g, now }: { view: View; session: TrucXanhRoom; match: TxMatch; now: number }) {
+function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; match: TxMatch }) {
   const live = isLive(view);
   const s = g.state;
-  const counting = live && (!now || now < g.opensAt);
+  // Bàn chỉ cần biết đã mở chưa — vẽ lại một lần lúc mở bàn; thanh thời gian chạy riêng trong <TurnTimer>.
+  const opened = useReached(g.opensAt);
+  const counting = live && !opened;
   const done = !live || s.over;
   const myTurn = live && !counting && !done && g.me >= 0 && !banned(g) && turnOf(g) === g.me && g.open.length < 2;
   const [pic, setPic] = useState<"wait" | "ok" | "err">("wait");
@@ -297,14 +347,11 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
   const { w, h } = s;
   const turn = turnOf(g);
   const total = s.cleared ? FINAL_MS : TURN_MS;
-  const left = live && !counting && !done ? Math.max(0, Math.min(1, (g.deadline - now) / total)) : 0;
 
   return (
     <div className="grid gap-3">
       {live && !done && (
-        <div className="tx-timer" aria-hidden="true">
-          <span style={{ width: `${left * 100}%`, background: s.cleared ? "var(--coral)" : turn === g.me ? "var(--lime)" : "var(--pen)" }} />
-        </div>
+        <TurnTimer deadline={counting ? undefined : g.deadline} total={total} color={s.cleared ? "var(--coral)" : turn === g.me ? "var(--lime)" : "var(--pen)"} />
       )}
       {g.hint && !counting && (
         <p key="hint" className="tx-hint is-open" role="note">
@@ -355,7 +402,7 @@ function Play({ view, session, match: g, now }: { view: View; session: TrucXanhR
         </span>
         {live && !done && turn >= 0 && <span className="ml-auto">{turn === g.me ? "🟢 Lượt của bạn" : `Lượt của ${nameIn(view, g.lineup[turn]?.uid ?? "")}`}</span>}
       </div>
-      {canGuess(view, g, now) && <GuessBox key={g.round} session={session} match={g} />}
+      {canGuess(view, g, opened) && <GuessBox key={g.round} session={session} match={g} />}
       {live && !done && banned(g) && (
         <p className="tx-banned" role="status">
           🚫 Bạn bị xử thua vì gian lận — ô đoán đã khoá.

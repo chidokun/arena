@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { emptyState, SIZES } from "@/lib/games/dots-boxes";
 import type { DotsBoxesRoom, DotsMatch, DotsView } from "@/lib/net/dots-boxes-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
@@ -12,14 +12,38 @@ import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<DotsView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useDotsView(session: DotsBoxesRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🟥", "🟦"];
 /** Ô cuối vừa khép thì chờ một nhịp cho nét kịp vẽ và ô kịp bật lên rồi mới diễn. */
 const CLAIM_PAUSE_MS = 900;
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function DotsBoxesTable({ id, slug, session }: { id: string; slug: string; session: DotsBoxesRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <DotsBoxesBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBoxesRoom }) {
+  const view = useDotsView(session);
   const m = view.meta!;
   const { match: g, wins, draws, size } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -54,12 +78,7 @@ export function DotsBoxesTable({ id, slug, session }: { id: string; slug: string
   };
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip text-ink-2">
           ▦ {state.size}×{state.size} ô{!playing && size !== state.size && ` · ván tới ${size}×${size}`}
@@ -87,9 +106,9 @@ export function DotsBoxesTable({ id, slug, session }: { id: string; slug: string
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Huy hiệu màu: một ô vuông Đỏ / Xanh. */
 const Swatch = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-md border-2 border-[#050312]" style={{ background: DB_TONE[v] }} />;
@@ -138,7 +157,7 @@ function EndScene({ match: g, me, onClose }: { match: DotsMatch; me: string; onC
 }
 
 /** Thanh trạng thái: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu, chủ phòng chọn cỡ bàn (kết quả ván nằm ở thẻ kết quả). */
-function ActionBar({ view, session }: { view: RoomView<DotsView>; session: DotsBoxesRoom }) {
+function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
   const size = view.game!.size;

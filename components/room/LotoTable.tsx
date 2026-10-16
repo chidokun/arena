@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { docSo, MAX_NUMBER, MAX_PICK, notReady, PACE_NAMES, PACES, SHEET_COLORS, SHEET_COUNT, sheetName, waitingRows } from "@/lib/games/loto";
 import { FIRST_CALL_MS, type LotoRoom, type LotoView } from "@/lib/net/loto-room";
-import type { RoomView } from "@/lib/net/room";
+import type { Member, RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
@@ -14,9 +14,18 @@ import { ResultCard as Result, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { StatusBar, StopButton, TONE } from "./StatusBar";
 import { useConfetti, useInView, useVoice } from "./useLoto";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<LotoView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<LotoView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useLotoView(session: LotoRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 type Voice = ReturnType<typeof useVoice>;
 
 const NUMBERS = Array.from({ length: MAX_NUMBER }, (_, i) => i + 1);
@@ -33,8 +42,33 @@ function myChoice(view: View) {
   return { sheets: g.pending?.pick ?? g.mine, ready: g.pending ? g.pending.ready : g.ready.includes(view.me), waiting: !!g.pending };
 }
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function LotoTable({ id, slug, session }: { id: string; slug: string; session: LotoRoom }) {
-  const view = useRoomView(session)!;
+  // Dòng mô tả từng người (số tờ đang cầm) tự đăng ký store — callback cố định để danh sách người không vẽ lại theo ván.
+  const detail = useCallback((p: Member, seated: boolean) => (seated ? <PersonSheetsPart session={session} uid={p.uid} /> : "Đang xem"), [session]);
+  return (
+    <RoomLayout
+      id={id}
+      slug={slug}
+      people={<PeoplePanel session={session} roomId={id} canSeat={false} unseatLabel="Thu tờ" detail={detail} />}
+      chat={<ChatPanel session={session} />}
+    >
+      <LotoBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const PersonSheetsPart = memo(function PersonSheetsPart({ session, uid }: { session: LotoRoom; uid: string }) {
+  const view = useLotoView(session);
+  return <PersonSheets view={view} uid={uid} />;
+});
+
+const LotoBody = memo(function LotoBody({ session }: { session: LotoRoom }) {
+  const view = useLotoView(session);
   const m = view.meta!;
   const g = view.game!;
   const areaRef = useRef<HTMLDivElement>(null);
@@ -51,21 +85,7 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
   const end = useEndScene(g.result?.reason === "kinh" && g.result.round === g.round ? g.round : 0, { cheer: false });
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={
-        <PeoplePanel
-          view={view}
-          session={session}
-          roomId={id}
-          canSeat={false}
-          unseatLabel="Thu tờ"
-          detail={(p, seated) => (seated ? <PersonSheets view={view} uid={p.uid} /> : "Đang xem")}
-        />
-      }
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang kêu số">
         <span className="chip text-ink-2">⏱ {g.opts.interval / 1000} giây/số</span>
         <span className="chip" style={{ color: taken >= SHEET_COUNT ? "var(--coral)" : "var(--ink-3)" }}>
@@ -90,9 +110,9 @@ export function LotoTable({ id, slug, session }: { id: string; slug: string; ses
       {count > 0 && <CountdownScene view={view} n={count} />}
       {g.result && end.shown && <EndScene view={view} onClose={end.close} />}
       <Party bits={confetti} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Cảnh mở ván: những người cầm tờ (kèm số tờ), đếm ngược 3‑2‑1 tới số đầu tiên. */
 function CountdownScene({ view, n }: { view: View; n: number }) {

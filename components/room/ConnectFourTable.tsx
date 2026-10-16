@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { emptyState } from "@/lib/games/connect-four";
 import type { C4Match, ConnectFourRoom, C4View } from "@/lib/net/connect-four-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
@@ -12,14 +12,38 @@ import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<C4View>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useC4View(session: ConnectFourRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🔴", "🟡"];
 /** Thắng bằng chuỗi 4 thì chờ một nhịp cho quân kịp rơi và đường thắng kịp sáng rồi mới diễn. */
 const LINE_PAUSE_MS = 1300;
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function ConnectFourTable({ id, slug, session }: { id: string; slug: string; session: ConnectFourRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <ConnectFourBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const ConnectFourBody = memo(function ConnectFourBody({ session }: { session: ConnectFourRoom }) {
+  const view = useC4View(session);
   const m = view.meta!;
   const { match: g, wins, draws } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -38,12 +62,7 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip text-ink-2">▦ 7×6 · nối 4</span>
       </RoomHeader>
@@ -86,9 +105,9 @@ export function ConnectFourTable({ id, slug, session }: { id: string; slug: stri
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Huy hiệu quân: một viên tròn màu Đỏ / Vàng. */
 const Disc = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-full border-2 border-[#050312]" style={{ background: C4_TONE[v] }} />;
@@ -136,7 +155,7 @@ function EndScene({ match: g, me, onClose }: { match: C4Match; me: string; onClo
 }
 
 /** Thanh trạng thái: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
-function ActionBar({ view, session }: { view: RoomView<C4View>; session: ConnectFourRoom }) {
+function ActionBar({ view, session }: { view: View; session: ConnectFourRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");

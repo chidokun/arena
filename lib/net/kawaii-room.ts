@@ -135,6 +135,11 @@ export class KawaiiRoom extends RoomSession<KwView> {
     this.told.shuffles = Math.max(this.told.shuffles, s.shuffles);
   }
 
+  /** Bàn chơi chỉ đọc nước đi `m:` của chính mình — của người khác thì chủ phòng đã gộp vào bàn chung `g:`. */
+  protected viewKey(k: string) {
+    return !k.startsWith("m:") || k.endsWith(`:${this.me}`);
+  }
+
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): KwView {
     const opts = normOptions(m.opts);
     const kw = m.kw;

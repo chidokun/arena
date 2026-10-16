@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { emptyState } from "@/lib/games/reversi";
 import type { ReversiMatch, ReversiRoom, ReversiView } from "@/lib/net/reversi-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
@@ -12,12 +12,36 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { FACE, ReversiBoard, RV_NAME, RV_TONE, settleMs } from "./ReversiBoard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<ReversiView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useReversiView(session: ReversiRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚫", "⚪"];
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function ReversiTable({ id, slug, session }: { id: string; slug: string; session: ReversiRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <ReversiBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const ReversiBody = memo(function ReversiBody({ session }: { session: ReversiRoom }) {
+  const view = useReversiView(session);
   const m = view.meta!;
   const { match: g, wins, draws } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -52,12 +76,7 @@ export function ReversiTable({ id, slug, session }: { id: string; slug: string; 
   };
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip text-ink-2">▦ 8×8 · lật quân</span>
       </RoomHeader>
@@ -83,9 +102,9 @@ export function ReversiTable({ id, slug, session }: { id: string; slug: string; 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Huy hiệu quân: một quân tròn Đen / Trắng. */
 const Disc = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-full border-2 border-[#050312]" style={{ background: FACE[v] }} />;
@@ -134,7 +153,7 @@ function EndScene({ match: g, me, onClose }: { match: ReversiMatch; me: string; 
 }
 
 /** Thanh trạng thái: lượt đi trong ván (kể cả khi một bên bị bỏ lượt); ngoài ván thì nhắc vào ghế / bắt đầu. */
-function ActionBar({ view, session }: { view: RoomView<ReversiView>; session: ReversiRoom }) {
+function ActionBar({ view, session }: { view: View; session: ReversiRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");

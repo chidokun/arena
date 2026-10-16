@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { roundOfTurn, ROUND_CHOICES, standings, TIER_NAMES, TIME_CHOICES, totalTurns, type DwPublic } from "@/lib/games/draw-guess";
 import type { DrawGuessRoom, DwMatch, DwView, GuessState } from "@/lib/net/draw-guess-room";
 import type { RoomView } from "@/lib/net/room";
@@ -12,9 +12,18 @@ import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<DwView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<DwView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useDwView(session: DrawGuessRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CONFETTI = ["🎉", "🏆", "🎨", "🖌️", "✨", "⭐"];
 const WIN_SCENE_MS = 6500;
@@ -48,14 +57,47 @@ const guessersOf = (pub: DwPublic) => pub.order.filter((u) => u !== pub.drawer);
 /** Tranh của các lượt đã lộ đáp án, chụp trên máy mình (mất khi tải lại trang). */
 type Shot = { round: number; turn: number; drawer: string; word: string; url: string };
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function DrawGuessTable({ id, slug, session }: { id: string; slug: string; session: DrawGuessRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<DwChat session={session} />}>
+      <DrawGuessBody session={session} />
+    </RoomLayout>
+  );
+}
+
+/**
+ * Khung chat: gợi ý trong ô nhập theo vai (người đoán thì đoán ở ô dưới tranh) và khoá chat khi đã đoán đúng — chỉ chọn
+ * hai chuỗi đó từ store, nên chỉ vẽ lại khi chúng đổi.
+ */
+const DwChat = memo(function DwChat({ session }: { session: DrawGuessRoom }) {
+  const room = useRoomState(session, (r) => (r.meta!.status === "playing" ? r.meta!.round : 0));
+  const chat = useGame(
+    session,
+    (v) => {
+      const g = v?.match;
+      if (!room || !g || g.round !== room) return { placeholder: undefined, locked: undefined };
+      return {
+        placeholder: guessing(g) ? "Thảo luận — đoán ở ô dưới tranh nhé" : g.word && g.pub.phase !== "show" ? "Nhắn gì đó — đừng lộ đáp án!" : undefined,
+        locked: g.hit && g.pub.phase === "draw" ? "🤐 Bạn đã đoán đúng — khoá chat tới hết lượt để không lộ đáp án." : undefined,
+      };
+    },
+    shallowEqual,
+  );
+  return <ChatPanel session={session} placeholder={chat.placeholder} locked={chat.locked} />;
+});
+
+const DrawGuessBody = memo(function DrawGuessBody({ session }: { session: DrawGuessRoom }) {
+  const view = useDwView(session);
   const m = view.meta!;
   const { opts, match: g } = view.game!;
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
-  const now = useNow(live);
   const [tool, setTool] = useState<Tool>({ kind: "pen", color: 1, size: 1 });
   const [shots, setShots] = useState<Shot[]>([]);
   const end = useEndScene(g?.result?.reason === "points" && g.result.winners?.length ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
@@ -72,37 +114,23 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
         }
       : undefined;
 
-  const placeholder = !live || !g ? undefined : guessing(g) ? "Thảo luận — đoán ở ô dưới tranh nhé" : g.word && g.pub.phase !== "show" ? "Nhắn gì đó — đừng lộ đáp án!" : undefined;
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={
-        <ChatPanel
-          session={session}
-          chat={view.chat}
-          me={view.me}
-          placeholder={placeholder}
-          locked={live && g?.hit && g.pub.phase === "draw" ? "🤐 Bạn đã đoán đúng — khoá chat tới hết lượt để không lộ đáp án." : undefined}
-        />
-      }
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang vẽ">
         <span className="chip text-ink-2">🔁 {shown.rounds} vòng</span>
         <span className="chip text-ink-2">⏱ {shown.time}s</span>
         <span className="chip text-ink-2">💡 Gợi ý {shown.hints ? "bật" : "tắt"}</span>
       </RoomHeader>
 
-      <ActionBar view={view} session={session} now={now} />
+      <ActionBar view={view} session={session} />
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
       <div ref={areaRef} className="dw-col relative mx-auto mt-4 grid gap-3">
-        {g && <Stage view={view} match={g} now={now} />}
+        {g && <Stage view={view} match={g} />}
         <DrawBoard session={session} ops={g?.ops ?? []} turnKey={g ? `${g.round}:${g.pub.turn}` : "idle"} canDraw={!!g?.canDraw} tool={tool} capture={capture}>
-          <Overlay view={view} session={session} match={g} now={now} />
+          <Overlay view={view} session={session} match={g} />
         </DrawBoard>
         {g?.canDraw && <Toolbar tool={tool} setTool={setTool} session={session} ops={g.ops} />}
         {g && live && <Prompt view={view} session={session} match={g} />}
@@ -115,9 +143,9 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
       {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Cảnh mở ván: những người chơi theo thứ tự vẽ, đếm ngược 3‑2‑1 rồi người vẽ đầu tiên chọn từ. */
 function CountdownScene({ view, match: g, n }: { view: View; match: DwMatch; n: number }) {
@@ -151,7 +179,9 @@ function WinScene({ view, match: g, onClose }: { view: View; match: DwMatch; onC
 }
 
 /** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
-function ActionBar({ view, session, now }: { view: View; session: DrawGuessRoom; now: number }) {
+function ActionBar({ view, session }: { view: View; session: DrawGuessRoom }) {
+  // Đồng hồ của thanh trạng thái (số giây còn lại) chạy riêng ở đây.
+  const now = useNow(isLive(view));
   const { match: g, unkeyed } = view.game!;
   const live = isLive(view);
   const ready = view.seats.filter((s) => s.online).length;
@@ -292,9 +322,11 @@ function TierChip({ tier }: { tier?: 0 | 1 | 2 }) {
 }
 
 /** Thanh trên tranh: lượt / vòng, đáp án (hoặc khung đáp án), đồng hồ. */
-function Stage({ view, match: g, now }: { view: View; match: DwMatch; now: number }) {
+function Stage({ view, match: g }: { view: View; match: DwMatch }) {
   const pub = g.pub;
   const live = isLive(view);
+  // Vòng đếm giờ của lượt chạy riêng ở đây, không kéo tranh vẽ lại.
+  const now = useNow(live);
   const span = Math.max(1, pub.until - pub.since);
   const leftMs = live && now ? Math.max(0, g.deadline - now) : 0;
   const timed = live && (pub.phase === "pick" || pub.phase === "draw");
@@ -349,7 +381,7 @@ function Stage({ view, match: g, now }: { view: View; match: DwMatch; now: numbe
 }
 
 /** Lớp phủ trên tranh: chưa có ván, chọn từ, lộ đáp án. */
-function Overlay({ view, session, match: g, now }: { view: View; session: DrawGuessRoom; match?: DwMatch; now: number }) {
+function Overlay({ view, session, match: g }: { view: View; session: DrawGuessRoom; match?: DwMatch }) {
   const m = view.meta!;
   const live = isLive(view);
   if (!g)
@@ -362,12 +394,13 @@ function Overlay({ view, session, match: g, now }: { view: View; session: DrawGu
     );
   if (!live) return null;
   const pub = g.pub;
-  if (pub.phase === "pick") return g.role === "drawer" ? <Choose key={`${g.round}:${pub.turn}`} session={session} match={g} now={now} /> : <Picking view={view} match={g} />;
+  if (pub.phase === "pick") return g.role === "drawer" ? <Choose key={`${g.round}:${pub.turn}`} session={session} match={g} /> : <Picking view={view} match={g} />;
   if (pub.phase === "show" && pub.last) return <Reveal view={view} match={g} />;
   return null;
 }
 
-function Choose({ session, match: g, now }: { session: DrawGuessRoom; match: DwMatch; now: number }) {
+function Choose({ session, match: g }: { session: DrawGuessRoom; match: DwMatch }) {
+  const now = useNow(true);
   const [chosen, setChosen] = useState<{ turn: number; i: number } | null>(null);
   const picked = chosen?.turn === g.pub.turn ? chosen.i : -1;
   const left = now ? Math.max(0, Math.ceil((g.deadline - now) / 1000)) : 0;

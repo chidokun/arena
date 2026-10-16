@@ -196,6 +196,8 @@ export class DrawGuessRoom extends RoomSession<DwView> {
       if (cur) {
         this.opened.delete(k);
         this.store.invalidate();
+        // Hộp riêng của mình (đã mở, nằm ngoài gossip) vừa mất: báo bàn chơi. Hộp lời đoán chủ phòng mở thì bàn không đọc.
+        if (kind === "s") this.gameStore.invalidate();
       }
       return;
     }
@@ -205,6 +207,7 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     void keys.open(peer, k, e.v).then((v) => {
       this.opening.delete(k);
       this.opened.set(k, { c: e.c, w: e.w, peer, v });
+      if (kind === "s") this.gameStore.invalidate();
       this.react();
       // Bản ghi có thể đã đổi trong lúc đang mở.
       this.unseal(k);
@@ -297,6 +300,8 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     try {
       sessionStorage.setItem(hostKey(this.id), raw);
     } catch {}
+    // Bí mật của lượt (bộ từ, lời đoán gần đúng) chỉ nằm trên máy chủ phòng.
+    this.gameStore.invalidate();
   }
 
   // ---------- tranh ----------
@@ -580,6 +585,11 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return { word: own?.word !== undefined ? wordOf(own.word) : box?.word };
   }
 
+  /** Bàn chơi không đọc hộp niêm phong thô: `a:` chỉ chủ phòng mở để chấm, `s:` thì đọc qua bản đã mở (`opened`). */
+  protected viewKey(k: string) {
+    return !k.startsWith("a:") && !k.startsWith("s:");
+  }
+
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): DwView {
     const opts = normOptions(m.opts);
     const base: DwView = {
@@ -655,6 +665,8 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     try {
       sessionStorage.setItem(mineKey(this.id), JSON.stringify(this.mine));
     } catch {}
+    // Lời đoán của mình chỉ nằm trên máy mình tới khi niêm phong gửi chủ phòng.
+    this.gameStore.invalidate();
     this.flushGuesses(m);
     this.react();
     return true;

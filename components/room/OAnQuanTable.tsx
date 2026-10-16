@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { initialState, QUAN_VALUE, score, TOTAL, type Board } from "@/lib/games/oanquan";
 import type { OAnQuanRoom, OaqMatch, OaqView } from "@/lib/net/oanquan-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
@@ -12,13 +12,37 @@ import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<OaqView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useOaqView(session: OAnQuanRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🪨", "🐚"];
 const START = initialState();
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; session: OAnQuanRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <OAnQuanBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const OAnQuanBody = memo(function OAnQuanBody({ session }: { session: OAnQuanRoom }) {
+  const view = useOaqView(session);
   const m = view.meta!;
   const { match: g, wins, draws, opts } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -60,12 +84,7 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
   };
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round}>
         <span className="chip text-ink-2">🪨 10 ô dân · 2 ô quan</span>
         {opts.quanNon && <span className="chip text-ink-2">🚫 Cấm ăn quan non</span>}
@@ -110,9 +129,9 @@ export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Kho quân đã ăn của một bên: số dân, số quan và tổng điểm. */
 function Store({ board, p, seat, me, seed }: { board: Board; p: 1 | 2; seat?: SeatView; me: string; seed: number }) {
@@ -191,7 +210,7 @@ function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onCl
 }
 
 /** Thanh trạng thái: lượt rải trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
-function ActionBar({ view, session, animating, tall }: { view: RoomView<OaqView>; session: OAnQuanRoom; animating: boolean; tall: boolean }) {
+function ActionBar({ view, session, animating, tall }: { view: View; session: OAnQuanRoom; animating: boolean; tall: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");

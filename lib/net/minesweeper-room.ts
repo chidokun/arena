@@ -192,6 +192,11 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     this.told.out = s.out.length;
   }
 
+  /** Bàn chơi chỉ đọc nước đi `m:` của chính mình — của người khác thì chủ phòng đã gộp vào bàn chung `g:`. */
+  protected viewKey(k: string) {
+    return !k.startsWith("m:") || k.endsWith(`:${this.me}`);
+  }
+
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): MsView {
     const opts = normOptions(m.opts);
     const ms = m.ms;
@@ -274,6 +279,8 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     try {
       sessionStorage.setItem(flagKey(this.id), JSON.stringify({ round: p.m.round, cells: [...cells] }));
     } catch {}
+    // Cờ cắm chỉ nằm trên máy mình.
+    this.gameStore.invalidate();
     this.react();
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { COUNTDOWN_MS, HINT_COST, kindsOf, PAIR_POINTS, SIZE_KEYS, SIZES, TILES, type Point } from "@/lib/games/kawaii";
 import type { KawaiiRoom, KwMatch, KwView } from "@/lib/net/kawaii-room";
 import type { RoomView } from "@/lib/net/room";
@@ -11,9 +11,18 @@ import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<KwView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<KwView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useKwView(session: KawaiiRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 /** Màu của từng người chơi theo thứ tự đội hình — đường nối, bảng điểm. Hết bảng màu thì xoay vòng sắc độ. */
 const PLAYER_COLORS = ["var(--coral)", "var(--sky)", "var(--lime)", "var(--sun)", "var(--grape)", "#ff6fb5", "#14b8c4", "#ff8a3d", "#8a9a2c", "#a0785a"];
@@ -39,6 +48,17 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
+/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ. */
+function useReached(at: number | undefined) {
+  const [hit, setHit] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (at === undefined) return;
+    const t = setTimeout(() => setHit(at), Math.max(0, at - Date.now()));
+    return () => clearTimeout(t);
+  }, [at]);
+  return at !== undefined && hit === at;
+}
+
 const NARROW = "(max-width: 639px)";
 const subscribeNarrow = (f: () => void) => {
   const q = matchMedia(NARROW);
@@ -60,26 +80,33 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function KawaiiTable({ id, slug, session }: { id: string; slug: string; session: KawaiiRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <KawaiiBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }) {
+  const view = useKwView(session);
   const m = view.meta!;
   const { opts, match: g } = view.game!;
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
-  const now = useNow(live);
   // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc lộ bàn.
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const end = useEndScene(winKey(g), { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const size = live && g ? g.size : opts.size;
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang nối">
         <span className="chip text-ink-2">
           ▦ {SIZES[size].label} {SIZES[size].w}×{SIZES[size].h}
@@ -87,21 +114,21 @@ export function KawaiiTable({ id, slug, session }: { id: string; slug: string; s
         <span className="chip text-ink-2">🙋 {m.players.length} người chơi · không giới hạn</span>
       </RoomHeader>
 
-      <ActionBar view={view} session={session} now={now} />
+      <ActionBar view={view} session={session} />
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
       <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        {g ? <Play key={g.round} view={view} session={session} match={g} now={now} /> : <EmptyBoard view={view} />}
+        {g ? <Play key={g.round} view={view} session={session} match={g} /> : <EmptyBoard view={view} />}
         {g && <Scoreboard view={view} match={g} />}
         <Flyers flyers={flyers} />
       </div>
 
       {g && <Cinema match={g} count={count} win={end.shown} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Ván vừa dọn sạch bàn (có người thắng) — số ván, 0 nếu chưa. */
 const winKey = (g?: KwMatch) => (g?.result?.reason === "points" && g.result.winners?.length ? g.round : 0);
@@ -143,15 +170,18 @@ function Cinema({ match: g, count, win, onClose }: { match: KwMatch; count: numb
 }
 
 /** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
-function ActionBar({ view, session, now }: { view: View; session: KawaiiRoom; now: number }) {
+function ActionBar({ view, session }: { view: View; session: KawaiiRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
+  // Đồng hồ chỉ chạy lúc đếm ngược tới khi lộ bàn (để hiện số giây), lộ bàn rồi thì thôi.
+  const opened = useReached(g?.opensAt);
+  const now = useNow(live && !opened);
 
   if (live && g) {
     let message: React.ReactNode;
     let tone: string = TONE.turn;
-    const counting = !now || now < g.opensAt;
+    const counting = !opened;
     if (g.me < 0) {
       tone = TONE.idle;
       message = <>👀 Bạn đang xem — mỗi cặp vừa nối hiện đường nối theo màu người nối.</>;
@@ -344,10 +374,12 @@ function useFx(g: KwMatch, active: boolean) {
 }
 
 /** Bàn chơi: bấm hai ô cùng hình để nối; nút gợi ý (bị trừ điểm). */
-function Play({ view, session, match: g, now }: { view: View; session: KawaiiRoom; match: KwMatch; now: number }) {
+function Play({ view, session, match: g }: { view: View; session: KawaiiRoom; match: KwMatch }) {
   const live = isLive(view);
   const player = g.me >= 0;
-  const counting = live && (!now || now < g.opensAt);
+  // Bàn chỉ cần biết đã lộ chưa — vẽ lại một lần lúc lộ bàn, không theo nhịp đồng hồ.
+  const opened = useReached(g.opensAt);
+  const counting = live && !opened;
   const canPlay = live && player && !counting && !g.state.over;
   const { w, h } = g.state;
   const narrow = useNarrow();

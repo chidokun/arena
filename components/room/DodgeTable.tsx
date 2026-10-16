@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { memo, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   EDGE_LABEL,
   EDGES,
@@ -23,15 +23,37 @@ import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, startBlocker, StatusBar, StopButton, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<DodgeView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<DodgeView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useDodgeView(session: DodgeRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const EDGE_EMOJI: Record<Edge, string> = { top: "⬆️", right: "➡️", bottom: "⬇️", left: "⬅️" };
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🌩️", "🏃"];
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function DodgeTable({ id, slug, session }: { id: string; slug: string; session: DodgeRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <DodgeBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const DodgeBody = memo(function DodgeBody({ session }: { session: DodgeRoom }) {
+  const view = useDodgeView(session);
   const m = view.meta!;
   const g = view.game?.match;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -42,12 +64,7 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
   const end = useEndScene(g?.result?.winners?.length ? g.round : 0, { emojis: CHEERS });
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang né bão">
         <span className="chip text-ink-2">🌩️ Real-time</span>
       </RoomHeader>
@@ -68,9 +85,9 @@ export function DodgeTable({ id, slug, session }: { id: string; slug: string; se
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
       {g?.result && end.shown && <EndScene view={view} match={g} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 /** Cảnh mở ván: người chạy và những người nấp bốn cạnh, đếm ngược 3‑2‑1 rồi xuất phát. */
 function CountdownScene({ view, match: g, n }: { view: View; match: DodgeMatch; n: number }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { housesOf, judge, targetOf, TROI, type CcEvent, type CcState, type Racer, type Snap, type ThrowMode } from "@/lib/games/co-chep";
 import { TURN_MS, type CcMatch, type CcView, type CoChepRoom } from "@/lib/net/co-chep-room";
 import type { Member, RoomView, SeatView } from "@/lib/net/room";
@@ -14,7 +14,18 @@ import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote } from "./RoomLayout";
 import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<CcView>, "chat">;
+
+/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
+function useCcView(session: CoChepRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const CHEERS = ["🎉", "🏠", "✨", "🎊", "🪨", "🏆"];
 const STEP_MS = 380;
@@ -142,8 +153,21 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
   };
 }
 
+/**
+ * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
+ * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
+ * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
+ */
 export function CoChepTable({ id, slug, session }: { id: string; slug: string; session: CoChepRoom }) {
-  const view = useRoomView(session)!;
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <CoChepBody session={session} />
+    </RoomLayout>
+  );
+}
+
+const CoChepBody = memo(function CoChepBody({ session }: { session: CoChepRoom }) {
+  const view = useCcView(session);
   const m = view.meta!;
   const { match: g, wins } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -186,12 +210,7 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
   const throwerSeat = g?.lineup[thrower];
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
+    <>
       <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang chơi">
         <span className="chip text-ink-2">🪨 Chiếm nhà · tối đa {m.seats} người</span>
       </RoomHeader>
@@ -274,9 +293,9 @@ export function CoChepTable({ id, slug, session }: { id: string; slug: string; s
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
       <Party bits={end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
 function progressText(r: Racer | undefined, target: number) {
   if (!r) return "";
@@ -417,7 +436,7 @@ function useTurnLeft(since: number | undefined, on: boolean) {
   return since ? Math.max(0, Math.ceil((since + TURN_MS - now) / 1000)) : 0;
 }
 
-function ActionBar({ view, session, onAim, canAim, busy }: { view: RoomView<CcView>; session: CoChepRoom; onAim: () => void; canAim: boolean; busy: boolean }) {
+function ActionBar({ view, session, onAim, canAim, busy }: { view: View; session: CoChepRoom; onAim: () => void; canAim: boolean; busy: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const s = g?.state;
