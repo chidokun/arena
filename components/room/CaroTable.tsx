@@ -283,7 +283,7 @@ export function Score({ left, right, wins, draws, played }: { left?: string; rig
 }
 
 /** Số ván thắng dưới tên người chơi lúc trình chiếu — cỡ chữ như ô tỉ số, "–" khi chưa thắng ván nào; `color` khi đang dẫn. */
-function Wins({ n, color }: { n: number; color?: string }) {
+export function Wins({ n, color }: { n: number; color?: string }) {
   return (
     <p className="mt-2 font-display text-2xl leading-none font-extrabold tabular-nums sm:text-3xl" style={{ color }} aria-label={n ? `Thắng ${n} ván` : "Chưa thắng ván nào"}>
       {n || "–"}

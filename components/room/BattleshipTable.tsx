@@ -5,7 +5,7 @@ import { coord, FLEET, fleetGrid, randomFleet, shipCells, SIZE, type Fleet, type
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
 import type { RoomState, RoomView } from "@/lib/net/room";
 import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
@@ -37,8 +37,14 @@ const SUNK_PAUSE_MS = 2200;
  * vừa khít chiều cao — mỗi hải đồ là hình vuông cộng phần chữ (dòng phát bắn cuối, tiêu đề, danh sách tàu), các số px là
  * phần chữ đó. Màn hình dọc không đủ chỗ cho hai hải đồ nên mỗi cái rộng hết bề ngang, chồng lên nhau và cuộn dọc.
  */
-const WATERS_FIT = "w-full landscape:w-[min(100cqw,200cqh_-_290px)]";
+const WATERS_FIT = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_290px)]";
 const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
+/**
+ * Bề ngang khối giữa khi màn hình rất rộng và người chơi đứng hai bên (`cqh` của cả lớp trình chiếu): mỗi bên một hải đồ
+ * vuông cao gần hết màn hình, danh sách tàu ở bên phải; hoặc bộ bày tàu. Ước lượng thôi — hải đồ vẫn tự co cho vừa.
+ */
+const WATERS_CENTER = "200cqh + 260px";
+const EDITOR_CENTER = "100cqh + 134px";
 
 /**
  * Bàn bắn tàu tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; thanh đối đầu, thanh trạng thái,
@@ -78,18 +84,47 @@ const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, 
 /** Thanh đối đầu kèm tỉ số — lúc trình chiếu cũng hiện phía trên hai hải đồ. */
 const SeatRowPart = memo(function SeatRowPart({ session }: { session: BattleshipRoom }) {
   const view = useBsView(session);
-  const m = view.meta!;
-  const g = view.game!.match;
-  const live = m.status === "playing" && !!g && !g.result;
-  // Thanh đối đầu: trong ván theo thứ tự bắn; khi chờ thì theo ghế.
-  const slots = g ? g.sides.map((s) => s.seat) : [view.seats[0], view.seats[1]];
-  const busy = (i: 0 | 1) => live && (g.phase === "setup" ? !g.sides[i].ready : g.turn === i);
+  const { g, slots, busy } = seatsOf(view);
   return (
     <div className="flex items-stretch gap-2 sm:gap-4">
       {([0, 1] as const).map((i) => (
         <SeatSlot key={i} i={i} seat={slots[i]} g={g} view={view} busy={busy(i)} />
       ))}
     </div>
+  );
+});
+
+/**
+ * Hai người chơi trong ván (theo thứ tự bắn) hoặc theo ghế khi chờ; `busy` — bên đó đang phải làm gì (bày tàu / bắn).
+ */
+function seatsOf(view: View) {
+  const m = view.meta!;
+  const g = view.game!.match;
+  const live = m.status === "playing" && !!g && !g.result;
+  const slots = g ? g.sides.map((s) => s.seat) : [view.seats[0], view.seats[1]];
+  const busy = (i: 0 | 1) => live && (g.phase === "setup" ? !g.sides[i].ready : g.turn === i);
+  return { g, slots, busy };
+}
+
+/** Một người chơi đứng cạnh hải đồ lúc trình chiếu trên màn hình rất rộng — tự ghi số ván thắng (không có ô tỉ số ở giữa). */
+const FlankPart = memo(function FlankPart({ session, i }: { session: BattleshipRoom; i: 0 | 1 }) {
+  const view = useBsView(session);
+  const { g, slots, busy } = seatsOf(view);
+  const seat = slots[i];
+  const wins = (k: number) => (slots[k]?.uid ? (view.game!.wins[slots[k]!.uid] ?? 0) : 0);
+  return (
+    <SeatCard
+      seat={seat}
+      mark={g ? ((i + 1) as 1 | 2) : undefined}
+      badge={g ? "⚓" : undefined}
+      tone={g ? BS_TONE[i] : undefined}
+      active={busy(i)}
+      isHost={seat?.uid === view.meta!.host}
+      me={view.me}
+      align={i === 1 ? "right" : "left"}
+      stacked
+      footer={seat ? <Wins n={wins(i)} color={wins(i) > wins(1 - i) ? BS_TONE[i] : undefined} /> : undefined}
+    />
   );
 });
 
@@ -125,8 +160,16 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   return (
     <>
-      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={<SeatRowPart session={session} />} tools={<ControlsPart session={session} />} scroll>
-        <div ref={boardRef} className="relative">
+      <StageArea
+        className="mt-4"
+        fit={g?.placing ? EDITOR_FIT : WATERS_FIT}
+        head={<SeatRowPart session={session} />}
+        flanks={[<FlankPart key={0} session={session} i={0} />, <FlankPart key={1} session={session} i={1} />]}
+        center={g?.placing ? EDITOR_CENTER : WATERS_CENTER}
+        tools={<ControlsPart session={session} />}
+        scroll
+      >
+        <div ref={boardRef} className="relative landscape:h-full">
           {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
           <Flyers flyers={flyers} />
         </div>
@@ -278,7 +321,8 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
   const g = view.game!.match;
   const m = view.meta!;
   // Lúc trình chiếu xếp theo hướng màn hình (ngang: cạnh nhau, dọc: chồng lên), khớp với WATERS_FIT.
-  const cols = useStaged() ? "landscape:grid-cols-2" : "md:grid-cols-2";
+  const staged = useStaged();
+  const cols = staged ? "landscape:grid-cols-2" : "md:grid-cols-2";
   if (!g)
     return (
       <div className="relative">
@@ -293,15 +337,17 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
       </div>
     );
   const order: (0 | 1)[] = g.me !== -1 ? [(1 - g.me) as 0 | 1, g.me] : [0, 1];
+  // Trình chiếu màn hình ngang: hai hải đồ cao hết ô, mỗi hải đồ co vừa phần còn lại sau chữ (dòng phát bắn, danh sách
+  // tàu, đối chiếu cam kết lúc hết ván…) — chữ nhiều lên thì hải đồ nhỏ lại chứ không tràn.
   return (
-    <>
+    <div className={staged ? "landscape:flex landscape:h-full landscape:flex-col" : undefined}>
       {g.phase === "battle" && <LastShot g={g} view={view} />}
-      <div className={`grid gap-4 ${cols}`}>
+      <div className={`grid gap-4 ${cols} ${staged ? "landscape:min-h-0 landscape:flex-1 landscape:grid-rows-[minmax(0,1fr)]" : ""}`}>
         {order.map((i) => (
-          <Side key={i} i={i} g={g} view={view} session={session} locked={locked} />
+          <Side key={i} i={i} g={g} view={view} session={session} locked={locked} fit={staged} />
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -317,7 +363,11 @@ function LastShot({ g, view }: { g: BsMatch; view: View }) {
   );
 }
 
-function Side({ i, g, view, session, locked }: { i: 0 | 1; g: BsMatch; view: View; session: BattleshipRoom; locked: boolean }) {
+/**
+ * `fit`: lúc trình chiếu — màn hình ngang thì cao hết ô, hải đồ vuông lớn nhất vừa phần còn lại; thẻ bè ngang thì danh sách
+ * tàu sang bên phải hải đồ (globals.css, `.bs-fit`).
+ */
+function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view: View; session: BattleshipRoom; locked: boolean; fit?: boolean }) {
   const side = g.sides[i];
   const mine = g.me === i;
   const foeOfMine = g.me >= 0 && !mine;
@@ -336,7 +386,7 @@ function Side({ i, g, view, session, locked }: { i: 0 | 1; g: BsMatch; view: Vie
 
   return (
     <section
-      className="card min-w-0 p-2 transition-shadow sm:p-3"
+      className={`card min-w-0 p-2 transition-shadow sm:p-3 ${fit ? "landscape:flex landscape:h-full landscape:flex-col" : ""}`}
       style={{ borderColor: targeted ? shooter : undefined, boxShadow: targeted ? `0 4px 0 ${shooter}` : undefined }}
       aria-label={title}
     >
@@ -354,26 +404,34 @@ function Side({ i, g, view, session, locked }: { i: 0 | 1; g: BsMatch; view: Vie
           </span>
         )}
       </header>
-      <div className="relative">
-        <SeaBoard
-          label={`${title} — còn ${alive}/${FLEET.length} tàu${fire ? ". Đến lượt bạn: chọn ô để bắn (mũi tên + Enter)." : ""}`}
-          ships={ships}
-          marks={side.marks}
-          last={last?.c ?? -1}
-          fresh
-          pending={g.turn !== i ? g.pending : -1}
-          aim={fire ? BS_TONE[g.me as 0 | 1] : undefined}
-          canHit={(c) => side.marks[c] < 0}
-          onCell={fire ? (c) => session.fire(c) : undefined}
-        />
-        {fog && (
-          <div className="absolute inset-0 grid place-items-center rounded-xl" style={{ background: "color-mix(in srgb, var(--surface) 55%, transparent)" }}>
-            <p className="card px-4 py-2 text-center font-display text-[15px] font-extrabold">{side.ready ? "🔒 Đã bày xong" : "🛠️ Đang bày tàu…"}</p>
+      <div className={fit ? "bs-fit-wrap" : undefined}>
+        <div className={fit ? "bs-fit" : undefined}>
+          <div className={fit ? "bs-fit-board" : undefined}>
+            <div className="relative">
+              <SeaBoard
+                label={`${title} — còn ${alive}/${FLEET.length} tàu${fire ? ". Đến lượt bạn: chọn ô để bắn (mũi tên + Enter)." : ""}`}
+                ships={ships}
+                marks={side.marks}
+                last={last?.c ?? -1}
+                fresh
+                pending={g.turn !== i ? g.pending : -1}
+                aim={fire ? BS_TONE[g.me as 0 | 1] : undefined}
+                canHit={(c) => side.marks[c] < 0}
+                onCell={fire ? (c) => session.fire(c) : undefined}
+              />
+              {fog && (
+                <div className="absolute inset-0 grid place-items-center rounded-xl" style={{ background: "color-mix(in srgb, var(--surface) 55%, transparent)" }}>
+                  <p className="card px-4 py-2 text-center font-display text-[15px] font-extrabold">{side.ready ? "🔒 Đã bày xong" : "🛠️ Đang bày tàu…"}</p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          <div className={fit ? "bs-fit-info" : undefined}>
+            <FleetList side={side} />
+            {ended && <Honesty side={side} />}
+          </div>
+        </div>
       </div>
-      <FleetList side={side} />
-      {ended && <Honesty side={side} />}
     </section>
   );
 }

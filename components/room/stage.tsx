@@ -106,6 +106,9 @@ function StageTools({ on, exit, tools }: { on: boolean; exit: () => void; tools?
  * `fit` vẫn `relative` để sticker bay đúng chỗ). Người chơi chỉ hiện lúc trình chiếu, một trong hai kiểu:
  * - `flanks`: màn hình ngang thì đứng hai bên bàn, màn hình dọc thì một trên một dưới — hợp với bàn vuông (caro);
  * - `head`: một hàng phía trên bàn — hợp với bàn bè ngang (hai hải đồ của bắn tàu).
+ * Có cả hai thì thường dùng `head`, màn hình rất rộng (từ 2:1) mới đưa người chơi ra hai bên để bàn không bị bẹp.
+ * `center`: bề ngang khối bàn khi người chơi đứng hai bên, theo `cqw` / `cqh` của cả lớp trình chiếu (mặc định `100cqh` —
+ * bàn vuông); luôn chừa đủ chỗ cho hai người chơi.
  * `tools`: các nút điều khiển ván (vào ghế, bắt đầu, xin thua…) đặt trên thanh công cụ cạnh nút Quay lại.
  * Các `div` bọc luôn đứng yên trong cây nên bật / tắt không dựng lại bàn chơi (giữ nét vẽ, trạng thái…). Bàn phải vừa ô —
  * phần tràn bị cắt; `scroll` thì cho cuộn dọc (sticker bay bị cắt ở mép ô), dành cho lúc bàn tạm thời cao hơn màn hình.
@@ -116,6 +119,7 @@ export function StageArea({
   fit = "w-full",
   flanks,
   head,
+  center,
   tools,
   scroll,
   children,
@@ -124,6 +128,7 @@ export function StageArea({
   fit?: string;
   flanks?: [ReactNode, ReactNode];
   head?: ReactNode;
+  center?: string;
   tools?: ReactNode;
   scroll?: boolean;
   children: ReactNode;
@@ -135,8 +140,12 @@ export function StageArea({
   return (
     <div className={on ? "stage" : "contents"} role={on ? "region" : undefined} aria-label={on ? "Trình chiếu bàn chơi" : undefined}>
       {stage && <StageTools on={on} exit={stage.exit} tools={tools} />}
-      <div className={on ? `stage-body${flanks ? " has-flanks" : head ? " has-head" : ""}` : "contents"}>
-        {on && (flanks ? <div className="stage-flank is-a">{flanks[0]}</div> : head && <div className="stage-head">{head}</div>)}
+      <div
+        className={on ? `stage-body${flanks && head ? " has-both" : flanks ? " has-flanks" : head ? " has-head" : ""}` : "contents"}
+        style={on && center ? { ["--stage-center" as string]: `calc(${center})` } : undefined}
+      >
+        {on && head && <div className="stage-head">{head}</div>}
+        {on && flanks && <div className="stage-flank is-a">{flanks[0]}</div>}
         <div className={on ? `stage-cell${scroll ? " is-scroll" : ""}` : "contents"}>
           <div className={on ? `relative ${fit}` : className}>{children}</div>
         </div>

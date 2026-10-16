@@ -455,7 +455,7 @@
     position: fixed;
     inset: 0;
     z-index: 45;
-    container-type: size;
+    container: stage / size;
     --flank: clamp(150px, 22cqw, 280px);
     /* Đáy chừa rộng hơn hai bên vì bàn và thẻ người chơi có bóng đổ xuống dưới. */
     padding: 60px 16px 32px;
@@ -559,8 +559,12 @@
     grid-template-rows: auto minmax(0, 100cqw) auto;
     align-content: center;
   }
-  .stage-body.has-head {
+  .stage-body.has-head,
+  .stage-body.has-both {
     grid-template-rows: auto minmax(0, 1fr);
+  }
+  .stage-body.has-both > .stage-flank {
+    display: none;
   }
   .stage-head {
     width: min(100%, 960px);
@@ -589,9 +593,10 @@
       grid-template: minmax(0, 1fr) / minmax(0, 1fr) auto minmax(0, 1fr);
       gap: 16px;
     }
-    /* Cột giữa rộng đúng bằng bàn vuông lớn nhất còn đặt vừa giữa hai người chơi (cq ở đây là của `.stage`). */
+    /* Cột giữa rộng đúng bằng bàn lớn nhất (mặc định vuông, `--stage-center`) còn đặt vừa giữa hai người chơi (cq ở đây
+       là của `.stage`). */
     .stage-body.has-flanks .stage-cell {
-      width: min(100cqh, 100cqw - 2 * (var(--flank) + 16px));
+      width: min(var(--stage-center, 100cqh), 100cqw - 2 * (var(--flank) + 16px));
     }
     .stage-flank {
       width: var(--flank);
@@ -601,6 +606,63 @@
     }
     .stage-flank.is-b {
       justify-self: start;
+    }
+  }
+
+  /* Có cả hàng người chơi lẫn hai bên (`has-both`): màn hình rất rộng thì người chơi ra hai bên như `has-flanks`. */
+  @container stage (min-aspect-ratio: 2 / 1) {
+    .stage-body.has-both {
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: 16px;
+    }
+    .stage-body.has-both > .stage-head {
+      display: none;
+    }
+    .stage-body.has-both > .stage-flank {
+      display: flex;
+      width: var(--flank);
+    }
+    .stage-body.has-both .stage-cell {
+      width: min(var(--stage-center, 100cqh), 100cqw - 2 * (var(--flank) + 16px));
+    }
+    /* Bề ngang khối bàn đã do `--stage-center` quyết định: bỏ `fit` (vốn tính cho kiểu hàng người chơi phía trên) —
+       `fit` là class tiện ích (layer utilities, luôn thắng layer này) nên cần !important. */
+    .stage-body.has-both .stage-cell > * {
+      width: 100% !important;
+    }
+  }
+
+  /* Hải đồ bắn tàu lúc trình chiếu, màn hình ngang (components/room/BattleshipTable.tsx, `Side` với `fit`): thẻ cao hết ô,
+     hải đồ vuông lớn nhất vừa phần còn lại sau chữ. Thẻ bè ngang (màn hình rất rộng, thấp) thì danh sách tàu và dòng đối
+     chiếu sang bên phải hải đồ để hải đồ không bị chữ ép nhỏ. */
+  @media (orientation: landscape) {
+    .bs-fit-wrap {
+      flex: 1;
+      min-height: 0;
+      container: bs-side / size;
+    }
+    .bs-fit {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      height: 100%;
+    }
+    .bs-fit-board {
+      container-type: size;
+      display: grid;
+      place-items: center;
+      min-height: 0;
+    }
+    .bs-fit-board > div {
+      width: min(100cqw, 100cqh);
+    }
+    @container bs-side (min-aspect-ratio: 4 / 3) {
+      .bs-fit {
+        grid-template: minmax(0, 1fr) / min(100cqh, 100cqw - 200px) minmax(0, 1fr);
+        gap: 12px;
+      }
+      .bs-fit-info {
+        align-self: center;
+      }
     }
   }
 
