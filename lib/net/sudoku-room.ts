@@ -175,6 +175,11 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     this.pushChat({ id: `sd-win:${m.round}`, uid: "", name: "", avatar: "", color: "", at: Date.now(), text, system: true });
   }
 
+  /** Bàn chơi chỉ đọc nước đi `m:` của chính mình — của người khác thì chủ phòng đã gộp vào bàn chung `g:`. */
+  protected viewKey(k: string) {
+    return !k.startsWith("m:") || k.endsWith(`:${this.me}`);
+  }
+
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): SudokuView {
     const opts = normOptions(m.opts);
     const sd = m.sd;
@@ -240,7 +245,11 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     if (!Number.isInteger(digit) || digit < 1 || digit > 9 || g.cells[cell] !== 0 || g.pending.includes(cell)) return null;
     this.gossip.set(`m:${m.round}:${this.me}`, { moves: [...this.movesOf(m, this.me), [cell, digit]] });
     const right = g.puzzle.solution[cell] === digit;
-    if (!right && g.mode === "race") this.lock = { round: m.round, until: now + LOCK_MS };
+    if (!right && g.mode === "race") {
+      this.lock = { round: m.round, until: now + LOCK_MS };
+      // Khoá tay (`lockedUntil`) chỉ nằm trên máy mình.
+      this.gameStore.invalidate();
+    }
     this.react();
     return right ? "right" : "wrong";
   }

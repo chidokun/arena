@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ADVISOR, CANNON, ELEPHANT, HORSE, KING, PAWN, ROOK } from "@/lib/games/xiangqi";
 import {
   CLAIM_OPTIONS,
@@ -15,16 +15,16 @@ import {
   type Side,
 } from "@/lib/games/xiangqi-role";
 import type { XqRoleMatch, XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
-import type { RoomView } from "@/lib/net/room";
+import type { RoomState, RoomView } from "@/lib/net/room";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, Vs, WinCine, type CrowdItem } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, StoppedCard } from "./ResultCard";
 import { RoomHeader, RoomLayout } from "./RoomLayout";
-import { SeatButtons, seatMessage, startBlocker, StatusBar } from "./StatusBar";
+import { SeatButtons, seatMessage, startBlocker, StatusBar, type SeatState } from "./StatusBar";
 import { PieceIcon } from "./XiangqiBoard";
 import { XiangqiRoleBoard } from "./XiangqiRoleBoard";
-import { useRoomView } from "./useRoom";
+import { shallowEqual, useGame, usePeople, useRoomState } from "./useRoom";
 
 const KIND_CODE: Record<PieceKind, number> = {
   general: KING,
@@ -54,79 +54,139 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
 
 const QUICK = ["Chờ", "Tấn công", "Phòng thủ", "Đừng đi", "Nước hay", "Cứu", "Tôi có kế hoạch", "Canh quân này"];
 
+/**
+ * Bàn cờ tướng nhập vai tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; thanh trạng thái, chọn
+ * role, bàn cờ, cảnh diễn tự đăng ký store và bọc `memo`; chat phe đọc `teamStore` riêng nên tin mới không kéo bàn cờ.
+ */
 export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: string; session: XiangqiRoleRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const g = view.game!;
-  const match = g.match;
-  const playing = m.status === "playing";
-  const ended = m.status === "ended";
-  // Đếm ngược trước lượt claim đầu tiên (chủ phòng đã lùi hạn claim lại một nhịp đếm).
-  const opening = playing && !!match && match.round === m.round && match.pub.turn === 1 && match.pub.phase === "claim" && !match.pub.lastMove;
-  const count = useCountdown(opening ? match!.round : 0, { endsAt: match ? match.pub.claimDeadline - g.opts.claimMs : undefined });
-  const won = match?.pub.winner;
-  const end = useEndScene(won && match?.pub.phase === "ended" ? match.round : 0, { cheer: !match?.mySide || match.mySide === won, emojis: CHEERS });
+  const head = useRoomState(session, headOf, shallowEqual);
+  const turn = useGame(
+    session,
+    (g) => ({ side: g?.match?.pub.side, check: !!g?.match?.pub.check, claimMs: g!.opts.claimMs }),
+    shallowEqual,
+  );
+  // Tab chat phe cố định theo phiên: RoomLayout không phải dựng lại tab mỗi lần khung vẽ lại.
+  const panels = useMemo(() => [{ key: "team", label: "⚔️ Phe", node: <TeamChatPart session={session} /> }], [session]);
 
   return (
     <RoomLayout
       id={id}
       slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-      panels={[{ key: "team", label: "⚔️ Phe", node: <TeamChat session={session} messages={g.teamChat} me={view.me} side={match?.mySide ?? sideFromSeats(g.seats, view.me)} /> }]}
+      people={<PeoplePanel session={session} roomId={id} />}
+      chat={<ChatPanel session={session} />}
+      panels={panels}
     >
-      <RoomHeader name={m.name} status={m.status} round={m.round}>
-        {match && (
-          <span className="chip" style={{ color: match.pub.side === "red" ? "var(--coral)" : "var(--ink)" }}>
-            Lượt {match.pub.side === "red" ? "Đỏ" : "Đen"}
-            {match.pub.check ? " · Chiếu!" : ""}
+      <RoomHeader name={head.name} status={head.status} round={head.round}>
+        {turn.side && (
+          <span className="chip" style={{ color: turn.side === "red" ? "var(--coral)" : "var(--ink)" }}>
+            Lượt {turn.side === "red" ? "Đỏ" : "Đen"}
+            {turn.check ? " · Chiếu!" : ""}
           </span>
         )}
-        <span className="chip text-ink-2">⏱ Claim {claimLabel(g.opts.claimMs)}</span>
+        <span className="chip text-ink-2">⏱ Claim {claimLabel(turn.claimMs)}</span>
       </RoomHeader>
 
-      <ActionBar view={view} session={session} />
-      {ended && match && <ResultCard match={match} />}
-
-      {!playing && !ended && (
-        <>
-          {view.isHost && <ClaimConfig claimMs={g.opts.claimMs} onChange={(ms) => session.setClaimMs(ms)} />}
-          <RolePicker session={session} seats={g.seats} me={view.me} />
-        </>
-      )}
-
-      {match && (
-        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <div className="card mx-auto w-full max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
-            <XiangqiRoleBoard
-              pieces={match.pub.pieces}
-              myPieceIds={match.myPieceIds}
-              mySide={match.mySide}
-              currentSide={match.pub.side}
-              legalByPiece={match.legalByPiece}
-              lastMove={match.pub.lastMove}
-              check={match.pub.check}
-              onMove={(pieceId, to) => session.move(pieceId, to)}
-              canPlay={match.myTurn}
-              script="han"
-            />
-          </div>
-          <aside className="grid gap-3 content-start">
-            <YourRole match={match} members={view.members} me={view.me} />
-            <TurnPanel match={match} session={session} members={view.members} claimMs={g.opts.claimMs} />
-            {match.dead && (
-              <p className="rounded-xl bg-sunken p-3 text-sm text-ink-2">Hết quân trong role của bạn. Bạn đang xem và vẫn chat được với đồng đội.</p>
-            )}
-          </aside>
-        </div>
-      )}
-
-      {match && count > 0 && <CountdownScene match={match} members={view.members} me={view.me} n={count} />}
-      {match?.pub.winner && end.shown && <EndScene match={match} members={view.members} me={view.me} onClose={end.close} />}
-      <Party bits={end.party} />
+      <ActionPart session={session} />
+      <ResultPart session={session} />
+      <SetupPart session={session} />
+      <BoardPart session={session} />
+      <CinemaPart session={session} />
     </RoomLayout>
   );
 }
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Chat phe: `teamStore` (tin mới) + phe của mình. */
+const TeamChatPart = memo(function TeamChatPart({ session }: { session: XiangqiRoleRoom }) {
+  const all = useSyncExternalStore(session.teamStore.subscribe, session.teamStore.get, session.teamStore.get);
+  const side = useGame(session, (g) => g?.match?.mySide ?? sideFromSeats(g!.seats, session.me));
+  const messages = side ? all.filter((c) => c.side === side) : [];
+  return <TeamChat session={session} messages={messages} me={session.me} side={side} />;
+});
+
+/** Thanh trạng thái lúc chưa vào ván: `roomStore` (vai trò, ghế) + `peopleStore` (ghế còn kết nối). */
+const ActionPart = memo(function ActionPart({ session }: { session: XiangqiRoleRoom }) {
+  const room = useRoomState(session);
+  const seats = usePeople(session, (p) => p.seats);
+  return <ActionBar view={{ ...room, seats }} session={session} />;
+});
+
+const ResultPart = memo(function ResultPart({ session }: { session: XiangqiRoleRoom }) {
+  const ended = useRoomState(session, (r) => r.meta!.status === "ended");
+  const match = useGame(session, (g) => g?.match);
+  return ended && match ? <ResultCard match={match} /> : null;
+});
+
+/** Chọn role và cấu hình thời gian claim (chỉ lúc chưa vào ván). */
+const SetupPart = memo(function SetupPart({ session }: { session: XiangqiRoleRoom }) {
+  const room = useRoomState(session, (r) => ({ status: r.meta!.status, isHost: r.isHost, me: r.me }), shallowEqual);
+  const game = useGame(session);
+  if (room.status === "playing" || room.status === "ended" || !game) return null;
+  return (
+    <>
+      {room.isHost && <ClaimConfig claimMs={game.opts.claimMs} onChange={(ms) => session.setClaimMs(ms)} />}
+      <RolePicker session={session} seats={game.seats} me={room.me} />
+    </>
+  );
+});
+
+/** Bàn cờ và cột bên: role của mình, lượt hiện tại. */
+const BoardPart = memo(function BoardPart({ session }: { session: XiangqiRoleRoom }) {
+  const game = useGame(session);
+  const members = usePeople(session, (p) => p.members);
+  const me = session.me;
+  const onMove = useCallback((pieceId: number, to: number) => session.move(pieceId, to), [session]);
+  const match = game?.match;
+  if (!match) return null;
+  return (
+    <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="card mx-auto w-full max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
+        <XiangqiRoleBoard
+          pieces={match.pub.pieces}
+          myPieceIds={match.myPieceIds}
+          mySide={match.mySide}
+          currentSide={match.pub.side}
+          legalByPiece={match.legalByPiece}
+          lastMove={match.pub.lastMove}
+          check={match.pub.check}
+          onMove={onMove}
+          canPlay={match.myTurn}
+          script="han"
+        />
+      </div>
+      <aside className="grid gap-3 content-start">
+        <YourRole match={match} members={members} me={me} />
+        <TurnPanel match={match} session={session} members={members} claimMs={game!.opts.claimMs} />
+        {match.dead && <p className="rounded-xl bg-sunken p-3 text-sm text-ink-2">Hết quân trong role của bạn. Bạn đang xem và vẫn chat được với đồng đội.</p>}
+      </aside>
+    </div>
+  );
+});
+
+/** Cảnh đếm ngược trước lượt claim đầu tiên và cảnh hết ván (kèm pháo giấy). */
+const CinemaPart = memo(function CinemaPart({ session }: { session: XiangqiRoleRoom }) {
+  const room = useRoomState(session, (r) => ({ status: r.meta!.status, round: r.meta!.round }), shallowEqual);
+  const game = useGame(session);
+  const members = usePeople(session, (p) => p.members);
+  const me = session.me;
+  const match = game?.match;
+  // Đếm ngược trước lượt claim đầu tiên (chủ phòng đã lùi hạn claim lại một nhịp đếm).
+  const opening = room.status === "playing" && !!match && match.round === room.round && match.pub.turn === 1 && match.pub.phase === "claim" && !match.pub.lastMove;
+  const count = useCountdown(opening ? match!.round : 0, { endsAt: match ? match.pub.claimDeadline - game!.opts.claimMs : undefined });
+  const won = match?.pub.winner;
+  const end = useEndScene(won && match?.pub.phase === "ended" ? match.round : 0, { cheer: !match?.mySide || match.mySide === won, emojis: CHEERS });
+  return (
+    <>
+      {match && count > 0 && <CountdownScene match={match} members={members} me={me} n={count} />}
+      {match?.pub.winner && end.shown && <EndScene match={match} members={members} me={me} onClose={end.close} />}
+      <Party bits={end.party} />
+    </>
+  );
+});
 
 /** Người giữ từng role của một phe (role không ai giữ là Bot), kèm quân đại diện của role. */
 function teamOf(match: XqRoleMatch, side: Side, members: RoomView["members"], me: string): CrowdItem[] {
@@ -213,7 +273,7 @@ function ClaimConfig({ claimMs, onChange }: { claimMs: ClaimMs; onChange: (ms: C
 }
 
 /** Thanh trạng thái ngoài ván: vào ghế (chọn role bên dưới) / bắt đầu. Trong ván thì bảng lượt bên cạnh bàn cờ lo. */
-function ActionBar({ view, session }: { view: RoomView; session: XiangqiRoleRoom }) {
+function ActionBar({ view, session }: { view: SeatState; session: XiangqiRoleRoom }) {
   const m = view.meta!;
   const n = m.players.length;
   if (m.status === "playing") return null;

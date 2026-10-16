@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emptyState, type End, type Side, type XqState } from "@/lib/games/xiangqi";
-import type { Result, RoomView, SeatView } from "@/lib/net/room";
+import type { Result, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import type { XiangqiRoom, XqMatch, XqView } from "@/lib/net/xiangqi-room";
 import { Score } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
@@ -11,10 +11,22 @@ import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 import { PieceIcon, XiangqiBoard, type Script } from "./XiangqiBoard";
 
-type View = RoomView<XqView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<XqView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useXqView(session: XiangqiRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
 
 const SIDE_NAME = { 1: "Đỏ", 2: "Đen" } as const;
 const SIDE_TONE = { 1: "#d62828", 2: "#2b2540" } as const;
@@ -74,33 +86,17 @@ function useScript() {
   return [script, set] as const;
 }
 
+/**
+ * Bàn cờ tướng tách theo store: khung chỉ đọc vài trường của `roomStore` và giữ lựa chọn chữ trên quân (chỉ máy này);
+ * thanh đối đầu, thanh trạng thái, thẻ kết quả, bàn cờ tự đăng ký store và bọc `memo`.
+ */
 export function XiangqiTable({ id, slug, session }: { id: string; slug: string; session: XiangqiRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const { match: g, wins, draws } = view.game!;
-  const boardRef = useRef<HTMLDivElement>(null);
-  const flyers = useFlyers(session, boardRef);
+  const head = useRoomState(session, headOf, shallowEqual);
   const [script, setScript] = useScript();
-  const scenes = useScenes(view);
-
-  const showGame = !!g && (m.status !== "waiting" || g.state.count > 0);
-  const state = showGame ? g!.state : emptyState();
-  const playing = m.status === "playing";
-  const seated = view.mySeat >= 0;
-  const inLineup = !!g && g.mySide > 0;
-  const flip = showGame && g!.mySide === 2;
-
-  // Thanh đối đầu: trong ván thì Đỏ bên trái, Đen bên phải; khi chờ thì theo ghế.
-  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
 
   return (
-    <RoomLayout
-      id={id}
-      slug={slug}
-      people={<PeoplePanel view={view} session={session} roomId={id} />}
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} />}
-    >
-      <RoomHeader name={m.name} status={m.status} round={m.round}>
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <RoomHeader name={head.name} status={head.status} round={head.round}>
         <span className="chip" style={{ color: SIDE_TONE[1] }}>
           🔴 Đỏ đi trước
         </span>
@@ -114,13 +110,44 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
         </button>
       </RoomHeader>
 
+      <DuelPart session={session} script={script} />
+      <ActionPart session={session} />
+      <ResultPart session={session} />
+      <PlayPart session={session} script={script} />
+    </RoomLayout>
+  );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+/** Đang có ván để hiện (đang chơi, hoặc đã có nước đi). */
+const showOf = (view: View) => {
+  const g = view.game?.match;
+  return !!g && (view.meta!.status !== "waiting" || g.state.count > 0);
+};
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Thanh đối đầu (hai thẻ người chơi, tỉ số) và quân đã bị ăn. */
+const DuelPart = memo(function DuelPart({ session, script }: { session: XiangqiRoom; script: Script }) {
+  const view = useXqView(session);
+  const m = view.meta!;
+  const { match: g, wins, draws } = view.game!;
+  const showGame = showOf(view);
+  const state = showGame ? g!.state : null;
+  const playing = m.status === "playing";
+  // Thanh đối đầu: trong ván thì Đỏ bên trái, Đen bên phải; khi chờ thì theo ghế.
+  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  return (
+    <>
       <div className="mb-2 flex items-stretch gap-2 sm:gap-4">
         <SeatCard
           seat={slots[0]}
           mark={showGame ? 1 : undefined}
           badge={showGame ? SIDE_NAME[1] : undefined}
           tone={showGame ? SIDE_TONE[1] : undefined}
-          active={playing && !g?.result && state.turn === 1}
+          active={playing && !g?.result && (state?.turn ?? 1) === 1}
           isHost={slots[0]?.uid === m.host}
           me={view.me}
         />
@@ -130,22 +157,51 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
           mark={showGame ? 2 : undefined}
           badge={showGame ? SIDE_NAME[2] : undefined}
           tone={showGame ? SIDE_TONE[2] : undefined}
-          active={playing && !g?.result && state.turn === 2}
+          active={playing && !g?.result && (state?.turn ?? 1) === 2}
           isHost={slots[1]?.uid === m.host}
           me={view.me}
           align="right"
         />
       </div>
-      {showGame && (
+      {state && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <Captured pieces={state.captured.filter((v) => v < 0)} script={script} />
           <Captured pieces={state.captured.filter((v) => v > 0)} script={script} align="right" />
         </div>
       )}
+    </>
+  );
+});
 
-      <ActionBar view={view} session={session} />
-      {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
+const ActionPart = memo(function ActionPart({ session }: { session: XiangqiRoom }) {
+  const view = useXqView(session);
+  return <ActionBar view={view} session={session} />;
+});
 
+/** Thẻ kết quả ván vừa xong. */
+const ResultPart = memo(function ResultPart({ session }: { session: XiangqiRoom }) {
+  const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
+  const g = useGame(session, (v) => v?.match);
+  return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
+});
+
+/** Bàn cờ, danh sách nước đi, sticker bay, chiếu tướng, cảnh mở ván / hết ván. */
+const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiRoom; script: Script }) {
+  const view = useXqView(session);
+  const m = view.meta!;
+  const g = view.game!.match;
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flyers = useFlyers(session, boardRef);
+  const scenes = useScenes(view);
+  const showGame = showOf(view);
+  const state = useMemo(() => (showGame ? g!.state : emptyState()), [showGame, g]);
+  const seated = view.mySeat >= 0;
+  const inLineup = !!g && g.mySide > 0;
+  const flip = showGame && g!.mySide === 2;
+  const onMove = useCallback((from: number, to: number) => session.move(from, to), [session]);
+
+  return (
+    <>
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_210px]">
         <div className="relative">
           <div ref={boardRef} className="card mx-auto max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
@@ -156,7 +212,7 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
               mySide={g?.mySide ?? 0}
               flip={flip}
               script={script}
-              onMove={(from, to) => session.move(from, to)}
+              onMove={onMove}
             />
           </div>
           <Flyers flyers={flyers} />
@@ -174,14 +230,10 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
       {g && scenes.intro.shown && <IntroScene match={g} me={view.me} script={script} onClose={scenes.intro.close} />}
       {g?.result && scenes.end.shown && <EndScene match={g} me={view.me} script={script} onClose={scenes.end.close} />}
       <Party bits={scenes.end.party} />
-    </RoomLayout>
+    </>
   );
-}
+});
 
-/**
- * Các cảnh diễn khi khoảnh khắc xảy ra ngay trước mắt: mở ván (ván mới chưa ai đi), hết ván (kèm pháo giấy, trừ người
- * thua), chiếu tướng. Vào phòng / tải lại trang giữa chừng thì không diễn lại.
- */
 function useScenes(view: View) {
   const m = view.meta!;
   const g = view.game?.match;

@@ -39,6 +39,7 @@ import {
   type XqRolePublic,
 } from "../games/xiangqi-role";
 import { RoomSession, START_COUNTDOWN_MS, type ChatMsg, type Member, type Meta, type Result, type SeatView } from "./room";
+import { ViewStore } from "./view-store";
 
 export type TeamChatMsg = ChatMsg & { side: Side };
 
@@ -70,6 +71,8 @@ export type XqRoleView = {
 export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
   readonly game = "xiangqi-role";
   private teamChat: TeamChatMsg[] = [];
+  /** Chat phe (cả hai phe — giao diện lọc theo phe mình): tách khỏi `gameStore` để tin mới không kéo bàn cờ vẽ lại. */
+  readonly teamStore = new ViewStore<TeamChatMsg[]>(() => this.teamChat);
   private teamFns = new Set<(m: TeamChatMsg) => void>();
   private teamWired = false;
 
@@ -90,11 +93,17 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     this.teamChat = [...this.teamChat, msg].sort((a, b) => a.at - b.at).slice(-80);
     for (const fn of this.teamFns) fn(msg);
     this.store.invalidate();
+    this.teamStore.invalidate();
   }
 
   onTeamChat(fn: (m: TeamChatMsg) => void) {
     this.teamFns.add(fn);
     return () => this.teamFns.delete(fn);
+  }
+
+  /** Bàn chơi không đọc ý định `i:` — chỉ chủ phòng đọc để tính lượt, kết quả nằm ở `meta.xqr`. */
+  protected viewKey(k: string) {
+    return !k.startsWith("i:");
   }
 
   private ownersOf(m: Meta): Record<number, string> {
