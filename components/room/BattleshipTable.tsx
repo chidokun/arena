@@ -98,6 +98,12 @@ const ActionPart = memo(function ActionPart({ session }: { session: BattleshipRo
   return <ActionBar view={view} session={session} />;
 });
 
+/** Các nút điều khiển ván trên thanh công cụ lúc trình chiếu. */
+const ControlsPart = memo(function ControlsPart({ session }: { session: BattleshipRoom }) {
+  const view = useBsView(session);
+  return actionsOf(view, session).buttons;
+});
+
 /** Thẻ kết quả ván vừa xong. */
 const ResultPart = memo(function ResultPart({ session }: { session: BattleshipRoom }) {
   const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
@@ -119,7 +125,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   return (
     <>
-      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={<SeatRowPart session={session} />} scroll>
+      <StageArea className="mt-4" fit={g?.placing ? EDITOR_FIT : WATERS_FIT} head={<SeatRowPart session={session} />} tools={<ControlsPart session={session} />} scroll>
         <div ref={boardRef} className="relative">
           {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
           <Flyers flyers={flyers} />
@@ -209,27 +215,27 @@ function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"];
 const nameOf = (view: View, uid?: string | null) =>
   uid ? (view.members.find((p) => p.uid === uid)?.name ?? view.game?.match?.sides.find((s) => s.seat.uid === uid)?.seat.member?.name ?? "Ai đó") : "";
 
-/** Thanh trạng thái: bày tàu / lượt bắn trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
-function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
+/**
+ * Câu trạng thái và các nút điều khiển ván: bày tàu / lượt bắn trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả
+ * ván nằm ở thẻ kết quả). Dùng cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+ */
+function actionsOf(view: View, session: BattleshipRoom): { tone?: string; message: React.ReactNode; buttons?: React.ReactNode } {
   const m = view.meta!;
   const { opts, match: g } = view.game!;
   const name = (uid?: string | null) => nameOf(view, uid);
 
   if (m.status === "playing" && g && !g.result) {
     if (g.me < 0)
-      return (
-        <StatusBar
-          message={
-            g.phase === "setup" ? (
-              <>👀 Đang xem — hai bên đang bày tàu…</>
-            ) : (
-              <>
-                👀 Đang xem — lượt bắn của <b>{name(g.sides[g.turn].seat.uid)}</b>
-              </>
-            )
-          }
-        />
-      );
+      return {
+        message:
+          g.phase === "setup" ? (
+            <>👀 Đang xem — hai bên đang bày tàu…</>
+          ) : (
+            <>
+              👀 Đang xem — lượt bắn của <b>{name(g.sides[g.turn].seat.uid)}</b>
+            </>
+          ),
+      };
     const foe = g.sides[1 - g.me];
     let tone: string = TONE.idle;
     let message: React.ReactNode;
@@ -250,15 +256,17 @@ function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
       tone = TONE.turn;
       message = <>🎯 Đến lượt bạn — chọn một ô trên hải đồ đối phương để khai hoả{opts.chain ? " (trúng được bắn tiếp)" : ""}</>;
     } else message = g.turn === g.me ? <>📡 Đang chờ đối thủ báo kết quả…</> : <>⏳ Đối thủ đang ngắm bắn…</>;
-    return (
-      <StatusBar tone={tone} message={message}>
-        <ResignButton onConfirm={() => session.resign()} />
-      </StatusBar>
-    );
+    return { tone, message, buttons: <ResignButton onConfirm={() => session.resign()} /> };
   }
+  return { message: seatMessage(view), buttons: <SeatButtons view={view} session={session} /> };
+}
+
+/** Thanh trạng thái dưới thanh đối đầu. */
+function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
+  const { tone, message, buttons } = actionsOf(view, session);
   return (
-    <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+    <StatusBar tone={tone} message={message}>
+      {buttons}
     </StatusBar>
   );
 }
