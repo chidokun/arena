@@ -20,7 +20,7 @@
  *   m:<round>:<uid> — sudoku, nối thú kawaii, trúc xanh, dò mìn cổ điển: nhật ký nước điền / nước nối / lật ô, mở ô và lời
  *                     đoán của từng người;
  *                     chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
- *   i:<uid>         — né bão: input hiện tại (phím / bắn), mỗi người tự ghi LWW.
+ *   i:<uid>         — cờ tướng nhập vai: ý định hiện tại (claim lượt, giao lượt, đi quân), mỗi người tự ghi LWW.
  *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
  *   d:<round>:<lượt>.<trang>:<uid> — vẽ đoán: tranh của người vẽ trong lượt, chia trang thao tác (nét, đổ màu, hoàn tác…).
  *
@@ -30,13 +30,12 @@
  * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
  *
  * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, DodgeRoom, XiangqiRoleRoom, ConnectFourRoom,
+ * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, XiangqiRoleRoom, ConnectFourRoom,
  * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom,
  * TrucXanhRoom, MinesweeperRoom, ReversiRoom, CoChoRoom)
  * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
  */
 import type { CcPublic } from "../games/co-chep";
-import type { DodgePublic } from "../games/dodge";
 import type { DwPublic } from "../games/draw-guess";
 import type { KwRound } from "../games/kawaii";
 import type { McPublic } from "../games/mine-control";
@@ -108,8 +107,6 @@ export type Meta = {
   uc?: UcPublic;
   /** Sudoku: đề và chế độ của ván gần nhất, chốt lúc bắt đầu. */
   sd?: SudokuRound;
-  /** Né bão: runner, cạnh nấp, điểm sống — chủ phòng cập nhật khi đổi lượt / dừng. */
-  dg?: DodgePublic;
   /** Cờ tướng nhập vai: ownership + board + turn phase (chủ phòng ghi). */
   xqr?: XqRolePublic;
   /** Undercover: mã các cặp từ đã chơi trong phòng (ghi khi hết ván) — không bốc lại. */

@@ -11,7 +11,6 @@ import { ChessTable } from "./ChessTable";
 import { CoChepTable } from "./CoChepTable";
 import { CoChoTable } from "./CoChoTable";
 import { ConnectFourTable } from "./ConnectFourTable";
-import { DodgeTable } from "./DodgeTable";
 import { DotsBoxesTable } from "./DotsBoxesTable";
 import { DrawGuessTable } from "./DrawGuessTable";
 import { Joining } from "./Joining";
@@ -119,7 +118,6 @@ function GameTable({ id, slug, session }: { id: string; slug: string; session: G
   if (session.game === "undercover") return <UndercoverTable id={id} slug={slug} session={session} />;
   if (session.game === "sudoku") return <SudokuTable id={id} slug={slug} session={session} />;
   if (session.game === "xiangqi") return <XiangqiTable id={id} slug={slug} session={session} />;
-  if (session.game === "dodge") return <DodgeTable id={id} slug={slug} session={session} />;
   if (session.game === "xiangqi-role") return <XiangqiRoleTable id={id} slug={slug} session={session} />;
   if (session.game === "connect-four") return <ConnectFourTable id={id} slug={slug} session={session} />;
   if (session.game === "battleship") return <BattleshipTable id={id} slug={slug} session={session} />;

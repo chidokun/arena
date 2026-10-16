@@ -576,41 +576,6 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
-  dodge: {
-    intro: "Né Bão cho 2–8 người: một người chạy né chướng ngại, những người còn lại nấp quanh màn hình bắn đạn truy cản.",
-    sections: [
-      {
-        emoji: "🏃",
-        title: "Người chạy",
-        items: [
-          "Nhân vật tự chạy liên tục từ trái sang phải, bạn chỉ cần nhảy (Space / W / ↑) để né hố, gai và đạn.",
-          "Chạy càng lâu càng được cộng nhiều thời gian sống sót vào điểm.",
-        ],
-      },
-      {
-        emoji: "🔫",
-        title: "Người truy cản",
-        items: [
-          "Những người khác nấp ở bốn cạnh màn hình, trượt dọc cạnh (↑↓) để đổi vị trí.",
-          "Bấm chuột hoặc Space để bắn đạn về phía người chạy — mỗi phát cách nhau một khoảng hồi chiêu.",
-        ],
-      },
-      {
-        emoji: "🔁",
-        title: "Đổi người chạy",
-        items: [
-          "Người chạy trúng đạn: người bắn trúng lên làm người chạy.",
-          "Người chạy rơi hố hoặc vướng gai: người kế tiếp trong danh sách lên chạy.",
-        ],
-      },
-      {
-        emoji: "🏆",
-        title: "Thắng thua",
-        items: ["Chủ phòng bấm dừng để chốt bảng xếp hạng: ai có tổng thời gian sống sót dài nhất thắng."],
-      },
-    ],
-  },
-
   loto: {
     intro: "Lô tô ngày Tết cho cả phòng: chọn tờ, nghe kêu số và dò số — đủ năm số một hàng là Kinh!",
     sections: [

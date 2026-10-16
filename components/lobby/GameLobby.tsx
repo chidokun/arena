@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { DEFAULT_OPTIONS as CD_DEFAULTS, normOptions as cdOptions, SETUP_NAME as CD_SETUP_NAME, SETUPS as CD_SETUPS, type Setup as CdSetup } from "@/lib/games/co-cho";
-import { MAX_PLAYERS as DG_MAX, MIN_PLAYERS as DG_MIN } from "@/lib/games/dodge";
 import { DEFAULT_OPTIONS as DB_DEFAULTS, normOptions as dbOptions, SIZES as DB_SIZES, type Size as DbSize } from "@/lib/games/dots-boxes";
 import {
   DEFAULT_OPTIONS as DW_DEFAULTS,
@@ -201,7 +200,6 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const spy = room.game === "undercover";
   const sudoku = room.game === "sudoku";
   const xiangqi = room.game === "xiangqi";
-  const dodge = room.game === "dodge";
   const xiangqiRole = room.game === "xiangqi-role";
   const c4 = room.game === "connect-four";
   const bs = room.game === "battleship";
@@ -228,8 +226,6 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
             ? "Đang chơi"
             : sudoku
               ? "Đang giải"
-              : dodge
-                ? "Đang né bão"
                 : xiangqiRole
                   ? "Đang nhập vai"
                   : xiangqi
@@ -291,8 +287,6 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <XiangqiChips room={room} />
         ) : chess ? (
           <ChessChips room={room} />
-        ) : dodge ? (
-          <DodgeChips room={room} />
         ) : xiangqiRole ? (
           <XiangqiRoleChips room={room} />
         ) : c4 ? (
@@ -639,18 +633,6 @@ function SudokuChips({ room }: { room: RoomAd }) {
   );
 }
 
-function DodgeChips({ room }: { room: RoomAd }) {
-  return (
-    <>
-      <span className="rounded-lg bg-sunken px-2.5 py-1">
-        🙋 {room.players}/{room.seats} người chơi
-      </span>
-      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
-      <span className="rounded-lg bg-coral-soft px-2.5 py-1">🌩️ Real-time</span>
-    </>
-  );
-}
-
 function XiangqiRoleChips({ room }: { room: RoomAd }) {
   const opts = xqOptions(room.opts);
   return (
@@ -719,7 +701,6 @@ function CreateForm({ slug }: { slug: string }) {
   const spy = slug === "undercover";
   const sudoku = slug === "sudoku";
   const xiangqi = slug === "xiangqi";
-  const dodge = slug === "dodge";
   const xiangqiRole = slug === "xiangqi-role";
   const c4 = slug === "connect-four";
   const bs = slug === "battleship";
@@ -774,7 +755,6 @@ function CreateForm({ slug }: { slug: string }) {
         else if (coChep) stashCreate(id, { name: clean, cap, seats: game.seats.max, opts: {} });
         else if (mc) stashCreate(id, { name: clean, cap, seats: MC_MAX, opts: { map: mcMap, mines: mcMines } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
-        else if (dodge) stashCreate(id, { name: clean, cap: 0, seats: DG_MAX, opts: {} });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
         else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
         router.push(roomHref(slug, id));
@@ -982,11 +962,6 @@ function CreateForm({ slug }: { slug: string }) {
             người vẽ cũng được điểm theo số người đoán ra. Số vòng, thời gian vẽ và gợi ý chữ cái đổi được trong phòng trước mỗi ván.
           </p>
         </>
-      ) : dodge ? (
-        <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
-          🌩️ Từ {DG_MIN} đến {DG_MAX} người chơi. Runner tự chạy trái→phải, nhảy né hố/gai; người còn lại nấp bốn cạnh bắn truy cản. Ai sống lâu hơn
-          thắng; bắn trúng thì lên làm người chạy.
-        </p>
       ) : xiangqiRole ? (
         <>
           <fieldset>

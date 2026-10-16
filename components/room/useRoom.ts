@@ -8,7 +8,6 @@ import { ChessRoom } from "@/lib/net/chess-room";
 import { CoChepRoom } from "@/lib/net/co-chep-room";
 import { CoChoRoom } from "@/lib/net/co-cho-room";
 import { ConnectFourRoom } from "@/lib/net/connect-four-room";
-import { DodgeRoom } from "@/lib/net/dodge-room";
 import { DotsBoxesRoom } from "@/lib/net/dots-boxes-room";
 import { DrawGuessRoom } from "@/lib/net/draw-guess-room";
 import { KawaiiRoom } from "@/lib/net/kawaii-room";
@@ -28,7 +27,7 @@ import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | DodgeRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom | ReversiRoom | CoChoRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom | ReversiRoom | CoChoRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -51,8 +50,6 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
               ? SudokuRoom.open(id, uid, profile, lobby)
               : game === "xiangqi"
                 ? XiangqiRoom.open(id, uid, profile, lobby)
-                : game === "dodge"
-                  ? DodgeRoom.open(id, uid, profile, lobby)
                   : game === "xiangqi-role"
                     ? XiangqiRoleRoom.open(id, uid, profile, lobby)
                     : game === "connect-four"
