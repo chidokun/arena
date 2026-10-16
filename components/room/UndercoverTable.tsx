@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   autoUndercovers,
   CLUE_TEXT,
@@ -23,7 +23,7 @@ import {
   type Tie,
   type UcOptions,
 } from "@/lib/games/undercover";
-import type { RoomView } from "@/lib/net/room";
+import type { Member, RoomState, RoomView } from "@/lib/net/room";
 import type { Scene, UcView, UndercoverRoom } from "@/lib/net/undercover-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
@@ -31,9 +31,27 @@ import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
-import { useFlyers, useRoomView } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = RoomView<UcView>;
+/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
+type View = Omit<RoomView<UcView>, "chat">;
+
+/**
+ * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
+ * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
+ */
+function useUcView(session: UndercoverRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
+
+/** Lượt hiện tại (vòng · ngày · giai đoạn) — người đang chọn loại gắn với lượt này, sang lượt khác tự bỏ. */
+const turnOf = (view: View) => `${view.game!.pub?.round}:${view.game!.pub?.day}:${view.game!.pub?.stage}`;
+
+/** Người đang chọn loại (chưa xác nhận) ở lượt nào. */
+type Sel = { turn: string; uid: string } | null;
 
 /** Một lựa chọn đang mở trên bàn: bấm vào người chơi để chọn. */
 type Pick = { verb: string; can: (uid: string) => boolean; chosen?: string; onPick: (uid: string) => void };
@@ -67,75 +85,157 @@ function knownRole(view: View, uid: string): Role | undefined {
 }
 
 /** Lý do khoá ô chat: đang phát từ, phe Trắng đang đoán, người bị loại, người xem biết hết từ khoá. */
-function chatLock(view: View) {
-  const g = view.game!;
+function chatLock(g: UcView, isHost: boolean) {
   const stage = g.pub?.stage;
   if (!g.playing) return undefined;
-  if (!g.me.inGame) return g.seeAll && !view.isHost ? "👀 Bạn đang xem và thấy hết từ khoá — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
+  if (!g.me.inGame) return g.seeAll && !isHost ? "👀 Bạn đang xem và thấy hết từ khoá — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
   if (!g.me.alive) return "❌ Bạn đã bị loại — không được tham gia thảo luận nữa.";
   if (stage === "intro") return "🃏 Đang phát từ — lật bài xong là vào lượt mô tả.";
   if (stage === "clue") return "✍️ Đang lượt mô tả — điền vào khung mô tả theo thứ tự, ai cũng mô tả xong mới được thảo luận.";
   if (stage === "guess") return "👤 Phe Trắng đang đoán từ khoá — giữ im lặng nhé.";
 }
 
+/**
+ * Bàn Gián Điệp tách theo store: khung chỉ đọc vài trường của `roomStore`; mỗi phần (sân khấu, hành động, từ khoá, bảng
+ * mô tả, người chơi…) tự đăng ký store và bọc `memo`, nên nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
+ */
 export function UndercoverTable({ id, slug, session }: { id: string; slug: string; session: UndercoverRoom }) {
-  const view = useRoomView(session)!;
-  const m = view.meta!;
-  const g = view.game!;
+  const head = useRoomState(session, headOf, shallowEqual);
+  const playing = useGame(session, (g) => !!g?.playing);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const [rules, setRules] = useState(false);
   // Lá bài phát từ đã đóng ở ván nào (mở lại được trong lúc phát từ).
   const [dealClosed, setDealClosed] = useState(0);
-  // Người đang chọn loại ở lượt bỏ phiếu hiện tại (chưa xác nhận).
-  const turn = `${g.pub?.round}:${g.pub?.day}:${g.pub?.stage}`;
-  const [sel, setSel] = useState<{ turn: string; uid: string } | null>(null);
-  const selected = sel?.turn === turn ? sel.uid : undefined;
-  const pick = pickOf(view, session, selected, (uid) => setSel({ turn, uid }));
+  // Người đang chọn loại ở lượt bỏ phiếu hiện tại (chưa xác nhận) — ActionCard xoá, Players chọn.
+  const [sel, setSel] = useState<Sel>(null);
+  const detail = useCallback((p: Member, seated: boolean) => <PersonLinePart session={session} uid={p.uid} seated={seated} />, [session]);
 
   return (
     <RoomLayout
       id={id}
       slug={slug}
-      people={
-        <PeoplePanel
-          view={view}
-          session={session}
-          roomId={id}
-          canSeat={false}
-          unseatLabel="Huỷ sẵn sàng"
-          detail={(p, seated) => <PersonLine view={view} uid={p.uid} seated={seated} />}
-        />
-      }
-      chat={<ChatPanel session={session} chat={view.chat} me={view.me} locked={chatLock(view)} />}
+      people={<PeoplePanel session={session} roomId={id} canSeat={false} unseatLabel="Huỷ sẵn sàng" detail={detail} />}
+      chat={<UcChat session={session} />}
     >
-      <RoomHeader name={m.name} status={m.status} round={m.round} playing="đang chơi">
-        {!g.playing && <span className="chip text-ink-2">🙋 {m.players.length} người sẵn sàng</span>}
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing="đang chơi">
+        {!playing && <span className="chip text-ink-2">🙋 {head.players} người sẵn sàng</span>}
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRules(true)}>
           📜 Luật chơi
         </button>
       </RoomHeader>
 
       <div ref={areaRef} className="relative grid gap-4">
-        <StageCard view={view} session={session} />
-        {g.result && <ResultCard view={view} />}
-        {g.playing && (
-          <ActionCard view={view} session={session} selected={selected} clear={() => setSel(null)} reopenDeal={() => setDealClosed(0)} />
-        )}
-        {g.me.inGame && g.me.word !== undefined && !g.result && <WordCard view={view} />}
-        {g.seeAll && g.playing && <SeeAllCard view={view} />}
-        {g.playing && g.pub && <ClueBoard view={view} pub={g.pub} />}
-        <Players view={view} pick={pick} />
-        {!g.playing && <Settings view={view} session={session} />}
+        <StagePart session={session} />
+        <ResultPart session={session} />
+        <ActionPart session={session} sel={sel} setSel={setSel} setDealClosed={setDealClosed} />
+        <WordPart session={session} />
+        <SeeAllPart session={session} />
+        <CluePart session={session} />
+        <PlayersPart session={session} sel={sel} setSel={setSel} />
+        <SettingsPart session={session} />
         <Flyers flyers={flyers} />
       </div>
 
-      <Cinema view={view} session={session} dealClosed={dealClosed === m.round} closeDeal={() => setDealClosed(m.round)} />
+      <CinemaPart session={session} dealClosed={dealClosed} setDealClosed={setDealClosed} />
       <Dialog open={rules} onClose={() => setRules(false)} title="Luật Truy tìm Gián Điệp">
-        {rules && <Rules opts={g.opts} />}
+        {rules && <RulesPart session={session} />}
       </Dialog>
     </RoomLayout>
   );
+}
+
+/** Phần `roomStore` khung bàn cần. */
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round, players: r.meta!.players.length });
+
+// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
+
+/** Khung chat: chỉ cần biết lý do khoá chat (chuỗi) — đổi giai đoạn / bị loại mới vẽ lại, còn tin mới thì ChatPanel tự lo. */
+const UcChat = memo(function UcChat({ session }: { session: UndercoverRoom }) {
+  const isHost = useRoomState(session, (r) => r.isHost);
+  const locked = useGame(session, (g) => (g ? chatLock(g, isHost) : undefined));
+  return <ChatPanel session={session} locked={locked} />;
+});
+
+const PersonLinePart = memo(function PersonLinePart({ session, uid, seated }: { session: UndercoverRoom; uid: string; seated: boolean }) {
+  const view = useUcView(session);
+  return <PersonLine view={view} uid={uid} seated={seated} />;
+});
+
+const StagePart = memo(function StagePart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  return <StageCard view={view} session={session} />;
+});
+
+const ResultPart = memo(function ResultPart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  return view.game!.result ? <ResultCard view={view} /> : null;
+});
+
+const ActionPart = memo(function ActionPart({
+  session,
+  sel,
+  setSel,
+  setDealClosed,
+}: {
+  session: UndercoverRoom;
+  sel: Sel;
+  setSel: (s: Sel) => void;
+  setDealClosed: (round: number) => void;
+}) {
+  const view = useUcView(session);
+  if (!view.game!.playing) return null;
+  const selected = sel?.turn === turnOf(view) ? sel.uid : undefined;
+  return <ActionCard view={view} session={session} selected={selected} clear={() => setSel(null)} reopenDeal={() => setDealClosed(0)} />;
+});
+
+const WordPart = memo(function WordPart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  const g = view.game!;
+  return g.me.inGame && g.me.word !== undefined && !g.result ? <WordCard view={view} /> : null;
+});
+
+const SeeAllPart = memo(function SeeAllPart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  const g = view.game!;
+  return g.seeAll && g.playing ? <SeeAllCard view={view} /> : null;
+});
+
+const CluePart = memo(function CluePart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  const g = view.game!;
+  return g.playing && g.pub ? <ClueBoard view={view} pub={g.pub} /> : null;
+});
+
+const PlayersPart = memo(function PlayersPart({ session, sel, setSel }: { session: UndercoverRoom; sel: Sel; setSel: (s: Sel) => void }) {
+  const view = useUcView(session);
+  const turn = turnOf(view);
+  const selected = sel?.turn === turn ? sel.uid : undefined;
+  return <Players view={view} pick={pickOf(view, session, selected, (uid) => setSel({ turn, uid }))} />;
+});
+
+const SettingsPart = memo(function SettingsPart({ session }: { session: UndercoverRoom }) {
+  const view = useUcView(session);
+  return view.game!.playing ? null : <Settings view={view} session={session} />;
+});
+
+const CinemaPart = memo(function CinemaPart({
+  session,
+  dealClosed,
+  setDealClosed,
+}: {
+  session: UndercoverRoom;
+  dealClosed: number;
+  setDealClosed: (round: number) => void;
+}) {
+  const view = useUcView(session);
+  const round = view.meta!.round;
+  return <Cinema view={view} session={session} dealClosed={dealClosed === round} closeDeal={() => setDealClosed(round)} />;
+});
+
+function RulesPart({ session }: { session: UndercoverRoom }) {
+  const opts = useGame(session, (g) => g!.opts);
+  return <Rules opts={opts} />;
 }
 
 /** Lựa chọn đang mở cho mình: chọn người để loại (rồi xác nhận), hoặc chủ phòng phá hoà. */

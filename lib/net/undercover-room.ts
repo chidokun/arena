@@ -178,6 +178,16 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
+  /**
+   * Bàn chơi không đọc hộp niêm phong thô `s:` (đọc qua bản đã mở), và chỉ đọc mô tả `c:` / lời đoán `w:` của chính mình
+   * (của người khác đi qua `meta.uc`).
+   */
+  protected viewKey(k: string) {
+    if (k.startsWith("s:")) return false;
+    if (k.startsWith("c:") || k.startsWith("w:")) return k.endsWith(`:${this.me}`);
+    return true;
+  }
+
   protected memberExtra(): Partial<Member> {
     return this.keys ? { key: this.keys.pub } : {};
   }
@@ -205,6 +215,8 @@ export class UndercoverRoom extends RoomSession<UcView> {
       if (cur) {
         this.opened.delete(k);
         this.store.invalidate();
+        // Bí mật của mình (đã mở, nằm ngoài gossip) vừa mất: báo bàn chơi.
+        this.gameStore.invalidate();
       }
       return;
     }
@@ -214,6 +226,7 @@ export class UndercoverRoom extends RoomSession<UcView> {
     void keys.open(peer, k, e.v).then((v) => {
       this.opening.delete(k);
       this.opened.set(k, { c: e.c, w: e.w, peer, v });
+      this.gameStore.invalidate();
       this.react();
       // Bản ghi có thể đã đổi trong lúc đang mở.
       this.unseal(k);
@@ -307,6 +320,8 @@ export class UndercoverRoom extends RoomSession<UcView> {
       try {
         sessionStorage.setItem(gmKey(this.id), raw);
       } catch {}
+      // Người điều hành đứng xem thì thấy hết (`seeAll`), phần bí mật đó có thể đổi mà `meta.uc` công khai vẫn như cũ.
+      if (!m.lineup.includes(this.me)) this.gameStore.invalidate();
     }
   }
 
@@ -641,7 +656,9 @@ export class UndercoverRoom extends RoomSession<UcView> {
       if (w) sessionStorage.setItem(customKey(this.id), JSON.stringify(w));
       else sessionStorage.removeItem(customKey(this.id));
     } catch {}
+    // Cặp từ tự đặt chỉ nằm trên máy mình (`custom`).
     this.store.invalidate();
+    this.gameStore.invalidate();
   }
 
   /** Xoá đánh dấu các cặp từ đã chơi để bốc lại từ đầu. */
