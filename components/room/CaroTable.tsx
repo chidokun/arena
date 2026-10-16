@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
 import { emptyState, type CaroOptions } from "@/lib/games/caro";
 import type { CaroMatch, CaroRoom, CaroView } from "@/lib/net/caro-room";
 import type { RoomState, SeatView } from "@/lib/net/room";
@@ -49,13 +49,25 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
 const headOf = (r: RoomState) => {
   const m = r.meta!;
   const opts = m.opts as CaroOptions;
-  return { name: m.name, status: m.status, round: m.round, size: opts.size, block: !!opts.blockTwoEnds };
+  return {
+    name: m.name,
+    status: m.status,
+    round: m.round,
+    size: opts.size,
+    block: !!opts.blockTwoEnds,
+  };
 };
 
 /** Phần `roomStore` thanh đối đầu cần. */
 const duelOf = (r: RoomState) => {
   const m = r.meta!;
-  return { me: r.me, status: m.status, seats: m.seats, host: m.host, scored: m.scored ?? 0 };
+  return {
+    me: r.me,
+    status: m.status,
+    seats: m.seats,
+    host: m.host,
+    scored: m.scored ?? 0,
+  };
 };
 
 /** Ván để hiện (đang chơi, hoặc đã có nước đi) — chưa có thì bàn trống, đội hình theo ghế. */
@@ -116,7 +128,15 @@ function Result({ session }: { session: CaroRoom }) {
 /** Phần `roomStore` bàn chơi cần. */
 const playOf = (r: RoomState) => {
   const m = r.meta!;
-  return { me: r.me, isHost: r.isHost, seated: r.mySeat >= 0, status: m.status, round: m.round, players: m.players.length, seats: m.seats };
+  return {
+    me: r.me,
+    isHost: r.isHost,
+    seated: r.mySeat >= 0,
+    status: m.status,
+    round: m.round,
+    players: m.players.length,
+    seats: m.seats,
+  };
 };
 
 /** Bàn chơi (kèm hai thẻ người chơi lúc trình chiếu), sticker bay, cảnh đếm ngược / hết ván. */
@@ -129,7 +149,11 @@ function Play({ session }: { session: CaroRoom }) {
   const g = game?.match;
   const live = room.status === "playing" && g?.round === room.round && !g.result;
   const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
-  const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "line" ? LINE_PAUSE_MS : 0, cheer: g?.result?.loser !== room.me, emojis: CHEERS });
+  const end = useEndScene(g?.result ? g.round : 0, {
+    delay: g?.result?.reason === "line" ? LINE_PAUSE_MS : 0,
+    cheer: g?.result?.loser !== room.me,
+    emojis: CHEERS,
+  });
   const shown = shownMatch(game, room.status);
   const size = game?.opts.size ?? 15;
   const state = useMemo(() => shown?.state ?? emptyState(size), [shown?.state, size]);
@@ -139,7 +163,7 @@ function Play({ session }: { session: CaroRoom }) {
   return (
     <>
       {/* Trình chiếu: hai người chơi kèm bàn vuông lớn nhất vừa ô còn trống. */}
-      <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]}>
+      <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={onPlay} />
         </div>
@@ -179,7 +203,12 @@ function CountdownScene({ match: g, me, n }: { match: CaroMatch; me: string; n: 
 /** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: CaroMatch, me: string): DuelSummary {
   const r = g.result!;
-  if (!r.winner) return { winner: null, title: "Hoà cờ!", sub: `Ván ${g.round} hoà — kín bàn sau ${g.state.count} nước` };
+  if (!r.winner)
+    return {
+      winner: null,
+      title: "Hoà cờ!",
+      sub: `Ván ${g.round} hoà — kín bàn sau ${g.state.count} nước`,
+    };
   const k = g.lineup.findIndex((s) => s.uid === r.winner);
   const why = forfeitWhy(r) ?? `${g.state.line.length} quân liên tiếp sau ${g.state.count} nước`;
   return {
@@ -193,9 +222,35 @@ function summary(g: CaroMatch, me: string): DuelSummary {
 /** Cảnh hết ván: người thắng (vàng rực như Sudoku) hoặc hoà — bấm để đóng. */
 function EndScene({ match: g, me, onClose }: { match: CaroMatch; me: string; onClose: () => void }) {
   const s = summary(g, me);
-  if (!s.winner) return <DrawCine people={g.lineup.map((x, k) => ({ uid: x.uid, p: x.member, ring: k ? "#2f7bff" : "#ff5a5f" }))} title={s.title} sub={s.sub} onClose={onClose} />;
+  if (!s.winner)
+    return (
+      <DrawCine
+        people={g.lineup.map((x, k) => ({
+          uid: x.uid,
+          p: x.member,
+          ring: k ? "#2f7bff" : "#ff5a5f",
+        }))}
+        title={s.title}
+        sub={s.sub}
+        onClose={onClose}
+      />
+    );
   const k = g.lineup.findIndex((x) => x.uid === s.winner);
-  return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <MarkIcon v={(k + 1) as 1 | 2} size={22} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
+  return (
+    <WinCine
+      winners={[
+        {
+          uid: s.winner,
+          p: g.lineup[k]?.member,
+          badge: <MarkIcon v={(k + 1) as 1 | 2} size={22} />,
+        },
+      ]}
+      title={s.title}
+      sub={s.sub}
+      note={s.note}
+      onClose={onClose}
+    />
+  );
 }
 
 /** Giữa hai thẻ người chơi: "VS" khi chưa xong ván nào, sau đó là tỉ số thắng cộng dồn trong phòng. */
@@ -237,10 +292,15 @@ function Wins({ n, color }: { n: number; color?: string }) {
 }
 
 /**
- * Thanh trạng thái: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả).
+ * Câu trạng thái và các nút điều khiển ván: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ
+ * kết quả). Dùng cho thanh trạng thái và thanh công cụ lúc trình chiếu.
  * Đăng ký `roomStore` (vai trò, ghế), `peopleStore` (ghế còn kết nối, tên người) và `gameStore` (lượt).
  */
-function ActionBar({ session }: { session: CaroRoom }) {
+function useActions(session: CaroRoom): {
+  tone?: string;
+  message: ReactNode;
+  buttons?: ReactNode;
+} {
   const room = useRoomState(session);
   const people = usePeople(session);
   const g = useGame(session, (v) => v?.match);
@@ -250,35 +310,42 @@ function ActionBar({ session }: { session: CaroRoom }) {
 
   if (m.status === "playing" && g) {
     if (!g.myMark)
-      return (
-        <StatusBar
-          message={
-            <>
-              👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b>
-            </>
-          }
-        />
-      );
-    return (
-      <StatusBar
-        tone={g.myTurn ? TONE.turn : TONE.idle}
-        message={
-          g.myTurn ? (
-            <>
-              🎯 Đến lượt bạn — đánh <b>{g.myMark === 1 ? "X" : "O"}</b>
-            </>
-          ) : (
-            <>⏳ Chờ đối thủ đi…</>
-          )
-        }
-      >
-        <ResignButton onConfirm={() => session.resign()} />
-      </StatusBar>
-    );
+      return {
+        message: (
+          <>
+            👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b>
+          </>
+        ),
+      };
+    return {
+      tone: g.myTurn ? TONE.turn : TONE.idle,
+      message: g.myTurn ? (
+        <>
+          🎯 Đến lượt bạn — đánh <b>{g.myMark === 1 ? "X" : "O"}</b>
+        </>
+      ) : (
+        <>⏳ Chờ đối thủ đi…</>
+      ),
+      buttons: <ResignButton onConfirm={() => session.resign()} />,
+    };
   }
+  return {
+    message: seatMessage(view),
+    buttons: <SeatButtons view={view} session={session} />,
+  };
+}
+
+/** Thanh trạng thái dưới thanh đối đầu. */
+function ActionBar({ session }: { session: CaroRoom }) {
+  const { tone, message, buttons } = useActions(session);
   return (
-    <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+    <StatusBar tone={tone} message={message}>
+      {buttons}
     </StatusBar>
   );
+}
+
+/** Các nút điều khiển ván trên thanh công cụ lúc trình chiếu. */
+function Controls({ session }: { session: CaroRoom }) {
+  return useActions(session).buttons;
 }

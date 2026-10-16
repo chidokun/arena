@@ -9,6 +9,7 @@ import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
 import { Flyers } from "./RoomLayout";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
+import { useStaged } from "./stage";
 import { StickerArt } from "./Sticker";
 import { useFlyers } from "./useFlyers";
 import { useBalloons, useRoomChat } from "./useRoom";
@@ -169,9 +170,9 @@ function bubbleKind(m: ChatMsg): { tone: string; tag?: string } {
  * Lời đoán (vẽ đoán) và mô tả (gián điệp) có nhãn và màu riêng để không lẫn với tin thảo luận.
  * Bấm vào thì mở khung chat; bàn phím / trình đọc màn hình dùng nút chat.
  */
-function Bubbles({ msgs, onOpen }: { msgs: ChatMsg[]; onOpen: () => void }) {
+function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: string }) {
   return (
-    <ol className="pointer-events-none fixed right-4 bottom-[86px] z-40 flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2" aria-live="polite">
+    <ol className={`pointer-events-none fixed right-4 bottom-[86px] ${z} flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2`} aria-live="polite">
       {msgs.map((m, i) => {
         const { tone, tag } = bubbleKind(m);
         return (
@@ -202,6 +203,8 @@ function Bubbles({ msgs, onOpen }: { msgs: ChatMsg[]; onOpen: () => void }) {
  * lúc đó khung còn lại nút tròn như khi nổi.
  * `storageKey`: nơi nhớ đang mở hay thu nhỏ; chưa chọn bao giờ thì theo `openByDefault`.
  * `bubbles`: tin vừa tới cần bật thành bóng thoại từ nút tròn lúc khung đang thu nhỏ.
+ * `staged`: phòng đang trình chiếu — khung nổi trên lớp trình chiếu như trên điện thoại, mỗi lần vào trình chiếu đều bắt
+ * đầu thu nhỏ (không nhớ lựa chọn).
  */
 function ChatBox({
   channels,
@@ -215,6 +218,7 @@ function ChatBox({
   storageKey,
   openByDefault,
   bubbles = [],
+  staged = false,
 }: {
   channels: Channel[];
   panels?: SidePanel[];
@@ -227,6 +231,7 @@ function ChatBox({
   storageKey: string;
   openByDefault: () => boolean;
   bubbles?: ChatMsg[];
+  staged?: boolean;
 }) {
   const uid = useId();
   const fx = useStickerFx();
@@ -246,7 +251,15 @@ function ChatBox({
     } catch {}
     return openByDefault();
   });
-  const open = docked ? !hidden : openPref;
+  const [stagedOpen, setStagedOpen] = useState(false);
+  const [wasStaged, setWasStaged] = useState(staged);
+  if (staged !== wasStaged) {
+    setWasStaged(staged);
+    setStagedOpen(false);
+  }
+  const open = staged ? stagedOpen : docked ? !hidden : openPref;
+  // Trên lớp trình chiếu (z 45), dưới thông báo (50) và các cảnh mở / hết ván (60).
+  const z = staged ? "z-[47]" : "z-40";
   // Mốc đã đọc của từng kênh. Lịch sử có sẵn lúc mở khung (người khác gửi lại cho mình) không tính là tin mới.
   const [seen, setSeen] = useState<Record<string, number>>(() => Object.fromEntries(channels.map((c) => [c.key, Date.now()])));
   const unread = (c: Channel) => (open && !panel && c.key === ch.key ? 0 : unreadOf(c.chat, me, seen[c.key] ?? 0));
@@ -271,7 +284,8 @@ function ChatBox({
 
   const toggle = () => {
     const next = !open;
-    if (docked) onHide?.(!next);
+    if (staged) setStagedOpen(next);
+    else if (docked) onHide?.(!next);
     else {
       setOpen(next);
       try {
@@ -361,13 +375,13 @@ function ChatBox({
   if (!open)
     return (
       <>
-        {bubbles.length > 0 && <Bubbles msgs={bubbles} onOpen={toggle} />}
+        {bubbles.length > 0 && <Bubbles msgs={bubbles} onOpen={toggle} z={z} />}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={false}
           aria-controls={bodyId}
-          className="btn btn-pen fixed right-4 bottom-4 z-40 h-14 rounded-full px-5 text-base shadow-[0_5px_0_var(--edge)]"
+          className={`btn btn-pen fixed right-4 bottom-4 ${z} h-14 rounded-full px-5 text-base shadow-[0_5px_0_var(--edge)]`}
         >
           <span aria-hidden="true">💬</span>
           <span className="hidden sm:inline">{title}</span>
@@ -392,11 +406,20 @@ function ChatBox({
       className={
         docked
           ? "card flex min-h-0 flex-1 flex-col overflow-hidden"
-          : "card fixed inset-x-3 bottom-3 z-40 flex h-[min(78dvh,600px)] flex-col overflow-hidden sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]"
+          : `card fixed inset-x-3 bottom-3 ${z} flex h-[min(78dvh,600px)] flex-col overflow-hidden sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]`
       }
       style={docked ? undefined : { animation: "pop-in 220ms ease", boxShadow: "0 8px 0 var(--edge)", ...kbStyle }}
       aria-label={title}
-      onKeyDown={docked ? undefined : (e) => e.key === "Escape" && toggle()}
+      onKeyDown={
+        docked
+          ? undefined
+          : (e) => {
+              if (e.key !== "Escape") return;
+              // Esc chỉ thu nhỏ khung chat, không thoát luôn trình chiếu.
+              e.stopPropagation();
+              toggle();
+            }
+      }
     >
       <div className="border-b-2 border-edge">
         {docked ? (
@@ -637,6 +660,7 @@ export const ChatPanel = memo(function ChatPanel({
     locked,
   };
   const side = useRoomSide();
+  const staged = useStaged();
   useEffect(() => roomChat.mount(), []);
   // Tin vừa tới của mọi người bật lên từ nút chat — chỗ duy nhất hiện bóng thoại trong phòng.
   const balloons = useBalloons(session);
@@ -648,7 +672,8 @@ export const ChatPanel = memo(function ChatPanel({
     <ChatBox
       channels={pub ? [room, pub] : [room]}
       panels={side?.panels}
-      docked={side?.docked}
+      docked={side?.docked && !staged}
+      staged={staged}
       hidden={side?.hidden}
       onHide={side?.setHidden}
       bind={side?.bind}

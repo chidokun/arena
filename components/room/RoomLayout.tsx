@@ -83,7 +83,9 @@ export function RoomLayout({
     };
   }, [shown]);
   const peopleTab: SidePanel = { key: "people", label: "👥 Người", node: <PeopleVariantCtx value="bare">{people}</PeopleVariantCtx> };
-  const side: RoomSide = { docked: wide, hidden, setHidden, panels: wide ? (panels ?? []) : [peopleTab, ...(panels ?? [])], bind };
+  // Danh sách người nằm sẵn trong sidebar thì không cần tab Người; lúc trình chiếu sidebar bị phủ nên khung chat nổi cần lại tab này.
+  const docked = wide && !stage.ctx.on;
+  const side: RoomSide = { docked: wide, hidden, setHidden, panels: docked ? (panels ?? []) : [peopleTab, ...(panels ?? [])], bind };
 
   const copyLink = async () => {
     try {
@@ -120,30 +122,33 @@ export function RoomLayout({
         </Link>
       </div>
 
-      <RoomSideCtx value={side}>
-        {/* Bàn chơi giữ nguyên vị trí trong cây khi đổi cỡ màn hình qua mốc lg, để không bị dựng lại (mất nét vẽ, trạng thái…). */}
-        <div className="min-w-0">
-          {!wide && (
-            <PeopleVariantCtx value="strip">
-              <PeopleOpenerCtx value={openPeople}>{people}</PeopleOpenerCtx>
-            </PeopleVariantCtx>
+      {/* Khung chat cũng đọc StageCtx: lúc trình chiếu nó nổi lên trên lớp trình chiếu. */}
+      <StageCtx value={stage.ctx}>
+        <RoomSideCtx value={side}>
+          {/* Bàn chơi giữ nguyên vị trí trong cây khi đổi cỡ màn hình qua mốc lg, để không bị dựng lại (mất nét vẽ, trạng thái…). */}
+          <div className="min-w-0">
+            {!wide && (
+              <PeopleVariantCtx value="strip">
+                <PeopleOpenerCtx value={openPeople}>{people}</PeopleOpenerCtx>
+              </PeopleVariantCtx>
+            )}
+            {children}
+          </div>
+          {wide ? (
+            // Ngay dưới thanh đầu trang (cao 4rem + viền 2px). Khi ẩn, khung chat vẫn ở đây (giữ tin chưa đọc, chữ đang gõ)
+            // nhưng chỉ còn nút tròn nổi ở góc. Lúc trình chiếu cũng vậy (sidebar nằm dưới lớp trình chiếu, chat nổi lên trên).
+            <aside
+              className={hidden || stage.ctx.on ? undefined : "fixed top-[66px] right-0 bottom-0 z-30 flex w-[360px] flex-col gap-3 border-l-2 border-edge bg-sunken p-3"}
+              aria-label="Người trong phòng và trò chuyện"
+            >
+              {!hidden && !stage.ctx.on && people}
+              {chat}
+            </aside>
+          ) : (
+            chat
           )}
-          <StageCtx value={stage.ctx}>{children}</StageCtx>
-        </div>
-        {wide ? (
-          // Ngay dưới thanh đầu trang (cao 4rem + viền 2px). Khi ẩn, khung chat vẫn ở đây (giữ tin chưa đọc, chữ đang gõ)
-          // nhưng chỉ còn nút tròn nổi ở góc.
-          <aside
-            className={hidden ? undefined : "fixed top-[66px] right-0 bottom-0 z-30 flex w-[360px] flex-col gap-3 border-l-2 border-edge bg-sunken p-3"}
-            aria-label="Người trong phòng và trò chuyện"
-          >
-            {!hidden && people}
-            {chat}
-          </aside>
-        ) : (
-          chat
-        )}
-      </RoomSideCtx>
+        </RoomSideCtx>
+      </StageCtx>
     </div>
   );
 }

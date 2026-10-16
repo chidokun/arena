@@ -457,17 +457,95 @@
     z-index: 45;
     container-type: size;
     --flank: clamp(150px, 22cqw, 280px);
-    padding: 60px 16px 16px;
+    /* Đáy chừa rộng hơn hai bên vì bàn và thẻ người chơi có bóng đổ xuống dưới. */
+    padding: 60px 16px 32px;
     overflow: hidden;
     background-color: var(--paper);
     background-image: radial-gradient(var(--paper-dot) 1.4px, transparent 1.4px);
     background-size: 22px 22px;
   }
-  .stage-exit {
+  /* Thanh công cụ: một khung nhỏ quanh nút [>]; phần còn lại (Quay lại + nút của game) trượt ra / thu vào bằng cột lưới
+     0fr ↔ 1fr. Nút bên trong phẳng (không bóng, không lún) để cả thanh gọn, không đè lên người chơi phía dưới (đỉnh
+     `.stage` chừa 60px). */
+  .stage-tools {
     position: absolute;
-    top: 12px;
+    top: 10px;
     left: 16px;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    max-width: calc(100% - 32px);
+    padding: 3px;
+    border: 2px solid var(--edge);
+    border-radius: 13px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .stage-tools .btn,
+  .stage-tools .btn:hover:not(:disabled),
+  .stage-tools .btn:active:not(:disabled),
+  .stage-tools .btn:disabled {
+    box-shadow: none;
+    transform: none;
+  }
+  .stage-tools .btn {
+    flex: none;
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 13.5px;
+    border-radius: 9px;
+  }
+  .stage-tools .btn:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  .stage-tools .btn:active:not(:disabled) {
+    filter: brightness(0.94);
+  }
+  .stage-tools-toggle.btn {
+    width: 34px;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-2);
+  }
+  .stage-tools-toggle.btn:hover:not(:disabled) {
+    background: var(--sunken);
+    color: var(--ink);
+    filter: none;
+  }
+  .stage-tools-toggle svg {
+    transition: transform 320ms ease;
+  }
+  .stage-tools.is-open .stage-tools-toggle svg {
+    transform: rotate(180deg);
+  }
+  .stage-tools-body {
+    display: grid;
+    grid-template-columns: 0fr;
+    min-width: 0;
+    opacity: 0;
+    transition:
+      grid-template-columns 380ms cubic-bezier(0.3, 0.8, 0.3, 1),
+      opacity 260ms ease;
+  }
+  .stage-tools.is-open .stage-tools-body {
+    grid-template-columns: 1fr;
+    opacity: 1;
+  }
+  .stage-tools-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    padding-left: 6px;
+    white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage-tools-toggle svg,
+    .stage-tools-body {
+      transition: none;
+    }
   }
   .stage-body {
     display: grid;
