@@ -5313,3 +5313,22 @@
     transform: rotate(14deg) scale(1.15);
   }
 }
+
+/* Thanh tiến trình của băng chuyền trang chủ (HeroCarousel): chạy hết là đổi cảnh. Vẫn chạy đủ thời lượng khi giảm
+   chuyển động — quy tắc chung ở trên rút mọi animation còn 1ms sẽ làm băng chuyền đổi cảnh liên tục. */
+@keyframes hero-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+.hero-fill {
+  animation: hero-fill var(--hero-ms, 3s) linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-fill {
+    animation-duration: var(--hero-ms, 3s) !important;
+  }
+}

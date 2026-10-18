@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { GameGrid, LiveStats } from "@/components/home/GameGrid";
+import { HeroCarousel } from "@/components/home/HeroCarousel";
+import { TOURNAMENT_PERKS, TournamentArt } from "@/components/home/TournamentArt";
 import { StickerArt } from "@/components/room/Sticker";
 import { shareMeta, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
 
@@ -18,31 +20,12 @@ const STEPS = [
 export default function Home() {
   return (
     <>
-      <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
-          <div>
-            <p className="chip bg-surface text-pen">⚡ Không đăng ký · Không máy chủ</p>
-            <h1 className="mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]">
-              Đấu trường mini <span className="text-pen">cho hội bạn</span> ngay trên trình duyệt
-            </h1>
-            <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
-              Không cần cài app, không cần đăng ký. Chỉ cần mở phòng và gửi link cho bạn bè, vừa đấu vừa thả sticker trêu nhau ngay.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/games/caro/" className="btn btn-pen h-12 px-6 text-base no-underline">
-                Chơi Caro ngay →
-              </Link>
-              <Link href="#games" className="btn h-12 px-6 text-base no-underline">
-                Xem các game
-              </Link>
-            </div>
-            <div className="mt-8">
-              <LiveStats />
-            </div>
-          </div>
-          <HeroArt />
-        </div>
-      </section>
+      <HeroCarousel
+        slides={[
+          { label: "Đấu trường mini", content: <ArenaSlide /> },
+          { label: "Giải đấu", content: <TournamentSlide /> },
+        ]}
+      />
 
       <section id="games" className="mx-auto max-w-[1280px] scroll-mt-24 px-4 py-10 sm:px-6">
         <div className="mb-6 flex items-end justify-between gap-4">
@@ -67,6 +50,71 @@ export default function Home() {
         </ol>
       </section>
     </>
+  );
+}
+
+function ArenaSlide() {
+  return (
+    <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
+      <div>
+        <p className="chip bg-surface text-pen">⚡ Không đăng ký · Không máy chủ</p>
+        <h1 className="mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]">
+          Đấu trường mini <span className="text-pen">cho hội bạn</span> ngay trên trình duyệt
+        </h1>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Không cần cài app, không cần đăng ký. Chỉ cần mở phòng và gửi link cho bạn bè, vừa đấu vừa thả sticker trêu nhau ngay.
+        </p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/games/caro/" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Chơi Caro ngay →
+          </Link>
+          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+            Xem các game
+          </Link>
+        </div>
+        <div className="mt-8">
+          <LiveStats />
+        </div>
+      </div>
+      <HeroArt />
+    </div>
+  );
+}
+
+function TournamentSlide() {
+  return (
+    <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
+      <div>
+        <p className="chip bg-surface" style={{ color: "var(--coral)" }}>
+          🏆 Giải đấu · Sắp ra mắt
+        </p>
+        <h2 className="mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]">
+          Mở giải đấu <span className="text-pen">tranh cúp</span> cùng bạn bè
+        </h2>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Đăng nhập, tạo giải đấu và mời thật nhiều bạn bè cùng tham gia. Không chỉ một ván, cả hội cùng leo nhánh đấu để tìm ra nhà vô địch.
+        </p>
+        <ul className="mt-6 grid gap-2.5 sm:grid-cols-3">
+          {TOURNAMENT_PERKS.map((p) => (
+            <li key={p.title} className="flex items-center gap-2 text-[15px] font-bold">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 border-edge bg-surface text-lg" aria-hidden="true">
+                {p.icon}
+              </span>
+              {p.title}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/tournaments/" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Tìm hiểu giải đấu →
+          </Link>
+          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+            Chơi game trước đã
+          </Link>
+        </div>
+      </div>
+      <TournamentArt />
+    </div>
   );
 }
 

@@ -61,21 +61,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <LogoMark />
                   <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
                 </Link>
-                <nav aria-label="Điều hướng chính" className="ml-3 hidden lg:flex">
+                <nav aria-label="Điều hướng chính" className="ml-3 hidden md:flex">
                   <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                     Trò chơi
                   </Link>
-                  <Link href="/games/caro/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                    Cờ Caro
-                  </Link>
-                  <Link href="/games/loto/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                    Lô Tô
-                  </Link>
-                  <Link href="/games/werewolf/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                    Ma Sói
-                  </Link>
-                  <Link href="/games/undercover/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
-                    Truy tìm Gián Điệp
+                  <Link
+                    href="/tournaments/"
+                    className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink"
+                  >
+                    Giải đấu
+                    <span className="chip bg-surface px-2 text-[11px] leading-[1.5]" style={{ color: "var(--coral)" }}>
+                      Sắp ra mắt
+                    </span>
                   </Link>
                 </nav>
                 <div className="flex-1" />
