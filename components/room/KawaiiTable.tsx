@@ -6,7 +6,10 @@ import type { KawaiiRoom, KwMatch, KwView } from "@/lib/net/kawaii-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ChatPanel } from "./ChatPanel";
-import { play, useAudioPrefs, useMusic } from "./kawaiiAudio";
+import { AudioToggles } from "../audio/AudioToggles";
+import { useMusic } from "../audio/music";
+import { LOFI } from "../audio/tracks";
+import { play } from "./kawaiiSounds";
 import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
@@ -118,7 +121,7 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
   // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc lộ bàn.
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const end = useEndScene(winKey(g), { ms: WIN_SCENE_MS, emojis: CONFETTI });
-  useMusic();
+  useMusic(LOFI);
   useCueSounds(g, count, end.shown);
   const size = live && g ? g.size : opts.size;
   const mode = live && g ? g.mode : opts.mode;
@@ -441,33 +444,6 @@ function useCueSounds(g: KwMatch | undefined, count: number, win: boolean) {
   useEffect(() => {
     if (win) onWin();
   }, [win]);
-}
-
-/** Nút bật / tắt nhạc nền và tiếng thao tác — tuỳ chọn riêng của máy này. */
-function AudioToggles() {
-  const a = useAudioPrefs();
-  return (
-    <>
-      <button
-        type="button"
-        className={`btn btn-sm ${a.music ? "btn-sun" : ""}`}
-        onClick={() => a.setMusic(!a.music)}
-        aria-pressed={a.music}
-        title="Nhạc nền lo-fi — chỉ áp dụng trên máy bạn"
-      >
-        {a.music ? "🎵" : "🔇"} Nhạc: {a.music ? "bật" : "tắt"}
-      </button>
-      <button
-        type="button"
-        className={`btn btn-sm ${a.sound ? "btn-sun" : ""}`}
-        onClick={() => a.setSound(!a.sound)}
-        aria-pressed={a.sound}
-        title="Tiếng khi chọn ô, nối cặp, gợi ý… — chỉ áp dụng trên máy bạn"
-      >
-        {a.sound ? "🔊" : "🔈"} Tiếng: {a.sound ? "bật" : "tắt"}
-      </button>
-    </>
-  );
 }
 
 /** Bàn trống khi chưa chơi ván nào: các ô úp. */
