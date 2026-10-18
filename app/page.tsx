@@ -3,7 +3,9 @@ import Link from "next/link";
 import { GameGrid, LiveStats } from "@/components/home/GameGrid";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { TOURNAMENT_PERKS, TournamentArt } from "@/components/home/TournamentArt";
+import { HUE } from "@/components/home/hue";
 import { StickerArt } from "@/components/room/Sticker";
+import { loadGames, type GameDef } from "@/lib/games/registry";
 import { shareMeta, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -17,12 +19,15 @@ const STEPS = [
   { n: "3", title: "Bấm “Vào chơi”", text: "Ngồi vào ghế là sẵn sàng. Chủ phòng bấm Bắt đầu; người vào sau chỉ được xem.", tone: "var(--coral)" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const games = (await loadGames()).filter((g) => g.status === "LIVE");
   return (
     <>
       <HeroCarousel
         slides={[
           { label: "Đấu trường mini", content: <ArenaSlide /> },
+          { label: "Kho game", content: <GamesSlide games={games} /> },
+          { label: "Lịch sử đấu", content: <HistorySlide /> },
           { label: "Giải đấu", content: <TournamentSlide /> },
         ]}
       />
@@ -53,12 +58,15 @@ export default function Home() {
   );
 }
 
+const SLIDE = "mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20";
+const SLIDE_TITLE = "mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]";
+
 function ArenaSlide() {
   return (
-    <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
+    <div className={SLIDE}>
       <div>
         <p className="chip bg-surface text-pen">⚡ Không đăng ký · Không máy chủ</p>
-        <h1 className="mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]">
+        <h1 className={SLIDE_TITLE}>
           Đấu trường mini <span className="text-pen">cho hội bạn</span> ngay trên trình duyệt
         </h1>
         <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
@@ -81,29 +89,182 @@ function ArenaSlide() {
   );
 }
 
+/** Hàng tính năng có icon ô vuông, dùng chung cho các cảnh giới thiệu. */
+function Perks({ items }: { items: readonly { icon: string; title: string }[] }) {
+  return (
+    <ul className="mt-6 grid gap-2.5 sm:grid-cols-3">
+      {items.map((p) => (
+        <li key={p.title} className="flex items-center gap-2 text-[15px] font-bold">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 border-edge bg-surface text-lg" aria-hidden="true">
+            {p.icon}
+          </span>
+          {p.title}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function GamesSlide({ games }: { games: GameDef[] }) {
+  return (
+    <div className={SLIDE}>
+      <div>
+        <p className="chip bg-surface" style={{ color: "var(--lime)" }}>
+          🎮 Kho game đối kháng
+        </p>
+        <h2 className={SLIDE_TITLE}>
+          Gần <span className="text-pen">20 game</span> đối kháng hấp dẫn
+        </h2>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Cờ Caro, Cờ Tướng, Cờ Vua, Ma Sói, Lô Tô, Ô Ăn Quan… tất cả đã sẵn sàng để bạn tranh tài cùng bạn bè, mở phòng là đấu ngay.
+        </p>
+        <Perks
+          items={[
+            { icon: "🧠", title: "Đấu trí căng não" },
+            { icon: "🍃", title: "Nhẹ nhàng chill" },
+            { icon: "🏮", title: "Trò dân gian" },
+          ]}
+        />
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="#games" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Chọn game ngay →
+          </Link>
+        </div>
+      </div>
+      <GamesArt games={games} />
+    </div>
+  );
+}
+
+/** Bức tường thẻ game xếp lệch nhau, lấy từ danh mục game đang mở. */
+function GamesArt({ games }: { games: GameDef[] }) {
+  const tiles = games.slice(0, 12);
+  return (
+    <div className="relative mx-auto w-full max-w-[460px]" aria-hidden="true">
+      <ul className="grid grid-cols-4 gap-3 sm:gap-4">
+        {tiles.map((g, i) => (
+          <li
+            key={g.slug}
+            className="card grid aspect-square place-items-center text-[34px] sm:text-[40px]"
+            style={{
+              background: HUE[g.hue].soft,
+              rotate: `${[-4, 3, -2, 5][i % 4]}deg`,
+              translate: `0 ${i % 2 ? 10 : 0}px`,
+            }}
+            title={g.name}
+          >
+            {g.emoji}
+          </li>
+        ))}
+      </ul>
+      <span className="bob absolute -top-7 -right-4" style={{ ["--r" as string]: "10deg" }}>
+        <StickerArt id="kx-dang-cap" size={70} />
+      </span>
+      <span className="bob absolute -bottom-6 -left-5" style={{ ["--r" as string]: "-12deg", animationDelay: "-1.4s" }}>
+        <StickerArt id="heart" size={54} />
+      </span>
+    </div>
+  );
+}
+
+function HistorySlide() {
+  return (
+    <div className={SLIDE}>
+      <div>
+        <p className="chip bg-surface" style={{ color: "var(--sky)" }}>
+          🔐 Đăng nhập · Sắp ra mắt
+        </p>
+        <h2 className={SLIDE_TITLE}>
+          Lưu lại <span className="text-pen">lịch sử đấu</span> với bạn bè
+        </h2>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Đăng nhập để giữ lại từng ván đã chơi: thắng ai, thua ai, tỉ số đối đầu với từng người bạn. Không đăng nhập vẫn chơi bình thường.
+        </p>
+        <Perks
+          items={[
+            { icon: "📜", title: "Lịch sử từng ván" },
+            { icon: "⚔️", title: "Tỉ số đối đầu" },
+            { icon: "📈", title: "Thành tích" },
+          ]}
+        />
+        <div className="mt-7 flex flex-wrap gap-3">
+          <span className="btn h-12 px-6 text-base opacity-70" aria-disabled="true">
+            ⏳ Sắp ra mắt
+          </span>
+          <Link href="#games" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Chơi ngay →
+          </Link>
+        </div>
+      </div>
+      <HistoryArt />
+    </div>
+  );
+}
+
+const MATCHES = [
+  { foe: "🐼", name: "Gấu Lười", game: "Cờ Caro", win: true },
+  { foe: "🦊", name: "Cáo Nhanh", game: "Cờ Tướng", win: false },
+  { foe: "🐸", name: "Ếch Ngơ", game: "Ô Ăn Quan", win: true },
+  { foe: "🐼", name: "Gấu Lười", game: "Cờ Vua", win: true },
+];
+
+/** Minh hoạ thẻ lịch sử đấu: tỉ số đối đầu và vài ván gần nhất. */
+function HistoryArt() {
+  return (
+    <div className="relative mx-auto w-full max-w-[460px]" aria-hidden="true">
+      <div className="card rotate-2 p-5" style={{ boxShadow: "0 8px 0 var(--edge)" }}>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-display text-xl font-extrabold">📜 Lịch sử đấu</p>
+          <span className="chip bg-sun text-[#1d1648]" style={{ borderColor: "var(--edge)" }}>
+            Sắp ra mắt
+          </span>
+        </div>
+        <div className="mt-4 flex items-center justify-center gap-4 rounded-2xl border-2 border-edge bg-sunken py-3">
+          <span className="text-3xl">🐯</span>
+          <span className="font-display text-3xl font-extrabold tabular-nums">
+            <span style={{ color: "var(--lime)" }}>7</span> – <span style={{ color: "var(--coral)" }}>4</span>
+          </span>
+          <span className="text-3xl">🐼</span>
+        </div>
+        <ul className="mt-4 flex flex-col gap-2">
+          {MATCHES.map((m, i) => (
+            <li key={i} className="flex items-center gap-3 rounded-xl border-2 border-rule px-3 py-2">
+              <span className="text-2xl">{m.foe}</span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[15px] font-bold">vs {m.name}</span>
+                <span className="block text-[13px] text-ink-3">{m.game}</span>
+              </span>
+              <span className="chip bg-surface" style={{ color: m.win ? "var(--lime)" : "var(--coral)" }}>
+                {m.win ? "Thắng" : "Thua"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <span className="bob absolute -top-6 -left-5" style={{ ["--r" as string]: "-10deg", animationDelay: "-0.4s" }}>
+        <StickerArt id="kx-dak" size={68} />
+      </span>
+      <span className="bob absolute -right-4 -bottom-5" style={{ ["--r" as string]: "12deg", animationDelay: "-1.8s" }}>
+        <StickerArt id="cow" size={62} />
+      </span>
+    </div>
+  );
+}
+
 function TournamentSlide() {
   return (
-    <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
+    <div className={SLIDE}>
       <div>
         <p className="chip bg-surface" style={{ color: "var(--coral)" }}>
           🏆 Giải đấu · Sắp ra mắt
         </p>
-        <h2 className="mt-5 font-display text-[44px] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-[64px]">
+        <h2 className={SLIDE_TITLE}>
           Mở giải đấu <span className="text-pen">tranh cúp</span> cùng bạn bè
         </h2>
         <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
           Đăng nhập, tạo giải đấu và mời thật nhiều bạn bè cùng tham gia. Không chỉ một ván, cả hội cùng leo nhánh đấu để tìm ra nhà vô địch.
         </p>
-        <ul className="mt-6 grid gap-2.5 sm:grid-cols-3">
-          {TOURNAMENT_PERKS.map((p) => (
-            <li key={p.title} className="flex items-center gap-2 text-[15px] font-bold">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 border-edge bg-surface text-lg" aria-hidden="true">
-                {p.icon}
-              </span>
-              {p.title}
-            </li>
-          ))}
-        </ul>
+        <Perks items={TOURNAMENT_PERKS} />
         <div className="mt-7 flex flex-wrap gap-3">
           <Link href="/tournaments/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Tìm hiểu giải đấu →
