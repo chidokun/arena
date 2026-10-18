@@ -44,7 +44,16 @@ import {
   type SizeKey as MsSize,
 } from "@/lib/games/minesweeper";
 import { DEFAULT_OPTIONS as OAQ_DEFAULTS, normOptions as oaqOptions, QUAN_NON } from "@/lib/games/oanquan";
-import { DEFAULT_OPTIONS as KW_DEFAULTS, HINT_COST as KW_HINT, normOptions as kwOptions, PAIR_POINTS as KW_PAIR, SIZE_KEYS as KW_SIZES, SIZES as KW_SIZE, type SizeKey as KwSize } from "@/lib/games/kawaii";
+import {
+  DEFAULT_OPTIONS as KW_DEFAULTS,
+  MODE_KEYS as KW_MODES,
+  MODES as KW_MODE,
+  normOptions as kwOptions,
+  SIZE_KEYS as KW_SIZES,
+  SIZES as KW_SIZE,
+  type Mode as KwMode,
+  type SizeKey as KwSize,
+} from "@/lib/games/kawaii";
 import { getGame, hostTitle, roomHref } from "@/lib/games/registry";
 import {
   DEFAULT_OPTIONS as TX_DEFAULTS,
@@ -571,13 +580,16 @@ function UcChips({ room }: { room: RoomAd }) {
 }
 
 function KawaiiChips({ room }: { room: RoomAd }) {
-  const { size } = kwOptions(room.opts);
+  const { size, mode } = kwOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
       <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
       <span className="rounded-lg bg-sun-soft px-2.5 py-1">
         ▦ {KW_SIZE[size].label} {KW_SIZE[size].w}×{KW_SIZE[size].h}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        {KW_MODE[mode].emoji} {KW_MODE[mode].name}
       </span>
     </>
   );
@@ -691,6 +703,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [mcMap, setMcMap] = useState<McMap>(MC_DEFAULTS.map);
   const [mcMines, setMcMines] = useState<McMines>(MC_DEFAULTS.mines);
   const [kwSize, setKwSize] = useState<KwSize>(KW_DEFAULTS.size);
+  const [kwMode, setKwMode] = useState<KwMode>(KW_DEFAULTS.mode);
   const [txSize, setTxSize] = useState<TxSize>(TX_DEFAULTS.size);
   const [txLevel, setTxLevel] = useState<TxLevel>(TX_DEFAULTS.level);
   const [msSize, setMsSize] = useState<MsSize>(MS_DEFAULTS.size);
@@ -739,8 +752,8 @@ function CreateForm({ slug }: { slug: string }) {
           // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (kw) {
-          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
-          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize } });
+          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, chế độ đổi được trong phòng trước mỗi ván.
+          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize, mode: kwMode } });
         } else if (tx) {
           // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: txSize, level: txLevel } });
@@ -995,9 +1008,17 @@ function CreateForm({ slug }: { slug: string }) {
               ván.
             </p>
           </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chế độ</legend>
+            <div className="grid gap-2">
+              {KW_MODES.map((k) => (
+                <Choice key={k} on={kwMode === k} onClick={() => setKwMode(k)} title={`${KW_MODE[k].emoji} ${KW_MODE[k].name}`} text={KW_MODE[k].text} />
+              ))}
+            </div>
+          </fieldset>
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
-            🐾 Không giới hạn người chơi, một mình cũng chơi được. Cả phòng chung một bàn: nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được) —
-            ai nối trước được {KW_PAIR} điểm, xin gợi ý −{KW_HINT}. Không tính giờ: dọn sạch bàn là hết ván, nhiều điểm nhất thắng.
+            🐾 Không giới hạn người chơi, một mình cũng chơi được. Nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được). Cỡ bàn và chế độ đổi được
+            trong phòng trước mỗi ván.
           </p>
         </>
       ) : ms ? (

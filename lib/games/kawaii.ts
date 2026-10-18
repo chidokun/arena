@@ -3,8 +3,12 @@
  * đường gấp khúc tối đa 3 đoạn (gấp tối đa 2 lần) chỉ đi qua ô trống — được đi vòng ra ngoài viền bàn — thì cả hai biến
  * mất. Hết nước nối thì bàn tự xáo lại các ô còn lại. Dọn sạch bàn là hết ván.
  *
- * Không tính giờ, chỉ tính điểm: cả phòng (1 người trở lên, không giới hạn) chơi chung một bàn, ai nối được một cặp trước
- * người khác thì được điểm cặp đó; xin gợi ý bị trừ điểm. Hết bàn thì người nhiều điểm nhất thắng.
+ * Phòng 1 người trở lên, không giới hạn, có hai chế độ:
+ *
+ *   Cùng giải đề (`coop`) — cả phòng chơi chung một bàn, không tính giờ: ai nối được một cặp trước người khác thì được
+ *                           điểm cặp đó; xin gợi ý bị trừ điểm. Hết bàn thì người nhiều điểm nhất thắng.
+ *   Đối kháng (`race`)     — mỗi người một bàn giống hệt nhau, tự dọn bàn của mình: ai dọn sạch trước thì thắng, những
+ *                           người còn lại dọn tiếp tới khi xong để xếp hạng. Xin gợi ý bị khoá tay vài giây.
  *
  * Bàn sinh tất định từ seed nên không phải gửi qua mạng. Người chơi chỉ ghi nhật ký nước nối của chính mình; chủ phòng là
  * người phân xử thứ tự (`judge`) và ghi bàn chung — ai cũng dựng lại được bàn, điểm số, người thắng từ bàn chung (`replay`).
@@ -37,15 +41,33 @@ export const HINT_COST = 5;
 /** Số lần thử xáo bàn khi bế tắc trước khi chịu thua (gần như không bao giờ tới). */
 const SHUFFLE_TRIES = 64;
 
-export type KwOptions = { size: SizeKey };
-export const DEFAULT_OPTIONS: KwOptions = { size: "m" };
+/** Đối kháng: xin gợi ý thì khoá tay chừng này. */
+export const HINT_LOCK_MS = 5000;
+
+export type Mode = "coop" | "race";
+export const MODES: Record<Mode, { name: string; emoji: string; text: string }> = {
+  coop: {
+    name: "Cùng giải đề",
+    emoji: "🤝",
+    text: `Cả phòng chung một bàn: nối được một cặp trước người khác được ${PAIR_POINTS} điểm, xin gợi ý −${HINT_COST}. Không tính giờ — dọn sạch bàn là hết ván, nhiều điểm nhất thắng.`,
+  },
+  race: {
+    name: "Đối kháng",
+    emoji: "⚡",
+    text: `Mỗi người một bàn giống hệt nhau, tự dọn bàn của mình — ai dọn sạch trước thắng, người còn lại dọn tiếp để xếp hạng. Xin gợi ý bị khoá tay ${HINT_LOCK_MS / 1000} giây.`,
+  },
+};
+export const MODE_KEYS = Object.keys(MODES) as Mode[];
+
+export type KwOptions = { size: SizeKey; mode: Mode };
+export const DEFAULT_OPTIONS: KwOptions = { size: "m", mode: "coop" };
 
 export function normOptions(o: unknown): KwOptions {
   const x = (o ?? {}) as Partial<KwOptions>;
-  return { size: SIZE_KEYS.find((k) => k === x.size) ?? DEFAULT_OPTIONS.size };
+  return { size: SIZE_KEYS.find((k) => k === x.size) ?? DEFAULT_OPTIONS.size, mode: MODE_KEYS.find((k) => k === x.mode) ?? DEFAULT_OPTIONS.mode };
 }
 
-/** Phần công khai của một ván, chủ phòng chốt lúc bắt đầu (`meta.kw`): bàn sinh từ `seed` theo `size`. */
+/** Phần công khai của một ván, chủ phòng chốt lúc bắt đầu (`meta.kw`): bàn sinh từ `seed` theo `size`, chơi theo `mode`. */
 export type KwRound = KwOptions & {
   seed: number;
   /** Giờ máy chủ phòng lúc lộ bàn (hết đếm ngược). */
@@ -155,6 +177,9 @@ export function findMove(tiles: readonly number[], w: number, h: number): [numbe
 
 // ---------- phân xử & dựng lại ván ----------
 
+/** Phần luật một ván cần để dựng lại bàn; ván cũ không có `mode` là cùng giải đề. */
+export type KwRules = Pick<KwRound, "seed" | "size"> & { mode?: Mode };
+
 /**
  * Một nước chủ phòng đã ghi nhận: nối cặp ô `a`–`b`, hoặc xin gợi ý (`a` = `b` = −1); `player` là thứ tự trong đội hình.
  */
@@ -168,6 +193,8 @@ export type Board = {
   log: Entry[];
   /** Đã xét tới nước thứ mấy trong nhật ký của từng người chơi (theo thứ tự đội hình). */
   seen: number[];
+  /** Đối kháng: thời gian (ms, tính từ lúc lộ bàn) từng người dọn sạch bàn; null nếu chưa xong. */
+  fin?: (number | null)[];
 };
 
 export const emptyBoard = (players: number): Board => ({ log: [], seen: new Array<number>(players).fill(0) });
@@ -175,121 +202,156 @@ export const emptyBoard = (players: number): Board => ({ log: [], seen: new Arra
 /** Một cặp đã nối: hai ô, loại hình, người nối, đường nối lúc đó — để diễn lại trên bàn. */
 export type Taken = { a: number; b: number; kind: number; k: number; path: Point[] };
 
-export type KwState = {
-  w: number;
-  h: number;
+/** Một bàn đang chơi: cùng giải đề cả phòng chung một bàn, đối kháng mỗi người một bàn. */
+export type Desk = {
   /** Loại hình của từng ô; −1 là ô trống. */
   tiles: number[];
+  /** Số ô còn trên bàn. */
+  left: number;
+  /** Số lần bàn tự xáo vì bế tắc — nước đi gửi kèm số này để không áp nhầm lên bàn đã xáo. */
+  shuffles: number;
+  /** Xáo mãi vẫn bế tắc (gần như không thể) — bàn dừng ở đây. */
+  stuck: boolean;
+};
+
+export type KwState = {
+  mode: Mode;
+  w: number;
+  h: number;
+  /** Cùng giải đề: một bàn chung; đối kháng: bàn của từng người theo thứ tự đội hình. */
+  desks: Desk[];
   score: number[];
   /** Số cặp từng người nối được. */
   pairs: number[];
   /** Số lần từng người xin gợi ý. */
   hints: number[];
-  /** Số ô còn trên bàn. */
-  left: number;
-  /** Số lần bàn tự xáo vì bế tắc — nước đi gửi kèm số này để không áp nhầm lên bàn đã xáo. */
-  shuffles: number;
-  /** Các cặp đã nối theo thứ tự. */
+  /** Các cặp đã nối theo thứ tự (đối kháng: của mọi bàn, `k` là chủ bàn). */
   taken: Taken[];
   /** Số dòng nhật ký đã xét — để dựng tiếp từ trạng thái cũ khi nhật ký dài thêm. */
   count: number;
-  /** Hết ván: dọn sạch bàn, hoặc (gần như không thể) xáo mãi vẫn bế tắc. */
+  /** Đối kháng: những người đã dọn sạch bàn, theo thứ tự xong. */
+  finished: number[];
+  /** Hết ván — cùng giải đề: dọn sạch bàn (hoặc bế tắc mãi); đối kháng: bàn ai cũng đã xong. */
   over: boolean;
-  stuck: boolean;
-  /** Người nhiều điểm nhất (thứ tự trong đội hình) — có thể đồng hạng; chỉ có khi hết ván. */
+  /**
+   * Người thắng (thứ tự trong đội hình) — cùng giải đề: người nhiều điểm nhất (có thể đồng hạng), chỉ có khi hết ván;
+   * đối kháng: người dọn sạch bàn đầu tiên, có ngay khi họ xong.
+   */
   winners: number[];
 };
 
-function finish(s: KwState, stuck: boolean) {
+/** Bàn người chơi thứ `k` đang chơi. */
+export const deskOf = (s: KwState, k: number) => (s.mode === "race" ? s.desks[k] : s.desks[0]);
+
+/** Bế tắc thì xáo lại các ô còn lại tới khi có nước nối; xáo mãi không được thì bàn dừng (`stuck`). */
+function settle(d: Desk, w: number, h: number, seed: number) {
+  if (d.left <= 0 || findMove(d.tiles, w, h)) return;
+  const cells = d.tiles.flatMap((k, i) => (k >= 0 ? [i] : []));
+  for (let k = 0; k < SHUFFLE_TRIES; k++) {
+    const kinds = shuffle(
+      cells.map((c) => d.tiles[c]),
+      rng(mix(seed, d.shuffles, k)),
+    );
+    const tiles = d.tiles.slice();
+    cells.forEach((c, i) => (tiles[c] = kinds[i]));
+    if (findMove(tiles, w, h)) {
+      d.tiles = tiles;
+      d.shuffles++;
+      return;
+    }
+  }
+  d.stuck = true;
+}
+
+/** Xét hết ván sau mỗi nước. */
+function check(s: KwState) {
+  if (s.mode === "race") {
+    s.over = s.desks.every((d) => d.left <= 0 || d.stuck);
+    return;
+  }
+  const d = s.desks[0];
+  if (d.left > 0 && !d.stuck) return;
   s.over = true;
-  s.stuck = stuck;
   if (!s.score.length) return;
   const top = Math.max(...s.score);
   s.winners = s.score.flatMap((v, i) => (v === top ? [i] : []));
 }
 
-/** Bế tắc thì xáo lại các ô còn lại tới khi có nước nối; xáo mãi không được thì hết ván. */
-function settle(s: KwState, seed: number) {
-  if (s.left <= 0) return finish(s, false);
-  if (findMove(s.tiles, s.w, s.h)) return;
-  const cells = s.tiles.flatMap((k, i) => (k >= 0 ? [i] : []));
-  for (let k = 0; k < SHUFFLE_TRIES; k++) {
-    const kinds = shuffle(
-      cells.map((c) => s.tiles[c]),
-      rng(mix(seed, s.shuffles, k)),
-    );
-    const tiles = s.tiles.slice();
-    cells.forEach((c, i) => (tiles[c] = kinds[i]));
-    if (findMove(tiles, s.w, s.h)) {
-      s.tiles = tiles;
-      s.shuffles++;
-      return;
-    }
-  }
-  finish(s, true);
-}
-
-export function newGame(r: Pick<KwRound, "seed" | "size">, players: number): KwState {
+export function newGame(r: KwRules, players: number): KwState {
   const { w, h } = SIZES[r.size];
+  const mode: Mode = r.mode === "race" ? "race" : "coop";
+  const first: Desk = { tiles: deal(r.seed, r.size), left: w * h, shuffles: 0, stuck: false };
+  settle(first, w, h, r.seed);
   const s: KwState = {
+    mode,
     w,
     h,
-    tiles: deal(r.seed, r.size),
+    desks: Array.from({ length: mode === "race" ? players : 1 }, () => ({ ...first, tiles: first.tiles.slice() })),
     score: new Array<number>(players).fill(0),
     pairs: new Array<number>(players).fill(0),
     hints: new Array<number>(players).fill(0),
-    left: w * h,
-    shuffles: 0,
     taken: [],
     count: 0,
+    finished: [],
     over: false,
-    stuck: false,
     winners: [],
   };
-  settle(s, r.seed);
+  check(s);
   return s;
 }
 
 const isInt = (x: unknown): x is number => Number.isInteger(x);
 
-/** Áp một dòng nhật ký; trả về false nếu không được tính (ô đã mất, không nối được, sai người…). */
+/** Áp một dòng nhật ký; trả về false nếu không được tính (ô đã mất, không nối được, sai người, bàn đã xong…). */
 function apply(s: KwState, seed: number, e: unknown): boolean {
   if (s.over || !Array.isArray(e) || !isInt(e[0]) || !isInt(e[1]) || !isInt(e[2])) return false;
   const [a, b, k] = e as Entry;
   if (k < 0 || k >= s.score.length) return false;
+  const d = deskOf(s, k);
+  if (d.left <= 0 || d.stuck) return false;
   if (a === -1 && b === -1) {
     s.hints[k]++;
     s.score[k] -= HINT_COST;
     return true;
   }
-  const path = findPath(s.tiles, s.w, s.h, a, b);
+  const path = findPath(d.tiles, s.w, s.h, a, b);
   if (!path) return false;
-  s.taken.push({ a, b, kind: s.tiles[a], k, path });
-  s.tiles[a] = -1;
-  s.tiles[b] = -1;
-  s.left -= 2;
+  s.taken.push({ a, b, kind: d.tiles[a], k, path });
+  d.tiles[a] = -1;
+  d.tiles[b] = -1;
+  d.left -= 2;
   s.pairs[k]++;
   s.score[k] += PAIR_POINTS;
-  settle(s, seed);
+  settle(d, s.w, s.h, seed);
+  if (s.mode === "race" && d.left <= 0) {
+    s.finished.push(k);
+    s.winners = [s.finished[0]];
+  }
+  check(s);
   return true;
 }
 
 const clone = (s: KwState): KwState => ({
   ...s,
-  tiles: s.tiles.slice(),
+  desks: s.desks.map((d) => ({ ...d, tiles: d.tiles.slice() })),
   score: s.score.slice(),
   pairs: s.pairs.slice(),
   hints: s.hints.slice(),
   taken: s.taken.slice(),
+  finished: s.finished.slice(),
   winners: s.winners.slice(),
 });
+
+/** Trạng thái cũ `from` dựng tiếp được cho cùng luật, cùng đội hình không. */
+const fits = (from: KwState | undefined, r: KwRules, players: number, rows: number): from is KwState =>
+  !!from && from.count <= rows && from.score.length === players && from.mode === (r.mode === "race" ? "race" : "coop");
 
 /**
  * Dựng lại ván từ bàn chung — tất định, máy nào cũng ra như nhau. Có `from` (trạng thái đã dựng từ phần đầu của cùng
  * nhật ký) thì chỉ áp tiếp các dòng mới.
  */
-export function replay(r: Pick<KwRound, "seed" | "size">, players: number, log: readonly unknown[], from?: KwState): KwState {
-  const s = from && from.count <= log.length && from.score.length === players ? clone(from) : newGame(r, players);
+export function replay(r: KwRules, players: number, log: readonly unknown[], from?: KwState): KwState {
+  const s = fits(from, r, players, log.length) ? clone(from) : newGame(r, players);
   for (; s.count < log.length; s.count++) apply(s, r.seed, log[s.count]);
   return s;
 }
@@ -297,14 +359,22 @@ export function replay(r: Pick<KwRound, "seed" | "size">, players: number, log: 
 /** Nước người chơi gửi có đúng dạng không. */
 const isMove = (x: unknown): x is Move => Array.isArray(x) && (x.length === 1 ? x[0] === -1 : x.length === 3 && x.every(isInt));
 
+/** Áp nước người thứ `k` gửi nếu đúng dạng và gửi lên đúng lần xáo của bàn họ; trả về dòng nhật ký được tính. */
+function take(s: KwState, seed: number, k: number, mv: unknown): Entry | null {
+  if (!isMove(mv)) return null;
+  if (mv.length === 3 && mv[2] !== deskOf(s, k).shuffles) return null;
+  const e: Entry = mv.length === 1 ? [-1, -1, k] : [mv[0], mv[1], k];
+  return apply(s, seed, e) ? e : null;
+}
+
 /**
  * Chủ phòng phân xử: xét các nước mới trong nhật ký của từng người chơi (`moves[k]` — người thứ k của đội hình), ghi
  * những nước được tính vào bàn chung. Cặp đã bị người khác nối trước, hoặc gửi lên bàn trước lần xáo, thì bỏ qua.
  * `state` là trạng thái dựng từ `prev.log` (nếu đã có sẵn). Trả về bàn mới, hoặc null nếu không có gì đổi.
  */
-export function judge(r: Pick<KwRound, "seed" | "size">, moves: readonly (readonly unknown[])[], prev: Board, state?: KwState): Board | null {
+export function judge(r: KwRules, moves: readonly (readonly unknown[])[], prev: Board, state?: KwState): Board | null {
   const players = moves.length;
-  const s = state && state.count === prev.log.length ? clone(state) : replay(r, players, prev.log);
+  const s = state && state.count === prev.log.length && fits(state, r, players, prev.log.length) ? clone(state) : replay(r, players, prev.log);
   const log = prev.log.slice();
   const seen = Array.from({ length: players }, (_, k) => prev.seen[k] ?? 0);
   let dirty = false;
@@ -312,28 +382,54 @@ export function judge(r: Pick<KwRound, "seed" | "size">, moves: readonly (readon
     const list = moves[k];
     for (; seen[k] < list.length && !s.over; seen[k]++) {
       dirty = true;
-      const mv = list[seen[k]];
-      if (!isMove(mv)) continue;
-      if (mv.length === 3 && mv[2] !== s.shuffles) continue;
-      const e: Entry = mv.length === 1 ? [-1, -1, k] : [mv[0], mv[1], k];
-      if (apply(s, r.seed, e)) {
+      const e = take(s, r.seed, k, list[seen[k]]);
+      if (e) {
         log.push(e);
         s.count++;
       }
     }
   }
-  return dirty ? { log, seen } : null;
+  return dirty ? { ...prev, log, seen } : null;
 }
 
 /**
- * Bàn mình thấy trước khi chủ phòng kịp ghi nhận: áp tạm các cặp mình vừa nối (`pending` — những nước chủ phòng chưa
- * xét) lên bàn chung. Trả về bàn tạm và các cặp được áp.
+ * Chủ phòng ghi giờ (ms tính từ lúc lộ bàn) ai vừa dọn sạch bàn (đối kháng). Giờ đã ghi thì giữ nguyên. Trả về bàn mới,
+ * hoặc null nếu không có gì đổi.
+ */
+export function stamp(b: Board, s: KwState, elapsed: number): Board | null {
+  if (!s.finished.length) return null;
+  const fin = Array.from({ length: s.score.length }, (_, k) => b.fin?.[k] ?? null);
+  let dirty = false;
+  for (const k of s.finished) {
+    if (fin[k] != null) continue;
+    fin[k] = elapsed;
+    dirty = true;
+  }
+  return dirty ? { ...b, fin } : null;
+}
+
+/**
+ * Đối kháng: bàn của chính mình dựng thẳng từ nhật ký nước nối của mình — ra đúng như bàn chủ phòng sẽ ghi (bàn mỗi
+ * người chỉ đổi theo nước của người đó), nên không phải chờ chủ phòng, kể cả lúc bàn tự xáo. Có `from` (dựng từ phần
+ * đầu của cùng nhật ký) thì chỉ áp tiếp các nước mới. `count` là số nước đã xét.
+ */
+export function ownGame(r: KwRules, moves: readonly unknown[], from?: KwState): KwState {
+  const solo = { ...r, mode: "race" as const };
+  const s = fits(from, solo, 1, moves.length) ? clone(from) : newGame(solo, 1);
+  for (; s.count < moves.length; s.count++) take(s, r.seed, 0, moves[s.count]);
+  return s;
+}
+
+/**
+ * Cùng giải đề: bàn mình thấy trước khi chủ phòng kịp ghi nhận — áp tạm các cặp mình vừa nối (`pending` — những nước
+ * chủ phòng chưa xét) lên bàn chung. Trả về bàn tạm và các cặp được áp.
  */
 export function optimistic(s: KwState, pending: readonly unknown[]) {
-  const tiles = s.tiles.slice();
+  const d = s.desks[0];
+  const tiles = d.tiles.slice();
   const pairs: [number, number][] = [];
   for (const mv of pending) {
-    if (!isMove(mv) || mv.length === 1 || mv[2] !== s.shuffles) continue;
+    if (!isMove(mv) || mv.length === 1 || mv[2] !== d.shuffles) continue;
     const [a, b] = mv;
     if (!findPath(tiles, s.w, s.h, a, b)) continue;
     tiles[a] = -1;
@@ -341,4 +437,10 @@ export function optimistic(s: KwState, pending: readonly unknown[]) {
     pairs.push([a, b]);
   }
   return { tiles, pairs };
+}
+
+/** Thời gian dạng m:ss. */
+export function clock(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }

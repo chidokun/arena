@@ -12,14 +12,15 @@ export type GameRules = {
 
 export const RULES: Record<string, GameRules> = {
   kawaii: {
-    intro: "Nối thú kiểu Pikachu cho bao nhiêu người cũng được, một mình cũng chơi được: cả phòng chung một bàn, nối hai ô cùng hình để dọn bàn — không tính giờ, chỉ tính điểm.",
+    intro: "Nối thú kiểu Pikachu cho bao nhiêu người cũng được, một mình cũng chơi được: nối hai ô cùng hình để dọn bàn — cả phòng tranh nhau trên một bàn chung, hoặc mỗi người một bàn thi xem ai dọn sạch trước.",
     sections: [
       {
         emoji: "🧩",
         title: "Bàn chơi",
         items: [
           "Chủ phòng chọn bàn Nhỏ 8×6, Vừa 12×8 hoặc Lớn 16×9 — mỗi loại thú có đúng 4 ô. Đổi được trong phòng trước mỗi ván.",
-          "Cả phòng chơi chung một bàn, mỗi ván xếp bàn mới. Ván bắt đầu sau 3 giây đếm ngược để mọi người cùng lúc thấy bàn.",
+          "Chủ phòng chọn chế độ 🤝 Cùng giải đề hoặc ⚡ Đối kháng — cũng đổi được trong phòng trước mỗi ván.",
+          "Mỗi ván xếp bàn mới. Ván bắt đầu sau 3 giây đếm ngược để mọi người cùng lúc thấy bàn.",
         ],
       },
       {
@@ -33,12 +34,22 @@ export const RULES: Record<string, GameRules> = {
         ],
       },
       {
-        emoji: "🏅",
-        title: "Tính điểm",
+        emoji: "🤝",
+        title: "Chế độ Cùng giải đề",
         items: [
-          "Ai nối được một cặp trước người khác được 10 điểm; hai người cùng bấm một cặp thì người được chủ phòng ghi nhận trước có điểm.",
+          "Cả phòng chơi chung một bàn. Ai nối được một cặp trước người khác được 10 điểm; hai người cùng bấm một cặp thì người được chủ phòng ghi nhận trước có điểm.",
           "💡 Gợi ý chỉ ra một cặp nối được, đổi lại bị trừ 5 điểm.",
           "Không tính giờ: dọn sạch bàn là hết ván, ai nhiều điểm nhất thắng — bằng điểm thì đồng hạng.",
+        ],
+      },
+      {
+        emoji: "⚡",
+        title: "Chế độ Đối kháng",
+        items: [
+          "Mỗi người một bàn giống hệt nhau và tự dọn bàn của mình — không ai nối mất cặp của bạn.",
+          "Ai dọn sạch bàn trước thì thắng; những người còn lại dọn tiếp để xếp hạng theo thời gian xong.",
+          "💡 Gợi ý chỉ ra một cặp nối được, đổi lại bị khoá tay 5 giây.",
+          "Người xem, và người đã dọn xong, bấm vào bảng tiến độ để xem bàn của từng người.",
         ],
       },
       {
@@ -47,7 +58,7 @@ export const RULES: Record<string, GameRules> = {
         items: [
           "Không giới hạn số ghế: ai vào phòng cũng có thể bấm “Vào chơi” trước khi ván bắt đầu; vào giữa ván thì xem và chờ ván sau.",
           "Chơi một mình thì cứ dọn sạch bàn là xong ván.",
-          "Chủ phòng dừng ván được bất cứ lúc nào (không tính ai thắng); cả đội hình mất kết nối lâu thì ván tự dừng.",
+          "Chủ phòng dừng ván được bất cứ lúc nào (không tính ai thắng, trừ người đã về nhất ở chế độ đối kháng); cả đội hình mất kết nối lâu thì ván tự dừng.",
         ],
       },
     ],

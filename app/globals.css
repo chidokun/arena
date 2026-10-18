@@ -3016,6 +3016,9 @@
     touch-action: manipulation;
     container-type: inline-size;
   }
+  .kw-board.is-plain {
+    --kw-bg: var(--surface);
+  }
   .kw-tile {
     position: relative;
     display: grid;
@@ -3026,7 +3029,8 @@
     padding: 0;
     border: 2px solid var(--edge);
     border-radius: 22%;
-    background: color-mix(in srgb, hsl(var(--kh, 250) 85% 62%) 30%, var(--board));
+    /* `--kw-bg` (bàn tắt màu nền ô) thay sắc độ theo loại hình; ô đang chọn / úp / nối hụt vẫn tự đặt nền riêng. */
+    background: var(--kw-bg, color-mix(in srgb, hsl(var(--kh, 250) 85% 62%) 30%, var(--board)));
     box-shadow: 0 2px 0 var(--edge);
     font-size: calc(62cqi / var(--cols));
     line-height: 1;

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   COPIES,
   deal,
+  deskOf,
   emptyBoard,
   findMove,
   findPath,
@@ -12,9 +13,11 @@ import {
   newGame,
   normOptions,
   optimistic,
+  ownGame,
   PAIR_POINTS,
   replay,
   SIZE_KEYS,
+  stamp,
   SIZES,
   TILES,
   type Board,
@@ -37,8 +40,8 @@ function playOut(seed: number, players: number) {
   let board: Board = emptyBoard(players);
   let s: KwState = replay(r, players, board.log);
   for (let turn = 0; !s.over && turn < 200; turn++) {
-    const mv = findMove(s.tiles, s.w, s.h)!;
-    moves[turn % players].push([mv[0], mv[1], s.shuffles]);
+    const mv = findMove(s.desks[0].tiles, s.w, s.h)!;
+    moves[turn % players].push([mv[0], mv[1], s.desks[0].shuffles]);
     board = judge(r, moves, board, s) ?? board;
     s = replay(r, players, board.log, s);
   }
@@ -63,9 +66,10 @@ test("cùng seed ra cùng bàn, khác seed ra bàn khác", () => {
 });
 
 test("normOptions bỏ giá trị lạ", () => {
-  assert.deepEqual(normOptions({ size: "l" }), { size: "l" });
-  assert.deepEqual(normOptions({ size: "xl" }), { size: "m" });
-  assert.deepEqual(normOptions(undefined), { size: "m" });
+  assert.deepEqual(normOptions({ size: "l" }), { size: "l", mode: "coop" });
+  assert.deepEqual(normOptions({ size: "xl", mode: "race" }), { size: "m", mode: "race" });
+  assert.deepEqual(normOptions({ mode: "duel" }), { size: "m", mode: "coop" });
+  assert.deepEqual(normOptions(undefined), { size: "m", mode: "coop" });
 });
 
 test("nối thẳng, gấp 1 lần, gấp 2 lần", () => {
@@ -109,9 +113,9 @@ test("bàn đầu luôn có nước nối; chơi hết bàn thì hết ván, ai 
   for (let seed = 1; seed <= 12; seed++) {
     const { s } = playOut(seed * 977, 3);
     assert.ok(s.over, `seed ${seed}: chưa hết ván`);
-    assert.equal(s.stuck, false);
-    assert.equal(s.left, 0);
-    assert.ok(s.tiles.every((t) => t === E));
+    assert.equal(s.desks[0].stuck, false);
+    assert.equal(s.desks[0].left, 0);
+    assert.ok(s.desks[0].tiles.every((t) => t === E));
     assert.equal(
       s.pairs.reduce((a, b) => a + b, 0),
       (SIZES.s.w * SIZES.s.h) / 2,
@@ -134,7 +138,7 @@ test("một người chơi vẫn chơi hết bàn và thắng", () => {
 test("ai gửi trước được cặp; cặp đã mất không tính, không trừ điểm", () => {
   const r = { seed: 11, size: "s" as const };
   const s0 = newGame(r, 2);
-  const [a, b] = findMove(s0.tiles, s0.w, s0.h)!;
+  const [a, b] = findMove(s0.desks[0].tiles, s0.w, s0.h)!;
   const board = judge(r, [[[a, b, 0]], [[a, b, 0]]], emptyBoard(2))!;
   const s = replay(r, 2, board.log);
   assert.equal(board.log.length, 1);
@@ -142,13 +146,13 @@ test("ai gửi trước được cặp; cặp đã mất không tính, không tr
   assert.deepEqual(s.score, [PAIR_POINTS, 0]);
   assert.deepEqual(board.seen, [1, 1]);
   assert.equal(s.taken[0].k, 0);
-  assert.equal(s.taken[0].kind, s0.tiles[a]);
+  assert.equal(s.taken[0].kind, s0.desks[0].tiles[a]);
 });
 
 test("gợi ý bị trừ điểm; nước sai dạng, sai hình bị bỏ qua", () => {
   const r = { seed: 3, size: "s" as const };
   const s0 = newGame(r, 1);
-  const other = s0.tiles.findIndex((t) => t !== s0.tiles[0]);
+  const other = s0.desks[0].tiles.findIndex((t) => t !== s0.desks[0].tiles[0]);
   const board = judge(r, [[[-1], [0, other, 0], ["x"], [0, 0, 0]]], emptyBoard(1))!;
   const s = replay(r, 1, board.log);
   assert.deepEqual(board.log, [[-1, -1, 0]]);
@@ -160,8 +164,8 @@ test("gợi ý bị trừ điểm; nước sai dạng, sai hình bị bỏ qua",
 test("nước gửi lên bàn trước lần xáo thì không tính", () => {
   const r = { seed: 3, size: "s" as const };
   const s0 = newGame(r, 1);
-  const [a, b] = findMove(s0.tiles, s0.w, s0.h)!;
-  assert.equal(judge(r, [[[a, b, s0.shuffles + 1]]], emptyBoard(1))!.log.length, 0);
+  const [a, b] = findMove(s0.desks[0].tiles, s0.w, s0.h)!;
+  assert.equal(judge(r, [[[a, b, s0.desks[0].shuffles + 1]]], emptyBoard(1))!.log.length, 0);
 });
 
 test("bế tắc thì bàn tự xáo lại cho tới khi có nước nối, tất định", () => {
@@ -169,11 +173,11 @@ test("bế tắc thì bàn tự xáo lại cho tới khi có nước nối, tấ
   let found = false;
   for (let seed = 1; seed <= 60 && !found; seed++) {
     const a = playOut(seed, 2);
-    if (!a.s.shuffles) continue;
+    if (!a.s.desks[0].shuffles) continue;
     found = true;
     const b = replay({ seed, size: "s" }, 2, a.board.log);
-    assert.deepEqual(b.tiles, a.s.tiles);
-    assert.equal(b.shuffles, a.s.shuffles);
+    assert.deepEqual(b.desks[0].tiles, a.s.desks[0].tiles);
+    assert.equal(b.desks[0].shuffles, a.s.desks[0].shuffles);
     assert.ok(b.over);
   }
   assert.ok(found, "không ván nào phải xáo — thử thêm seed");
@@ -191,9 +195,103 @@ test("dựng tiếp từ trạng thái cũ ra cùng kết quả như dựng lạ
 test("bàn tạm áp các cặp mình vừa nối chưa được ghi nhận", () => {
   const r = { seed: 8, size: "s" as const };
   const s = newGame(r, 1);
-  const [a, b] = findMove(s.tiles, s.w, s.h)!;
-  const o = optimistic(s, [[a, b, s.shuffles], [a, b, s.shuffles], [-1]]);
+  const [a, b] = findMove(s.desks[0].tiles, s.w, s.h)!;
+  const o = optimistic(s, [[a, b, s.desks[0].shuffles], [a, b, s.desks[0].shuffles], [-1]]);
   assert.deepEqual(o.pairs, [[a, b]]);
   assert.equal(o.tiles[a], E);
-  assert.equal(s.tiles[a] >= 0, true, "không sửa bàn chung");
+  assert.equal(s.desks[0].tiles[a] >= 0, true, "không sửa bàn chung");
+});
+
+// ---------- đối kháng ----------
+
+/** Đối kháng: từng người lần lượt nối một cặp gợi ý trên bàn của mình; `slow` là những người chỉ đi mỗi `lag` lượt. */
+function race(seed: number, players: number, { slow = [] as number[], lag = 1, turns = 400 } = {}) {
+  const r = { seed, size: "s" as const, mode: "race" as const };
+  const moves: Move[][] = Array.from({ length: players }, () => []);
+  let board: Board = emptyBoard(players);
+  let s: KwState = replay(r, players, board.log);
+  for (let turn = 0; !s.over && turn < turns; turn++) {
+    for (let k = 0; k < players; k++) {
+      const d = deskOf(s, k);
+      if (d.left <= 0 || (slow.includes(k) && turn % lag)) continue;
+      const mv = findMove(d.tiles, s.w, s.h)!;
+      moves[k].push([mv[0], mv[1], d.shuffles]);
+    }
+    board = judge(r, moves, board, s) ?? board;
+    s = replay(r, players, board.log, s);
+  }
+  return { r, s, board, moves };
+}
+
+test("đối kháng: mỗi người một bàn giống hệt nhau, nước của người này không đụng bàn người kia", () => {
+  const r = { seed: 17, size: "s" as const, mode: "race" as const };
+  const s0 = newGame(r, 3);
+  assert.equal(s0.desks.length, 3);
+  assert.deepEqual(s0.desks[1].tiles, s0.desks[0].tiles);
+  const [a, b] = findMove(s0.desks[0].tiles, s0.w, s0.h)!;
+  // Cả ba cùng nối một cặp: ai cũng được tính, vì mỗi người nối trên bàn của mình.
+  const board = judge(r, [[[a, b, 0]], [[a, b, 0]], []], emptyBoard(3))!;
+  const s = replay(r, 3, board.log);
+  assert.equal(board.log.length, 2);
+  assert.equal(s.desks[0].tiles[a], E);
+  assert.equal(s.desks[1].tiles[a], E);
+  assert.equal(s.desks[2].tiles[a] >= 0, true);
+  assert.deepEqual(s.pairs, [1, 1, 0]);
+});
+
+test("đối kháng: người dọn sạch trước thắng ngay, ván chạy tiếp tới khi mọi người xong", () => {
+  const { s, board } = race(23, 3, { slow: [1, 2], lag: 2 });
+  assert.ok(s.over);
+  assert.equal(s.finished[0], 0, "người đi nhanh nhất về nhất");
+  assert.deepEqual(s.winners, [0]);
+  assert.deepEqual([...s.finished].sort(), [0, 1, 2]);
+  assert.ok(s.desks.every((d) => d.left === 0));
+  // Thắng được chốt ngay khi người đầu tiên xong, trước khi hết ván.
+  const first = board.log.findIndex((_, n) => replay({ seed: 23, size: "s", mode: "race" }, 3, board.log.slice(0, n + 1)).finished.length > 0);
+  const mid = replay({ seed: 23, size: "s", mode: "race" }, 3, board.log.slice(0, first + 1));
+  assert.deepEqual(mid.winners, [0]);
+  assert.equal(mid.over, false);
+});
+
+test("đối kháng: bàn người đã xong không nhận thêm nước, người chưa xong vẫn chơi tiếp", () => {
+  const pairs = (SIZES.s.w * SIZES.s.h) / 2;
+  // Người 0 vừa dọn xong, người 1 mới đi được vài cặp.
+  const { r, s, board, moves } = race(5, 2, { slow: [1], lag: 3, turns: pairs });
+  assert.deepEqual(s.finished, [0]);
+  assert.equal(s.over, false);
+  const d1 = deskOf(s, 1);
+  const [a, b] = findMove(d1.tiles, s.w, s.h)!;
+  const next = judge(r, [[...moves[0], [-1], [a, b, 0]], [...moves[1], [a, b, d1.shuffles]]], board, s)!;
+  assert.deepEqual(next.log.slice(board.log.length), [[a, b, 1]]);
+  assert.deepEqual(next.seen, [moves[0].length + 2, moves[1].length + 1]);
+});
+
+test("đối kháng: bàn tự dựng từ nước của mình khớp với bàn chủ phòng ghi, kể cả khi bàn tự xáo", () => {
+  let checked = false;
+  for (let seed = 1; seed <= 60 && !checked; seed++) {
+    const { r, s, moves } = race(seed, 2);
+    if (!s.desks[1].shuffles) continue;
+    checked = true;
+    const own = ownGame(r, moves[1]);
+    assert.deepEqual(own.desks[0], s.desks[1]);
+    assert.equal(own.pairs[0], s.pairs[1]);
+    // Dựng tiếp từ nửa đầu ra cùng kết quả.
+    const half = ownGame(r, moves[1].slice(0, 7));
+    assert.deepEqual(ownGame(r, moves[1], half), own);
+  }
+  assert.ok(checked, "không ván nào phải xáo — thử thêm seed");
+});
+
+test("đối kháng: chủ phòng ghi giờ dọn xong một lần, giữ nguyên về sau", () => {
+  const { s, board } = race(31, 2, { slow: [1], lag: 2 });
+  const b1 = stamp(board, s, 5000)!;
+  assert.equal(b1.fin![s.finished[0]], 5000);
+  assert.equal(stamp(b1, s, 9000), null);
+  assert.equal(stamp(emptyBoard(2), newGame({ seed: 1, size: "s", mode: "race" }, 2), 100), null, "chưa ai xong thì không ghi");
+});
+
+test("ván cũ không có chế độ dựng lại như cùng giải đề", () => {
+  const { board, s } = playOut(9, 2);
+  assert.equal(replay({ seed: 9, size: "s" }, 2, board.log).mode, "coop");
+  assert.deepEqual(replay({ seed: 9, size: "s", mode: "coop" }, 2, board.log), s);
 });
