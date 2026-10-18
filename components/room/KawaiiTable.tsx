@@ -6,6 +6,7 @@ import type { KawaiiRoom, KwMatch, KwView } from "@/lib/net/kawaii-room";
 import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ChatPanel } from "./ChatPanel";
+import { play, useAudioPrefs, useMusic } from "./kawaiiAudio";
 import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
@@ -117,6 +118,8 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
   // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc lộ bàn.
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const end = useEndScene(winKey(g), { ms: WIN_SCENE_MS, emojis: CONFETTI });
+  useMusic();
+  useCueSounds(g, count, end.shown);
   const size = live && g ? g.size : opts.size;
   const mode = live && g ? g.mode : opts.mode;
   // Đối kháng: bàn người khác mình đang xem (bấm vào bảng tiến độ để đổi) — theo từng ván.
@@ -419,6 +422,54 @@ function Frame({ cols, rows, children, label, plain }: { cols: number; rows: num
   );
 }
 
+/**
+ * Tiếng đếm ngược (mỗi giây một tiếng, lộ bàn một tiếng) và tiếng lúc hiện cảnh thắng — đối kháng mà người khác về
+ * nhất thì tiếng nhẹ hơn.
+ */
+function useCueSounds(g: KwMatch | undefined, count: number, win: boolean) {
+  const last = useRef(count);
+  useEffect(() => {
+    const prev = last.current;
+    last.current = count;
+    if (count > 0 && count !== prev) play("tick");
+    else if (count === 0 && prev > 0) play("go");
+  }, [count]);
+  const onWin = useEffectEvent(() => {
+    const lost = g && g.mode === "race" && g.me >= 0 && !g.state.winners.includes(g.me);
+    play(lost ? "rival" : "win");
+  });
+  useEffect(() => {
+    if (win) onWin();
+  }, [win]);
+}
+
+/** Nút bật / tắt nhạc nền và tiếng thao tác — tuỳ chọn riêng của máy này. */
+function AudioToggles() {
+  const a = useAudioPrefs();
+  return (
+    <>
+      <button
+        type="button"
+        className={`btn btn-sm ${a.music ? "btn-sun" : ""}`}
+        onClick={() => a.setMusic(!a.music)}
+        aria-pressed={a.music}
+        title="Nhạc nền lo-fi — chỉ áp dụng trên máy bạn"
+      >
+        {a.music ? "🎵" : "🔇"} Nhạc: {a.music ? "bật" : "tắt"}
+      </button>
+      <button
+        type="button"
+        className={`btn btn-sm ${a.sound ? "btn-sun" : ""}`}
+        onClick={() => a.setSound(!a.sound)}
+        aria-pressed={a.sound}
+        title="Tiếng khi chọn ô, nối cặp, gợi ý… — chỉ áp dụng trên máy bạn"
+      >
+        {a.sound ? "🔊" : "🔈"} Tiếng: {a.sound ? "bật" : "tắt"}
+      </button>
+    </>
+  );
+}
+
 /** Bàn trống khi chưa chơi ván nào: các ô úp. */
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
@@ -436,6 +487,9 @@ function EmptyBoard({ view }: { view: View }) {
         <p className="card px-5 py-3 text-center font-display text-lg font-extrabold">
           {!m.players.length ? "Đang chờ người vào ghế…" : view.isHost ? "Bấm “Bắt đầu” để xếp bàn!" : "Đang chờ chủ phòng xếp bàn…"}
         </p>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <AudioToggles />
       </div>
     </div>
   );
@@ -493,6 +547,7 @@ function useFx(g: KwMatch, active: boolean, watched: number) {
             },
           ],
     );
+    if (made.length) play("other");
     add(made.slice(-4));
   });
   const n = g.state.taken.length;
@@ -536,6 +591,18 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
   const left = desk ? desk.left : g.left;
   const shuffles = desk ? desk.shuffles : g.shuffles;
 
+  // Tiếng bàn tự xáo (bàn đang thấy) và tiếng mình vừa dọn sạch bàn (đối kháng) — chỉ khi đổi lúc đang chơi.
+  const seenShuffles = useRef(shuffles);
+  useEffect(() => {
+    if (shuffles > seenShuffles.current && live && !counting) play("shuffle");
+    seenShuffles.current = shuffles;
+  }, [shuffles, live, counting]);
+  const wasCleared = useRef(g.cleared);
+  useEffect(() => {
+    if (g.cleared && !wasCleared.current) play("clear");
+    wasCleared.current = g.cleared;
+  }, [g.cleared]);
+
   // Ô đang chọn / ô gợi ý bị người khác nối mất thì coi như bỏ chọn, tắt gợi ý.
   const sel = picked >= 0 && tiles[picked] >= 0 ? picked : -1;
   const hinted = hint && tiles[hint.pair[0]] >= 0 && tiles[hint.pair[1]] >= 0 ? hint.pair : null;
@@ -553,9 +620,12 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
 
   const pick = (i: number) => {
     if (!canPlay || tiles[i] < 0) return;
-    if (sel < 0 || sel === i) return setSel(sel === i ? -1 : i);
-    if (tiles[sel] !== tiles[i]) return setSel(i);
+    if (sel < 0 || sel === i || tiles[sel] !== tiles[i]) {
+      play(sel === i ? "unpick" : "pick");
+      return setSel(sel === i ? -1 : i);
+    }
     const path = session.connect(sel, i);
+    play(path ? "pair" : "nope");
     if (path) {
       add([
         {
@@ -575,7 +645,9 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
 
   const askHint = () => {
     const pair = session.hint();
-    if (pair) setHint({ pair, key: Date.now() });
+    if (!pair) return;
+    play("hint");
+    setHint({ pair, key: Date.now() });
   };
 
   const cells = [];
@@ -657,6 +729,7 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
         >
           🎨 Màu nền ô: {tinted ? "hiện" : "ẩn"}
         </button>
+        <AudioToggles />
         <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
           Còn {left}/{w * h} ô{shuffles ? ` · đã xáo ${shuffles} lần` : ""}
           {player && live && !counting ? locked ? <> · <LockLeft until={g.lockedUntil} /></> : sel < 0 ? " · chọn ô thứ nhất" : " · chọn ô cùng hình" : ""}
