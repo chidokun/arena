@@ -22,15 +22,12 @@ const time = (t: number) => new Date(t).toLocaleTimeString("vi-VN", { hour: "2-d
 const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|‍|️|\s)+$/u;
 const PICTO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
-/** Tin chỉ gồm sticker hoặc vài emoji gõ tay: hiện to, không bong bóng. */
 const isIcon = (m: ChatMsg) => !m.system && !m.shout && !m.clue && !m.guess && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
 
 type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
 
-/** Nhãn của tin kết quả lời đoán (vẽ đoán). */
 const GUESS_TAG: Record<GuessMark, string> = { wrong: "❌ Đã đoán sai", near: "🔥 Gần đúng rồi!", right: "✅ Đã đoán đúng" };
 
-/** Gộp các tin icon/sticker liên tiếp của cùng một người (cách nhau dưới 2 phút) vào một dòng. */
 function toRows(chat: ChatMsg[]): Row[] {
   const rows: Row[] = [];
   for (const m of chat) {
@@ -52,10 +49,8 @@ function Icon({ m }: { m: ChatMsg }) {
   return <StickerArt id={m.sticker} size={120} className="pop-in" />;
 }
 
-/**
- * Danh sách tin, tách riêng và `memo` để gõ phím trong ô nhập hay các cập nhật khác của khung chat (số người online,
- * bàn chơi đổi trạng thái…) không vẽ lại cả trăm tin — chỉ vẽ lại khi danh sách tin đổi.
- */
+// Tách riêng và `memo` để gõ phím trong ô nhập hay các cập nhật khác của khung chat (số người online, bàn chơi đổi
+// trạng thái…) không vẽ lại cả trăm tin.
 const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: string; empty: string }) {
   return (
     <>
@@ -113,11 +108,8 @@ type Content = { text: string } | { sticker: StickerId };
 
 const noop = () => () => {};
 
-/**
- * Phần màn hình còn nhìn thấy lúc bàn phím ảo đang mở (`"top,height"`, rỗng nếu bàn phím không che gì). Trên điện thoại
- * bàn phím chỉ thu nhỏ visual viewport chứ không thu layout viewport, nên khung chat `fixed bottom` bị che mất ô nhập.
- * Chỉ theo dõi lúc ô nhập đang focus để phóng to bằng hai ngón không bị tính nhầm là bàn phím.
- */
+// Trên điện thoại bàn phím ảo chỉ thu nhỏ visual viewport chứ không thu layout viewport, nên khung chat `fixed bottom`
+// bị che mất ô nhập. Chỉ theo dõi lúc ô nhập đang focus để phóng to bằng hai ngón không bị tính nhầm là bàn phím.
 function useKeyboardView(active: boolean) {
   return useSyncExternalStore(
     active
@@ -140,7 +132,6 @@ function useKeyboardView(active: boolean) {
   );
 }
 
-/** Một kênh chat: trong phòng hoặc công cộng. `send` trả về false nếu tin không gửi được (gửi quá nhanh). */
 type Channel = {
   key: "room" | "public";
   label: string;
@@ -148,16 +139,12 @@ type Channel = {
   send: (c: Content) => boolean | void;
   empty: string;
   placeholder?: string;
-  /** Lý do tạm không cho gửi tin — vẫn đọc được. */
   locked?: string;
-  /** Dòng nhắc nhỏ phía trên ô nhập. */
   hint?: string;
 };
 
-/** Tin chưa đọc: tin của người khác gửi sau lần cuối mình xem kênh. */
 const unreadOf = (chat: ChatMsg[], me: string, since: number) => chat.filter((m) => !m.system && m.uid !== me && m.at > since).length;
 
-/** Kiểu bong bóng ở nút chat theo loại tin — cùng màu và nhãn với ô tương ứng trong khung chat. */
 function bubbleKind(m: ChatMsg): { tone: string; tag?: string } {
   if (m.shout) return { tone: "is-shout" };
   if (m.guess) return { tone: `is-${m.guess}`, tag: GUESS_TAG[m.guess] };
@@ -165,11 +152,6 @@ function bubbleKind(m: ChatMsg): { tone: string; tag?: string } {
   return { tone: "" };
 }
 
-/**
- * Bóng thoại bật lên từ nút chat lúc khung chat đang thu nhỏ: tin vừa tới của mọi người (trừ mình), kèm avatar và tên.
- * Lời đoán (vẽ đoán) và mô tả (gián điệp) có nhãn và màu riêng để không lẫn với tin thảo luận.
- * Bấm vào thì mở khung chat; bàn phím / trình đọc màn hình dùng nút chat.
- */
 function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: string }) {
   return (
     <ol className={`pointer-events-none fixed right-4 bottom-[86px] ${z} flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2`} aria-live="polite">
@@ -196,16 +178,6 @@ function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: 
   );
 }
 
-/**
- * Khung chat nổi ở góc màn hình, thu nhỏ còn nút tròn (đếm tin mới) — chat được ngay mà không phải cuộn trang.
- * Trong phòng có tab Phòng / Công cộng (cùng các tab `panels` của phòng); ngoài phòng chỉ có kênh công cộng.
- * `docked`: nằm trong sidebar của phòng (màn hình rộng) — cao theo chỗ trống; thu nhỏ là ẩn cả sidebar (`hidden`, `onHide`),
- * lúc đó khung còn lại nút tròn như khi nổi.
- * `storageKey`: nơi nhớ đang mở hay thu nhỏ; chưa chọn bao giờ thì theo `openByDefault`.
- * `bubbles`: tin vừa tới cần bật thành bóng thoại từ nút tròn lúc khung đang thu nhỏ.
- * `staged`: phòng đang trình chiếu — khung nổi trên lớp trình chiếu như trên điện thoại, mỗi lần vào trình chiếu đều bắt
- * đầu thu nhỏ (không nhớ lựa chọn).
- */
 function ChatBox({
   channels,
   panels = [],
@@ -260,7 +232,7 @@ function ChatBox({
   const open = staged ? stagedOpen : docked ? !hidden : openPref;
   // Trên lớp trình chiếu (z 45), dưới thông báo (50) và các cảnh mở / hết ván (60).
   const z = staged ? "z-[47]" : "z-40";
-  // Mốc đã đọc của từng kênh. Lịch sử có sẵn lúc mở khung (người khác gửi lại cho mình) không tính là tin mới.
+  // Khởi tạo bằng giờ hiện tại để lịch sử có sẵn lúc mở khung (người khác gửi lại cho mình) không tính là tin mới.
   const [seen, setSeen] = useState<Record<string, number>>(() => Object.fromEntries(channels.map((c) => [c.key, Date.now()])));
   const unread = (c: Channel) => (open && !panel && c.key === ch.key ? 0 : unreadOf(c.chat, me, seen[c.key] ?? 0));
   const totalUnread = channels.reduce((n, c) => n + unread(c), 0);
@@ -320,8 +292,7 @@ function ChatBox({
     if (slowTimer.current) clearTimeout(slowTimer.current);
   }, []);
 
-  // Tự cuộn xuống khi có tin mới, vừa mở lại, đổi kênh hoặc ô nhập vừa ẩn / hiện, trừ khi người dùng đang cuộn lên
-  // đọc tin cũ. Theo id tin cuối chứ không theo số tin: đủ giới hạn tin rồi thì số tin không đổi nữa.
+  // Theo id tin cuối chứ không theo số tin: đủ giới hạn tin rồi thì số tin không đổi nữa.
   const lastId = ch.chat.at(-1)?.id;
   useEffect(() => {
     const el = listRef.current;
@@ -610,7 +581,6 @@ function ChatBox({
   );
 }
 
-/** Kênh công cộng: mọi người đang mở trang, đi qua kết nối sảnh. */
 function usePublicChannel(): Channel | null {
   const { lobby } = useNet();
   const chat = usePublicChat();
@@ -627,12 +597,6 @@ function usePublicChannel(): Channel | null {
   };
 }
 
-/**
- * Khung chat trong phòng: tab Phòng (mặc định), Công cộng và các tab thêm RoomLayout cấp (Người, chat phe…).
- * Màn hình rộng thì nằm trong sidebar, điện thoại thì nổi ở góc.
- * `locked`: lý do tạm không cho gửi tin trong phòng (ma sói: ban đêm, người đã chết) — vẫn đọc được. `placeholder`: gợi ý
- * trong ô nhập (vẽ đoán: đang lượt vẽ thì tin của người đoán là lời đoán).
- */
 export const ChatPanel = memo(function ChatPanel({
   session,
   chat: given,
@@ -641,7 +605,6 @@ export const ChatPanel = memo(function ChatPanel({
   placeholder,
 }: {
   session: RoomSession;
-  /** Không truyền thì tự đăng ký `chatStore` (bàn chơi đã tách theo store). */
   chat?: ChatMsg[];
   me?: string;
   locked?: string;
@@ -662,7 +625,6 @@ export const ChatPanel = memo(function ChatPanel({
   const side = useRoomSide();
   const staged = useStaged();
   useEffect(() => roomChat.mount(), []);
-  // Tin vừa tới của mọi người bật lên từ nút chat — chỗ duy nhất hiện bóng thoại trong phòng.
   const balloons = useBalloons(session);
   const bubbles = Object.values(balloons)
     .filter((m) => m.uid !== me)
@@ -711,7 +673,6 @@ const roomChat = (() => {
   };
 })();
 
-/** Chat công cộng nổi ở góc màn hình, trên mọi trang trừ lúc đang ở trong phòng chơi. */
 export function PublicChatDock() {
   const inRoom = useSyncExternalStore(roomChat.subscribe, roomChat.shown, () => false);
   const { uid } = useNet();
@@ -725,7 +686,6 @@ export function PublicChatDock() {
   );
 }
 
-/** Sticker gửi vào kênh công cộng bay ngang màn hình (ngoài phòng chơi). */
 function PublicFlyers() {
   const { lobby } = useNet();
   const flyers = useFlyers(lobby);

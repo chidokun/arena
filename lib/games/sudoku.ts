@@ -1,15 +1,4 @@
-/**
- * Luật Sudoku tranh đấu. Đề sinh tất định từ seed nên không phải gửi qua mạng: mọi máy tự dựng cùng một đề.
- *
- *   Cùng giải đề (`coop`) — mọi người cùng điền một bàn; ai điền đúng một ô trước thì ô đó là của người đó (+1 điểm),
- *                           điền sai bị trừ 1 điểm. Hết ô trống thì người nhiều điểm nhất thắng.
- *   Đối kháng (`race`)     — mỗi người tự giải bàn của mình; ai điền đúng hết trước thì thắng, những người còn lại giải
- *                           tiếp tới khi xong để xếp hạng. Điền sai bị khoá tay vài giây. Trên bàn của mình thấy được ô
- *                           nào đã có người khác giải (tô màu người giải nhanh nhất).
- *
- * Người chơi chỉ ghi nhật ký nước điền của chính mình; chủ phòng là người phân xử thứ tự (`judge`) và ghi bàn chung —
- * ai cũng dựng lại được điểm số, người thắng từ bàn chung (`replay`).
- */
+// Đề sinh tất định từ seed nên không phải gửi qua mạng: mọi máy tự dựng cùng một đề.
 
 export type Level = "easy" | "medium" | "hard";
 export type Mode = "coop" | "race";
@@ -17,9 +6,7 @@ export type SudokuOptions = { level: Level; mode: Mode };
 
 export const MIN_PLAYERS = 1;
 export const MAX_PLAYERS = 10;
-/** Đếm ngược trước khi lộ đề. */
 export const COUNTDOWN_MS = 5000;
-/** Đối kháng: điền sai thì khoá tay chừng này. */
 export const LOCK_MS = 5000;
 
 export const LEVELS: Record<Level, { name: string; emoji: string; text: string }> = {
@@ -37,10 +24,8 @@ export const MODE_KEYS = Object.keys(MODES) as Mode[];
 
 export const DEFAULT_OPTIONS: SudokuOptions = { level: "easy", mode: "coop" };
 
-/** Phần công khai của một ván, chủ phòng chốt lúc bắt đầu (`meta.sd`): đề sinh từ `seed` theo `level`. */
 export type SudokuRound = SudokuOptions & {
   seed: number;
-  /** Giờ máy chủ phòng lúc lộ đề (hết đếm ngược) — để đo thời gian giải. */
   t0: number;
 };
 
@@ -52,21 +37,17 @@ export function normOptions(o: unknown): SudokuOptions {
   };
 }
 
-// ---------- hình học bàn 9×9 ----------
-
 export const CELLS = 81;
 export const rowOf = (i: number) => Math.floor(i / 9);
 export const colOf = (i: number) => i % 9;
 export const boxOf = (i: number) => Math.floor(rowOf(i) / 3) * 3 + Math.floor(colOf(i) / 3);
 
-/** 27 nhóm: 9 hàng, 9 cột, 9 khối. */
 const UNITS: number[][] = [
   ...Array.from({ length: 9 }, (_, r) => Array.from({ length: 9 }, (_, c) => r * 9 + c)),
   ...Array.from({ length: 9 }, (_, c) => Array.from({ length: 9 }, (_, r) => r * 9 + c)),
   ...Array.from({ length: 9 }, (_, b) => Array.from({ length: 9 }, (_, k) => (Math.floor(b / 3) * 3 + Math.floor(k / 3)) * 9 + (b % 3) * 3 + (k % 3))),
 ];
 
-/** Hai ô có chung hàng, cột hoặc khối (ô kề — để tô sáng, dọn ghi chú). */
 export const sees = (a: number, b: number) => a !== b && (rowOf(a) === rowOf(b) || colOf(a) === colOf(b) || boxOf(a) === boxOf(b));
 
 const ALL = 0x3fe; // bit 1..9
@@ -76,7 +57,6 @@ const bits = (mask: number) => {
   return n;
 };
 
-/** Mặt nạ các số đã dùng ở từng hàng / cột / khối; null nếu bàn mâu thuẫn. */
 function usedMasks(grid: readonly number[]) {
   const rows = new Array<number>(9).fill(0);
   const cols = new Array<number>(9).fill(0);
@@ -96,10 +76,7 @@ function usedMasks(grid: readonly number[]) {
   return { rows, cols, boxes };
 }
 
-/**
- * Giải bằng quay lui (ô ít ứng viên nhất trước). Đếm tối đa `limit` lời giải; có `rand` thì thử các số theo thứ tự
- * ngẫu nhiên (để sinh bàn đầy), và lời giải đầu tiên được ghi vào `out`.
- */
+// Có `rand` thì thử các số theo thứ tự ngẫu nhiên để sinh bàn đầy.
 function search(grid: readonly number[], limit: number, rand?: () => number, out?: number[]): number {
   const g = grid.slice();
   const used = usedMasks(g);
@@ -150,13 +127,10 @@ function search(grid: readonly number[], limit: number, rand?: () => number, out
   return count;
 }
 
-/** Số lời giải của bàn, đếm tối đa `limit` (mặc định 2 — đủ để biết đề có duy nhất một lời giải không). */
+// Mặc định đếm tới 2 — đủ để biết đề có duy nhất một lời giải không.
 export const countSolutions = (grid: readonly number[], limit = 2) => search(grid, limit);
 
-/**
- * Giải bằng suy luận "ô đơn": ô chỉ còn một ứng viên (naked single), và — nếu `hidden` — số chỉ còn một chỗ trong
- * một nhóm (hidden single). Trả về true nếu điền kín được bàn. Đề giải kín được kiểu này thì chắc chắn duy nhất lời giải.
- */
+// Đề giải kín được bằng "ô đơn" thì chắc chắn duy nhất lời giải.
 export function solvesBySingles(grid: readonly number[], hidden: boolean): boolean {
   const g = grid.slice();
   const used = usedMasks(g);
@@ -208,9 +182,6 @@ export function solvesBySingles(grid: readonly number[], hidden: boolean): boole
   return g.every(Boolean);
 }
 
-// ---------- sinh đề ----------
-
-/** Bộ sinh số giả ngẫu nhiên mulberry32: cùng seed ra cùng dãy. */
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -232,24 +203,18 @@ function shuffle<T>(list: T[], rand: () => number): T[] {
 }
 
 export type Puzzle = {
-  /** Số cho sẵn, 0 là ô trống. */
   givens: number[];
   solution: number[];
-  /** Số ô trống phải điền. */
   empties: number;
 };
 
-/**
- * Mỗi mức khoét bớt ô theo cặp đối xứng tâm tới khi còn `clues` số, chỉ khoét khi đề vẫn giải được theo cách của mức:
- * dễ — chỉ cần ô còn một ứng viên; vừa, khó — thêm số chỉ còn một chỗ trong hàng / cột / khối. Mức nào cũng giải
- * được bằng suy luận "ô đơn", không phải đoán.
- */
+// Chỉ khoét khi đề vẫn giải được theo cách của mức, để mức nào cũng giải được bằng suy luận "ô đơn", không phải đoán.
 const CARVE: Record<Level, { clues: number; ok: (g: readonly number[]) => boolean }> = {
   easy: { clues: 46, ok: (g) => solvesBySingles(g, false) },
   medium: { clues: 38, ok: (g) => solvesBySingles(g, true) },
   hard: { clues: 30, ok: (g) => solvesBySingles(g, true) },
 };
-/** Đề khó mà chỉ cần "ô còn một ứng viên" là giải xong thì sinh lại (tối đa vài lần) cho đúng độ khó. */
+// Đề khó mà chỉ cần "ô còn một ứng viên" là giải xong thì sinh lại cho đúng độ khó.
 const HARD_TRIES = 6;
 
 function carve(solution: readonly number[], level: Level, rand: () => number): number[] {
@@ -271,7 +236,6 @@ function carve(solution: readonly number[], level: Level, rand: () => number): n
   return g;
 }
 
-/** Sinh đề tất định từ seed: cùng seed và mức thì máy nào cũng ra cùng một đề. */
 export function makePuzzle(seed: number, level: Level): Puzzle {
   const rand = rng(seed);
   let best: { givens: number[]; solution: number[] } | null = null;
@@ -285,43 +249,27 @@ export function makePuzzle(seed: number, level: Level): Puzzle {
   return { ...best!, empties: best!.givens.filter((d) => !d).length };
 }
 
-// ---------- phân xử & dựng lại ván ----------
-
-/** Một nước điền đã được chủ phòng ghi nhận: ô, số, người điền (thứ tự trong đội hình). */
 export type Entry = [cell: number, digit: number, player: number];
-/** Một nước điền người chơi gửi: ô, số. */
 export type Move = [cell: number, digit: number];
 
-/** Bàn chung chủ phòng ghi (`g:<ván>`). */
 export type Board = {
-  /** Các nước đã phân xử, theo thứ tự chủ phòng thấy. */
   log: Entry[];
-  /** Đã xét tới nước thứ mấy trong nhật ký của từng người chơi (theo thứ tự đội hình). */
   seen: number[];
-  /** Thời gian (ms, tính từ lúc lộ đề) tới khi ván xong. */
   time?: number;
-  /** Đối kháng: thời gian (ms, tính từ lúc lộ đề) từng người giải xong; null nếu chưa xong. */
   fin?: (number | null)[];
 };
 
 export const emptyBoard = (players: number): Board => ({ log: [], seen: new Array<number>(players).fill(0) });
 
 export type SudokuState = {
-  /** Cùng giải đề: người giữ ô; đối kháng: người giải ô đó nhanh nhất. -1 nếu chưa ai. */
   owner: number[];
-  /** Đối kháng: các ô từng người đã giải. */
   solved: boolean[][];
   right: number[];
   wrong: number[];
-  /** Cùng giải đề: đúng − sai; đối kháng: số ô đã giải. */
   score: number[];
-  /** Ô trống chưa ai giữ (cùng giải đề) — đối kháng là số ô người giải nhiều nhất còn thiếu. */
   open: number;
-  /** Đối kháng: những người đã giải xong, theo thứ tự xong. */
   finished: number[];
-  /** Ván xong: cùng giải đề là hết ô trống, đối kháng là mọi người đã giải xong. */
   over: boolean;
-  /** Người thắng (thứ tự trong đội hình); cùng giải đề có thể đồng hạng, đối kháng là người xong đầu tiên (có ngay khi họ xong). */
   winners: number[];
 };
 
@@ -342,7 +290,6 @@ function fresh(p: Puzzle, players: number): SudokuState {
   };
 }
 
-/** Áp một nước vào trạng thái; trả về false nếu nước không được tính (ô cho sẵn, ô đã có người giữ / mình đã giải). */
 function apply(s: SudokuState, p: Puzzle, mode: Mode, cell: number, digit: number, k: number): boolean {
   if (s.over || p.givens[cell] || k < 0 || k >= s.right.length) return false;
   if (mode === "coop" ? s.owner[cell] >= 0 : s.solved[k][cell]) return false;
@@ -373,17 +320,12 @@ function apply(s: SudokuState, p: Puzzle, mode: Mode, cell: number, digit: numbe
   return true;
 }
 
-/** Dựng lại ván từ bàn chung — tất định, máy nào cũng ra như nhau. */
 export function replay(p: Puzzle, mode: Mode, players: number, log: readonly unknown[]): SudokuState {
   const s = fresh(p, players);
   for (const e of log) if (isMove(e) && Number.isInteger((e as unknown[])[2])) apply(s, p, mode, e[0], e[1], (e as unknown[])[2] as number);
   return s;
 }
 
-/**
- * Chủ phòng phân xử: xét các nước mới trong nhật ký của từng người chơi (`moves[k]` — người thứ k của đội hình),
- * ghi những nước được tính vào bàn chung. Trả về bàn mới, hoặc null nếu không có gì đổi.
- */
 export function judge(p: Puzzle, mode: Mode, moves: readonly (readonly unknown[])[], prev: Board): Board | null {
   const players = moves.length;
   const s = replay(p, mode, players, prev.log);
@@ -401,10 +343,6 @@ export function judge(p: Puzzle, mode: Mode, moves: readonly (readonly unknown[]
   return dirty ? { ...prev, log, seen } : null;
 }
 
-/**
- * Chủ phòng ghi giờ (ms tính từ lúc lộ đề): ai vừa giải xong (đối kháng), lúc ván xong. Giờ đã ghi thì giữ nguyên.
- * Trả về bàn mới, hoặc null nếu không có gì đổi.
- */
 export function stamp(b: Board, s: SudokuState, elapsed: number): Board | null {
   const fin = Array.from({ length: s.right.length }, (_, k) => b.fin?.[k] ?? null);
   let dirty = false;
@@ -419,7 +357,6 @@ export function stamp(b: Board, s: SudokuState, elapsed: number): Board | null {
   return { ...b, ...(s.finished.length ? { fin } : {}), ...(time != null ? { time } : {}) };
 }
 
-/** Bàn của một người trong chế độ đối kháng, dựng từ nhật ký của chính họ: số đã điền đúng, số lần sai. */
 export function ownBoard(p: Puzzle, moves: readonly unknown[]) {
   const cells = p.givens.slice();
   let wrong = 0;
@@ -431,7 +368,6 @@ export function ownBoard(p: Puzzle, moves: readonly unknown[]) {
   return { cells, wrong };
 }
 
-/** Thời gian dạng m:ss. */
 export function clock(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;

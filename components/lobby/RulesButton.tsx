@@ -5,9 +5,7 @@ import type { GameDef } from "@/lib/games/registry";
 import { RULES } from "@/lib/games/rules";
 import { Dialog } from "../Dialog";
 
-/** Đã tick "Không hiện lại" cho game này — chỉ áp dụng cho máy này. */
 const hideKey = (slug: string) => `arena:rules:${slug}:hide`;
-/** Bong bóng nhắc chỗ xem lại luật tự tắt sau chừng này. */
 const HINT_MS = 8000;
 
 function readHidden(slug: string) {
@@ -25,13 +23,7 @@ function saveHidden(slug: string, hide: boolean) {
   } catch {}
 }
 
-/**
- * Nút xem luật chơi. Ở sảnh (cạnh nút Tạo phòng), vào sảnh mà chưa tick "Không hiện lại" thì tự mở popup luật chơi — ô
- * "Không hiện lại" tick sẵn — đóng popup tự mở đó thì hiện bong bóng chỉ chỗ xem lại. Trong phòng (`compact`, cạnh nút
- * Rời phòng) chỉ mở khi bấm.
- */
 export function RulesButton({ game, compact = false }: { game: GameDef; compact?: boolean }) {
-  // auto: popup tự mở lúc vào sảnh (lời chào + bong bóng khi đóng); manual: bấm nút mở lại.
   const [open, setOpen] = useState<"auto" | "manual" | null>(null);
   const [hide, setHide] = useState(false);
   const [hint, setHint] = useState(false);

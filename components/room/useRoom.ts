@@ -135,7 +135,6 @@ export function useRoomView<G>(session: RoomSession<G> | null): RoomView<G> | nu
   );
 }
 
-/** So nông: cùng các khoá, từng giá trị bằng nhau theo `Object.is`. */
 export function shallowEqual<T>(a: T, b: T): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false;
@@ -146,10 +145,6 @@ export function shallowEqual<T>(a: T, b: T): boolean {
 
 type Store<V> = Pick<ViewStore<V>, "subscribe" | "get">;
 
-/**
- * Đăng ký một store và lấy một phần của nó: store báo đổi mà phần đó vẫn như cũ (theo `equal`, mặc định `Object.is`)
- * thì component không vẽ lại. Chọn nhiều trường vào object mới thì truyền `shallowEqual`. `store` null thì trả về null.
- */
 export function useStore<V, T>(store: Store<V>, select: (v: V) => T, equal?: (a: T, b: T) => boolean): T;
 export function useStore<V, T>(store: Store<V> | null | undefined, select: (v: V) => T, equal?: (a: T, b: T) => boolean): T | null;
 export function useStore<V, T>(store: Store<V> | null | undefined, select: (v: V) => T, equal: (a: T, b: T) => boolean = Object.is): T | null {
@@ -173,36 +168,28 @@ export function useStore<V, T>(store: Store<V> | null | undefined, select: (v: V
 
 const whole = <V,>(v: V) => v;
 
-/** `roomStore`: pha, meta, vai trò của mình. */
 export function useRoomState(session: RoomSession): RoomState;
 export function useRoomState<T>(session: RoomSession, select: (r: RoomState) => T, equal?: (a: T, b: T) => boolean): T;
 export function useRoomState<T>(session: RoomSession, select: (r: RoomState) => T = whole as (r: RoomState) => T, equal?: (a: T, b: T) => boolean) {
   return useStore(session.roomStore, select, equal);
 }
 
-/** `peopleStore`: người trong phòng, ghế, ai còn kết nối. */
 export function usePeople(session: RoomSession): PeopleView;
 export function usePeople<T>(session: RoomSession, select: (p: PeopleView) => T, equal?: (a: T, b: T) => boolean): T;
 export function usePeople<T>(session: RoomSession, select: (p: PeopleView) => T = whole as (p: PeopleView) => T, equal?: (a: T, b: T) => boolean) {
   return useStore(session.peopleStore, select, equal);
 }
 
-/** `gameStore`: phần riêng của game (bàn, lượt, điểm). */
 export function useGame<G>(session: RoomSession<G>): G | undefined;
 export function useGame<G, T>(session: RoomSession<G>, select: (g: G | undefined) => T, equal?: (a: T, b: T) => boolean): T;
 export function useGame<G, T>(session: RoomSession<G>, select: (g: G | undefined) => T = whole as (g: G | undefined) => T, equal?: (a: T, b: T) => boolean) {
   return useStore(session.gameStore, select, equal);
 }
 
-/** `chatStore`: tin chat phòng. */
 export function useRoomChat(session: RoomSession): ChatMsg[] {
   return useSyncExternalStore(session.chatStore.subscribe, session.chatStore.get, session.chatStore.get);
 }
 
-/**
- * Tin nhắn mới nhất của từng người, tự tắt sau vài giây — để vẽ bóng thoại bật lên từ nút chat (ChatPanel). Tắt hiệu
- * ứng sticker thì sticker không hiện thành bóng thoại.
- */
 export function useBalloons(session: RoomSession | null) {
   const fx = useStickerFx();
   const [balloons, setBalloons] = useState<Record<string, ChatMsg>>({});

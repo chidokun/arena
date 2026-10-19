@@ -1,6 +1,5 @@
 import { StickerArt } from "@/components/room/Sticker";
 
-/** Những gì giải đấu sẽ có — dùng chung cho cảnh giải đấu ở trang chủ và trang /tournaments. */
 export const TOURNAMENT_PERKS = [
   { icon: "🔐", title: "Đăng nhập", text: "Giữ tên, thành tích và lịch sử thi đấu của bạn." },
   { icon: "🏆", title: "Tạo giải đấu", text: "Chọn game, đặt luật, mở giải chỉ trong vài bước." },
@@ -14,7 +13,6 @@ const PLAYERS = [
   { emoji: "🐸", tone: "var(--lime)", soft: "var(--lime-soft)", y: 240 },
 ];
 
-/** Minh hoạ sơ đồ nhánh đấu 4 người → chung kết, ô vô địch còn bỏ ngỏ (giải đấu sắp ra mắt). */
 export function TournamentArt() {
   const semis = [
     { y: 70, from: PLAYERS[0], won: true },
@@ -25,13 +23,11 @@ export function TournamentArt() {
       <div className="card -rotate-2 p-4" style={{ background: "var(--board)", boxShadow: "0 8px 0 var(--edge)" }}>
         <svg viewBox="0 0 300 280" className="block w-full">
           <g fill="none" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-            {/* Vòng 1 → bán kết */}
             {PLAYERS.map((p, i) => {
               const semi = semis[i < 2 ? 0 : 1];
               const win = semi.from === p;
               return <path key={i} d={`M52 ${p.y} H100 V${semi.y} H130`} stroke={win ? "var(--pen)" : "var(--board-line)"} />;
             })}
-            {/* Bán kết → chung kết */}
             {semis.map((s, i) => (
               <path key={i} d={`M172 ${s.y} H210 V140 H232`} stroke="var(--board-line)" strokeDasharray="2 9" />
             ))}

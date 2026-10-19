@@ -10,7 +10,6 @@ const AD_SCRIPT = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.j
 // Tên lớp nằm trong EasyList: trình chặn quảng cáo sẽ ẩn phần tử "mồi" mang các lớp này.
 const BAIT_CLASS = "adsbox ad-banner ad-placement pub_300x250 textads banner_ad";
 
-/** Đặt một khối "mồi" giả làm quảng cáo, xem trình chặn có ẩn nó đi không. */
 async function baitHidden() {
   const bait = document.createElement("div");
   bait.className = BAIT_CLASS;
@@ -26,7 +25,6 @@ async function baitHidden() {
   return hidden;
 }
 
-/** Thử tải script quảng cáo: bị chặn thì fetch ném lỗi mạng. */
 async function scriptBlocked() {
   try {
     await fetch(AD_SCRIPT, { method: "HEAD", mode: "no-cors", cache: "no-store" });
@@ -42,7 +40,6 @@ async function detectAdblock() {
   return bait || net;
 }
 
-/** Phát hiện trình chặn quảng cáo và nhờ người chơi tạm dừng nó cho Arena. */
 export function AdblockWall() {
   const [blocked, setBlocked] = useState(false);
 

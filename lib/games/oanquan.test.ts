@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyStep, cloneBoard, initialState, legal, play, replay, score, TOTAL, type OaqState } from "./oanquan.ts";
 
-/** Tổng điểm còn trên bàn + đã ăn — luôn bằng TOTAL. */
 const total = (s: OaqState) => s.dan.reduce((a, b) => a + b, 0) + (s.quan[0] ? 10 : 0) + (s.quan[1] ? 10 : 0) + score(s, 1) + score(s, 2);
 
 test("bàn mới: 10 ô dân mỗi ô 5 quân, hai ô quan, bên 1 đi trước", () => {

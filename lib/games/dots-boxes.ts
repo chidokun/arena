@@ -1,10 +1,4 @@
-/**
- * Luật chấm nối ô (Dots and Boxes): lưới `size`×`size` ô (tức (size+1)×(size+1) chấm). Hai người lần lượt kẻ một
- * cạnh nối hai chấm kề nhau; ai kẻ cạnh thứ tư khép kín một ô thì ô đó thuộc về mình và được kẻ tiếp. Hết ô — hoặc một
- * người đã giữ quá nửa số ô, không thể bị đuổi kịp — thì ván kết thúc, ai nhiều ô hơn thắng.
- */
-
-/** Cỡ bàn (số ô mỗi cạnh) chủ phòng chọn được. Cỡ lẻ có số ô lẻ nên không bao giờ hoà. */
+// Cỡ lẻ có số ô lẻ nên không bao giờ hoà.
 export const SIZES = [3, 5, 7] as const;
 export type Size = (typeof SIZES)[number];
 
@@ -16,18 +10,13 @@ export function normOptions(o: Record<string, unknown> | undefined): DotsOptions
   return { size };
 }
 
-/** Một nước đi là chỉ số cạnh (xem `hLine` / `vLine`). */
 export type Move = number;
 
-/** Tổng số cạnh: (size+1) hàng cạnh ngang × size, cộng size hàng cạnh dọc × (size+1). */
 export const lineCount = (size: number) => 2 * size * (size + 1);
 
-/** Cạnh ngang ở hàng chấm `r` (0..size), nối chấm cột `c` với `c+1` (c: 0..size-1). */
 export const hLine = (size: number, r: number, c: number) => r * size + c;
-/** Cạnh dọc ở cột chấm `c` (0..size), nối chấm hàng `r` với `r+1` (r: 0..size-1). */
 export const vLine = (size: number, r: number, c: number) => size * (size + 1) + r * (size + 1) + c;
 
-/** Vị trí một cạnh: ngang hay dọc và chấm đầu (trên / trái) của nó. */
 export function lineAt(size: number, i: number) {
   const h = size * (size + 1);
   if (i < h) return { horizontal: true, r: Math.floor(i / size), c: i % size };
@@ -35,14 +24,12 @@ export function lineAt(size: number, i: number) {
   return { horizontal: false, r: Math.floor(j / (size + 1)), c: j % (size + 1) };
 }
 
-/** Bốn cạnh của ô `b = r * size + c`: trên, dưới, trái, phải. */
 export function boxSides(size: number, b: number): [number, number, number, number] {
   const r = Math.floor(b / size);
   const c = b % size;
   return [hLine(size, r, c), hLine(size, r + 1, c), vLine(size, r, c), vLine(size, r, c + 1)];
 }
 
-/** Các ô (1 hoặc 2) giáp cạnh `i`. */
 export function boxesOf(size: number, i: number): number[] {
   const { horizontal, r, c } = lineAt(size, i);
   const out: number[] = [];
@@ -58,19 +45,12 @@ export function boxesOf(size: number, i: number): number[] {
 
 export type DotsState = {
   size: number;
-  /** Theo chỉ số cạnh: 0 chưa kẻ, 1 / 2 là người đã kẻ. */
   lines: Uint8Array;
-  /** Theo chỉ số ô `r * size + c`: 0 chưa ai, 1 / 2 là chủ ô. */
   boxes: Uint8Array;
-  /** Số ô của người 1 và người 2. */
   score: [number, number];
-  /** Số nước hợp lệ đã áp dụng. */
   count: number;
-  /** Lượt kế tiếp: 1 (đi trước) hoặc 2. */
   turn: 1 | 2;
-  /** Cạnh của nước cuối, -1 nếu chưa có. */
   last: number;
-  /** Những ô nước cuối vừa khép. */
   fresh: number[];
   winner: 0 | 1 | 2;
   draw: boolean;
@@ -93,15 +73,10 @@ export function emptyState(size: number): DotsState {
   };
 }
 
-/** Số cạnh đã kẻ của ô `b`. */
 export function sidesDrawn(s: DotsState, b: number) {
   return boxSides(s.size, b).reduce((n, i) => n + (s.lines[i] ? 1 : 0), 0);
 }
 
-/**
- * Dựng lại ván từ nhật ký nước đi. Tất định: mọi peer có cùng nhật ký sẽ ra cùng kết quả. Nước không hợp lệ (cạnh
- * đã kẻ, ngoài bàn, sau khi ván đã xong) thì dừng tại đó.
- */
 export function replay(size: number, moves: readonly Move[]): DotsState {
   const s = emptyState(size);
   const total = size * size;

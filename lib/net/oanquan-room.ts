@@ -1,8 +1,3 @@
-/**
- * Phòng ô ăn quan: hai ghế, hai người chơi lần lượt nối nước đi (±số ô) vào nhật ký `g:<ván>`; ai cũng tự dựng lại ván
- * bằng `replay` nên không cần ai "phán" thắng thua. Người đi trước (giữ dãy ô 1–5) đổi mỗi ván.
- * Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { normOptions, replay, type Move, type OaqOptions, type OaqState } from "../games/oanquan";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -10,10 +5,9 @@ const FORFEIT_MS = 30000;
 
 export type OaqMatch = {
   round: number;
-  /** Nhật ký nước đi — bàn chơi dựng lại bàn trước nước cuối để diễn cảnh rải quân. */
+  // Bàn chơi cần nhật ký để dựng lại bàn trước nước cuối mà diễn cảnh rải quân.
   moves: Move[];
   state: OaqState;
-  /** lineup[0] giữ dãy ô 1–5 và đi trước, lineup[1] giữ dãy ô 7–11. */
   lineup: SeatView[];
   mySide: 0 | 1 | 2;
   myTurn: boolean;
@@ -22,9 +16,7 @@ export type OaqMatch = {
 
 export type OaqView = {
   opts: OaqOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: OaqMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -52,12 +44,11 @@ export class OAnQuanRoom extends RoomSession<OaqView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người đi trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -69,7 +60,6 @@ export class OAnQuanRoom extends RoomSession<OaqView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
@@ -109,7 +99,6 @@ export class OAnQuanRoom extends RoomSession<OaqView> {
     return `${name(r.winner)} thắng ván ${r.round}${why}`;
   }
 
-  /** Bốc ô `at` của mình rải theo chiều `dir` (1: chỉ số tăng, -1: giảm). */
   sow(at: number, dir: 1 | -1) {
     const m = this.meta();
     if (!m || !this.store.get().game?.match?.myTurn) return;

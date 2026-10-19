@@ -16,10 +16,8 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote } from "./RoomLayout";
 import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<CcView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useCcView(session: CoChepRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -31,7 +29,6 @@ const CHEERS = ["🎉", "🏠", "✨", "🎊", "🪨", "🏆"];
 const STEP_MS = 380;
 const NO_EVENTS: CcEvent[] = [];
 
-/** Từ bề rộng này (máy tính bảng ngang, máy tính) sân vẽ nằm ngang; hẹp hơn thì dọc. */
 const WIDE_COURT = "(min-width: 768px)";
 const subscribeWideCourt = (fn: () => void) => {
   const mq = matchMedia(WIDE_COURT);
@@ -45,10 +42,6 @@ const cellName = (c: number) => (c === TROI ? "Trời" : `ô ${c}`);
 
 type Scene = { kind: "aim"; key: string; mode: ThrowMode; target: number } | { kind: "replay"; ev: Extract<CcEvent, { t: "throw" }>; before: Snap };
 
-/**
- * Diễn lại lần lượt các sự kiện mới của ván (cú chọi của người khác trong màn chọi đá, nhảy cò chẹp trên sân, đổi
- * lượt, cháy / chiếm nhà) — vào phòng giữa chừng thì không diễn lại quá khứ. Trả về những gì sân cần vẽ lúc này.
- */
 function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
   const events = g?.state.events ?? NO_EVENTS;
   const round = g?.round ?? 0;
@@ -58,7 +51,7 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
   const [hop, setHop] = useState<{ h: Hopper; hidden?: number } | null>(null);
   const [fx, setFx] = useState<CourtFx | null>(null);
   const [banner, setBanner] = useState<{ text: string; key: string } | null>(null);
-  /** Cú chọi của chính mình (chỉ số trong nhật ký) — đã xem trong màn chọi nên không diễn lại. */
+  // Cú chọi của chính mình đã xem trong màn chọi nên không diễn lại.
   const thrown = useRef(new Set<string>());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -76,7 +69,6 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
     } else later(() => finish(i), 250);
   };
 
-  /** Bắt đầu diễn sự kiện thứ `i` (gọi ngoài render, qua hẹn giờ). */
   const start = (g: CcMatch, i: number) => {
     const ev = g.state.events[i];
     const before = g.state.events[i - 1]?.snap ?? emptySnap(g.lineup.length);
@@ -95,7 +87,6 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
       else setScene({ kind: "replay", ev, before });
     } else if (ev.t === "hop") {
       const pick = ev.path.findIndex((s) => s.pick);
-      // Ngã giữa chừng thì dừng ở bước ngã.
       const stop = ev.fail >= 0 ? ev.fail : ev.path.length - 1;
       ev.path.slice(0, stop + 1).forEach((step, n) => {
         later(
@@ -140,10 +131,9 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
     fx,
     banner,
     mark: lastThrow ? { x: lastThrow.x, y: lastThrow.y } : null,
-    /** Mở màn chọi của mình — chốt chế độ và mục tiêu lúc mở (chọi xong thì ván đã sang việc khác nhưng màn vẫn đang diễn). */
+    // Chốt chế độ và mục tiêu lúc mở: chọi xong thì ván đã sang việc khác nhưng màn vẫn đang diễn.
     openAim: (key: string, s: CcState) => setScene({ kind: "aim", key, mode: s.need === "back" ? "back" : "front", target: s.need === "back" ? 0 : s.target }),
     closeScene: () => setScene(null),
-    /** Màn chọi xong (của mình hay diễn lại): tiếp tục diễn các sự kiện kế. */
     sceneDone: () => {
       const s = scene;
       setScene(null);
@@ -153,11 +143,8 @@ function usePlayback(g: CcMatch | undefined, me: number, paused: boolean) {
   };
 }
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function CoChepTable({ id, slug, session }: { id: string; slug: string; session: CoChepRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -184,7 +171,6 @@ const CoChepBody = memo(function CoChepBody({ session }: { session: CoChepRoom }
   const players = showGame ? g!.lineup : view.seats;
   const avatars = players.map((s) => ({ avatar: s.member?.avatar ?? "🙂", color: s.member?.color ?? "var(--sunken)" }));
 
-  // Tới lượt mình (đã diễn xong mọi thứ): tự mở màn chọi, hoặc tự nhảy tiếp nếu đá còn trên sân.
   const key = g ? `${g.round}:${state!.events.length}:${state!.count}` : "";
   const autoKey = useRef("");
   const ready = live && g!.myTurn && pb.idle && !count;
@@ -235,7 +221,6 @@ const CoChepBody = memo(function CoChepBody({ session }: { session: CoChepRoom }
       <ActionBar view={view} session={session} onAim={() => pb.openAim(key, state!)} canAim={ready && state?.need !== "hop" && !scene} busy={!pb.idle} />
       {m.status === "ended" && g?.result && pb.idle && <ResultCard match={g} me={view.me} />}
 
-      {/* Máy tính: sân nằm ngang trải hết bề rộng; điện thoại: sân dọc. */}
       <div className={`relative mx-auto mt-4 w-full ${wide ? "" : "max-w-[400px]"}`}>
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CoChepCourt
@@ -374,7 +359,6 @@ function CountdownScene({ match: g, me, n }: { match: CcMatch; me: string; n: nu
   );
 }
 
-/** Tiêu đề / giải thích kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: CcMatch, me: string) {
   const r = g.result!;
   const ws = r.winners ?? [];
@@ -406,7 +390,6 @@ function EndScene({ match: g, me, onClose }: { match: CcMatch; me: string; onClo
   );
 }
 
-/** Thẻ kết quả: người thắng và số nhà của từng người. */
 function ResultCard({ match: g, me }: { match: CcMatch; me: string }) {
   const { ws, title, sub } = summary(g, me);
   const order = g.lineup.map((s, k) => ({ s, k, n: housesOf(g.state, k) })).sort((a, b) => b.n - a.n);
@@ -425,7 +408,6 @@ function ResultCard({ match: g, me }: { match: CcMatch; me: string }) {
   );
 }
 
-/** Đếm ngược thời gian lượt hiện tại. */
 function useTurnLeft(since: number | undefined, on: boolean) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

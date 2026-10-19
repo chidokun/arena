@@ -3,17 +3,15 @@
 import { memo } from "react";
 import { lineAt, lineCount, type DotsState } from "@/lib/games/dots-boxes";
 
-/** Cạnh một ô và lề quanh lưới chấm (theo đơn vị viewBox — bàn co giãn theo khung). */
 const C = 60;
 const P = 22;
 
-/** Bề rộng khung bàn nên dùng (px): phóng tối đa 1,5 lần viewBox để chấm và nét ở bàn nhỏ không to quá cỡ. */
+// Phóng tối đa 1,5 lần viewBox để chấm và nét ở bàn nhỏ không to quá cỡ.
 export const boardMaxWidth = (size: number) => Math.min(560, Math.round((size * C + 2 * P) * 1.5));
 
 export const DB_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 export const DB_NAME = { 1: "Đỏ", 2: "Xanh" } as const;
 
-/** Hai đầu của cạnh `i` theo toạ độ viewBox. */
 function ends(size: number, i: number) {
   const { horizontal, r, c } = lineAt(size, i);
   const x1 = P + c * C;
@@ -21,10 +19,8 @@ function ends(size: number, i: number) {
   return { horizontal, r, c, x1, y1, x2: horizontal ? x1 + C : x1, y2: horizontal ? y1 : y1 + C };
 }
 
-/**
- * Bàn chấm nối ô SVG. Mỗi cạnh có vùng bấm hình thoi (hai nửa ô hai bên cạnh) nên các vùng lát kín bàn — bấm đâu
- * cũng trúng cạnh gần nhất, dễ bấm cả trên điện thoại. Di chuột / tab tới cạnh thì hiện nét mờ màu của mình.
- */
+// Vùng bấm của mỗi cạnh là hình thoi (hai nửa ô hai bên cạnh) để các vùng lát kín bàn — bấm đâu cũng trúng cạnh gần
+// nhất, dễ bấm cả trên điện thoại.
 export const DotsBoxesBoard = memo(function DotsBoxesBoard({
   state,
   canPlay,
@@ -35,7 +31,6 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
   state: DotsState;
   canPlay: boolean;
   myMark: 0 | 1 | 2;
-  /** Hình trên ô đã chiếm của từng người (avatar). */
   marks: { 1?: string; 2?: string };
   onDraw: (line: number) => void;
 }) {

@@ -30,7 +30,7 @@ import { XiangqiTable } from "./XiangqiTable";
 import type { RoomState } from "@/lib/net/room";
 import { shallowEqual, useRoomSession, useStore, type GameRoom } from "./useRoom";
 
-/** Màn phòng chỉ cần biết đang ở bước nào (`roomStore`): bàn chơi tự đăng ký phần nó cần, nên nước đi không làm cả màn vẽ lại. */
+// Chỉ lấy bước đang ở: bàn chơi tự đăng ký phần nó cần, nên nước đi không làm cả màn vẽ lại.
 const gateOf = (r: RoomState) => ({ phase: r.phase, joining: r.joining, ready: !!r.meta, cap: r.meta?.cap, name: r.meta?.name, game: r.meta?.game });
 
 export function RoomScreen({ slug }: { slug: string }) {

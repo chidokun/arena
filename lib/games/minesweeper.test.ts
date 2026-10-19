@@ -22,7 +22,6 @@ import {
   type Layout,
 } from "./minesweeper.ts";
 
-/** Bàn vẽ tay: "*" là mìn, "S" là ô xuất phát, còn lại là ô trống. */
 function draw(rows: string[]): Layout {
   const w = rows[0].length;
   const h = rows.length;
@@ -72,7 +71,6 @@ test("bàn sinh tất định, đúng số mìn, vùng xuất phát 3×3 không 
       const x = a.start % a.w;
       const y = Math.floor(a.start / a.w);
       assert.ok(x >= 1 && x <= a.w - 2 && y >= 1 && y <= a.h - 2);
-      // Vùng mở sẵn không có mìn và không lan hết bàn.
       assert.ok(a.opening.includes(a.start) && a.opening.length >= 9);
       assert.ok(a.opening.every((c) => !a.mine[c]));
       assert.ok(a.opening.length <= (a.w * a.h - mines) * 0.4 || a.opening.length === 9);
@@ -198,7 +196,6 @@ test("dựng tiếp từ trạng thái cũ ra như dựng từ đầu", () => {
   ];
   const head = replay(LAY, 2, log.slice(0, 1));
   assert.deepEqual(replay(LAY, 2, log, head), replay(LAY, 2, log));
-  // Trạng thái cũ không bị sửa.
   assert.equal(head.count, 1);
   assert.deepEqual(head.alive, [true, true]);
 });

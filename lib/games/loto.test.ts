@@ -36,7 +36,6 @@ test("bộ tờ đúng luật với nhiều seed", () => {
         assert.equal(row.filter((n) => n > 0).length, PER_ROW, `seed ${seed}: hàng không đủ ${PER_ROW} số`);
         row.forEach((n, c) => n && assert.equal(columnOf(n), c, `seed ${seed}: số ${n} sai cột ${c}`));
       }
-      // Mỗi khối 3 hàng: cột nào cũng có số, và số trong cột tăng dần từ trên xuống.
       for (let b = 0; b < ROWS; b += 3) {
         for (let c = 0; c < COLS; c++) {
           const col = [0, 1, 2].map((r) => s.rows[b + r][c]).filter((n) => n > 0);
@@ -45,7 +44,6 @@ test("bộ tờ đúng luật với nhiều seed", () => {
         }
       }
     });
-    // Hai tờ cùng màu bù trừ nhau: gộp lại đủ 1–90, mỗi số đúng một lần.
     for (let color = 0; color < SHEET_COUNT / 2; color++) {
       const all = [...nums(sheets[color * 2].rows), ...nums(sheets[color * 2 + 1].rows)].sort((a, b) => a - b);
       assert.deepEqual(all, Array.from({ length: MAX_NUMBER }, (_, i) => i + 1), `seed ${seed}: màu ${color} không đủ 1–90`);
@@ -60,7 +58,6 @@ test("cùng seed ra cùng bộ tờ, khác seed ra bộ khác", () => {
 
 const sheets = makeSheets(2027);
 
-/** Tìm hàng của tờ `id` có chứa số n. */
 const rowWith = (s: Sheet, n: number) => s.rows.findIndex((row) => row.includes(n));
 
 test("đủ 5 số một hàng thì kinh, các số kêu sau bị bỏ qua", () => {

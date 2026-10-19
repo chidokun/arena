@@ -6,10 +6,8 @@ import { Avatar } from "../Avatar";
 import { useLobbyView, useNet } from "../NetProvider";
 import { Notice } from "./RoomLayout";
 
-/** Số avatar hiện ra; phòng đông (lô tô) thì gộp phần còn lại thành "+n". */
 const SHOW = 12;
 
-/** Màn hình đang vào phòng: đã nối trực tiếp được với bao nhiêu người trong phòng. */
 export function Joining({ id, ad, progress }: { id: string; ad?: RoomAd; progress?: JoinProgress }) {
   const { uid } = useNet();
   const lobby = useLobbyView();

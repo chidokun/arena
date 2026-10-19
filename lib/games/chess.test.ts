@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyMove, insufficient, legalMoves, material, notate, parseFen, QUEEN, KNIGHT, replay, SIZE, startPosition, type Move, type Position } from "./chess.ts";
 
-/** Ô theo tên, vd. "e4". */
 const sq = (name: string) => (SIZE - Number(name[1])) * SIZE + name.charCodeAt(0) - 97;
-/** Nước theo ký hiệu toạ độ, vd. "e2e4", "e7e8q". */
 const mv = (uci: string): Move => {
   const promo = { q: QUEEN, r: 4, b: 3, n: KNIGHT }[uci[4] as "q"];
   return promo ? [sq(uci.slice(0, 2)), sq(uci.slice(2, 4)), promo] : [sq(uci.slice(0, 2)), sq(uci.slice(2, 4))];

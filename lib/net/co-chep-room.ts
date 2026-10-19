@@ -1,33 +1,22 @@
-/**
- * Phòng cò chẹp: tối đa 5 ghế, người tới lượt nối hành động (cú chọi kèm điểm rơi, lệnh nhảy tiếp) vào nhật ký
- * `g:<ván>`; ai cũng tự dựng lại ván bằng `replay`. Chủ phòng giữ `meta.cc` (seed của ván, danh sách người bỏ cuộc kèm
- * số dòng nhật ký lúc bỏ) và là người duy nhất được nối `skip` (người tới lượt treo máy / mất kết nối) và `end` (chốt ván).
- */
 import { replay, standings, type CcAct, type CcState } from "../games/co-chep";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
-/** Người chơi mất kết nối quá lâu thì bị loại khỏi ván (nhà vẫn giữ trên sân nhưng không được tính thắng). */
 const OUT_MS = 45000;
-/** Tới lượt mà mất kết nối quá lâu thì cho qua lượt. */
 const AWAY_MS = 15000;
-/** Thời gian tối đa cho một lượt (tính từ lúc máy chủ phòng thấy nhật ký đổi lần cuối). */
 export const TURN_MS = 60000;
 
 export type CcMatch = {
   round: number;
   state: CcState;
   lineup: SeatView[];
-  /** Chỉ số của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
   myTurn: boolean;
-  /** Lúc máy mình thấy nhật ký đổi lần cuối — để đếm giờ lượt. */
   since: number;
   result?: Result;
 };
 
 export type CcView = {
   match?: CcMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
 };
 
@@ -56,14 +45,12 @@ export class CoChepRoom extends RoomSession<CcView> {
   protected begin(m: Meta) {
     const players = m.players.filter((u) => this.isOnline(u));
     if (!players.length || players.length !== m.players.length) return false;
-    // Người chọi trước xoay vòng giữa các ván.
     const k = (m.round - 1) % players.length;
     m.lineup = [...players.slice(k), ...players.slice(0, k)];
     m.cc = { seed: crypto.getRandomValues(new Uint32Array(1))[0], out: {} };
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (bằng nhà thì mỗi người cùng thắng được một ván). */
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -76,7 +63,6 @@ export class CoChepRoom extends RoomSession<CcView> {
     return this.gameOf(m).result;
   }
 
-  /** Loại người bỏ cuộc / mất kết nối lâu; cho qua lượt người tới lượt mà vắng mặt hoặc để quá giờ. */
   protected hostPlay(m: Meta) {
     if (!m.cc) return;
     const { acts, state } = this.gameOf(m);
@@ -101,7 +87,6 @@ export class CoChepRoom extends RoomSession<CcView> {
     if (m.status === "playing" && m.cc && m.lineup.includes(uid) && m.cc.out[uid] === undefined) m.cc = { ...m.cc, out: { ...m.cc.out, [uid]: this.actsOf(m).length } };
   }
 
-  /** Mỗi nhịp, ở mọi máy: rao chiếm nhà / cháy nhà vào khung chat. */
   protected watch(m: Meta) {
     if (m.round <= 0 || !m.cc) return;
     const events = this.gameOf(m).state.events;
@@ -159,19 +144,16 @@ export class CoChepRoom extends RoomSession<CcView> {
     return m;
   }
 
-  /** Ghi cú chọi của mình: điểm dừng (x, y) và chỗ chạm đất (lx, ly), làm tròn cm. */
   throwStone(x: number, y: number, lx: number, ly: number) {
     const m = this.mine(["throw", "back"]);
     return !!m && this.append(m, { k: "t", u: this.me, x, y, lx, ly });
   }
 
-  /** Lượt mới mà đá còn nằm trên sân (lượt trước phạm lỗi): nhảy tiếp. */
   hop() {
     const m = this.mine(["hop"]);
     if (m) this.append(m, { k: "h", u: this.me });
   }
 
-  /** Chủ phòng chốt ván: đếm nhà, ai nhiều nhất thắng. */
   finish() {
     const m = this.meta();
     if (!m || m.host !== this.me || m.status !== "playing" || !m.cc) return;

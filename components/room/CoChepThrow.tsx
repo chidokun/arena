@@ -22,17 +22,7 @@ import {
 } from "@/lib/games/co-chep";
 import { SKY_STONE } from "./CoChepCourt";
 
-/**
- * Cảnh chọi đá — một màn riêng phủ toàn màn hình, vẽ bằng canvas phối cảnh giả 3D.
- *
- * Chọi từ Đất: camera đứng sau lưng người chọi nhìn lên sân. Kéo ngược về sau (xuống dưới) như kéo ná: kéo dài thì
- * chọi xa, kéo lệch trái thì đá bay lệch phải; chấm quỹ đạo chỉ hiện đoạn đầu. Buông tay là chọi.
- * Chọi qua lưng (đứng trên Trời): người chọi quay lưng lại sân, nhìn ra bầu trời — không thấy sân. Kéo lên trên để lấy
- * đà, buông tay thì camera quay lại cho xem đá rơi vào đâu.
- * Diễn lại (cú chọi của người khác): tự lấy đà rồi bay đúng đường bay người chọi đã thấy (dựng lại từ điểm chạm đất).
- *
- * Đồ hoạ là hình khối đơn giản, gom trong các hàm `paint*` để thay bằng ảnh sau.
- */
+// Đồ hoạ gom trong các hàm `paint*` để sau này thay bằng ảnh.
 
 type V3 = { x: number; y: number; z: number };
 type Cam = { C: V3; F: V3; R: V3; U: V3 };
@@ -61,7 +51,6 @@ function raw(cam: Cam, p: V3) {
 
 const P = (x: number, y: number, z = 0): V3 => ({ x, y, z });
 
-/** Chọn tỉ lệ để các điểm `pts` vừa khung (chừa lề). */
 function fit(cam: Cam, pts: V3[], W: number, H: number, m: { t: number; b: number; l: number; r: number }): View {
   const rs = pts.map((p) => raw(cam, p));
   const x0 = Math.min(...rs.map((r) => r.x));
@@ -77,15 +66,11 @@ const at = (v: View, p: V3): Pt => {
   return { x: v.ox + v.s * r.x, y: v.oy + v.s * r.y, k: v.s / r.depth };
 };
 
-/** Camera đặt cao, nhìn dốc xuống sân (như nhìn từ sau lưng người chọi) — mọi cỡ màn hình dùng chung một góc. */
 const CAMS = {
   front: camera(P(100, -330, 620), P(100, 250, 0)),
   back: camera(P(100, 760, 560), P(100, 230, 0)),
 };
-/** Khung cần thấy: cả sân, Trời và tay người chọi. */
 const FRAME = [P(-10, -110), P(210, -110), P(-10, 600), P(210, 600), P(100, 600, 30)];
-
-// ---------- màu ----------
 
 type Palette = Record<"coral" | "sky" | "lime" | "grape" | "sun", string>;
 const FALLBACK: Palette = { coral: "#ff5a5f", sky: "#2f7bff", lime: "#12b981", grape: "#9b5cf6", sun: "#ffc23d" };
@@ -101,8 +86,6 @@ const DIRT = "#d8b98a";
 const DIRT_DARK = "#c49e6c";
 const CHALK = "rgba(255,253,245,0.95)";
 
-// ---------- vẽ ----------
-
 function paintBackdrop(ctx: CanvasRenderingContext2D, v: View, W: number, H: number, dir: 1 | -1) {
   const horizon = Math.max(0, Math.min(H, at(v, P(100, dir * 6000)).y));
   const sky = ctx.createLinearGradient(0, 0, 0, horizon);
@@ -110,7 +93,6 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, v: View, W: number, H: num
   sky.addColorStop(1, "#d9f0ff");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, horizon);
-  // Lũy tre xa xa.
   ctx.fillStyle = "#4f8a4a";
   for (let x = -20; x < W + 40; x += 26) {
     const h = 18 + ((x * 37) % 23);
@@ -153,7 +135,6 @@ function skyPath(ctx: CanvasRenderingContext2D, v: View) {
 type CourtData = { snap: Snap; tones: string[]; avatars: string[]; target: number; me: number };
 
 function paintCourt(ctx: CanvasRenderingContext2D, v: View, d: CourtData, time: number, focus?: Spot | null) {
-  // Nền sân đất nện.
   ctx.fillStyle = DIRT;
   quad(ctx, v, -50, 250, -140, 620);
   ctx.fill();
@@ -161,7 +142,6 @@ function paintCourt(ctx: CanvasRenderingContext2D, v: View, d: CourtData, time: 
   quad(ctx, v, GROUND.x0, GROUND.x1, GROUND.y0, GROUND.y1);
   ctx.fill();
 
-  // Trời: không có vạch bao, chỉ một quầng sáng.
   skyPath(ctx, v);
   ctx.fillStyle = "rgba(160,215,255,0.55)";
   ctx.fill();
@@ -192,7 +172,6 @@ function paintCourt(ctx: CanvasRenderingContext2D, v: View, d: CourtData, time: 
       ctx.restore();
     }
   }
-  // Vạch phấn.
   ctx.strokeStyle = CHALK;
   ctx.lineJoin = "round";
   for (let c = 1; c <= 8; c++) {
@@ -215,7 +194,6 @@ function paintCourt(ctx: CanvasRenderingContext2D, v: View, d: CourtData, time: 
     ctx.stroke();
     ctx.restore();
   }
-  // Số ô và nhà.
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (let c = 1; c <= 8; c++) {
@@ -238,7 +216,6 @@ function paintCourt(ctx: CanvasRenderingContext2D, v: View, d: CourtData, time: 
   ctx.fillStyle = "rgba(255,255,255,0.95)";
   ctx.font = `800 ${Math.round(28 * sky.k)}px system-ui, sans-serif`;
   ctx.fillText("TRỜI", sky.x, sky.y);
-  // Đá của những người khác đang nằm trên sân.
   d.snap.stones.forEach((c, k) => {
     if (!c || k === d.me) return;
     const pos = c === TROI ? P(SKY_STONE.x + (k - 2) * 16, SKY_STONE.y) : P((CELLS[c].x0 + CELLS[c].x1) / 2 + 22, (CELLS[c].y0 + CELLS[c].y1) / 2 - 18);
@@ -273,43 +250,32 @@ function paintShadow(ctx: CanvasRenderingContext2D, p: Pt, scale = 1) {
   ctx.restore();
 }
 
-// ---------- người chọi (video) ----------
-
 const base = process.env.BASE_PATH ?? "";
 
-/**
- * Hai video người chọi nền trong suốt (WebM VP9 có alpha; Safari / iOS không hiện alpha của WebM nên dùng bản HEVC
- * .mov có alpha). Khung đầu là tư thế cầm đá sẵn sàng — lúc ngắm video đứng yên ở đó, buông tay thì phát động tác ném.
- * Ảnh tĩnh `still` là người chọi quay mặt ra, đứng trên Trời lúc camera quay lại xem đá rơi.
- * Thay video / ảnh thì giữ cỡ khung và cập nhật các neo (px trong khung) cho khớp.
- */
+// Safari / iOS không hiện alpha của WebM nên có thêm bản HEVC .mov có alpha. Thay video / ảnh thì giữ cỡ khung và cập
+// nhật các neo (px trong khung) cho khớp.
 const KID = {
   w: 360,
   h: 480,
-  /** Số px trong khung ứng với 1 cm thật — để co theo phối cảnh. */
   k: 3.1,
-  /** Chân người chọi (giữa hai bàn chân). */
   foot: { x: 170, y: 462 },
   front: { webm: `${base}/co-chep/throw-front.webm`, mov: `${base}/co-chep/throw-front.mov`, hand: { x: 256.8, y: 189.2 } },
   back: { webm: `${base}/co-chep/throw-back.webm`, mov: `${base}/co-chep/throw-back.mov`, hand: { x: 232, y: 65.2 } },
   still: `${base}/co-chep/kid-front.png`,
 };
 
-/** Trình duyệt chỉ có WebKit (Safari, mọi trình duyệt trên iOS) thì dùng bản .mov. */
 function videoSrc(mode: ThrowMode) {
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
   const webkit = (/AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\/|OPR\//.test(ua)) || /CriOS|FxiOS|EdgiOS/.test(ua);
   return webkit ? KID[mode].mov : KID[mode].webm;
 }
 
-/** Đặt video sao cho điểm neo `anchor` (px trong khung) nằm ở `at` trên màn, co `s` lần. */
 function placeVideo(el: HTMLVideoElement | null, anchor: { x: number; y: number }, at: { x: number; y: number }, s: number, shown: boolean) {
   if (!el) return;
   el.style.transform = `translate(${at.x - anchor.x * s}px, ${at.y - anchor.y * s}px) scale(${s})`;
   el.style.opacity = shown ? "1" : "0";
 }
 
-/** Màn quay lưng (chọi qua lưng): trời xanh, mây, lũy tre, người chọi nhìn từ sau lưng — không thấy sân. */
 function paintBlind(ctx: CanvasRenderingContext2D, W: number, H: number, time: number) {
   const horizon = H * 0.58;
   const sky = ctx.createLinearGradient(0, 0, 0, horizon);
@@ -349,14 +315,11 @@ function paintBlind(ctx: CanvasRenderingContext2D, W: number, H: number, time: n
   ctx.fillRect(0, horizon, W, H - horizon);
 }
 
-/** Người chọi trong màn quay lưng: to, ở giữa đáy màn hình (`k` px mỗi cm, `hand` chỗ tay cầm đá ở khung đầu). */
 function blindKid(W: number, H: number) {
   const k = Math.min(H * 0.0042, W * 0.006);
   const foot = { x: W / 2, y: H * 1.0 };
   return { k, hand: { x: foot.x + (KID.back.hand.x - KID.foot.x) * (k / KID.k), y: foot.y + (KID.back.hand.y - KID.foot.y) * (k / KID.k) } };
 }
-
-// ---------- kết quả ----------
 
 const VERDICT: Record<Verdict, { text: (s: Spot, target: number) => string; good: boolean; emoji: string }> = {
   hit: { text: (s) => `Trúng ô ${s.kind === "cell" ? s.cell : ""}!`, good: true, emoji: "🎯" },
@@ -370,12 +333,9 @@ const VERDICT: Record<Verdict, { text: (s: Spot, target: number) => string; good
   out: { text: () => "Ra ngoài!", good: false, emoji: "💨" },
 };
 
-// ---------- component ----------
-
 export type ThrowShot = { lx: number; ly: number; x: number; y: number };
 
 type Show = {
-  /** Mốc bắt đầu (ms, performance.now). */
   t0: number;
   windup: number;
   whip: number;
@@ -402,18 +362,14 @@ export function CoChepThrow({
   onDone,
 }: {
   mode: ThrowMode;
-  /** Có thì diễn lại cú chọi đã có; không có thì mình đang chọi. */
   replay?: ThrowShot;
   name: string;
   avatar: string;
-  /** Chỉ số màu của người chọi (0..4). */
   tone: number;
   court: Omit<CourtData, "tones" | "target">;
-  /** Mục tiêu (1..8, 9 = Trời) khi chọi từ Đất; 0 khi chọi qua lưng. */
   target: number;
   judgeShot: (x: number, y: number) => { verdict: Verdict; spot: Spot };
   onThrow?: (shot: ThrowShot) => void;
-  /** Đóng khi chưa chọi (xem sân trước). */
   onClose?: () => void;
   onDone: () => void;
 }) {
@@ -445,12 +401,11 @@ export function CoChepThrow({
     return el ? Math.max(140, Math.min(el.clientWidth, el.clientHeight) * 0.3) : 200;
   };
 
-  /** Lực và hướng hiện tại từ thao tác kéo; null nếu kéo sai chiều / quá ngắn. */
   const aimed = () => {
     const a = aim.current;
     const len = Math.hypot(a.dx, a.dy);
     const p = Math.min(1, len / maxPull());
-    // Kéo như kéo ná: đá bay ngược hướng kéo. Hai màn đều nhìn theo +y nên công thức giống nhau.
+    // Đá bay ngược hướng kéo; hai màn đều nhìn theo +y nên dùng chung công thức.
     const hx = -a.dx;
     const hy = a.dy;
     const forward = mode === "front" ? hy > 0 : hy < 0;
@@ -480,11 +435,9 @@ export function CoChepThrow({
     setStage("fly");
   };
 
-  // Diễn lại cú chọi của người khác.
   useEffect(() => {
     if (!replay) return;
     const l = relaunch(mode, replay.lx, replay.ly);
-    // Lấy đà ngược hướng bay (trên màn: chọi từ Đất kéo xuống, chọi qua lưng kéo lên).
     const len = 60 + 80 * Math.min(1, Math.hypot(replay.lx - ORIGIN[mode].x, replay.ly - ORIGIN[mode].y) / 650);
     const side = Math.max(-0.5, Math.min(0.5, (replay.lx - ORIGIN[mode].x) / 300));
     const pull = mode === "front" ? { x: -side * len, y: len } : { x: side * len, y: -len };
@@ -492,7 +445,6 @@ export function CoChepThrow({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- diễn một lần khi mở
   }, []);
 
-  // Vòng vẽ: canvas dưới là cảnh (trời, sân), video người chọi ở giữa, canvas trên là viên đá, quỹ đạo, hiệu ứng.
   useEffect(() => {
     const el = canvas.current!;
     const top = overlay.current!;
@@ -527,10 +479,8 @@ export function CoChepThrow({
       const margin = { t: Math.max(70, H * 0.12), b: Math.max(96, H * 0.12), l: 16, r: 16 };
       const kidVideo = video.current;
 
-      // Giai đoạn hiện tại.
       const e = s ? now - s.t0 : 0;
       const phase = !s ? "aim" : e < s.windup ? "windup" : e < s.windup + s.whip ? "whip" : e < s.windup + s.whip + s.fly ? "fly" : e < s.windup + s.whip + s.fly + s.slide ? "slide" : "hold";
-      // Buông tay (hết lấy đà) thì phát động tác ném, một lần.
       if (!played && s && phase !== "windup") {
         played = true;
         void kidVideo?.play().catch(() => {});
@@ -544,7 +494,6 @@ export function CoChepThrow({
         const a = aim.current;
         const max = maxPull();
         const pulled = phase === "aim" ? clampLen(a.dx, a.dy, max) : phase === "windup" ? scale(s!.pull, ease(e / s!.windup)) : null;
-        // Đang ngắm: viên đá theo tay kéo; buông rồi thì đá đã nằm trong động tác ném của video.
         if (pulled) {
           const hand = { x: kid.hand.x + pulled.x * 0.6, y: kid.hand.y + pulled.y * 0.6 };
           paintStone(fx, { x: hand.x, y: hand.y, k: kid.k * 1.4 }, myTone);
@@ -557,7 +506,6 @@ export function CoChepThrow({
       const pts = [...FRAME, P(ORIGIN[mode].x, ORIGIN[mode].y, ORIGIN[mode].z)];
       let v = fit(CAMS[mode], pts, W, H, margin);
       if (mode === "front") {
-        // Video người chọi đặt theo tay, chân thò xuống dưới: lấn vào khung hướng dẫn thì thu khung hình lại cho vừa.
         const hand = at(v, ORIGIN.front);
         const kidK = at(v, P(ORIGIN.front.x - 30, ORIGIN.front.y - 10)).k * 0.8;
         const over = hand.y + (KID.h - KID.front.hand.y) * (kidK / KID.k) - (H - margin.b);
@@ -573,7 +521,6 @@ export function CoChepThrow({
         const kidK = at(v, P(ORIGIN.front.x - 30, ORIGIN.front.y - 10)).k * 0.8;
         placeVideo(kidVideo, KID.front.hand, handAt, kidK / KID.k, true);
       } else {
-        // Camera đã quay lại: người chọi đứng trên Trời quay mặt ra (ảnh tĩnh).
         placeVideo(kidVideo, KID.back.hand, handAt, 1, false);
         const foot = at(v, P(ORIGIN.back.x - 40, ORIGIN.back.y + 20));
         const k = (foot.k * 0.75) / KID.k;
@@ -585,7 +532,6 @@ export function CoChepThrow({
         const max = maxPull();
         const pulled = phase === "aim" ? clampLen(a.dx, a.dy, max) : scale(s!.pull, ease(e / s!.windup));
         const hand = { x: handAt.x + pulled.x, y: handAt.y + pulled.y };
-        // Dây "ná": từ chỗ tay tới viên đá đang kéo.
         if (Math.hypot(pulled.x, pulled.y) > 4) {
           fx.save();
           fx.strokeStyle = "rgba(90,50,20,0.85)";
@@ -610,7 +556,6 @@ export function CoChepThrow({
         paintStone(fx, at(v, g), myTone);
         return;
       }
-      // Trượt rồi nằm yên.
       const u = phase === "slide" ? ease((e - s!.windup - s!.whip - s!.fly) / s!.slide) : 1;
       const pos = P(s!.shot.lx + (s!.shot.x - s!.shot.lx) * u, s!.shot.ly + (s!.shot.y - s!.shot.ly) * u);
       const p = at(v, pos);
@@ -640,7 +585,6 @@ export function CoChepThrow({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- vòng vẽ đọc mọi thứ qua ref
   }, []);
 
-  // Kéo thả.
   const down = (e: React.PointerEvent) => {
     if (stage !== "aim" || replay) return;
     (e.target as Element).setPointerCapture(e.pointerId);
@@ -657,7 +601,6 @@ export function CoChepThrow({
     if (aim.current.on) release();
   };
 
-  // Bàn phím: ← → chỉnh hướng, ↑ ↓ chỉnh lực, Enter / Space chọi; Esc đóng.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape" && stage === "aim" && onClose) return onClose();
@@ -739,7 +682,7 @@ function whiteout(ctx: CanvasRenderingContext2D, W: number, H: number, u: number
   ctx.restore();
 }
 
-/** Chấm quỹ đạo — chỉ đoạn đầu, phần còn lại phải tự đoán. */
+// Chỉ chấm đoạn đầu quỹ đạo để phần còn lại người chơi phải tự đoán.
 function paintPreview(ctx: CanvasRenderingContext2D, v: View, a: { power: number; yaw: number } | null, mode: ThrowMode) {
   if (!a) return;
   const l = launch(mode, a.power, a.yaw);
@@ -756,7 +699,6 @@ function paintPreview(ctx: CanvasRenderingContext2D, v: View, a: { power: number
   ctx.restore();
 }
 
-/** Màn quay lưng: vòng lực và mũi tên chỉ hướng đá sẽ bay ra sau lưng. */
 function paintBackGuide(ctx: CanvasRenderingContext2D, a: { power: number; yaw: number } | null, W: number, H: number) {
   const c = { x: W / 2, y: H * 0.3 };
   const R = Math.min(W, H) * 0.11;
@@ -769,7 +711,6 @@ function paintBackGuide(ctx: CanvasRenderingContext2D, a: { power: number; yaw: 
   ctx.stroke();
   ctx.setLineDash([]);
   if (a) {
-    // Mũi tên hướng xuống (ra sau lưng), lệch theo hướng ném; dài theo lực.
     const ang = Math.PI / 2 + a.yaw;
     const len = R * (0.35 + 0.65 * a.power);
     ctx.strokeStyle = a.power > 0.85 ? "#ff6b6b" : "#ffffff";

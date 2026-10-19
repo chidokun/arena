@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CELLS, colName, coord, FLEET, shipCells, SIZE, type Ship } from "@/lib/games/battleship";
 
-/** Cạnh một ô, lề nhãn toạ độ (trên, trái) và lề phải / dưới. */
 const C = 40;
 const M = 26;
 const P = 6;
@@ -12,7 +11,6 @@ const W = M + SIZE * C + P;
 const left = (c: number) => M + (c % SIZE) * C;
 const top = (c: number) => M + Math.floor(c / SIZE) * C;
 
-/** Màu hai bên theo đội hình: [0] bắn trước. */
 export const BS_TONE = { 0: "var(--coral)", 1: "var(--sky)" } as const;
 
 const SEA = "color-mix(in srgb, var(--sky) 13%, var(--surface))";
@@ -22,17 +20,13 @@ const FLOOD = "color-mix(in srgb, var(--sky) 45%, transparent)";
 const SMOKE = "color-mix(in srgb, var(--ink-2) 70%, var(--surface))";
 const PAPER = ["var(--coral)", "var(--sun)", "var(--lime)", "var(--sky)", "var(--grape)", "var(--pen)"];
 
-/** Số giả ngẫu nhiên trong [0, 1) theo chỉ số — hiệu ứng giống nhau ở mọi lần vẽ. */
+// Ngẫu nhiên theo chỉ số (không dùng Math.random) để hiệu ứng giống nhau ở mọi lần vẽ.
 const rnd = (i: number) => {
   const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
 const vars = (v: Record<string, string>) => v as React.CSSProperties;
 
-/**
- * Cách vẽ một tàu: `steel` tàu của mình, `sunk` tàu đã chìm, `reveal` tàu đối phương lộ ra lúc hết ván,
- * `ok` / `bad` bóng tàu đang đặt (hợp lệ / chồng lên tàu khác), `lift` chỗ cũ của tàu đang nhấc lên.
- */
 export type ShipTone = "steel" | "sunk" | "reveal" | "ok" | "bad" | "lift";
 export type ShipDraw = { k: number; ship: Ship; tone: ShipTone; fresh?: boolean };
 
@@ -45,7 +39,6 @@ const HULL: Record<ShipTone, { fill: string; stroke: string; dash?: string; opac
   lift: { fill: "transparent", stroke: "var(--ink-3)", dash: "4 4", opacity: 0.8 },
 };
 
-/** Thân tàu dài `len` ô theo trục x (đuôi tròn, mũi nhọn), đã thụt vào 4px mỗi phía. */
 function hullPath(len: number) {
   const l = len * C - 8;
   const b = C - 8;
@@ -65,23 +58,19 @@ function ShipShape({ k, ship, tone, fresh }: ShipDraw) {
         <path d={hullPath(len)} fill={h.fill} stroke={h.stroke} strokeWidth={2.5} strokeDasharray={h.dash} />
         {(tone === "steel" || tone === "sunk") &&
           Array.from({ length: len - 1 }, (_, i) => <circle key={i} cx={i * C + C / 2 - 2} cy={b / 2} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />)}
-        {/* Tàu chìm: nước biển tràn lên thân. */}
         {tone === "sunk" && <path className={fresh ? "bs-flood" : undefined} d={hullPath(len)} fill={FLOOD} opacity={0.6} />}
       </g>
     </g>
   );
 }
 
-/** Ngôi sao nổ 8 cánh tâm (0, 0). */
 const BURST = Array.from({ length: 16 }, (_, i) => {
   const a = (Math.PI * i) / 8 - Math.PI / 2;
   const r = i % 2 ? 6.5 : 14;
   return `${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`;
 }).join(" ");
 
-/** Tia lửa văng ra khi trúng: góc (độ) và tầm bay (px). */
 const SPARKS = Array.from({ length: 10 }, (_, i) => ({ a: i * 36 + (rnd(i) - 0.5) * 20, d: 26 + rnd(i + 30) * 18 }));
-/** Cụm khói bốc lên sau tiếng nổ: lệch ngang (px), bán kính, độ trễ (ms). */
 const PUFFS = [
   { x: -10, r: 9, t: 60 },
   { x: 8, r: 10, t: 170 },
@@ -90,7 +79,6 @@ const PUFFS = [
   { x: -6, r: 7, t: 650 },
 ];
 
-/** Phát trúng vừa bắn: chớp lửa, sóng xung kích, tia lửa văng, khói cuồn cuộn bốc lên. */
 function Blast() {
   return (
     <>
@@ -125,7 +113,6 @@ function Mark({ c, hit, fresh, burning }: { c: number; hit: boolean; fresh: bool
           <polygon points={BURST} fill="var(--coral)" stroke="var(--edge)" strokeWidth={1.5} strokeLinejoin="round" />
           <circle r={4} fill="var(--sun)" />
         </g>
-        {/* Tàu trúng mà chưa chìm: khói vẫn bốc lên nghi ngút. */}
         {burning &&
           [0, 1].map((j) => <circle key={j} className="bs-fx bs-wisp" style={{ animationDelay: `${(fresh ? 1400 : (c * 373) % 2600) + j * 1300}ms` }} cx={-3 + j * 6} cy={-10} r={6} fill={SMOKE} />)}
       </g>
@@ -138,7 +125,6 @@ function Mark({ c, hit, fresh, burning }: { c: number; hit: boolean; fresh: bool
   );
 }
 
-/** Pháo giấy bắn tung lên khi tàu chìm: hướng bay (px), độ xoay, cỡ, màu, độ trễ. */
 const CONFETTI = Array.from({ length: 28 }, (_, i) => {
   const a = -Math.PI / 2 + (rnd(i + 3) - 0.5) * 2.4;
   const v = 70 + rnd(i + 57) * 90;
@@ -153,7 +139,6 @@ const CONFETTI = Array.from({ length: 28 }, (_, i) => {
   };
 });
 
-/** Tàu vừa bị đánh chìm: nổ dây chuyền dọc thân, sóng loang, bọt nước sủi lên và pháo giấy bắn tung. */
 function SinkFx({ k, ship }: ShipDraw) {
   const cells = shipCells(k, ship) ?? [];
   if (!cells.length) return null;
@@ -210,7 +195,6 @@ function SinkFx({ k, ship }: ShipDraw) {
   );
 }
 
-/** Tâm ngắm (đang rê chuột / phát đang chờ trả lời). */
 function Reticle({ c, tone, className }: { c: number; tone: string; className?: string }) {
   const x = left(c) + C / 2;
   const y = top(c) + C / 2;
@@ -222,10 +206,6 @@ function Reticle({ c, tone, className }: { c: number; tone: string; className?: 
   );
 }
 
-/**
- * Hải đồ 10 × 10 SVG. Vẽ tàu (`ships`), dấu trúng / trượt (`marks`: -1 chưa bắn, 0 trượt, 1 trúng), phát gần nhất và
- * phát đang chờ. Có `onCell` thì bấm được: chuột / chạm chọn ô, bàn phím dùng mũi tên + Enter (R xoay, Esc huỷ khi bày tàu).
- */
 export function SeaBoard({
   label,
   ships = [],
@@ -243,12 +223,9 @@ export function SeaBoard({
   label: string;
   ships?: ShipDraw[];
   marks?: Int8Array;
-  /** Ô của phát gần nhất trên hải đồ này. */
   last?: number;
-  /** Diễn hiệu ứng nổ / tung bọt cho phát gần nhất. */
   fresh?: boolean;
   pending?: number;
-  /** Màu tâm ngắm khi đang chọn ô để bắn; không có là chế độ bày tàu. */
   aim?: string;
   canHit?: (c: number) => boolean;
   onCell?: (c: number) => void;
@@ -287,7 +264,6 @@ export function SeaBoard({
   const wrecked = new Set(ships.flatMap((s) => (s.tone === "sunk" ? (shipCells(s.k, s.ship) ?? []) : [])));
   const sinking = ships.filter((s) => s.fresh);
 
-  // Phát trúng vừa bắn làm hải đồ rung lên; đánh chìm thì rung mạnh hơn.
   const quakeRef = useRef<SVGGElement>(null);
   const jolt = fresh && last >= 0 && marks?.[last] === 1 ? (sinking.length ? "bs-quake-lg" : "bs-quake") : "";
   useEffect(() => {
@@ -385,7 +361,6 @@ export function SeaBoard({
   );
 }
 
-/** Các tàu của một hạm đội để vẽ: tàu đã chìm theo câu trả lời, phần còn lại khi biết sơ đồ (của mình, hoặc lộ ra lúc hết ván). */
 export function fleetDraws(sunk: readonly { k: number; ship: Ship }[], fleet: readonly Ship[] | undefined, alive: ShipTone, freshK = -1): ShipDraw[] {
   const out: ShipDraw[] = [];
   if (fleet) fleet.forEach((ship, k) => !sunk.some((s) => s.k === k) && out.push({ k, ship, tone: alive }));
@@ -393,7 +368,6 @@ export function fleetDraws(sunk: readonly { k: number; ship: Ship }[], fleet: re
   return out;
 }
 
-/** Số ô đã bị bắn trúng của từng tàu (khi biết sơ đồ). */
 export function damage(fleet: readonly Ship[], marks: Int8Array) {
   return fleet.map((ship, k) => shipCells(k, ship)!.filter((c) => marks[c] === 1).length);
 }

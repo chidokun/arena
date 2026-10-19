@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* ---------- Bảng màu: sân chơi tươi sáng, viền mực đậm, bóng đổ kiểu nút bấm game ---------- */
 :root {
   --paper: #f5f2ff;
   --paper-dot: #ddd5ff;
@@ -186,7 +185,6 @@
 }
 
 @layer components {
-  /* Thẻ viền đậm có bóng đổ kiểu sticker */
   .card {
     background: var(--surface);
     border: 2px solid var(--edge);
@@ -194,7 +192,6 @@
     box-shadow: var(--shadow);
   }
 
-  /* Nút bấm "nảy" như nút trong game */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -233,7 +230,6 @@
   .field-row > .btn:disabled {
     transform: none;
   }
-  /* Nút bấm hai lần (ConfirmButton) đang chờ xác nhận. */
   .btn[data-armed] {
     outline: 3px dashed var(--coral);
     outline-offset: 2px;
@@ -308,7 +304,6 @@
     line-height: 1;
   }
 
-  /* Màn hình vào phòng: thanh tiến độ kết nối và hàng người đang bắt tay */
   .join-bar {
     height: 12px;
     overflow: hidden;
@@ -360,7 +355,6 @@
     animation: sd-wait 600ms ease-in-out infinite alternate;
   }
 
-  /* Hộp thoại native */
   dialog.sheet {
     margin: auto;
     width: min(460px, calc(100vw - 32px));
@@ -383,7 +377,6 @@
     width: min(600px, calc(100vw - 32px));
   }
 
-  /* Popup luật chơi ở sảnh: gạch đầu dòng tròn màu bút. */
   .rules-list > li {
     position: relative;
     padding-left: 18px;
@@ -399,7 +392,6 @@
     background: var(--pen);
   }
 
-  /* Bong bóng chỉ chỗ xem lại luật chơi, mũi nhọn chĩa lên nút. */
   .rules-hint {
     position: absolute;
     z-index: 30;
@@ -443,11 +435,8 @@
     }
   }
 
-  /* ---------- Trình chiếu (components/room/stage.tsx) ---------- */
-  /* Bàn chơi phủ cả màn hình: trên thanh đầu trang và chat (z 40), dưới thông báo (50) và các cảnh mở / hết ván (60).
-     Cắt phần tràn để sticker bay vào từ hai bên không làm hiện thanh cuộn. Bàn nằm trong `.stage-cell` (container) chiếm
-     phần còn trống: màn hình dọc thì hai người chơi (`.stage-flank`) ở trên / dưới, ngang thì hai bên; hoặc một hàng người
-     chơi phía trên (`.stage-head`). */
+  /* z-index nằm giữa thanh đầu trang / chat (40) và thông báo (50), cảnh mở / hết ván (60). Cắt phần tràn để sticker
+     bay vào từ hai bên không làm hiện thanh cuộn. */
   html[data-stage] {
     overflow: hidden;
   }
@@ -464,9 +453,7 @@
     background-image: radial-gradient(var(--paper-dot) 1.4px, transparent 1.4px);
     background-size: 22px 22px;
   }
-  /* Thanh công cụ: một khung nhỏ quanh nút [>]; phần còn lại (Quay lại + nút của game) trượt ra / thu vào bằng cột lưới
-     0fr ↔ 1fr. Nút bên trong phẳng (không bóng, không lún) để cả thanh gọn, không đè lên người chơi phía dưới (đỉnh
-     `.stage` chừa 60px). */
+  /* Nút bên trong phẳng (không bóng, không lún) để cả thanh gọn, không đè lên người chơi phía dưới (đỉnh `.stage` chừa 60px). */
   .stage-tools {
     position: absolute;
     top: 10px;
@@ -554,7 +541,7 @@
     place-items: center;
     height: 100%;
   }
-  /* Hàng giữa cao tối đa bằng bề ngang (bàn vuông), thiếu chỗ thì co lại; cả cụm canh giữa để người chơi sát bàn. */
+  /* Canh giữa cả cụm để người chơi nằm sát bàn. */
   .stage-body.has-flanks {
     grid-template-rows: auto minmax(0, 100cqw) auto;
     align-content: center;
@@ -576,7 +563,7 @@
     width: 100%;
     height: 100%;
   }
-  /* Cao hơn ô thì cuộn dọc; `margin: auto` thay cho canh giữa để phần đầu không bị đẩy ra ngoài, không cuộn tới được. */
+  /* `margin: auto` thay cho canh giữa: canh giữa đẩy phần đầu ra ngoài, không cuộn tới được. */
   .stage-cell.is-scroll {
     place-items: start stretch;
     overflow: hidden auto;
@@ -593,8 +580,6 @@
       grid-template: minmax(0, 1fr) / minmax(0, 1fr) auto minmax(0, 1fr);
       gap: 16px;
     }
-    /* Cột giữa rộng đúng bằng bàn lớn nhất (mặc định vuông, `--stage-center`) còn đặt vừa giữa hai người chơi (cq ở đây
-       là của `.stage`). */
     .stage-body.has-flanks .stage-cell {
       width: min(var(--stage-center, 100cqh), 100cqw - 2 * (var(--flank) + 16px));
     }
@@ -609,7 +594,6 @@
     }
   }
 
-  /* Có cả hàng người chơi lẫn hai bên (`has-both`): màn hình rất rộng thì người chơi ra hai bên như `has-flanks`. */
   @container stage (min-aspect-ratio: 2 / 1) {
     .stage-body.has-both {
       grid-template: minmax(0, 1fr) / minmax(0, 1fr) auto minmax(0, 1fr);
@@ -632,9 +616,7 @@
     }
   }
 
-  /* Hải đồ bắn tàu lúc trình chiếu, màn hình ngang (components/room/BattleshipTable.tsx, `Side` với `fit`): thẻ cao hết ô,
-     hải đồ vuông lớn nhất vừa phần còn lại sau chữ. Thẻ bè ngang (màn hình rất rộng, thấp) thì danh sách tàu và dòng đối
-     chiếu sang bên phải hải đồ để hải đồ không bị chữ ép nhỏ. */
+  /* Màn hình rất rộng, thấp: danh sách tàu và dòng đối chiếu sang bên phải để hải đồ không bị chữ ép nhỏ. */
   @media (orientation: landscape) {
     .bs-fit-wrap {
       flex: 1;
@@ -666,7 +648,6 @@
     }
   }
 
-  /* ---------- Bàn cờ caro ---------- */
   .caro {
     display: block;
     width: 100%;
@@ -691,7 +672,6 @@
     animation: glow 1.1s ease-in-out infinite alternate;
   }
 
-  /* ---------- Bàn thả cờ 4 ---------- */
   .c4 {
     display: block;
     width: 100%;
@@ -743,7 +723,6 @@
     }
   }
 
-  /* ---------- Bàn cờ lật ---------- */
   .rv {
     display: block;
     width: 100%;
@@ -826,7 +805,6 @@
     }
   }
 
-  /* ---------- Bàn cờ chó ---------- */
   .cd {
     --cd-tile: color-mix(in srgb, var(--coral) 14%, var(--board));
     --cd-grout: color-mix(in srgb, var(--coral) 26%, var(--board));
@@ -942,14 +920,12 @@
     }
   }
 
-  /* ---------- Sân cò chẹp ---------- */
   .cc {
     --cc-ground: color-mix(in srgb, var(--sun) 16%, var(--board));
     display: block;
     user-select: none;
     -webkit-user-select: none;
   }
-  /* Sân dọc (điện thoại): giới hạn theo chiều cao màn hình. Sân ngang (máy tính): trải hết bề rộng. */
   .cc.is-tall {
     width: auto;
     max-width: 100%;
@@ -1092,7 +1068,6 @@
     animation: cc-banner 1.1s ease-out both;
   }
 
-  /* Màn chọi đá: phủ toàn màn hình, canvas lấp đầy, HUD nổi trên. */
   .cc-scene {
     position: fixed;
     inset: 0;
@@ -1114,7 +1089,6 @@
   .cc-canvas.is-top:active {
     cursor: grabbing;
   }
-  /* Video người chọi: đặt và co bằng transform theo phối cảnh (CoChepThrow), không nhận thao tác. */
   .cc-kid {
     position: absolute;
     top: 0;
@@ -1250,7 +1224,6 @@
     }
   }
 
-  /* ---------- Bàn chấm nối ô ---------- */
   .db {
     display: block;
     width: 100%;
@@ -1301,7 +1274,6 @@
     }
   }
 
-  /* ---------- Bàn dò mìn chiến thuật ---------- */
   .mc-grid {
     display: grid;
     gap: 3px;
@@ -1405,7 +1377,6 @@
     }
   }
 
-  /* ---------- Bàn dò mìn cổ điển ---------- */
   .ms-grid {
     display: grid;
     gap: 2px;
@@ -1514,7 +1485,6 @@
     }
   }
 
-  /* ---------- Bàn ô ăn quan ---------- */
   .oaq {
     display: block;
     width: 100%;
@@ -1654,7 +1624,6 @@
     }
   }
 
-  /* ---------- Hải đồ bắn tàu ---------- */
   .bs {
     display: block;
     width: 100%;
@@ -1664,7 +1633,7 @@
     -webkit-user-select: none;
     border-radius: 12px;
     outline: none;
-    /* Pháo giấy khi tàu chìm được bay ra ngoài hải đồ. */
+    /* Để pháo giấy khi tàu chìm bay ra ngoài hải đồ. */
     overflow: visible;
   }
   .bs:focus-visible {
@@ -1697,7 +1666,6 @@
   .bs .bs-flood {
     animation: bs-flood 1100ms 500ms ease-in both;
   }
-  /* Trúng: chớp lửa, tia lửa văng, khói bốc lên; hải đồ rung. */
   .bs .bs-flash {
     animation: bs-flash 380ms ease-out both;
   }
@@ -1721,7 +1689,6 @@
   .bs .bs-quake-lg {
     animation: bs-quake-lg 800ms ease-out;
   }
-  /* Chìm: nổ dây chuyền, sóng loang, bọt sủi, pháo giấy bắn tung lên (bay ra ngoài hải đồ được). */
   .bs .bs-chain {
     animation: bs-chain 650ms ease-out both;
   }
@@ -1754,8 +1721,7 @@
     }
   }
 
-  /* ---------- Vẽ đoán ---------- */
-  /* Cột chơi rộng hết cỡ nhưng tranh không cao quá màn hình: người vẽ thấy cả đáp án, tranh và thanh công cụ. */
+  /* Tranh không cao quá màn hình để người vẽ thấy cả đáp án, tranh và thanh công cụ. */
   .dw-col {
     width: 100%;
     max-width: min(100%, max(360px, calc((100dvh - 310px) * 4 / 3)));
@@ -2058,7 +2024,6 @@
     }
   }
 
-  /* ---------- Bàn cờ tướng ---------- */
   .xq {
     display: block;
     width: 100%;
@@ -2142,7 +2107,6 @@
     stroke: var(--pen);
     stroke-width: 3;
   }
-  /* Role board: green ring around pieces you control (hidden while selected). */
   .xq-mine {
     fill: none;
     stroke: var(--lime);
@@ -2200,7 +2164,6 @@
   .xq-icon .xq-disc {
     filter: none;
   }
-  /* "Chiếu tướng!" đóng dấu giữa bàn cờ */
   .xq-check-flash {
     position: absolute;
     inset: 0;
@@ -2227,7 +2190,6 @@
     scrollbar-width: thin;
   }
 
-  /* ---------- Bàn cờ vua ---------- */
   .cb {
     display: block;
     width: 100%;
@@ -2364,9 +2326,6 @@
     fill: var(--sun);
   }
 
-  /* ---------- Bóng thoại & sticker ---------- */
-  /* Bóng thoại bật lên từ nút chat đang thu nhỏ (ChatPanel); cái sát nút có đuôi chỉ xuống nút. Loại tin đổi màu qua
-     --bb-bg (nền), --bb-edge (viền), --bb-tag (chữ nhãn) — đuôi dùng chung nên đổi theo. */
   .chat-bubble {
     --bb-bg: var(--surface);
     --bb-edge: var(--edge);
@@ -2384,12 +2343,10 @@
   .chat-bubble.has-tail {
     border-bottom-right-radius: 6px;
   }
-  /* Câu rao lô tô: "Hò!", "Kinh!" */
   .chat-bubble.is-shout {
     --bb-bg: var(--sun);
     color: #2b1d00;
   }
-  /* Vẽ đoán: lời đoán sai (tím), đoán đúng (xanh); gián điệp: mô tả từ khoá (tím) — như .chat-guess / .chat-clue. */
   .chat-bubble.is-wrong,
   .chat-bubble.is-clue {
     --bb-bg: var(--grape-soft);
@@ -2426,7 +2383,6 @@
     pointer-events: none;
     filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.2));
   }
-  /* Sticker nhanh: cả đàn bay lệch nhịp (animation-delay), lệch góc/hướng qua --rot, --dx, --dir */
   .fly-heart {
     animation: fly-heart 2.2s ease-out both;
   }
@@ -2442,7 +2398,6 @@
   .fly-chicken {
     animation: fly-chicken 2.4s ease-in-out both;
   }
-  /* Pháo giấy: bắn vọt lên rồi rơi lả tả */
   .fly-confetti {
     position: absolute;
     z-index: 29;
@@ -2450,7 +2405,6 @@
     pointer-events: none;
     animation: fly-confetti 2.6s both;
   }
-  /* KaiXin: cả đàn nảy lên rồi trôi lắc lư, mỗi con lệch nhịp nhờ animation-delay */
   .fly-kx {
     animation: fly-kx 3s cubic-bezier(0.2, 0.8, 0.3, 1) both;
   }
@@ -2464,14 +2418,12 @@
     animation: shake 420ms ease;
   }
 
-  /* ---------- Lô tô ---------- */
   .loto-caller {
     background:
       radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--coral) 13%, transparent), transparent 46%),
       radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--sun) 16%, transparent), transparent 40%), var(--surface);
   }
 
-  /* Quả bóng số: bi đỏ, mặt trắng như bi lô tô; vòng vàng quanh bi đếm tới số kế tiếp. */
   .loto-ball-wrap {
     position: relative;
     display: grid;
@@ -2560,7 +2512,6 @@
     color: #fff;
   }
 
-  /* Bảng dò 1–90 */
   .loto-board {
     display: grid;
     grid-template-columns: repeat(10, minmax(0, 1fr));
@@ -2587,7 +2538,7 @@
     animation: stamp 320ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
   }
 
-  /* Tờ lô tô: giấy trắng in số, ô trống tô màu của tờ — trông như tờ thật ở cả hai chế độ sáng/tối. */
+  /* Giấy trắng ở cả chế độ tối cho giống tờ lô tô thật. */
   .loto-sheet {
     container-type: inline-size;
     margin: 0;
@@ -2653,7 +2604,6 @@
   .loto-cell.is-blank {
     background: color-mix(in srgb, var(--sheet) 70%, #fff);
   }
-  /* "Nắp" đỏ đè lên số đã kêu */
   .loto-cell.is-hit {
     color: #fff;
   }
@@ -2682,7 +2632,6 @@
     animation: need-pulse 0.9s ease-in-out infinite alternate;
   }
 
-  /* Ô chọn tờ */
   .loto-tile {
     display: flex;
     flex-direction: column;
@@ -2740,7 +2689,6 @@
     outline-style: dashed;
   }
 
-  /* Huy hiệu dưới avatar người chơi: "đợi" trong ván, "sẵn sàng" / "chưa" ngoài ván */
   .loto-badge {
     position: absolute;
     bottom: -9px;
@@ -2772,7 +2720,6 @@
     background: linear-gradient(135deg, var(--sun-soft), var(--coral-soft));
   }
 
-  /* Số đang kêu nổi dưới thanh đầu trang khi đã cuộn qua bảng kêu số */
   .loto-float {
     position: fixed;
     top: 76px;
@@ -2787,7 +2734,6 @@
     font-size: 18px;
   }
 
-  /* ---------- Sudoku ---------- */
   .sd-board {
     position: relative;
     display: grid;
@@ -2838,7 +2784,6 @@
     inset: 0;
     pointer-events: none;
   }
-  /* Tô sáng khi chọn ô nằm đè lên màu tô của người chơi; số luôn nằm trên lớp tô sáng. */
   .sd-cell > span:not(.sd-notes) {
     position: relative;
     z-index: 1;
@@ -2910,7 +2855,6 @@
     color: var(--pen);
     animation: count-pop 900ms ease-out both;
   }
-  /* Pháo giấy nổ từ ô vừa có người khác giải đúng */
   .sd-burst {
     position: absolute;
     z-index: 3;
@@ -3001,8 +2945,7 @@
     transition: width 300ms ease;
   }
 
-  /* ---------- Nối thú Kawaii ---------- */
-  /* Lưới (cột + 2) × (hàng + 2): vành ngoài một ô để đường nối đi vòng viền; `--cols` là số cột kể cả vành. */
+  /* Vành ngoài một ô để đường nối đi vòng viền bàn. */
   .kw-board {
     position: relative;
     display: grid;
@@ -3029,7 +2972,6 @@
     padding: 0;
     border: 2px solid var(--edge);
     border-radius: 22%;
-    /* `--kw-bg` (bàn tắt màu nền ô) thay sắc độ theo loại hình; ô đang chọn / úp / nối hụt vẫn tự đặt nền riêng. */
     background: var(--kw-bg, color-mix(in srgb, hsl(var(--kh, 250) 85% 62%) 30%, var(--board)));
     box-shadow: 0 2px 0 var(--edge);
     font-size: calc(62cqi / var(--cols));
@@ -3089,8 +3031,6 @@
     animation: kw-path 650ms ease-out forwards;
   }
 
-  /* ---------- Trúc xanh ---------- */
-  /* Tranh ẩn nằm dưới lưới ô; ô lật được cặp thì mờ đi để lộ tranh. `--cols` là số cột (cỡ chữ theo bề ngang bàn). */
   .tx-board {
     position: relative;
     width: 100%;
@@ -3154,7 +3094,6 @@
     backface-visibility: hidden;
     line-height: 1;
   }
-  /* Mặt úp: ô tre xanh có số. */
   .tx-back {
     background:
       linear-gradient(90deg, transparent 46%, rgb(255 255 255 / 0.16) 46% 54%, transparent 54%),
@@ -3188,11 +3127,7 @@
   .tx-cell.is-open .tx-face {
     box-shadow: inset 0 0 0 3px var(--sun);
   }
-  /* Lật trúng: hai ô ngửa thêm một nhịp rồi mờ đi, lộ tranh. */
-  /*
-   * Lật trúng: ô vừa lật xoay ngửa (transition của .tx-card), cả hai ô giữ hình kèm viền xanh một nhịp rồi mới mờ đi, lộ
-   * tranh. Nền ô chỉ trong suốt sau khi thẻ đã ngửa hẳn — lúc thẻ đang xoay không để lọt tranh.
-   */
+  /* Nền ô chỉ trong suốt sau khi thẻ đã ngửa hẳn — lúc thẻ đang xoay không để lọt tranh. */
   /* Mờ cả ô chứ không mờ .tx-card: opacity trên phần tử preserve-3d làm phẳng thẻ, lộ mặt số bị lật ngược. */
   .tx-cell.is-gone {
     background: transparent;
@@ -3204,12 +3139,10 @@
     box-shadow: inset 0 0 0 4px var(--lime);
     animation: tx-match 420ms ease-out 380ms;
   }
-  /* Ô đã lật được từ trước khi mình vào bàn: ẩn luôn. */
   .tx-cell.is-cleared {
     opacity: 0;
     pointer-events: none;
   }
-  /* Hết ván: các ô còn úp mờ dần, lộ cả tranh. */
   .tx-cell.is-done {
     animation: tx-done 900ms ease-in forwards;
   }
@@ -3251,7 +3184,6 @@
     border-radius: inherit;
     transition: width 250ms linear;
   }
-  /* Câu gợi ý (mức Khó) ngay trên bàn — cùng bề ngang với bàn. */
   .tx-hint {
     width: 100%;
     max-width: 760px;
@@ -3303,7 +3235,6 @@
     background: var(--lime-soft);
   }
 
-  /* ---------- Ma sói ---------- */
   .ww-stage {
     position: relative;
     overflow: hidden;
@@ -3322,7 +3253,7 @@
   .ww-stage.is-dusk {
     background: linear-gradient(160deg, color-mix(in srgb, var(--coral) 22%, var(--surface)), var(--grape-soft));
   }
-  /* Ban đêm: trời sao, chữ sáng — đổi biến màu cục bộ để mọi thứ bên trong tự theo. */
+  /* Đổi biến màu cục bộ để mọi thứ bên trong tự theo nền đêm. */
   .ww-stage.is-night {
     --ink: #f1eeff;
     --ink-2: #c9c2f0;
@@ -3380,7 +3311,6 @@
     font-size: 12px;
   }
 
-  /* Balloon cách chơi của một vai (RoleTip): vẽ trong body, vị trí cố định do JS tính. */
   .ww-tip {
     cursor: help;
   }
@@ -3436,7 +3366,6 @@
     }
   }
 
-  /* Thứ tự gọi các vai ban đêm: vai đang thức sáng lên, vai đã xong mờ đi. */
   .ww-turns {
     display: flex;
     flex-wrap: wrap;
@@ -3591,7 +3520,6 @@
     background: linear-gradient(160deg, color-mix(in srgb, var(--coral) 14%, var(--surface)), var(--surface));
   }
 
-  /* Chọn vai có trong ván (Luật của làng) */
   .ww-pick {
     display: flex;
     flex-direction: column;
@@ -3662,7 +3590,6 @@
     background: var(--sun);
     color: #2b1d00;
   }
-  /* ---------- Cảnh diễn dùng chung (components/room/Cine.tsx) ---------- */
   .cine {
     position: fixed;
     inset: 0;
@@ -3678,7 +3605,6 @@
   .cine.is-skippable {
     cursor: pointer;
   }
-  /* Đối đầu: đỏ một góc, xanh một góc */
   .cine.is-duel {
     background:
       radial-gradient(circle at 10% 88%, rgba(255, 90, 95, 0.5), transparent 50%),
@@ -3697,7 +3623,6 @@
       radial-gradient(circle at 10% 90%, rgba(200, 29, 37, 0.55), transparent 50%),
       linear-gradient(135deg, #7a0f1d 0%, #300a14 52%, #110d26 100%);
   }
-  /* Chiến thắng: vàng rực như cảnh trời sáng của ma sói */
   .cine.is-gold {
     color: #2b1d00;
     background:
@@ -3774,7 +3699,6 @@
   .cine-fighter.from-right {
     animation: cine-slide-r 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
-  /* Viền màu theo quân / phe, đặt qua biến --ring ở thẻ cha */
   .cine-avatar {
     box-shadow:
       0 0 0 4px var(--ring, #ffc23d),
@@ -3889,7 +3813,6 @@
     font-weight: 800;
     animation: rise-in 700ms 900ms ease-out both;
   }
-  /* Pháo giấy toàn màn hình, nổi trên các cảnh (z-index 60). */
   .cine-party {
     position: fixed;
     inset: 0;
@@ -3913,7 +3836,6 @@
     opacity: 0.5;
   }
 
-  /* Lớp phủ những khoảnh khắc của ván */
   .ww-cine {
     position: fixed;
     inset: 0;
@@ -3981,7 +3903,6 @@
     animation: rise-in 600ms ease-out 1300ms both;
   }
 
-  /* Chia bài rồi lật bài vai */
   .ww-deck {
     display: flex;
     flex-wrap: wrap;
@@ -4053,7 +3974,6 @@
     animation: count-pop 900ms ease-out both;
   }
 
-  /* Người bị treo bay lên, rồi lật bài Sói / không phải Sói */
   .ww-hang {
     animation: float-up 1800ms ease-in-out both;
   }
@@ -4098,7 +4018,6 @@
     background: linear-gradient(160deg, #ff5a5f, #7a1325);
   }
 
-  /* Bảng lật bài và diễn biến khi hết ván */
   .ww-reveal {
     display: flex;
     align-items: center;
@@ -4136,7 +4055,6 @@
     font-size: 14.5px;
   }
 
-  /* ---------- Undercover (dùng chung khung giai đoạn, thẻ người chơi, lớp phủ với Ma sói) ---------- */
   .uc-word {
     background: linear-gradient(135deg, var(--sky-soft), var(--grape-soft));
   }
@@ -4152,7 +4070,6 @@
     overflow-wrap: anywhere;
     animation: flip-in 520ms ease-out;
   }
-  /* Số thứ tự thảo luận trên thẻ người chơi và lá bài */
   .uc-num {
     position: absolute;
     top: -8px;
@@ -4176,7 +4093,6 @@
   .uc-board > li.is-now {
     background: var(--sky-soft);
   }
-  /* Mô tả từ khoá: tô tím ở bảng mô tả, thẻ người chơi và khung chat */
   .uc-said {
     color: var(--grape);
     font-weight: 700;
@@ -4215,7 +4131,6 @@
   .chat-clue > span {
     color: var(--grape);
   }
-  /* Vẽ đoán: kết quả chấm lời đoán trong khung chat */
   .chat-guess {
     color: var(--ink);
   }
@@ -4259,7 +4174,6 @@
       radial-gradient(circle at 50% 30%, #1f3f86, #0a1230 72%);
   }
 
-  /* Lá bài từ khoá / vai: úp rồi lật */
   .uc-card {
     width: 260px;
     max-width: 100%;
@@ -4484,7 +4398,6 @@
     transform: scale(1.8);
   }
 }
-/* Quân thả cờ 4 rơi từ dải trên xuống ô (--fall âm), nảy nhẹ khi chạm đáy. */
 @keyframes c4-fall {
   0% {
     transform: translateY(var(--fall));
@@ -4525,7 +4438,6 @@
     transform: translateY(-26px);
   }
 }
-/* Chấm nối ô: nét vừa kẻ vẽ dần từ đầu này sang đầu kia; ô vừa khép bật lên. */
 @keyframes db-stroke {
   from {
     stroke-dashoffset: 100;
@@ -4534,7 +4446,6 @@
     stroke-dashoffset: 0;
   }
 }
-/* Dò mìn chiến thuật: ô nổ rung lên, ô vừa đi nhấp nháy viền. */
 @keyframes mc-boom {
   0% {
     transform: scale(1.35);
@@ -4556,7 +4467,6 @@
     transform: scale(1.25);
   }
 }
-/* Cò chẹp: nhà mới bật lên, viền ô mục tiêu chạy, người nhảy nảy lên rồi đáp, ngã lăn ra; cháy nhà: ô sạm, lửa, khói. */
 @keyframes cc-pop {
   from {
     opacity: 0;
@@ -4698,7 +4608,6 @@
     opacity: 0;
   }
 }
-/* Cờ chó: quân vừa đi trượt từ điểm cũ sang (độ lệch --dx/--dy), để lại vệt mờ dần; quân đi được thì vòng sáng phập phồng. */
 @keyframes cd-slide {
   from {
     transform: translate(var(--dx), var(--dy));
@@ -4719,7 +4628,6 @@
     transform: scale(1.04);
   }
 }
-/* Cờ lật: quân vừa đặt bật lên; quân bị lật xoay quanh trục dọc, mặt cũ (.rv-was) che tới nửa vòng rồi biến mất. */
 @keyframes rv-put {
   from {
     opacity: 0;
@@ -4747,7 +4655,6 @@
     opacity: 0;
   }
 }
-/* Bắn tàu: trúng thì nổ bung + khói, trượt thì vòng bọt nước loang ra, tàu chìm thì lắc rồi chìm dần. */
 @keyframes bs-boom {
   0% {
     transform: scale(0.2) rotate(-25deg);
@@ -5223,7 +5130,6 @@
     transform: rotate(360deg);
   }
 }
-/* Vòng quay chờ, cỡ theo font-size và màu theo currentColor của chỗ đặt. */
 .spinner {
   display: inline-block;
   flex-shrink: 0;
@@ -5299,7 +5205,6 @@
   }
 }
 
-/* Chống gian lận: còi báo động lắc trong hộp thoại "Phát hiện gian lận!". */
 .cheat-siren {
   display: inline-block;
   animation: cheat-siren 500ms ease-in-out 4;
@@ -5318,8 +5223,8 @@
   }
 }
 
-/* Thanh tiến trình của băng chuyền trang chủ (HeroCarousel): chạy hết là đổi cảnh. Vẫn chạy đủ thời lượng khi giảm
-   chuyển động — quy tắc chung ở trên rút mọi animation còn 1ms sẽ làm băng chuyền đổi cảnh liên tục. */
+/* Vẫn chạy đủ thời lượng khi giảm chuyển động — quy tắc chung rút mọi animation còn 1ms sẽ làm băng chuyền đổi cảnh
+   liên tục. */
 @keyframes hero-fill {
   from {
     width: 0;

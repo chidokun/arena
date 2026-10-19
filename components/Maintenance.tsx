@@ -10,7 +10,7 @@ import { Notice } from "./room/RoomLayout";
 let notice: string | null = null;
 const listeners = new Set<() => void>();
 
-/** Bật popup "game đang bảo trì" / "sắp ra mắt" (popup nằm ở layout nên vẫn còn sau khi chuyển trang). */
+// Popup nằm ở layout nên vẫn còn sau khi chuyển trang.
 export function showMaintenance(slug: string | null) {
   notice = slug;
   listeners.forEach((f) => f());
@@ -43,7 +43,6 @@ export function MaintenanceDialog() {
   );
 }
 
-/** Chặn lobby/phòng của game chưa mở (bảo trì / sắp ra mắt): đưa về trang chủ và bật popup. */
 export function MaintenanceGate({ slug, children }: { slug: string; children: React.ReactNode }) {
   const router = useRouter();
   const status = useGames().find((g) => g.slug === slug)?.status;

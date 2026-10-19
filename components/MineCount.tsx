@@ -2,10 +2,6 @@
 
 import { density, maxMines, minMines, SIZES, type SizeKey } from "@/lib/games/minesweeper";
 
-/**
- * Chọn số mìn của bàn dò mìn cổ điển: thanh kéo trong khoảng cho phép của cỡ bàn, nút −/+ chỉnh từng quả, nút về mức
- * cổ điển. `onChange` vắng thì chỉ hiện (người không phải chủ phòng).
- */
 export function MineCount({ size, mines, onChange }: { size: SizeKey; mines: number; onChange?: (n: number) => void }) {
   const lo = minMines(size);
   const hi = maxMines(size);

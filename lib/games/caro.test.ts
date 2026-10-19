@@ -4,7 +4,6 @@ import { replay, type Move } from "./caro.ts";
 
 const opts = { size: 15, blockTwoEnds: false };
 
-// X đi các nước trong `xs`, O đi `os`, xen kẽ bắt đầu bằng X.
 function interleave(xs: Move[], os: Move[]): Move[] {
   const out: Move[] = [];
   for (let i = 0; i < Math.max(xs.length, os.length); i++) {

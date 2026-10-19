@@ -3,16 +3,13 @@
 import { useRef, useState, type ReactNode } from "react";
 import { BISHOP, colOf, isLight, KING, KNIGHT, PAWN, PIECES, PROMOTIONS, QUEEN, ROOK, rowOf, SIZE, sideOf, squareName, type ChessState, type Side } from "@/lib/games/chess";
 
-/** Cạnh một ô trong hệ toạ độ SVG; quân cờ vẽ trong khung 100 × 100. */
 const S = 100;
 const W = SIZE * S;
-/** Kéo quá chừng này (đơn vị SVG) mới tính là kéo quân, ít hơn là bấm. */
 const DRAG_MIN = 8;
 
 const BASE = <rect className="cb-body" x={22} y={78} width={56} height={11} rx={4} />;
 const STEM = <path className="cb-body" d="M37 70 Q36 75 31 79 H69 Q64 75 63 70 Z" />;
 
-/** Hình từng loại quân (vẽ theo thứ tự, phần sau đè phần trước). */
 const SHAPES: Record<number, ReactNode> = {
   [PAWN]: (
     <>
@@ -80,12 +77,10 @@ const SHAPES: Record<number, ReactNode> = {
   ),
 };
 
-/** Hình quân cờ trong khung 100 × 100 (quân Trắng mang số dương). */
 export function PieceShape({ v }: { v: number }) {
   return <g className={`cb-p ${v > 0 ? "is-w" : "is-b"}`}>{SHAPES[Math.abs(v)]}</g>;
 }
 
-/** Quân cờ rời (ngoài bàn): quân bị ăn, cảnh mở ván. */
 export function ChessPieceIcon({ v, size = 26, className = "" }: { v: number; size?: number; className?: string }) {
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} className={`cb-icon ${className}`} aria-hidden="true">
@@ -96,11 +91,6 @@ export function ChessPieceIcon({ v, size = 26, className = "" }: { v: number; si
 
 type Drag = { from: number; x: number; y: number; x0: number; y0: number; moved: boolean; wasSel: boolean };
 
-/**
- * Bàn cờ vua SVG. Bấm quân mình để chọn (hiện các nước đi được) rồi bấm ô đích, hoặc kéo thả quân. Tốt tới hàng cuối
- * thì hiện bảng chọn quân phong cấp. Quân trượt tới chỗ mới nhờ giữ khoá theo mã quân. Bên Đen thì bàn lật lại để quân
- * mình luôn ở dưới.
- */
 export function ChessBoard({
   state,
   canPlay,
@@ -118,7 +108,6 @@ export function ChessBoard({
   const [picked, setPicked] = useState<{ at: number; count: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [promo, setPromo] = useState<{ from: number; to: number; count: number } | null>(null);
-  // Lựa chọn chỉ còn hiệu lực trong nước hiện tại.
   const live = (count: number) => canPlay && count === state.count;
   const sel = picked && live(picked.count) && sideOf(state.board[picked.at]) === mySide ? picked.at : -1;
   const asking = promo && live(promo.count) ? promo : null;
@@ -131,7 +120,6 @@ export function ChessBoard({
   const danger = state.check && king >= 0 ? king : -1;
   const [lastFrom, lastTo] = state.last ?? [-1, -1];
 
-  /** Đi quân; Tốt tới hàng cuối thì hỏi phong cấp trước. */
   const go = (from: number, to: number) => {
     setPicked(null);
     if (state.legal.some(([f, t, p]) => f === from && t === to && p)) setPromo({ from, to, count: state.count });
@@ -149,7 +137,6 @@ export function ChessBoard({
     choose(i);
   };
 
-  /** Toạ độ con trỏ trong hệ SVG, và ô dưới con trỏ (-1 nếu ra ngoài bàn). */
   const point = (e: React.PointerEvent) => {
     const r = svgRef.current!.getBoundingClientRect();
     const x = ((e.clientX - r.left) / r.width) * W;
@@ -182,7 +169,6 @@ export function ChessBoard({
     if (!drag) return;
     setDrag(null);
     if (!drag.moved) {
-      // Bấm lại quân đang chọn thì bỏ chọn.
       if (drag.wasSel) setPicked(null);
       return;
     }
@@ -195,7 +181,6 @@ export function ChessBoard({
     const light = isLight(i);
     squares.push(<rect key={i} x={dx(i)} y={dy(i)} width={S} height={S} className={light ? "cb-light" : "cb-dark"} />);
   }
-  // Toạ độ: chữ cột ở hàng dưới cùng, số hàng ở cột trái cùng (theo hướng nhìn của người xem).
   const labels = [];
   for (let k = 0; k < SIZE; k++) {
     const file = flip ? SIZE - 1 - k : k;
@@ -287,7 +272,6 @@ export function ChessBoard({
   );
 }
 
-/** Bảng chọn quân phong cấp: bốn ô xếp dọc từ ô đích vào giữa bàn; bấm ra ngoài là huỷ. */
 function PromoPicker({ at, side, x, top, onPick }: { at: number; side: Side; x: number; top: boolean; onPick: (p: number | null) => void }) {
   const stop = (e: React.PointerEvent) => e.stopPropagation();
   return (

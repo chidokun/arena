@@ -8,7 +8,7 @@ const into = (u: string, c: number) => at(u, mid(c).x, mid(c).y);
 const sky = (u: string) => at(u, 100, 540);
 const miss = (u: string) => at(u, 100, 1000);
 
-/** Tìm seed để mọi lượt nhảy trong nhật ký đều không phạm lỗi (dễ viết test luồng chính). */
+// Seed để mọi lượt nhảy đều không phạm lỗi, cho dễ viết test luồng chính.
 function cleanSeed(lineup: string[], acts: CcAct[]) {
   for (let seed = 1; seed < 5000; seed++) {
     const s = replay(lineup, acts, {}, seed);
@@ -101,7 +101,6 @@ test("chọi sai ô, chạm vạch, ra ngoài đều mất lượt", () => {
 
 test("nhảy phạm lỗi: đá nằm lại, lượt sau nhảy tiếp không cần chọi lại", () => {
   let seed = 1;
-  // Tìm seed để lượt nhảy đầu tiên bị ngã.
   while (replay(["a", "b"], [into("a", 1)], {}, seed).events.find((e) => e.t === "hop")?.fail === -1) seed++;
   const s = replay(["a", "b"], [into("a", 1)], {}, seed);
   assert.equal(s.players[0].stone, 1);
@@ -114,7 +113,6 @@ test("nhảy phạm lỗi: đá nằm lại, lượt sau nhảy tiếp không c�
   assert.equal(t.need, "hop");
 });
 
-/** Đi trọn hành trình 1 → 8 rồi lên Trời. */
 const journey = (u: string) => [1, 2, 3, 4, 5, 6, 7, 8].map((c) => into(u, c));
 
 test("xong ô 8 thì lên Trời, chọi qua lưng trúng ô trống là chiếm nhà và đi tiếp hành trình mới", () => {

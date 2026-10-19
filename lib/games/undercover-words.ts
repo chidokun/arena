@@ -1,9 +1,5 @@
-/**
- * Bộ 1000 cặp từ khoá của Undercover: hai từ gần nghĩa / cùng loại để mô tả của phe Dân và phe Gián Điệp nghe
- * na ná nhau. Mỗi dòng một cặp "từ A|từ B"; số thứ tự của cặp (bắt đầu từ 0) là mã cặp — phòng chơi nhớ các mã đã
- * dùng để không bốc lại, nên chỉ thêm cặp mới vào cuối, đừng xoá hay đổi chỗ. Lúc chia, máy bốc ngẫu nhiên từ nào
- * thuộc phe Dân, từ nào thuộc phe Gián Điệp.
- */
+// Số thứ tự của cặp (bắt đầu từ 0) là mã cặp — phòng chơi nhớ các mã đã dùng để không bốc lại, nên chỉ thêm cặp mới vào
+// cuối, đừng xoá hay đổi chỗ.
 const RAW = `
 Phở|Bún bò Huế
 Bún chả|Bún thịt nướng

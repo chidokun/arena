@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<C4View>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useC4View(session: ConnectFourRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -29,11 +27,8 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "🔴", "🟡"];
 /** Thắng bằng chuỗi 4 thì chờ một nhịp cho quân kịp rơi và đường thắng kịp sáng rồi mới diễn. */
 const LINE_PAUSE_MS = 1300;
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function ConnectFourTable({ id, slug, session }: { id: string; slug: string; session: ConnectFourRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -58,7 +53,6 @@ const ConnectFourBody = memo(function ConnectFourBody({ session }: { session: Co
   const seated = view.mySeat >= 0;
   const inLineup = !!g && g.myMark > 0;
 
-  // Thanh đối đầu: trong ván thì theo thứ tự Đỏ–Vàng; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
 
   return (
@@ -109,7 +103,6 @@ const ConnectFourBody = memo(function ConnectFourBody({ session }: { session: Co
   );
 });
 
-/** Huy hiệu quân: một viên tròn màu Đỏ / Vàng. */
 const Disc = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-full border-2 border-[#050312]" style={{ background: C4_TONE[v] }} />;
 
 const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" | "right") => (
@@ -123,7 +116,6 @@ const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" 
   />
 );
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ match: g, me, n }: { match: C4Match; me: string; n: number }) {
   const tip = g.myMark ? `Bạn cầm quân ${C4_NAME[g.myMark]} — ${g.myMark === 1 ? "thả trước nhé!" : "chờ Đỏ thả trước nhé!"}` : "Quân Đỏ thả trước — cùng xem nhé!";
   return (
@@ -133,7 +125,6 @@ function CountdownScene({ match: g, me, n }: { match: C4Match; me: string; n: nu
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: C4Match, me: string): DuelSummary {
   const r = g.result!;
   if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} — đầy bàn mà chưa ai nối được 4` };
@@ -154,7 +145,6 @@ function EndScene({ match: g, me, onClose }: { match: C4Match; me: string; onClo
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Disc v={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Thanh trạng thái: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: ConnectFourRoom }) {
   const m = view.meta!;
   const g = view.game?.match;

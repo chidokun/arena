@@ -1,40 +1,26 @@
-/**
- * Bộ phát nhạc nền: một bài (`Track`) là hàm lên lịch nốt cho từng bước nhịp — bộ phát gọi nó trước một chút (lookahead)
- * theo đồng hồ âm thanh nên nhạc đều nhịp kể cả khi giao diện bận. Mỗi lúc chỉ phát một bài; trang nào muốn có nhạc thì
- * gọi `useMusic(bài)` — rời trang thì nhạc tắt dần.
- */
+// Bộ phát gọi bài trước một chút (lookahead) theo đồng hồ âm thanh để nhạc đều nhịp kể cả khi giao diện bận.
 import { useEffect } from "react";
 import { onPrefs, readPrefs, ready, rng, unlock, whenReady, type Bus } from "./engine";
 
 export type StepCtx = {
   b: Bus;
-  /** Kênh nhạc nền — nối nốt vào đây. */
   dest: AudioNode;
-  /** Bước thứ mấy kể từ lúc phát (đếm mãi, tự chia lấy vị trí trong ô nhịp / vòng). */
   step: number;
-  /** Thời điểm (giờ đồng hồ âm thanh) của bước, đã tính swing. */
   t: number;
-  /** Ngẫu nhiên theo vòng — đổi hạt giống ở đầu mỗi vòng để vòng sau khác vòng trước. */
+  // Đổi hạt giống ở đầu mỗi vòng để vòng sau khác vòng trước.
   rand: () => number;
 };
 
 export type Track = {
   bpm: number;
-  /** Số bước mỗi phách — 2 là mỗi bước một móc đơn. */
   stepsPerBeat: number;
-  /** Bước lẻ đi trễ chừng này phần của một bước (swing). */
   swing: number;
-  /** Số bước mỗi vòng. */
   loop: number;
-  /** Âm lượng kênh nhạc. */
   level: number;
-  /** Lọc thông thấp tổng (Hz) cho ấm. */
   lowpass?: number;
-  /** Lên lịch các nốt của một bước. */
   play(c: StepCtx): void;
 };
 
-/** Thời lượng (giây) một bước của bài. */
 export const stepOf = (track: Track) => 60 / track.bpm / track.stepsPerBeat;
 
 const LOOKAHEAD = 0.15;
@@ -43,7 +29,6 @@ const FADE_OUT = 0.8;
 
 type Playing = { track: Track; gain: GainNode; timer: ReturnType<typeof setInterval>; step: number; next: number; rand: () => number };
 let playing: Playing | null = null;
-/** Các bài đang được trang nào đó yêu cầu — bài yêu cầu sau cùng được phát. */
 const wanted: Track[] = [];
 const current = () => wanted[wanted.length - 1];
 
@@ -91,7 +76,6 @@ function stop() {
   setTimeout(() => p.gain.disconnect(), (FADE_OUT + 0.4) * 1000);
 }
 
-/** Phát / dừng cho đúng với tuỳ chọn và bài đang được yêu cầu. */
 function sync() {
   if (readPrefs().music && current()) start();
   else stop();
@@ -105,7 +89,6 @@ function hook() {
   whenReady(sync);
 }
 
-/** Hạ nhỏ nhạc nền chừng `seconds` giây (vd. khi có tiếng chiến thắng) rồi trả lại. */
 export function duck(seconds: number) {
   const p = playing;
   const b = ready();
@@ -119,10 +102,6 @@ export function duck(seconds: number) {
   p.gain.gain.exponentialRampToValueAtTime(level, now + seconds + 1.5);
 }
 
-/**
- * Phát bài `track` làm nhạc nền khi trang đang hiện: lần bấm / gõ phím đầu tiên trên trang mở ngữ cảnh âm thanh rồi
- * phát (nếu nhạc đang bật); rời trang thì nhạc tắt dần.
- */
 export function useMusic(track: Track) {
   useEffect(() => {
     hook();

@@ -3,20 +3,17 @@
 import { memo, useState } from "react";
 import { CELLS, flipsOf, SIZE, type ReversiState } from "@/lib/games/reversi";
 
-/** Cạnh một ô và lề khung (theo đơn vị viewBox — bàn co giãn theo khung). */
 const C = 56;
 const P = 14;
 const W = SIZE * C + 2 * P;
 const R = C * 0.39;
 
-/** Màu nhấn của hai bên (thẻ ghế, vòng sáng) — quân thật thì đen / trắng, xem `FACE`. */
 export const RV_TONE = { 1: "var(--grape)", 2: "var(--sun)" } as const;
 export const RV_NAME = { 1: "Đen", 2: "Trắng" } as const;
-/** Mặt quân: đen / trắng cố định như quân thật, không đổi theo giao diện sáng tối. */
+// Cố định như quân thật, không đổi theo giao diện sáng tối.
 export const FACE = { 1: "#26222f", 2: "#fbf8ef" } as const;
 const SHEEN = { 1: "#4a4558", 2: "#ffffff" } as const;
 
-/** Nước vừa đặt nảy ra trước; các quân bị lật lần lượt theo khoảng cách tới nó. */
 const FLIP_START_MS = 160;
 const FLIP_STEP_MS = 70;
 
@@ -24,13 +21,11 @@ const cx = (i: number) => P + (i % SIZE) * C + C / 2;
 const cy = (i: number) => P + Math.floor(i / SIZE) * C + C / 2;
 const square = (i: number) => `${String.fromCharCode(97 + (i % SIZE))}${Math.floor(i / SIZE) + 1}`;
 
-/** Thời gian để mọi quân của nước cuối lật xong (ms) — bàn chơi chờ ngần ấy rồi mới diễn cảnh hết ván. */
 export function settleMs(state: ReversiState) {
   const far = state.flipped.reduce((d, f) => Math.max(d, ring(state.last, f)), 0);
   return FLIP_START_MS + far * FLIP_STEP_MS + 450;
 }
 
-/** Khoảng cách theo vòng (số ô theo hướng xa nhất) giữa hai ô. */
 function ring(a: number, b: number) {
   return Math.max(Math.abs((a % SIZE) - (b % SIZE)), Math.abs(Math.floor(a / SIZE) - Math.floor(b / SIZE)));
 }
@@ -44,10 +39,6 @@ function Disc({ v, x, y }: { v: 1 | 2; x: number; y: number }) {
   );
 }
 
-/**
- * Bàn cờ lật SVG trên nền nỉ xanh. Đến lượt mình thì các ô đặt được hiện chấm gợi ý; di chuột / tab tới ô thì hiện
- * quân mờ và đánh dấu những quân sẽ bị lật.
- */
 export const ReversiBoard = memo(function ReversiBoard({
   state,
   canPlay,

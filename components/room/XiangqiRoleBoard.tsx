@@ -34,10 +34,6 @@ function roleSq(i: number) {
   return { file: i % 9, rank: (i / 9) | 0 };
 }
 
-/**
- * Bàn cờ tướng nhập vai — cùng SVG/CSS với Cờ Tướng 1v1.
- * Tới lượt: bấm quân thuộc role mình → hiện nước đi → bấm đích.
- */
 export function XiangqiRoleBoard({
   pieces,
   myPieceIds,
@@ -126,7 +122,6 @@ export function XiangqiRoleBoard({
             role={mine || target ? "button" : undefined}
             aria-label={`${pieceTitle(p)}${target ? " — ăn quân này" : mine ? " — chọn quân này" : ""}`}
           >
-            {/* Controllable pieces: green ring when not selected */}
             {owned && !selected && <circle r={R + 3.5} className="xq-mine" />}
             <g className="xq-lift">
               <PieceFace v={pieceValue(p)} script={script} />

@@ -16,10 +16,8 @@ import { StatusBar, StopButton, TONE } from "./StatusBar";
 import { useConfetti, useInView, useVoice } from "./useLoto";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<LotoView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useLotoView(session: LotoRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -30,23 +28,18 @@ type Voice = ReturnType<typeof useVoice>;
 
 const NUMBERS = Array.from({ length: MAX_NUMBER }, (_, i) => i + 1);
 
-/** Các tờ một người giữ: trong ván là tờ đã chia, ngoài ván là tờ đang chọn. */
 function sheetsOf(view: View, uid: string) {
   const g = view.game!;
   return view.meta!.status === "playing" ? (g.dealt[uid] ?? []) : g.owner.flatMap((owner, id) => (owner === uid ? [id] : []));
 }
 
-/** Lựa chọn của mình, tính cả ý định đang chờ chủ phòng ghi nhận: tờ đang chọn, đã sẵn sàng chưa. */
 function myChoice(view: View) {
   const g = view.game!;
   return { sheets: g.pending?.pick ?? g.mine, ready: g.pending ? g.pending.ready : g.ready.includes(view.me), waiting: !!g.pending };
 }
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function LotoTable({ id, slug, session }: { id: string; slug: string; session: LotoRoom }) {
   // Dòng mô tả từng người (số tờ đang cầm) tự đăng ký store — callback cố định để danh sách người không vẽ lại theo ván.
   const detail = useCallback((p: Member, seated: boolean) => (seated ? <PersonSheetsPart session={session} uid={p.uid} /> : "Đang xem"), [session]);
@@ -80,7 +73,6 @@ const LotoBody = memo(function LotoBody({ session }: { session: LotoRoom }) {
   const playing = m.status === "playing";
   const taken = g.owner.filter(Boolean).length;
   const last = g.state.draws.at(-1);
-  // Mở ván: đếm ngược 3‑2‑1 tới lúc kêu số đầu tiên. Hết ván có người kinh: cảnh chiến thắng (pháo giấy đã có sẵn lúc kinh).
   const count = useCountdown(playing && g.round === m.round && !g.state.draws.length && !g.paused ? g.round : 0);
   const end = useEndScene(g.result?.reason === "kinh" && g.result.round === g.round ? g.round : 0, { cheer: false });
 
@@ -114,7 +106,6 @@ const LotoBody = memo(function LotoBody({ session }: { session: LotoRoom }) {
   );
 });
 
-/** Cảnh mở ván: những người cầm tờ (kèm số tờ), đếm ngược 3‑2‑1 tới số đầu tiên. */
 function CountdownScene({ view, n }: { view: View; n: number }) {
   const g = view.game!;
   const people = Object.entries(g.dealt)
@@ -131,7 +122,6 @@ function CountdownScene({ view, n }: { view: View; n: number }) {
   );
 }
 
-/** Cảnh kinh: người (hoặc những người kinh trùng) thắng ván — bấm để đóng. */
 function EndScene({ view, onClose }: { view: View; onClose: () => void }) {
   const g = view.game!;
   const winners = g.result!.winners ?? [];
@@ -150,7 +140,6 @@ function EndScene({ view, onClose }: { view: View; onClose: () => void }) {
   );
 }
 
-/** Bảng kêu số: số vừa kêu (kèm vòng đếm tới số kế tiếp), bảng dò 1–90, người chơi quanh bàn và nút của chủ phòng. */
 function Caller({ ref, view, session, voice }: { ref: React.Ref<HTMLElement>; view: View; session: LotoRoom; voice: Voice }) {
   const m = view.meta!;
   const g = view.game!;
@@ -244,7 +233,6 @@ function Caller({ ref, view, session, voice }: { ref: React.Ref<HTMLElement>; vi
   );
 }
 
-/** Máy chưa có giọng tiếng Việt: không đọc bằng giọng ngôn ngữ khác, chỉ hướng dẫn cài giọng Việt. */
 function VoiceHelp({ host }: { host: boolean }) {
   const [open, setOpen] = useState(false);
   return (
@@ -308,7 +296,6 @@ function Board({ drawn, last }: { drawn: readonly boolean[]; last?: number }) {
   );
 }
 
-/** Người chơi quanh bàn: tờ đang giữ, đang đợi mấy hàng, bóng thoại "Hò!" / "Kinh!". */
 function Players({ view }: { view: View }) {
   const m = view.meta!;
   const g = view.game!;
@@ -321,7 +308,6 @@ function Players({ view }: { view: View }) {
         const seat = g.people[uid];
         const p = seat?.member;
         const wait = g.waiting[uid] ?? 0;
-        // Ngoài ván: ai đã bấm sẵn sàng (chủ phòng không cần bấm).
         const readiness = m.status === "playing" || uid === m.host ? null : g.ready.includes(uid);
         return (
           <li key={uid} className="flex w-[68px] flex-col items-center gap-1 text-center">
@@ -368,7 +354,6 @@ function PersonSheets({ view, uid }: { view: View; uid: string }) {
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: sẵn sàng / trả tờ / bắt đầu / dừng ván. */
 function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; voice: Voice }) {
   const m = view.meta!;
   const g = view.game!;
@@ -498,12 +483,10 @@ function ResultCard({ view }: { view: View }) {
   );
 }
 
-/** 20 tờ của bộ: bấm để chọn / bỏ; tờ người khác đang giữ hiện avatar của họ. */
 function Picker({ view, session }: { view: View; session: LotoRoom }) {
   const g = view.game!;
   const me = myChoice(view);
   const chosen = me.sheets;
-  // Đã sẵn sàng thì khoá tờ; muốn đổi phải huỷ sẵn sàng trước.
   const locked = me.ready;
   const [note, setNote] = useState("");
   const free = g.owner.filter((o) => !o).length;
@@ -569,7 +552,6 @@ function Picker({ view, session }: { view: View; session: LotoRoom }) {
   );
 }
 
-/** Tờ của mình. Chỉ tờ đã chơi ở ván gần nhất mới có dấu; tờ vừa chọn cho ván sau để trắng. */
 function MySheets({ view }: { view: View }) {
   const m = view.meta!;
   const g = view.game!;
@@ -597,7 +579,6 @@ function MySheets({ view }: { view: View }) {
   );
 }
 
-/** Số đang kêu nổi ở góc khi đã cuộn qua bảng kêu số — để vừa nhìn tờ vừa biết số. */
 function FloatingBall({ n, paused }: { n: number; paused: boolean }) {
   return (
     <div className="loto-float" aria-hidden="true">

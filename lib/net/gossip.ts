@@ -1,23 +1,12 @@
-/**
- * Gossip store: bảng khoá–giá trị được nhân bản giữa các peer, hội tụ cuối cùng (eventual consistency).
- *
- * - Mỗi bản ghi mang phiên bản (c, w): c là đồng hồ Lamport, w là uid người ghi. Bản ghi "mới hơn" thắng
- *   (last-writer-wins), hoà thì so w — mọi peer áp cùng một quy tắc nên cùng hội tụ về một trạng thái.
- * - Lan truyền theo hai đường:
- *   1. Đẩy nóng (rumor mongering): bản ghi vừa đổi được đẩy ngay cho peer kề; peer nào thấy mới thì đẩy
- *      tiếp cho `fanout` peer ngẫu nhiên, tối đa MAX_HOPS bước.
- *   2. Chống phân kỳ (anti-entropy push–pull): mỗi chu kỳ gửi bản tóm tắt phiên bản (digest) tới `fanout`
- *      peer ngẫu nhiên; bên nhận trả phần mình mới hơn và xin phần mình còn thiếu. Nhờ vậy cả khi lưới
- *      WebRTC không đủ cặp (NAT chặn) trạng thái vẫn đi vòng qua peer trung gian.
- * - Tin phát tán một lần (chat, sticker) đi theo kênh "rumor" ngập lụt có khử trùng lặp theo id.
- */
+// Bản ghi mang phiên bản (c, w): c là đồng hồ Lamport, w là uid người ghi; bản ghi mới hơn thắng, hoà thì so w — mọi
+// peer áp cùng một quy tắc nên cùng hội tụ về một trạng thái. Ngoài đẩy nóng (rumor mongering) còn chạy anti-entropy
+// push–pull định kỳ để cả khi lưới WebRTC không đủ cặp (NAT chặn) trạng thái vẫn đi vòng qua peer trung gian.
 
 export type Entry<V = unknown> = { k: string; v: V; c: number; w: string };
 export type Digest = Record<string, [number, string]>;
 
 export type WireKind = "dig" | "dlt" | "req" | "rum";
 
-/** Lớp vận chuyển tối thiểu gossip cần; Trystero hoặc bộ giả lập trong test đều đáp ứng được. */
 export interface Wire {
   peers(): string[];
   send(kind: WireKind, data: unknown, to?: string | string[]): void;
@@ -56,7 +45,7 @@ function sample<T>(list: T[], n: number): T[] {
 export type GossipOptions = {
   fanout?: number;
   intervalMs?: number;
-  /** Từ chối bản ghi không hợp lệ (vd. ghi đè khoá của người khác). Phải tất định để mọi peer hội tụ. */
+  // Phải tất định để mọi peer hội tụ.
   accept?: (e: Entry) => boolean;
 };
 
@@ -110,8 +99,6 @@ export class Gossip {
     this.timer = null;
   }
 
-  // ---------- đọc ----------
-
   get<V>(k: string): V | undefined {
     return this.map.get(k)?.v as V | undefined;
   }
@@ -120,7 +107,6 @@ export class Gossip {
     return this.map.get(k) as Entry<V> | undefined;
   }
 
-  /** Các bản ghi có khoá bắt đầu bằng `prefix`, bỏ qua bản ghi đã xoá (giá trị null). */
   scan<V>(prefix: string): Entry<V>[] {
     const out: Entry<V>[] = [];
     for (const e of this.map.values()) if (e.k.startsWith(prefix) && e.v != null) out.push(e as Entry<V>);
@@ -131,9 +117,7 @@ export class Gossip {
     return this.map.size;
   }
 
-  // ---------- ghi ----------
-
-  /** Ghi một khoá. `eager=false` cho dữ liệu nhịp tim: chỉ lan qua chu kỳ anti-entropy để đỡ ồn mạng. */
+  // `eager=false` cho dữ liệu nhịp tim: chỉ lan qua chu kỳ anti-entropy để đỡ ồn mạng.
   set<V>(k: string, v: V, eager = true): Entry<V> {
     const prev = this.map.get(k);
     const tomb = this.tombs.get(k);
@@ -150,15 +134,13 @@ export class Gossip {
     if (this.map.has(k)) this.set(k, null);
   }
 
-  /** Gỡ hẳn khoá khỏi bộ nhớ cục bộ (dọn rác) và nhớ phiên bản để bản cũ không quay lại qua anti-entropy. */
+  // Nhớ phiên bản để bản cũ không quay lại qua anti-entropy.
   prune(k: string) {
     const e = this.map.get(k);
     if (!e) return;
     this.tombs.set(k, { c: e.c, w: e.w });
     this.map.delete(k);
   }
-
-  // ---------- hợp nhất ----------
 
   merge(list: unknown[], from: string | null, hops: number): string[] {
     const changed: Entry[] = [];
@@ -195,7 +177,6 @@ export class Gossip {
     return d;
   }
 
-  /** Một vòng anti-entropy: gửi digest tới vài peer ngẫu nhiên. */
   tick() {
     const targets = sample(this.wire.peers(), this.fanout);
     if (targets.length) this.wire.send("dig", this.digest(), targets);
@@ -222,9 +203,6 @@ export class Gossip {
     if (want.length) this.wire.send("req", want, from);
   }
 
-  // ---------- rumor: tin phát tán một lần ----------
-
-  /** Phát một tin tới mọi người trong lưới (ngập lụt có khử trùng lặp). Trả về tin đã phát. */
   broadcast<P>(t: string, p: P): Rumor<P> {
     const id = `${this.self}:${Date.now().toString(36)}:${(this.rumorSeq++).toString(36)}`;
     this.markSeen(id);
@@ -233,12 +211,10 @@ export class Gossip {
     return r;
   }
 
-  /** Gửi lại các tin cũ cho một peer (vd. lịch sử chat cho người mới vào), không lan tiếp. */
   replay(list: Rumor[], to: string) {
     for (const r of list) this.wire.send("rum", { ...r, h: RUMOR_HOPS, d: 1 } satisfies RumorMsg, to);
   }
 
-  /** `replayed`: tin cũ được gửi lại (`replay`), không phải tin vừa phát. */
   onRumor(fn: (r: Rumor, from: string | null, replayed: boolean) => void) {
     this.rumorFns.add(fn);
     return () => this.rumorFns.delete(fn);
@@ -262,8 +238,6 @@ export class Gossip {
     }
   }
 
-  // ---------- sự kiện & lưu trữ ----------
-
   onChange(fn: (keys: string[], remote: boolean) => void) {
     this.changeFns.add(fn);
     return () => this.changeFns.delete(fn);
@@ -284,11 +258,7 @@ export class Gossip {
   }
 }
 
-/**
- * Bộ phát hiện lỗi kiểu nhịp tim (heartbeat): mỗi peer định kỳ ghi `hb` = giờ máy mình vào bản ghi hiện diện;
- * peer khác ghi lại *giờ cục bộ* lúc thấy `hb` tăng. Quá `timeoutMs` không tăng thì coi như đã rời —
- * không phụ thuộc đồng hồ giữa các máy lệch nhau.
- */
+// Ghi lại *giờ cục bộ* lúc thấy `hb` tăng (không so giá trị `hb`) để không phụ thuộc đồng hồ giữa các máy lệch nhau.
 export class Liveness {
   private seen = new Map<string, { hb: number; at: number; left: boolean }>();
 
@@ -321,7 +291,6 @@ export class Liveness {
     return !!s && !s.left && this.now() - s.at < this.timeoutMs;
   }
 
-  /** Bao lâu (ms) kể từ lần cuối thấy còn sống; Infinity nếu chưa từng thấy. */
   silentFor(id: string) {
     const s = this.seen.get(id);
     if (!s) return Infinity;

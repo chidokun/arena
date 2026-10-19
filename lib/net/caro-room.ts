@@ -1,7 +1,3 @@
-/**
- * Phòng cờ caro: hai ghế, hai người chơi lần lượt nối nước đi vào nhật ký `g:<ván>`; ai cũng tự dựng lại ván
- * bằng `replay` nên không cần ai "phán" thắng thua. Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { replay, type CaroOptions, type CaroState, type Move } from "../games/caro";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -18,9 +14,7 @@ export type CaroMatch = {
 
 export type CaroView = {
   opts: CaroOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: CaroMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -44,12 +38,11 @@ export class CaroRoom extends RoomSession<CaroView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người đi trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -61,7 +54,6 @@ export class CaroRoom extends RoomSession<CaroView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;

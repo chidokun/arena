@@ -1,15 +1,4 @@
-/**
- * Luật Vẽ Đoán (thuần — không mạng, không DOM).
- *
- * Ván gồm `rounds` vòng; mỗi vòng ai trong đội hình cũng vẽ một lượt theo thứ tự `order` (xáo lúc bắt đầu ván).
- * Một lượt: *chọn từ* (`pick` — người vẽ chọn 1 trong 3 từ dễ / vừa / khó, hết giờ thì bốc thay) → *vẽ* (`draw` —
- * người khác đoán, càng sớm càng nhiều điểm; gợi ý chữ cái mở dần) → *lộ đáp án* (`show`). Người vẽ vắng mặt lúc tới
- * lượt thì bỏ lượt; im lặng quá `AWAY_MS` giữa lượt thì dừng lượt.
- *
- * Máy chủ phòng điều hành: từ khoá chỉ nằm trong `Secret` trên máy mình, chấm từng lời đoán (không phân biệt dấu,
- * hoa thường, được bỏ loại từ đứng đầu như "con", "cái"…), báo riêng lời đoán gần đúng, công khai lời đoán sai
- * (`Feed`) và ai đoán đúng (`DwPublic.hits`). `tick` là một bước điều hành, tất định theo đầu vào.
- */
+// Chủ phòng điều hành và chấm lời đoán vì từ khoá chỉ nằm trong `Secret` trên máy chủ phòng.
 import { TIERS, tierOf, wordId, wordOf, type Tier } from "./draw-guess-words.ts";
 import { normWord } from "./undercover.ts";
 
@@ -19,15 +8,11 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
 
 export const ROUND_CHOICES = [1, 2, 3, 4] as const;
-/** Thời gian vẽ mỗi lượt (giây). */
 export const TIME_CHOICES = [60, 80, 100, 120] as const;
 
 export type DwOptions = {
-  /** Số vòng: mỗi vòng ai cũng vẽ một lượt. */
   rounds: number;
-  /** Thời gian vẽ mỗi lượt (giây). */
   time: number;
-  /** Mở dần chữ cái gợi ý trong lúc vẽ. */
   hints: boolean;
 };
 
@@ -48,40 +33,22 @@ export const TIER_NAMES: Record<Tier, { name: string; emoji: string }> = {
   2: { name: "Khó", emoji: "🔴" },
 };
 
-/** Thời gian chọn từ. */
 export const PICK_MS = 15000;
-/** Thời gian lộ đáp án trước khi sang lượt sau. */
 export const SHOW_MS = 6000;
-/** Lượt bị bỏ (người vẽ vắng mặt, mất đáp án) chỉ dừng chừng này. */
 export const SKIP_MS = 3000;
-/** Người vẽ im lặng chừng này giữa lượt thì dừng lượt. */
 export const AWAY_MS = 15000;
-/** Mỗi người đoán tối đa chừng này lần mỗi lượt, mỗi lần tối đa `GUESS_LEN` ký tự. */
 export const GUESS_MAX = 40;
 export const GUESS_LEN = 40;
-/** Số lời đoán sai công khai giữ lại của lượt hiện tại. */
 export const FEED_MAX = 60;
 
-/** Điểm người đoán đúng: 60–300 tuỳ phần thời gian còn lại (`left`, 0–1), làm tròn 5. */
 export const guessPoints = (left: number) => 60 + 5 * Math.round((240 * Math.min(1, Math.max(0, left))) / 5);
-/** Điểm người vẽ cho mỗi người đoán đúng. */
 export const DRAWER_POINTS = 50;
 
-// ---------- so từ ----------
-
-/** Loại từ hay đứng đầu ("con mèo", "cái ghế", "quả táo"…) — đoán thiếu loại từ vẫn tính đúng. */
 const CLASSIFIERS = new Set(["con", "cai", "chiec", "qua", "trai", "cay", "bong", "doi", "chum", "cu", "quyen", "cuon", "ngon", "hon", "dong", "giot", "tia", "dam", "cuc", "bat"]);
 
-/**
- * Lời đoán còn được bỏ thêm những tiếng hay nói kèm phía trước ("người nông dân", "xe ô tô", "một con mèo") — chỉ bỏ ở
- * lời đoán; từ khoá thì chỉ bỏ loại từ, để "tuyết" không ăn "người tuyết", "đạp" không ăn "xe đạp".
- */
+// Chỉ bỏ ở lời đoán; từ khoá thì chỉ bỏ loại từ, để "tuyết" không ăn "người tuyết", "đạp" không ăn "xe đạp".
 const GUESS_PREFIXES = new Set([...CLASSIFIERS, "nguoi", "chu", "co", "ong", "ba", "anh", "chi", "xe", "may", "mot", "cac", "nhung"]);
 
-/**
- * Các dạng được chấp nhận của một cụm (đã chuẩn hoá, bỏ khoảng trắng): cả cụm, và cụm bỏ dần tối đa `drop` tiếng đầu
- * thuộc `prefixes` (phần còn lại ít nhất hai ký tự).
- */
 function forms(s: string, prefixes = CLASSIFIERS, drop = 1): string[] {
   let words = normWord(s).split(" ").filter(Boolean);
   const out = [words.join("")];
@@ -95,13 +62,11 @@ function forms(s: string, prefixes = CLASSIFIERS, drop = 1): string[] {
 
 const guessForms = (s: string) => forms(s, GUESS_PREFIXES, 2);
 
-/** Đoán đúng: trùng từ khoá sau khi bỏ dấu, hoa thường, khoảng trắng, loại từ đứng đầu ("meo" ≡ "Con mèo"). */
 export function isRight(guess: string, word: string) {
   const want = forms(word);
   return guessForms(guess).some((g) => want.includes(g));
 }
 
-/** Khoảng cách sửa (Levenshtein), dừng sớm khi đã vượt `max`. */
 function distance(a: string, b: string, max: number) {
   if (Math.abs(a.length - b.length) > max) return max + 1;
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -118,7 +83,6 @@ function distance(a: string, b: string, max: number) {
   return prev[b.length];
 }
 
-/** Gần đúng (sai một, hai ký tự với từ dài) — chỉ báo riêng người đoán. Từ quá ngắn thì không có gần đúng. */
 export function isNear(guess: string, word: string) {
   if (isRight(guess, word)) return false;
   return forms(word).some((w) => {
@@ -127,7 +91,6 @@ export function isNear(guess: string, word: string) {
   });
 }
 
-/** Câu chat nhắc tới đáp án (cả cụm hoặc phần bỏ loại từ) — người đã biết đáp án không được nói ra. */
 export function leaks(text: string, word: string) {
   const t = ` ${normWord(text)} `;
   const words = normWord(word).split(" ").filter(Boolean);
@@ -136,87 +99,60 @@ export function leaks(text: string, word: string) {
   return t.includes(` ${words.join(" ")} `) || t.includes(` ${core.join(" ")} `);
 }
 
-// ---------- khung đáp án & gợi ý ----------
-
 const chars = (word: string) => Array.from(word.normalize("NFC"));
 
-/** Vị trí các chữ cái (bỏ khoảng trắng). */
 export const letterSlots = (word: string) => chars(word).flatMap((ch, i) => (ch === " " ? [] : [i]));
 
-/** Khung đáp án: chữ cái chưa mở là "_", khoảng trắng giữ nguyên. */
 export const maskOf = (word: string, shown: number[]) =>
   chars(word)
     .map((ch, i) => (ch === " " ? " " : shown.includes(i) ? ch : "_"))
     .join("");
 
-/** Số chữ cái được mở gợi ý trong một lượt, theo độ dài từ. */
 export function hintCount(word: string) {
   const n = letterSlots(word).length;
   return n <= 2 ? 0 : n <= 4 ? 1 : n <= 8 ? 2 : 3;
 }
 
-/** Mốc mở gợi ý (phần thời gian vẽ đã trôi qua). */
 const HINT_AT = [0.5, 0.65, 0.8];
 
-/** Số gợi ý đã tới hạn khi đã vẽ được `passed` (0–1) thời gian. */
 export const hintsDue = (word: string, passed: number) => HINT_AT.slice(0, hintCount(word)).filter((f) => passed >= f).length;
-
-// ---------- trạng thái ván ----------
 
 export type Phase = "pick" | "draw" | "show" | "over";
 
-/** Một người đoán đúng: uid, lần đoán thứ mấy, điểm. */
 export type Hit = { u: string; i: number; p: number };
 
-/** Tổng kết một lượt. `end`: hết giờ / cả bàn đoán đúng / người vẽ bỏ đi / mất đáp án (đổi chủ phòng) / bỏ lượt. */
 export type TurnEnd = "time" | "all" | "away" | "lost" | "skip";
 export type Turn = { t: number; drawer: string; word: string | null; hits: Hit[]; dp: number; end: TurnEnd };
 
-/** Phần công khai của ván (chủ phòng ghi vào `meta.dw`). */
 export type DwPublic = {
   round: number;
-  /** Thứ tự vẽ, chốt lúc bắt đầu ván. */
   order: string[];
   rounds: number;
-  /** Thời gian vẽ mỗi lượt (ms). */
   time: number;
   hints: boolean;
-  /** Lượt hiện tại, đếm từ 0; tổng số lượt = số người × số vòng. */
   turn: number;
   phase: Phase;
   drawer: string;
-  /** Giờ máy chủ phòng lúc vào giai đoạn và hạn chót của giai đoạn. */
   since: number;
   until: number;
-  /** Lượt đang vẽ: chỉ số từ người vẽ đã chọn (vô nghĩa nếu không có bộ từ bí mật), mức khó, khung đáp án. */
   pick?: number;
   tier?: Tier;
   mask?: string;
-  /** Những người đã đoán đúng trong lượt, theo thứ tự. */
   hits: Hit[];
-  /** Điểm cộng dồn tới hết lượt trước. */
   scores: Record<string, number>;
-  /** Lượt vừa xong — hiện trong lúc lộ đáp án. */
   last?: Turn;
 };
 
-/** Bí mật của lượt, chỉ nằm trên máy chủ phòng. */
 export type Secret = {
   round: number;
   turn: number;
-  /** Mã ba từ để chọn: dễ, vừa, khó. */
   choices: number[];
-  /** Mã từ người vẽ đã chọn. */
   word?: number;
-  /** Thứ tự mở chữ cái gợi ý. */
   reveal: number[];
-  /** Đã chấm tới lời đoán thứ mấy của từng người. */
   judged: Record<string, number>;
-  /** Lời đoán gần đúng của từng người (chỉ số) — báo riêng người đó. */
   near: Record<string, number[]>;
 };
 
-/** Lời đoán sai công khai của lượt hiện tại (chủ phòng ghi vào `g:<ván>`). */
 export type FeedItem = { u: string; i: number; t: string };
 export type Feed = { turn: number; list: FeedItem[] };
 
@@ -225,18 +161,13 @@ export type HostState = { pub: DwPublic; secret: Secret | null; feed: Feed; used
 export type TickInput = {
   now: number;
   rand: () => number;
-  /** Đang online (nhịp tim còn đều). */
   online: (uid: string) => boolean;
-  /** Bao lâu (ms) chưa thấy người này. */
   silent: (uid: string) => number;
-  /** Người vẽ đã chọn từ (chỉ số 0–2) cho lượt nào. */
   pick?: { turn: number; pick: number };
-  /** Lời đoán (đã mở hộp) của từng người. */
   guesses: Record<string, { turn: number; list: string[] } | undefined>;
 };
 
 export const totalTurns = (pub: Pick<DwPublic, "order" | "rounds">) => pub.order.length * pub.rounds;
-/** Vòng (đếm từ 1) của một lượt. */
 export const roundOfTurn = (pub: Pick<DwPublic, "order">, t: number) => Math.floor(t / Math.max(1, pub.order.length)) + 1;
 
 function shuffle<T>(list: T[], rand: () => number): T[] {
@@ -248,7 +179,6 @@ function shuffle<T>(list: T[], rand: () => number): T[] {
   return a;
 }
 
-/** Ba từ để chọn, mỗi mức một từ; tránh từ phòng đã chơi (hết từ ở mức nào thì bốc lại cả mức đó). */
 export function pickChoices(used: number[], rand: () => number): number[] {
   const seen = new Set(used);
   return ([0, 1, 2] as Tier[]).map((tier) => {
@@ -259,7 +189,6 @@ export function pickChoices(used: number[], rand: () => number): number[] {
   });
 }
 
-/** Bắt đầu ván: xáo thứ tự vẽ rồi vào lượt đầu. */
 export function newMatch(round: number, players: string[], opts: DwOptions, used: number[], inp: Pick<TickInput, "now" | "rand" | "online">): HostState {
   const order = shuffle(players, inp.rand);
   const pub: DwPublic = {
@@ -279,7 +208,6 @@ export function newMatch(round: number, players: string[], opts: DwOptions, used
   return beginTurn({ pub, secret: null, feed: { turn: 0, list: [] }, used }, 0, inp);
 }
 
-/** Vào lượt `t`: người vẽ vắng mặt thì bỏ lượt, hết lượt thì xong ván. */
 function beginTurn(s: HostState, t: number, inp: Pick<TickInput, "now" | "rand" | "online">): HostState {
   const { now } = inp;
   const base: DwPublic = { ...s.pub, turn: t, hits: [], since: now };
@@ -298,7 +226,6 @@ function beginTurn(s: HostState, t: number, inp: Pick<TickInput, "now" | "rand" 
   return { ...s, pub: { ...base, drawer, phase: "pick", until: now + PICK_MS }, secret, feed };
 }
 
-/** Kết thúc lượt: cộng điểm, lộ đáp án, đánh dấu từ đã chơi. */
 function finish(s: HostState, end: TurnEnd, now: number): HostState {
   const { pub, secret } = s;
   const id = secret && secret.round === pub.round && secret.turn === pub.turn ? secret.word : undefined;
@@ -313,7 +240,6 @@ function finish(s: HostState, end: TurnEnd, now: number): HostState {
   return { ...s, pub: next, used: id === undefined || s.used.includes(id) ? s.used : [...s.used, id] };
 }
 
-/** Chấm các lời đoán mới: đúng thì ghi điểm (và thôi chấm người đó), gần đúng thì báo riêng, sai thì công khai. */
 function judge(s: HostState, word: string, inp: TickInput): HostState {
   const { pub } = s;
   const secret = { ...s.secret!, judged: { ...s.secret!.judged }, near: { ...s.secret!.near } };
@@ -345,7 +271,6 @@ function judge(s: HostState, word: string, inp: TickInput): HostState {
   return { ...s, pub: hits.length === pub.hits.length ? pub : { ...pub, hits }, secret, feed: list === s.feed.list ? s.feed : { ...s.feed, list } };
 }
 
-/** Một bước điều hành của chủ phòng. Trả về chính `s` nếu không có gì đổi. */
 export function tick(s: HostState, inp: TickInput): HostState {
   const { pub, secret } = s;
   const { now } = inp;
@@ -387,7 +312,6 @@ export function tick(s: HostState, inp: TickInput): HostState {
   }
 }
 
-/** Điểm hiện tại: điểm cộng dồn cộng phần đang có trong lượt (người đoán đúng và người vẽ). */
 export function liveScores(pub: DwPublic): Record<string, number> {
   const scores = { ...pub.scores };
   if (pub.phase !== "draw") return scores;
@@ -396,26 +320,20 @@ export function liveScores(pub: DwPublic): Record<string, number> {
   return scores;
 }
 
-/** Bảng xếp hạng: điểm giảm dần, bằng điểm thì đồng hạng (hạng đếm từ 1), rồi theo thứ tự vẽ. */
 export function standings(pub: DwPublic): { uid: string; score: number; rank: number }[] {
   const scores = liveScores(pub);
   const list = pub.order.map((uid, k) => ({ uid, score: scores[uid] ?? 0, k })).sort((a, b) => b.score - a.score || a.k - b.k);
   return list.map(({ uid, score }) => ({ uid, score, rank: list.findIndex((x) => x.score === score) + 1 }));
 }
 
-/** Người thắng: điểm cao nhất (có thể đồng hạng); không ai có điểm thì không ai thắng. */
 export function winnersOf(pub: DwPublic): string[] {
   const top = standings(pub).filter((s) => s.rank === 1 && s.score > 0);
   return top.map((s) => s.uid);
 }
 
-// ---------- nét vẽ ----------
-
-/** Khổ tranh logic (4:3); toạ độ nét vẽ là số nguyên trong khổ này. */
 export const W = 800;
 export const H = 600;
 
-/** Bảng màu: màu 0 (trắng, trùng nền) cũng là cục tẩy. */
 export const PALETTE = [
   "#ffffff",
   "#000000",
@@ -435,26 +353,18 @@ export const PALETTE = [
   "#4a2c1a",
 ] as const;
 export const ERASER = 0;
-/** Cỡ nét (bán kính bút × 2, đơn vị logic). */
 export const SIZES = [4, 9, 18, 36] as const;
 
-/** Một nét: màu, cỡ, dãy điểm x0, y0, x1, y1… */
 export type Stroke = { c: number; z: number; p: number[] };
-/** Đổ màu vùng kín quanh điểm `p`. */
 export type Fill = { f: number; p: [number, number] };
-/** Hoàn tác thao tác vẽ gần nhất / xoá cả tranh. */
 export type Op = Stroke | Fill | { u: 1 } | { x: 1 };
 
-/** Mỗi nét tối đa chừng này điểm — nét dài hơn được tách thành nhiều nét nối nhau. */
 export const MAX_POINTS = 240;
-/** Số thao tác mỗi trang bản ghi tranh (`d:<ván>:<lượt>.<trang>:<uid>`). */
 export const PAGE = 8;
-/** Mỗi lượt tối đa chừng này thao tác. */
 export const MAX_OPS = 1200;
 
 const coord = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
 
-/** Kiểm tra một thao tác nhận qua mạng; null nếu sai khuôn. */
 export function parseOp(raw: unknown): Op | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -475,7 +385,6 @@ export function parseOp(raw: unknown): Op | null {
 export const isStroke = (op: Op): op is Stroke => "c" in op;
 export const isFill = (op: Op): op is Fill => "f" in op;
 
-/** Những thao tác còn hiện trên tranh: áp hoàn tác (gỡ thao tác vẽ / xoá gần nhất), bỏ phần trước lần xoá cuối. */
 export function visibleOps(ops: Op[]): (Stroke | Fill)[] {
   const stack: Op[] = [];
   for (const op of ops) {
@@ -489,5 +398,4 @@ export function visibleOps(ops: Op[]): (Stroke | Fill)[] {
   return stack.slice(from).filter((op): op is Stroke | Fill => isStroke(op) || isFill(op));
 }
 
-/** Tranh có gì để hoàn tác không. */
 export const canUndo = (ops: Op[]) => ops.reduce((n, op) => ("u" in op ? Math.max(0, n - 1) : n + 1), 0) > 0;

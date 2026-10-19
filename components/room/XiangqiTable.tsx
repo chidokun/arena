@@ -14,13 +14,9 @@ import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./Statu
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 import { PieceIcon, XiangqiBoard, type Script } from "./XiangqiBoard";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<XqView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useXqView(session: XiangqiRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -35,7 +31,6 @@ const CONFETTI = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
 const INTRO_MS = 4200;
 const CHECK_MS = 1500;
 
-/** Lý do thắng / hoà theo cách ván kết thúc. */
 function reasonOf(r: Result, end: End | null) {
   switch (r.reason) {
     case "resign":
@@ -68,7 +63,6 @@ function reasonOf(r: Result, end: End | null) {
 
 const SCRIPT_KEY = "arena:xiangqi:script";
 
-/** Chữ trên quân cờ: chữ Hán (mặc định) hay tên tiếng Việt — chỉ áp dụng cho máy này (nhớ trong localStorage). */
 function useScript() {
   const [script, setScript] = useState<Script>(() => {
     try {
@@ -86,10 +80,6 @@ function useScript() {
   return [script, set] as const;
 }
 
-/**
- * Bàn cờ tướng tách theo store: khung chỉ đọc vài trường của `roomStore` và giữ lựa chọn chữ trên quân (chỉ máy này);
- * thanh đối đầu, thanh trạng thái, thẻ kết quả, bàn cờ tự đăng ký store và bọc `memo`.
- */
 export function XiangqiTable({ id, slug, session }: { id: string; slug: string; session: XiangqiRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const [script, setScript] = useScript();
@@ -118,18 +108,13 @@ export function XiangqiTable({ id, slug, session }: { id: string; slug: string; 
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-/** Đang có ván để hiện (đang chơi, hoặc đã có nước đi). */
 const showOf = (view: View) => {
   const g = view.game?.match;
   return !!g && (view.meta!.status !== "waiting" || g.state.count > 0);
 };
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Thanh đối đầu (hai thẻ người chơi, tỉ số) và quân đã bị ăn. */
 const DuelPart = memo(function DuelPart({ session, script }: { session: XiangqiRoom; script: Script }) {
   const view = useXqView(session);
   const m = view.meta!;
@@ -137,7 +122,6 @@ const DuelPart = memo(function DuelPart({ session, script }: { session: XiangqiR
   const showGame = showOf(view);
   const state = showGame ? g!.state : null;
   const playing = m.status === "playing";
-  // Thanh đối đầu: trong ván thì Đỏ bên trái, Đen bên phải; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   return (
     <>
@@ -178,14 +162,12 @@ const ActionPart = memo(function ActionPart({ session }: { session: XiangqiRoom 
   return <ActionBar view={view} session={session} />;
 });
 
-/** Thẻ kết quả ván vừa xong. */
 const ResultPart = memo(function ResultPart({ session }: { session: XiangqiRoom }) {
   const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
   const g = useGame(session, (v) => v?.match);
   return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
 });
 
-/** Bàn cờ, danh sách nước đi, sticker bay, chiếu tướng, cảnh mở ván / hết ván. */
 const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiRoom; script: Script }) {
   const view = useXqView(session);
   const m = view.meta!;
@@ -234,10 +216,6 @@ const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiR
   );
 });
 
-/**
- * Các cảnh diễn khi khoảnh khắc xảy ra ngay trước mắt: mở ván (ván mới chưa ai đi), hết ván (kèm pháo giấy, trừ người
- * thua), chiếu tướng. Vào phòng / tải lại trang giữa chừng thì không diễn lại.
- */
 function useScenes(view: View) {
   const m = view.meta!;
   const g = view.game?.match;
@@ -248,7 +226,6 @@ function useScenes(view: View) {
   return { intro, end, check: check.shown };
 }
 
-/** Một bên trong cảnh đối đầu: avatar viền theo phe, quân Tướng của bên đó, tên. */
 function fighter(seat: SeatView, side: Side, me: string, script: Script) {
   return (
     <Fighter
@@ -263,7 +240,6 @@ function fighter(seat: SeatView, side: Side, me: string, script: Script) {
   );
 }
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, "Khai cuộc!" — bấm để vào bàn. */
 function IntroScene({ match: g, me, script, onClose }: { match: XqMatch; me: string; script: Script; onClose: () => void }) {
   const tip =
     g.mySide === 1 ? "Bạn cầm quân Đỏ — đi trước nhé!" : g.mySide === 2 ? "Bạn cầm quân Đen — chờ Đỏ đi trước nhé!" : "Quân Đỏ đi trước — cùng xem ván cờ nhé!";
@@ -277,7 +253,6 @@ function IntroScene({ match: g, me, script, onClose }: { match: XqMatch; me: str
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: XqMatch, me: string): DuelSummary {
   const r = g.result!;
   const why = reasonOf(r, g.state.end);
@@ -300,7 +275,6 @@ function EndScene({ match: g, me, script, onClose }: { match: XqMatch; me: strin
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} />, plainBadge: true }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Quân đã ăn được của một bên. */
 function Captured({ pieces, script, align = "left" }: { pieces: number[]; script: Script; align?: "left" | "right" }) {
   const order = [...pieces].sort((a, b) => Math.abs(b) - Math.abs(a) || 0);
   return (
@@ -312,7 +286,6 @@ function Captured({ pieces, script, align = "left" }: { pieces: number[]; script
   );
 }
 
-/** Biên bản nước đi: mỗi dòng một lượt Đỏ – Đen. */
 function MoveList({ state }: { state: XqState }) {
   const ref = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -343,7 +316,6 @@ function MoveList({ state }: { state: XqState }) {
   );
 }
 
-/** Thanh trạng thái: lượt đi / lời xin hoà trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: XiangqiRoom }) {
   const m = view.meta!;
   const g = view.game?.match;

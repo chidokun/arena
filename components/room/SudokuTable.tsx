@@ -13,10 +13,8 @@ import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<SudokuView>, "chat">;
 
-/** Màu của từng người chơi theo thứ tự đội hình — tô ô người đó giữ / giải nhanh nhất. */
 const PLAYER_COLORS = ["var(--coral)", "var(--sky)", "var(--lime)", "var(--sun)", "var(--grape)", "#ff6fb5", "#14b8c4", "#ff8a3d", "#8a9a2c", "#a0785a"];
 const colorOf = (k: number) => PLAYER_COLORS[k % PLAYER_COLORS.length];
 const tintOf = (k: number) => `color-mix(in srgb, ${colorOf(k)} 32%, var(--board))`;
@@ -24,7 +22,6 @@ const tintOf = (k: number) => `color-mix(in srgb, ${colorOf(k)} 32%, var(--board
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const CONFETTI = ["🎉", "🏆", "✨", "🔢", "🎊", "⭐"];
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 250) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -37,7 +34,7 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
-/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (lộ đề, hết khoá tay), không theo nhịp đồng hồ. */
+// Chỉ vẽ lại đúng một lần lúc vượt mốc (lộ đề, hết khoá tay), không theo nhịp đồng hồ.
 function useReached(at: number | undefined) {
   const [hit, setHit] = useState<number | undefined>(undefined);
   useEffect(() => {
@@ -48,10 +45,7 @@ function useReached(at: number | undefined) {
   return at !== undefined && hit === at;
 }
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useSdView(session: SudokuRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -66,11 +60,8 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-/**
- * Bàn Sudoku tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; mỗi phần (thanh trạng thái, luật,
- * kết quả, bàn chơi, bảng điểm, cảnh diễn) tự đăng ký store và bọc `memo`. Đồng hồ chạy riêng trong phần cần hiện giờ,
- * bàn 81 ô chỉ vẽ lại khi ván đổi hoặc lúc lộ đề / hết khoá tay.
- */
+// Mỗi phần tự đăng ký store và bọc `memo`; đồng hồ chạy riêng trong phần cần hiện giờ để bàn 81 ô chỉ vẽ lại khi ván
+// đổi hoặc lúc lộ đề / hết khoá tay.
 export function SudokuTable({ id, slug, session }: { id: string; slug: string; session: SudokuRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const live = useSdLive(session);
@@ -105,17 +96,13 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-/** Ván đang chạy (đang chơi và là ván của vòng hiện tại) — chỉ đổi lúc bắt đầu / hết ván. */
 function useSdLive(session: SudokuRoom) {
   const room = useRoomState(session, (r) => ({ status: r.meta!.status, round: r.meta!.round }), shallowEqual);
   const round = useGame(session, (v) => v?.match?.round);
   return room.status === "playing" && round === room.round;
 }
-
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
 
 const ActionPart = memo(function ActionPart({ session }: { session: SudokuRoom }) {
   const view = useSdView(session);
@@ -150,7 +137,6 @@ const ScorePart = memo(function ScorePart({ session }: { session: SudokuRoom }) 
   return g ? <Scoreboard view={view} match={g} /> : null;
 });
 
-/** Cảnh đếm ngược lúc mở ván và cảnh chiến thắng (kèm pháo giấy). */
 const CinemaPart = memo(function CinemaPart({ session }: { session: SudokuRoom }) {
   const live = useSdLive(session);
   const g = useGame(session, (v) => v?.match);
@@ -167,16 +153,10 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SudokuRoom }
 
 const WIN_SCENE_MS = 6500;
 
-/** Đối kháng: người chơi xong thứ mấy (0 là chưa xong). */
 const rankOf = (g: SudokuMatch, k: number) => g.state.finished.indexOf(k) + 1;
 
-/**
- * Khoảnh khắc thắng của ván — cùng giải đề: lúc hoàn tất bàn; đối kháng: lúc người đầu tiên giải xong (ván vẫn tiếp tục).
- * Trả về số ván, 0 nếu chưa ai thắng.
- */
 const winKey = (g?: SudokuMatch) => (g && (g.mode === "race" ? g.state.winners.length > 0 : g.result?.reason === "solve" && !!g.result.winners?.length) ? g.round : 0);
 
-/** Lớp phủ toàn màn hình: đếm ngược 5‑4‑3‑2‑1 trước khi lộ đề, và cảnh chiến thắng (bấm để đóng). */
 function Cinema({ match: g, count, win, onClose }: { match: SudokuMatch; count: number; win: boolean; onClose: () => void }) {
   if (count > 0)
     return (
@@ -221,14 +201,12 @@ function Cinema({ match: g, count, win, onClose }: { match: SudokuMatch; count: 
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session }: { view: View; session: SudokuRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
   const opened = useReached(g?.opensAt);
   const unlocked = useReached(g?.lockedUntil);
-  // Đồng hồ chỉ chạy khi có số giây cần hiện: đếm ngược tới lúc lộ đề, hoặc đang bị khoá tay.
   const now = useNow(live && (!opened || (!!g?.lockedUntil && !unlocked)));
 
   let message: React.ReactNode;
@@ -282,7 +260,6 @@ function ActionBar({ view, session }: { view: View; session: SudokuRoom }) {
   );
 }
 
-/** Luật ván tới: chủ phòng chọn mức đề và chế độ, người khác xem. */
 function Rules({ view, session }: { view: View; session: SudokuRoom }) {
   const opts = view.game!.opts;
   const host = view.isHost;
@@ -327,7 +304,6 @@ function Rules({ view, session }: { view: View; session: SudokuRoom }) {
   );
 }
 
-/** Thẻ kết quả: người thắng (hợp sức) hoặc bảng xếp hạng theo thứ tự giải xong (đối kháng). */
 function ResultCard({ view, match: g }: { view: View; match: SudokuMatch }) {
   const r = g.result!;
   const winners = r.winners ?? [];
@@ -343,7 +319,6 @@ function ResultCard({ view, match: g }: { view: View; match: SudokuMatch }) {
         sub={`${g.state.score[k]} điểm · cả phòng hoàn tất ván Sudoku trong ${clock(g.time ?? 0)}.`}
       />
     );
-  // Đối kháng: xếp hạng theo thứ tự giải xong, người chưa xong xếp theo số ô đã giải.
   const rest = g.lineup.map((_, i) => i).filter((i) => !rankOf(g, i)).sort((a, b) => g.state.right[b] - g.state.right[a]);
   const done = g.state.finished.length;
   return (
@@ -364,7 +339,6 @@ function ResultCard({ view, match: g }: { view: View; match: SudokuMatch }) {
   );
 }
 
-/** Bàn trống khi chưa chơi ván nào. */
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
   return (
@@ -383,7 +357,6 @@ function EmptyBoard({ view }: { view: View }) {
   );
 }
 
-/** Đường kẻ khối 3×3 của một ô. */
 function cellFrame(i: number) {
   const r = rowOf(i);
   const c = colOf(i);
@@ -392,7 +365,6 @@ function cellFrame(i: number) {
 
 const TINT_KEY = "arena:sudoku:tint";
 
-/** Có tô ô bằng màu người chơi không — mặc định có; tắt / bật chỉ áp dụng cho máy này (nhớ trong localStorage). */
 function useTintPref() {
   const [on, setOn] = useState(() => {
     try {
@@ -415,10 +387,6 @@ type Burst = { key: string; cell: number; color: string; bits: { dx: number; dy:
 const BURST_MS = 1400;
 const BURST_BITS = 26;
 
-/**
- * Pháo giấy nổ từ ô vừa có người khác giải đúng (màu của người đó). Chỉ diễn các nước mới thấy khi đang ở trong phòng;
- * nhiều nước tới cùng lúc (vừa nối lại mạng) thì chỉ diễn vài nước cuối.
- */
 function useBursts(g: SudokuMatch, active: boolean) {
   const [bursts, setBursts] = useState<Burst[]>([]);
   const seen = useRef(g.log.length);
@@ -439,7 +407,6 @@ function useBursts(g: SudokuMatch, active: boolean) {
           const round = Math.random() < 0.35;
           return {
             dx: Math.round(Math.cos(angle) * dist),
-            // Rơi xuống một chút như có trọng lực.
             dy: Math.round(Math.sin(angle) * dist + 22),
             rot: Math.round(Math.random() * 720 - 360),
             delay: Math.round(Math.random() * 90),
@@ -464,7 +431,6 @@ function useBursts(g: SudokuMatch, active: boolean) {
   return bursts;
 }
 
-/** Lớp pháo giấy phủ lên bàn, mỗi chùm đặt ở tâm ô (trừ viền 3px của bàn). */
 function Bursts({ bursts }: { bursts: Burst[] }) {
   return bursts.map((b) => (
     <span
@@ -496,7 +462,6 @@ function Bursts({ bursts }: { bursts: Burst[] }) {
   ));
 }
 
-/** Bàn chơi và bàn phím số; ghi chú bút chì chỉ lưu ở máy mình. */
 function Play({ view, session, match: g }: { view: View; session: SudokuRoom; match: SudokuMatch }) {
   const live = isLive(view);
   const player = g.me >= 0;
@@ -514,7 +479,6 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
   const ended = !live;
   const bursts = useBursts(g, live && !counting);
 
-  // Số trên bàn mình thấy: số cho sẵn, số đã giải, số mình vừa điền đúng đang chờ ghi nhận.
   const value = (i: number) => g.cells[i] || (g.pending.includes(i) ? g.puzzle.solution[i] : 0);
   const board = Array.from({ length: CELLS }, (_, i) => value(i));
   const left = (d: number) => 9 - board.filter((v) => v === d).length;
@@ -541,7 +505,6 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
     return () => clearTimeout(t);
   }, [flash]);
 
-  // Bàn phím: mũi tên chọn ô, 1–9 điền, Backspace xoá ghi chú, N bật / tắt ghi chú. Bỏ qua khi đang gõ chat.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     const t = e.target as HTMLElement | null;
     if (e.metaKey || e.ctrlKey || e.altKey || (t && (t.closest("input, textarea, select, [contenteditable]") || t.closest("dialog")))) return;
@@ -586,7 +549,6 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
       i === sel ? "is-sel" : sel >= 0 && sees(i, sel) ? "is-peer" : "",
       i !== sel && selValue && shown === selValue && !wrong ? "is-same" : "",
     ].join(" ");
-    // Ô đã có người giải: cùng giải đề là người giữ ô; đối kháng là người giải nhanh nhất (kể cả khi mình chưa giải).
     const tint = tinted && owner >= 0 && !given && !counting ? tintOf(owner) : undefined;
     const who = owner >= 0 ? g.lineup[owner] : undefined;
     const label = `Hàng ${rowOf(i) + 1}, cột ${colOf(i) + 1}: ${counting ? "ẩn" : shown ? shown : "trống"}${who && !given && !counting ? ` — ${who.uid === view.me ? "bạn" : (who.member?.name ?? "ai đó")} giải ${g.mode === "race" ? "nhanh nhất" : ""}` : ""}`;
@@ -673,8 +635,7 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
   );
 }
 
-/** Bảng điểm: màu từng người, điểm (cùng giải đề) hoặc tiến độ (đối kháng), số lần sai, đồng hồ. */
-/** Số giây còn bị khoá tay — tách riêng để nhịp đồng hồ chỉ vẽ lại dòng chữ này, không kéo cả bàn. */
+// Tách riêng để nhịp đồng hồ chỉ vẽ lại dòng chữ này, không kéo cả bàn.
 function LockLeft({ until }: { until: number }) {
   const now = useNow(true);
   return <>{now ? `🔒 Khoá tay ${Math.max(0, Math.ceil((until - now) / 1000))}s` : "🔒 Khoá tay"}</>;
@@ -686,9 +647,7 @@ function Scoreboard({ view, match: g }: { view: View; match: SudokuMatch }) {
   const now = useNow(live);
   const s = g.state;
   const race = g.mode === "race";
-  // Ván bị dừng thì không có thời gian giải.
   const elapsed = live ? (now && now > g.opensAt ? now - g.opensAt : 0) : g.time;
-  // Đối kháng: người đã xong theo thứ tự xong, rồi tới người đang giải theo số ô đã giải.
   const done = (k: number) => rankOf(g, k) || Infinity;
   const order = g.lineup
     .map((_, k) => k)

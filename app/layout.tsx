@@ -27,7 +27,6 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: ["game online", "chơi cùng bạn bè", "cờ caro online", "cờ tướng online", "ma sói online", "lô tô online", "game trình duyệt", "game P2P"],
-  // Trang con khai lại openGraph / twitter qua shareMeta (lib/site.ts).
   openGraph: { type: "website", siteName: SITE_NAME, locale: "vi_VN", images: [ogImage()] },
   twitter: { card: "summary_large_image", images: [ogImage()] },
 };

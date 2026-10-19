@@ -40,7 +40,6 @@ const T0 = 1_000_000;
 const pic = PICTURES.findIndex((p) => p.w === "Tháp Eiffel");
 const R: TxRound = { seed: 42, size: "s", level: "easy", pic, t0: T0 };
 
-/** Một ván giả lập: người chơi gửi nước vào nhật ký riêng, chủ phòng phân xử ở giờ `now`. */
 function match(players: number, r: TxRound = R) {
   const moves: Move[][] = Array.from({ length: players }, () => []);
   let board: Board = emptyBoard(players);
@@ -64,7 +63,6 @@ function match(players: number, r: TxRound = R) {
   };
 }
 
-/** Hai ô cùng hình, và một ô khác hình với ô đầu. */
 function cells(s: TxState) {
   const a = 0;
   const b = s.tiles.findIndex((t, i) => i !== a && t === s.tiles[a]);

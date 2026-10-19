@@ -26,7 +26,7 @@ const A = "a";
 const B = "b";
 const pub = (over: Partial<McPublic> = {}): McPublic => ({ seed: 7, map: "s", mines: 10, out: {}, ...over });
 
-/** Tìm seed cho ra bản đồ thoả điều kiện — để test không phụ thuộc vào một bản đồ cụ thể. */
+// Tìm seed thoả điều kiện để test không phụ thuộc vào một bản đồ cụ thể.
 function seedWhere(base: Omit<McPublic, "seed">, players: number, ok: (s: McState) => boolean) {
   for (let seed = 1; seed < 5000; seed++) if (ok(newGame({ ...base, seed }, players))) return seed;
   throw new Error("không tìm được seed phù hợp");
@@ -61,7 +61,6 @@ test("sinh bản đồ hợp lệ cho mọi tổ hợp kích thước, số mìn
             assert.equal(zone.length, 9, "vùng bảo vệ nằm gọn trong bản đồ");
             assert.ok(zone.every((c) => !s.mine[c]), "vùng bảo vệ không có mìn");
           }
-          // Vùng bảo vệ không chồng lên nhau.
           const zones = s.bases.flatMap((b) => area3(w, h, b));
           assert.equal(new Set(zones).size, zones.length);
           assert.equal(s.safeLeft, w * h - mines - n);
@@ -109,10 +108,7 @@ test("sai người, sai luật thì nhật ký dừng tại đó", () => {
   assert.equal(replay(pub(), [A, B], [{ k: "grab", u: A, c: 0 }]).count, 0);
 });
 
-/**
- * Người 0 mở dần các ô an toàn (số khác 0 — để không lan ra trung lập) từ lãnh thổ hiện có tới cạnh quả mìn gần nhất,
- * người 1 bỏ lượt xen giữa. Trả về nhật ký nối thêm và quả mìn; null nếu bản đồ không có đường như vậy.
- */
+// Chỉ mở ô số khác 0 để không lan ra trung lập.
 function toMine(p: McPublic, acts: McAct[]): { acts: McAct[]; mine: number } | null {
   const s = replay(p, [A, B], acts);
   const own = [...s.owner.keys()].filter((c) => s.owner[c] === 0);
@@ -135,7 +131,6 @@ function toMine(p: McPublic, acts: McAct[]): { acts: McAct[]; mine: number } | n
   return null;
 }
 
-/** Đi tới rồi giẫm lần lượt `n` quả mìn (mỗi lần người 1 bỏ lượt xen giữa); `head` là các dòng mở đầu. */
 function stepOnMines(p: McPublic, n: number, head: McAct[] = []) {
   let acts = head;
   const mines: number[] = [];
@@ -282,7 +277,6 @@ test("ba người: một người bỏ cuộc lúc tới lượt thì lượt sa
 });
 
 test("chơi tới cuối: hết ván (mở hết ô / bế tắc), cộng thưởng cuối ván rồi xếp hạng", () => {
-  // Hai người lần lượt mở ô an toàn kề lãnh thổ, hết thì Cướp Đất, không được nữa thì bỏ lượt (không bao giờ đụng mìn).
   const p = pub({ map: "s", mines: 10, seed: 5 });
   let acts: McAct[] = [];
   for (let guard = 0; guard < 500; guard++) {
@@ -306,7 +300,6 @@ test("chơi tới cuối: hết ván (mở hết ô / bế tắc), cộng thư�
 test("bế tắc: không ai còn nước mở ô / Cướp Đất thì hết ván dù còn Radar, Khiên", () => {
   const s = newGame(pub(), 2);
   assert.equal(isStuck(s), false);
-  // Rào kín: mọi ô quanh lãnh thổ của cả hai đều là mìn đã nổ.
   for (const b of s.bases) for (const d of area3(s.w, s.h, b)) if (d !== b) s.open[d] = 2;
   assert.equal(isStuck(s), true);
   // Còn một ô trung lập Cướp Đất được (đủ năng lượng) thì chưa bế tắc.

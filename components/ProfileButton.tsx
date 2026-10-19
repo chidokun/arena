@@ -9,7 +9,6 @@ import { useNet } from "./NetProvider";
 export function ProfileButton() {
   const { profile, fresh, setProfile } = useNet();
   const [opened, setOpened] = useState(false);
-  // Lần đầu ghé: bắt buộc đặt tên trước khi chơi — hộp thoại không đóng được tới khi lưu.
   const open = opened || fresh;
   const setOpen = (v: boolean) => {
     if (!v && fresh) return;
@@ -31,7 +30,6 @@ export function ProfileButton() {
       <Dialog open={open} onClose={() => setOpen(false)} title={fresh ? "Chào mừng tới Arena!" : "Hồ sơ của bạn"} dismissable={!fresh}>
         {open && (
           <ProfileForm
-            // Lần đầu: để trống tên, tự gõ hoặc bấm "Ngẫu nhiên".
             initial={fresh ? { ...profile, name: "" } : profile}
             fresh={fresh}
             onSave={(p) => {

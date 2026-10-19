@@ -1,14 +1,3 @@
-/**
- * Phòng Nối Thú Kawaii: không giới hạn ghế, một người cũng chơi được. Bắt đầu ván, chủ phòng chốt đội hình và `meta.kw`
- * (seed, cỡ bàn, chế độ, giờ lộ bàn) — mọi máy tự sinh cùng một bàn từ seed. Người chơi chỉ nối nước của mình vào
- * `m:<ván>:<uid>`; máy chủ phòng xét các nước mới theo thứ tự mình thấy (`judge`) rồi ghi bàn chung `g:<ván>` — ai nối
- * được cặp nào, điểm, các lần bàn tự xáo, người thắng đều suy ra tất định từ bàn chung.
- *
- * Cùng giải đề: cả phòng chung một bàn, không tính giờ — dọn sạch bàn là hết ván. Đối kháng: mỗi người một bàn, bàn của
- * mình dựng thẳng từ nước của mình (`ownGame`) nên không phải chờ chủ phòng; chủ phòng ghi giờ từng người dọn xong.
- * Người xong đầu tiên thắng ngay, những người còn lại dọn tiếp — ván xong khi mọi người đã xong (hoặc người chưa xong
- * đều đã rời đi). Xin gợi ý bị khoá tay tại máy mình.
- */
 import {
   COUNTDOWN_MS,
   deskOf,
@@ -33,9 +22,7 @@ import {
 } from "../games/kawaii";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
-/** Cả đội hình mất kết nối chừng này thì dừng ván. */
 const ABANDON_MS = 60000;
-/** Đối kháng đã có người thắng: những người chưa xong đều mất kết nối chừng này thì kết thúc ván. */
 const QUIT_MS = 20000;
 
 export type KwMatch = {
@@ -43,51 +30,34 @@ export type KwMatch = {
   size: SizeKey;
   mode: Mode;
   lineup: SeatView[];
-  /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
   state: KwState;
-  /**
-   * Bàn mình chơi — cùng giải đề: bàn chung, bỏ đi các cặp mình vừa nối đang chờ chủ phòng ghi nhận; đối kháng: bàn
-   * riêng dựng từ nước của mình. Người xem: bàn chung (đối kháng: bàn người đầu đội hình).
-   */
   tiles: number[];
-  /** Số lần xáo của bàn mình chơi — gửi kèm nước nối. */
   shuffles: number;
-  /** Số ô còn trên bàn mình chơi. */
   left: number;
-  /** Cùng giải đề: các cặp mình vừa nối, đang chờ chủ phòng ghi nhận. */
   pending: [number, number][];
-  /** Đối kháng: mình đã dọn sạch bàn của mình (trên máy mình — chủ phòng có thể chưa kịp ghi nhận). */
   cleared: boolean;
-  /** Đối kháng: số lần mình xin gợi ý (trên máy mình). */
   hints: number;
-  /** Giờ máy mình lúc lộ bàn (hết đếm ngược). */
   opensAt: number;
-  /** Đối kháng: khoá tay tới lúc này (giờ máy mình). */
   lockedUntil: number;
-  /** Đối kháng: thời gian từng người dọn xong (theo thứ tự đội hình); null nếu chưa xong. */
   fin: (number | null)[];
   result?: Result;
 };
 
 export type KwView = {
-  /** Luật cho ván tới. */
   opts: KwOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa chơi ván nào. */
   match?: KwMatch;
 };
 
 export class KawaiiRoom extends RoomSession<KwView> {
   readonly game = "kawaii";
-  /** Trạng thái dựng gần nhất — nhật ký chỉ dài thêm nên dựng tiếp từ đây thay vì từ đầu. */
+  // Nhật ký chỉ dài thêm nên dựng tiếp từ trạng thái gần nhất thay vì từ đầu.
   private cache: { round: number; seed: number; tail: string; state: KwState } | null = null;
-  /** Đối kháng: bàn của mình dựng gần nhất từ nước của mình — nhật ký của mình chỉ dài thêm nên dựng tiếp từ đây. */
+  // Nhật ký nước của mình cũng chỉ dài thêm nên dựng tiếp từ đây.
   private own: { round: number; seed: number; tail: string; state: KwState } | null = null;
   private opened = { round: -1, at: 0 };
   private lock = { round: -1, until: 0 };
-  /** Đã báo tới lần xáo bàn thứ mấy của ván nào. */
   private told = { round: -1, shuffles: 0 };
-  /** Đã báo người về nhất của ván nào (đối kháng). */
   private hailed = -1;
 
   private board(m: Meta): Board {
@@ -110,7 +80,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return state;
   }
 
-  /** Đối kháng: bàn của mình dựng từ nước của mình. */
   private ownOf(m: Meta, kw: KwRound) {
     const moves = this.movesOf(m, this.me);
     const c = this.own;
@@ -120,10 +89,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return state;
   }
 
-  /**
-   * Giờ máy mình lúc lộ bàn: lần đầu thấy ván thì đếm ngược phần còn lại theo giờ chủ phòng, tối đa một nhịp đếm ngược;
-   * vào giữa ván (tải lại trang) thì chơi ngay.
-   */
   private opensAt(m: Meta, kw: KwRound) {
     if (this.opened.round !== m.round) {
       const now = Date.now();
@@ -131,8 +96,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     }
     return this.opened.at;
   }
-
-  // ---------- luật ----------
 
   protected begin(m: Meta) {
     const lineup = m.players.filter((u) => this.isOnline(u));
@@ -150,7 +113,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return { round: m.round, winner: winners.length === 1 ? winners[0] : null, winners, reason: "points" };
   }
 
-  /** Kết quả khi ván kết thúc sớm (bị dừng, người chơi bỏ đi): đối kháng đã có người xong thì người đó vẫn thắng. */
   private cutShort(m: Meta): Result {
     const s = m.kw ? this.stateOf(m, m.kw) : undefined;
     const first = s?.mode === "race" ? s.winners[0] : undefined;
@@ -158,11 +120,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return { round: m.round, winner: null, winners: [], reason: "stop" };
   }
 
-  /**
-   * Chủ phòng phân xử các nước mới và ghi giờ dọn xong (đối kháng) — người bị xử thua vì gian lận không được nối thêm.
-   * Cả đội hình bỏ đi thì dừng ván; đối kháng đã có người thắng mà những người chưa xong đều bỏ đi (hoặc gian lận) thì
-   * kết thúc ván.
-   */
   protected hostPlay(m: Meta) {
     const kw = m.kw!;
     const judged = judge(
@@ -184,10 +141,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     }
   }
 
-  /**
-   * Mọi máy: bàn tự xáo vì hết nước nối thì báo vào khung chat — cùng giải đề là bàn chung, đối kháng là bàn của mình;
-   * đối kháng có người về nhất thì báo luôn.
-   */
   protected watch(m: Meta) {
     if (!m.kw || m.status !== "playing") return;
     const s = this.stateOf(m, m.kw);
@@ -270,9 +223,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return `${name(w[0])} nhiều điểm nhất — thắng ván ${r.round}!`;
   }
 
-  // ---------- hành động ----------
-
-  /** Ván đang chơi mà mình là người chơi, bàn đã lộ, mình chưa dọn xong và không bị khoá tay. */
   private playable() {
     const m = this.meta();
     const g = this.store.get().game?.match;
@@ -287,7 +237,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     this.react();
   }
 
-  /** Nối hai ô. Trả về đường nối để giao diện diễn ngay, hoặc null nếu không nối được trên bàn mình đang thấy. */
   connect(a: number, b: number): Point[] | null {
     const p = this.playable();
     if (!p) return null;
@@ -297,10 +246,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return path;
   }
 
-  /**
-   * Xin gợi ý (cùng giải đề: bị trừ điểm; đối kháng: bị khoá tay): trả về một cặp nối được trên bàn mình đang thấy,
-   * null nếu chưa có.
-   */
   hint(): [number, number] | null {
     const p = this.playable();
     if (!p) return null;
@@ -315,7 +260,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     return pair;
   }
 
-  /** Chủ phòng đổi luật (cỡ bàn, chế độ) cho ván tới. */
   setOptions(next: Partial<KwOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -325,7 +269,6 @@ export class KawaiiRoom extends RoomSession<KwView> {
     });
   }
 
-  /** Chủ phòng dừng ván giữa chừng: không tính ai thắng, trừ người đã về nhất ở chế độ đối kháng. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

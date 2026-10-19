@@ -6,11 +6,9 @@ import type { DrawGuessRoom } from "@/lib/net/draw-guess-room";
 
 export type Tool = { kind: "pen" | "eraser" | "fill"; color: number; size: number };
 
-/** Gửi phần điểm mới của nét đang vẽ dở bấy nhiêu ms một lần. */
 const INK_MS = 50;
-/** Hai điểm liền nhau của một nét cách nhau ít nhất chừng này (đơn vị logic). */
 const MIN_STEP = 2;
-/** Độ lệch màu tối đa (tổng ba kênh) vẫn coi là cùng vùng khi đổ màu — nuốt được mép răng cưa của nét. */
+// Đủ lớn để đổ màu nuốt được mép răng cưa của nét.
 const FILL_TOLERANCE = 120;
 
 function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke, scale: number) {
@@ -33,7 +31,6 @@ function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke, scale: number) {
   ctx.stroke();
 }
 
-/** Đổ màu vùng liền quanh (x, y) theo dòng quét. */
 function floodFill(ctx: CanvasRenderingContext2D, px: number, py: number, hex: string) {
   const { width: w, height: h } = ctx.canvas;
   const x0 = Math.min(w - 1, Math.max(0, Math.floor(px)));
@@ -85,22 +82,15 @@ function clearWhite(ctx: CanvasRenderingContext2D) {
 }
 
 type Props = { ops: Op[]; turnKey: string; canDraw: boolean; tool: Tool };
-/** Nét mình đang vẽ: thao tác thứ n của tranh, đã phát bao nhiêu điểm qua rumor. */
 type Pen = { n: number; stroke: Stroke; sent: number };
 
-/**
- * Bộ vẽ của một bảng: lớp dưới là các thao tác đã ghi (vẽ thêm từng thao tác mới, có hoàn tác thì vẽ lại từ đầu), lớp
- * trên là nét đang vẽ dở (của mình, hoặc của người vẽ nhận qua rumor) và vòng cỡ bút, vẽ lại theo khung hình.
- */
 class Painter {
   private base: HTMLCanvasElement | null = null;
   private live: HTMLCanvasElement | null = null;
   private props: Props = { ops: [], turnKey: "", canDraw: false, tool: { kind: "pen", color: 1, size: 1 } };
-  /** Lớp dưới đã vẽ tới đâu: lượt nào, bao nhiêu thao tác, ở cỡ nào. */
   private drawn = { key: "", count: 0, width: 0 };
-  /** Nét mình đang vẽ. */
   private pen: Pen | null = null;
-  /** Nét mình vừa vẽ xong nhưng lớp dưới chưa vẽ tới — vẫn giữ trên lớp trên để không nháy. */
+  // Nét vừa vẽ xong nhưng lớp dưới chưa vẽ tới: giữ trên lớp trên để không nháy.
   private pending: { n: number; stroke: Stroke }[] = [];
   private hover: [number, number] | null = null;
   private frame = 0;
@@ -124,7 +114,6 @@ class Painter {
     this.live = live;
   }
 
-  /** Canvas theo cỡ khung × mật độ điểm ảnh; đổi cỡ thì vẽ lại. */
   fit(wrap: HTMLElement) {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = Math.max(1, Math.round(wrap.clientWidth * dpr));
@@ -186,7 +175,6 @@ class Painter {
     this.frame = 0;
   }
 
-  /** Ảnh nhỏ của tranh hiện tại. */
   thumbnail() {
     const c = this.base;
     if (!c?.width) return null;
@@ -196,8 +184,6 @@ class Painter {
     t.getContext("2d")!.drawImage(c, 0, 0, t.width, t.height);
     return t.toDataURL("image/jpeg", 0.85);
   }
-
-  // ---------- người vẽ ----------
 
   flushInk() {
     const p = this.pen;
@@ -251,7 +237,6 @@ class Painter {
         const s = pen.stroke.p;
         if (Math.hypot(x - s[s.length - 2], y - s[s.length - 1]) < MIN_STEP) continue;
         s.push(x, y);
-        // Nét quá dài: chốt nét này, nối tiếp bằng nét mới từ điểm cuối.
         if (s.length >= MAX_POINTS * 2) {
           this.commit();
           this.pen = { n: this.session.opCount(), stroke: { c: pen.stroke.c, z: pen.stroke.z, p: [x, y] }, sent: 0 };
@@ -270,7 +255,6 @@ class Painter {
     this.scheduleLive();
   }
 
-  /** Phím tắt người vẽ: Ctrl/⌘+Z hoàn tác. Bỏ qua khi đang gõ chat. */
   key(e: KeyboardEvent) {
     const t = e.target as HTMLElement | null;
     if (t?.closest("input, textarea, select, [contenteditable]")) return;
@@ -281,10 +265,6 @@ class Painter {
   }
 }
 
-/**
- * Tranh của lượt; người vẽ vẽ bằng chuột / bút / ngón tay. `capture`: mỗi khi khoá đổi thì chụp một ảnh nhỏ của tranh
- * (triển lãm cuối ván). Lớp phủ (chọn từ, lộ đáp án…) truyền qua `children`.
- */
 export function DrawBoard({
   session,
   ops,
@@ -359,7 +339,6 @@ export function DrawBoard({
   );
 }
 
-/** Thanh công cụ của người vẽ: bảng màu, cỡ bút, bút / tẩy / đổ màu, hoàn tác, xoá tranh. */
 export function Toolbar({ tool, setTool, session, ops }: { tool: Tool; setTool: React.Dispatch<React.SetStateAction<Tool>>; session: DrawGuessRoom; ops: Op[] }) {
   const empty = visibleOps(ops).length === 0;
   const kinds = [

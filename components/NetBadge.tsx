@@ -3,7 +3,6 @@
 import { useLobbyView, useNet } from "./NetProvider";
 import { Spinner } from "./Spinner";
 
-/** Trạng thái lưới P2P: đang tìm bạn chơi hay đã nối với bao nhiêu người. Mobile hiện bản rút gọn. */
 export function NetBadge() {
   const { lobby } = useNet();
   const view = useLobbyView();

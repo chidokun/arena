@@ -37,13 +37,9 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<McView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useMcView(session: MineControlRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -51,7 +47,6 @@ function useMcView(session: MineControlRoom): View {
   return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
 }
 
-/** Bàn đang hiện: ván đang chơi / vừa xong, hoặc bàn trống theo tuỳ chọn phòng (căn theo số ghế đã có người). */
 function useBoard(view: View) {
   const m = view.meta!;
   const { match: g, opts } = view.game!;
@@ -73,16 +68,11 @@ const TOOLS: { tool: McTool; icon: string; name: string; cost?: number; hint: st
 
 const VALID: Record<McTool, (s: McState, k: number, c: number) => boolean> = { open: canOpen, radar: canRadar, fort: canFort, grab: canGrab };
 
-/** Có ô nào hợp lệ cho việc này không (để tắt nút kỹ năng không dùng được). */
 const hasTarget = (s: McState, k: number, tool: McTool) => {
   for (let c = 0; c < s.w * s.h; c++) if (VALID[tool](s, k, c)) return true;
   return false;
 };
 
-/**
- * Bàn dò mìn chiến thuật tách theo store: khung chỉ đọc vài trường của `roomStore`; thông tin bàn, thẻ người chơi và
- * phần chơi (thanh trạng thái, công cụ, bàn mìn, cảnh diễn) tự đăng ký store và bọc `memo`.
- */
 export function MineControlTable({ id, slug, session }: { id: string; slug: string; session: MineControlRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   return (
@@ -96,12 +86,8 @@ export function MineControlTable({ id, slug, session }: { id: string; slug: stri
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Cỡ bàn, số mìn (và luật ván tới nếu khác), số ô an toàn còn lại. */
 const HeadChips = memo(function HeadChips({ session }: { session: MineControlRoom }) {
   const view = useMcView(session);
   const { m, opts, live, showGame, s } = useBoard(view);
@@ -118,7 +104,6 @@ const HeadChips = memo(function HeadChips({ session }: { session: MineControlRoo
   );
 });
 
-/** Thẻ từng người chơi: điểm, lượt, số ván thắng. */
 const PlayersPart = memo(function PlayersPart({ session }: { session: MineControlRoom }) {
   const view = useMcView(session);
   const { m, g, live, showGame, s } = useBoard(view);
@@ -143,7 +128,6 @@ const PlayersPart = memo(function PlayersPart({ session }: { session: MineContro
   );
 });
 
-/** Thanh trạng thái, công cụ, kết quả, bàn mìn, sticker bay, cảnh đếm ngược / hết ván — dùng chung công cụ đang chọn và nhịp đếm ngược. */
 const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom }) {
   const view = useMcView(session);
   const { m, g, live, showGame, s, me } = useBoard(view);
@@ -155,7 +139,6 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
   const players = showGame ? g!.lineup : view.seats;
   const avatars = players.map((p) => p.member?.avatar ?? "🏠");
 
-  // Việc đang chọn quay về "Mở ô" sau mỗi hành động.
   const [tool, setTool] = useState<McTool>("open");
   const stamp = g ? `${g.round}:${g.state.count}` : "";
   const [toolAt, setToolAt] = useState(stamp);
@@ -265,7 +248,6 @@ function PlayerCard({ k, seat, p, active, wins, isHost, me }: { k: number; seat?
   );
 }
 
-/** Thanh kỹ năng của người chơi: chọn việc cho cú bấm lên bàn, Khiên / bỏ lượt dùng ngay. */
 function Toolbar({ state: s, me, myTurn, tool, setTool, session }: { state: McState; me: number; myTurn: boolean; tool: McTool; setTool: (t: McTool) => void; session: MineControlRoom }) {
   const p = s.players[me];
   const cur = TOOLS.find((t) => t.tool === tool)!;
@@ -317,7 +299,6 @@ function Toolbar({ state: s, me, myTurn, tool, setTool, session }: { state: McSt
   );
 }
 
-/** Đếm ngược thời gian lượt hiện tại. */
 function useTurnLeft(since: number | undefined, on: boolean) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -408,7 +389,6 @@ function ActionBar({ view, session, counting }: { view: View; session: MineContr
   );
 }
 
-/** Câu kể một sự kiện của ván. */
 function describe(e: McEvent, name: (k: number) => string): string {
   const who = name(e.who);
   switch (e.t) {
@@ -431,7 +411,6 @@ function describe(e: McEvent, name: (k: number) => string): string {
   }
 }
 
-/** Vài sự kiện gần nhất dưới bàn chơi. */
 function LastAction({ match: g, me }: { match: McMatch; me: string }) {
   const name = (k: number) => (g.lineup[k]?.uid === me ? "Bạn" : (g.lineup[k]?.member?.name ?? "Ai đó"));
   const recent = g.state.events.slice(-3).reverse();
@@ -457,7 +436,6 @@ function CountdownScene({ match: g, me, n }: { match: McMatch; me: string; n: nu
   );
 }
 
-/** Tiêu đề / giải thích kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: McMatch, me: string) {
   const r = g.result!;
   const ws = r.winners ?? (r.winner ? [r.winner] : []);
@@ -494,7 +472,6 @@ function EndScene({ match: g, me, onClose }: { match: McMatch; me: string; onClo
   );
 }
 
-/** Thẻ kết quả: người thắng và bảng điểm (cộng thưởng cuối ván nếu có), xếp theo luật phân hạng. */
 function Result({ match: g, me }: { match: McMatch; me: string }) {
   const { ws, title, sub } = summary(g, me);
   const order = ranks(g.state).sort(compareRank);

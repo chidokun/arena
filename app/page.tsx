@@ -89,7 +89,6 @@ function ArenaSlide() {
   );
 }
 
-/** Hàng tính năng có icon ô vuông, dùng chung cho các cảnh giới thiệu. */
 function Perks({ items }: { items: readonly { icon: string; title: string }[] }) {
   return (
     <ul className="mt-6 grid gap-2.5 sm:grid-cols-3">
@@ -136,7 +135,6 @@ function GamesSlide({ games }: { games: GameDef[] }) {
   );
 }
 
-/** Bức tường thẻ game xếp lệch nhau, lấy từ danh mục game đang mở. */
 function GamesArt({ games }: { games: GameDef[] }) {
   const tiles = games.slice(0, 12);
   return (
@@ -208,7 +206,6 @@ const MATCHES = [
   { foe: "🐼", name: "Gấu Lười", game: "Cờ Vua", win: true },
 ];
 
-/** Minh hoạ thẻ lịch sử đấu: tỉ số đối đầu và vài ván gần nhất. */
 function HistoryArt() {
   return (
     <div className="relative mx-auto w-full max-w-[460px]" aria-hidden="true">
@@ -279,7 +276,6 @@ function TournamentSlide() {
   );
 }
 
-/** Minh hoạ bàn caro mini với quân cờ và sticker lơ lửng. */
 function HeroArt() {
   const N = 7;
   const marks: Record<string, "x" | "o"> = { "1,1": "o", "2,2": "x", "3,3": "x", "4,4": "x", "5,5": "x", "2,4": "o", "3,2": "o", "4,2": "o", "5,1": "o" };

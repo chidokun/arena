@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 
-/** Cài đặt riêng của máy: sticker có bay qua màn hình không (mặc định có). Tắt thì sticker chỉ hiện trong khung chat. */
 const KEY = "arena:sticker-fx";
 const fns = new Set<() => void>();
 // Giữ trong bộ nhớ: getSnapshot chạy mỗi lần render của mọi component dùng cài đặt này, không nên đọc localStorage mỗi lần.
@@ -22,7 +21,6 @@ function read() {
 
 function subscribe(fn: () => void) {
   fns.add(fn);
-  // Đổi ở tab khác cũng áp dụng ngay.
   const onStorage = (e: StorageEvent) => {
     if (e.key !== KEY) return;
     cached = null;

@@ -1,9 +1,3 @@
-/**
- * Phòng cờ vua: hai ghế, người cầm quân Trắng đi trước (đổi bên mỗi ván). Hai người chơi lần lượt nối nước đi vào
- * nhật ký `g:<ván>`; ai cũng tự dựng lại ván bằng `replay` nên không cần ai "phán" thắng thua. Xin hoà ghi vào
- * `v:<ván>:<uid>` kèm số nước lúc xin — cả hai cùng xin ở một nước thì hoà; đi tiếp một nước là lời xin hết hiệu lực.
- * Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { replay, type ChessState, type Move, type Side } from "../games/chess";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -12,19 +6,15 @@ const FORFEIT_MS = 30000;
 export type ChessMatch = {
   round: number;
   state: ChessState;
-  /** lineup[0] cầm quân Trắng, lineup[1] cầm quân Đen. */
   lineup: SeatView[];
   mySide: 0 | Side;
   myTurn: boolean;
-  /** Bên nào đang xin hoà ở nước hiện tại. */
   offers: Side[];
   result?: Result;
 };
 
 export type ChessView = {
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: ChessMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -63,12 +53,11 @@ export class ChessRoom extends RoomSession<ChessView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Đổi bên cầm quân Trắng (đi trước) giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -80,7 +69,6 @@ export class ChessRoom extends RoomSession<ChessView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
@@ -157,7 +145,6 @@ export class ChessRoom extends RoomSession<ChessView> {
     this.react();
   }
 
-  /** Xin hoà (hoặc đồng ý lời xin hoà của đối thủ) ở nước hiện tại. */
   offerDraw() {
     const m = this.meta();
     const g = this.store.get().game?.match;

@@ -1,15 +1,7 @@
-/**
- * Luật cờ tướng: bàn 9 cột × 10 hàng, quân Đỏ ở dưới đi trước. Ván dựng lại tất định từ nhật ký nước đi nên mọi máy
- * tự tính ra cùng kết quả. Bên tới lượt mà hết nước đi hợp lệ (bị chiếu bí hay bí nước) là thua. Hai tướng không được
- * đối mặt trên cùng một cột trống. Thế cờ lặp lại lần thứ ba: bên chiếu liên tục suốt vòng lặp thua (chiếu dai), còn
- * lại là hoà. Hoà khi 60 nước mỗi bên không ăn quân, hoặc cả hai bên hết quân tấn công (Xe, Mã, Pháo, Tốt).
- */
-
 export const COLS = 9;
 export const ROWS = 10;
 export const SQUARES = COLS * ROWS;
 
-/** Loại quân; quân Đỏ mang số dương, quân Đen mang số âm, 0 là ô trống. */
 export const KING = 1;
 export const ADVISOR = 2;
 export const ELEPHANT = 3;
@@ -18,10 +10,8 @@ export const ROOK = 5;
 export const CANNON = 6;
 export const PAWN = 7;
 
-/** 1 là Đỏ (đi trước, ở dưới), 2 là Đen. */
 export type Side = 1 | 2;
 export type Move = [from: number, to: number];
-/** Cách ván kết thúc: chiếu bí, bí nước (không bị chiếu mà hết nước), chiếu dai, lặp thế cờ, hết nước không ăn quân, hết quân tấn công. */
 export type End = "mate" | "stuck" | "perpetual" | "repeat" | "idle" | "bare";
 
 export const PIECES: Record<number, { red: string; black: string; name: string }> = {
@@ -34,10 +24,8 @@ export const PIECES: Record<number, { red: string; black: string; name: string }
   [PAWN]: { red: "兵", black: "卒", name: "Tốt" },
 };
 
-/** Chữ viết tắt trong biên bản nước đi. */
 const LETTER: Record<number, string> = { [KING]: "Tg", [ADVISOR]: "S", [ELEPHANT]: "T", [HORSE]: "M", [ROOK]: "X", [CANNON]: "P", [PAWN]: "B" };
 
-/** 60 nước mỗi bên không ăn quân thì hoà. */
 export const IDLE_PLIES = 120;
 
 const START = "rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR";
@@ -48,7 +36,6 @@ export const colOf = (i: number) => i % COLS;
 export const sideOf = (v: number): 0 | Side => (v > 0 ? 1 : v < 0 ? 2 : 0);
 export const other = (s: Side): Side => (s === 1 ? 2 : 1);
 
-/** Bàn cờ từ chuỗi kiểu FEN (hàng trên cùng — phía Đen — viết trước; chữ hoa là Đỏ). */
 export function parseBoard(fen: string): Int8Array {
   const b = new Int8Array(SQUARES);
   fen.split("/").forEach((row, r) => {
@@ -91,7 +78,6 @@ const KNIGHT = [
   [-1, -2],
 ];
 
-/** Các ô quân tại `from` đi tới được theo cách đi của nó (chưa xét tướng có bị chiếu sau nước đi hay không). */
 export function reach(board: Int8Array, from: number): number[] {
   const v = board[from];
   const side = sideOf(v);
@@ -163,7 +149,6 @@ export function reach(board: Int8Array, from: number): number[] {
   return out;
 }
 
-/** Tướng bên `side` đang bị chiếu — tính cả hai tướng đối mặt trên một cột trống. */
 export function inCheck(board: Int8Array, side: Side): boolean {
   const king = board.indexOf(side === 1 ? KING : -KING);
   if (king < 0) return true;
@@ -181,7 +166,6 @@ export function inCheck(board: Int8Array, side: Side): boolean {
   return false;
 }
 
-/** Các nước hợp lệ của bên `side`: đi đúng cách và không để tướng mình bị chiếu. */
 export function legalMoves(board: Int8Array, side: Side): Move[] {
   const out: Move[] = [];
   const b = board.slice();
@@ -200,11 +184,6 @@ export function legalMoves(board: Int8Array, side: Side): Move[] {
   return out;
 }
 
-/**
- * Ký hiệu nước đi kiểu Việt Nam, vd. "P2-5", "M8.7", "X1/1": chữ của quân + cột đứng (đánh số 1–9 từ phải sang trái
- * theo phía người cầm quân) + hướng (. tiến, / thoái, - bình) + cột tới (đi ngang hoặc Sĩ, Tượng, Mã) hay số bước (Tướng,
- * Xe, Pháo, Tốt đi dọc). Hai quân cùng loại trên một cột thì ghi "t" (trước) / "s" (sau) thay cho số cột.
- */
 export function notate(board: Int8Array, from: number, to: number): string {
   const v = board[from];
   const side = sideOf(v) as Side;
@@ -218,7 +197,6 @@ export function notate(board: Int8Array, from: number, to: number): string {
   for (let rr = 0; rr < ROWS; rr++) if (board[rr * COLS + c] === v) same.push(rr);
   let head = LETTER[type];
   if (same.length > 1) {
-    // Quân "trước" là quân gần phía đối phương hơn.
     same.sort((a, b) => (side === 1 ? a - b : b - a));
     const k = same.indexOf(r);
     head += same.length === 2 ? (k === 0 ? "t" : "s") : String(k + 1);
@@ -231,24 +209,18 @@ export function notate(board: Int8Array, from: number, to: number): string {
 
 export type XqState = {
   board: Int8Array;
-  /** Mã quân (vị trí ban đầu) đang đứng ở từng ô, -1 nếu trống — để giao diện trượt đúng quân khi đi. */
+  // Giữ mã quân để giao diện trượt đúng quân khi đi.
   ids: Int16Array;
-  /** Số nước hợp lệ đã áp dụng. */
   count: number;
   turn: Side;
-  /** Bên tới lượt đang bị chiếu. */
   check: boolean;
-  /** Các nước hợp lệ của bên tới lượt (rỗng khi hết ván). */
   legal: Move[];
   last: Move | null;
   winner: 0 | Side;
   draw: boolean;
   end: End | null;
-  /** Quân bị ăn theo thứ tự (mã quân có dấu). */
   captured: number[];
-  /** Biên bản từng nước. */
   notes: string[];
-  /** Số nước liên tiếp không ăn quân. */
   quiet: number;
 };
 
@@ -267,13 +239,8 @@ export function emptyState(start: Int8Array = startBoard()): XqState {
 const isMove = (m: unknown): m is Move =>
   Array.isArray(m) && m.length === 2 && m.every((x) => Number.isInteger(x) && x >= 0 && x < SQUARES);
 
-/**
- * Dựng lại ván từ nhật ký nước đi. Nước không hợp lệ (sai luật, sau khi đã hết ván) thì dừng ở đó — mọi máy cùng
- * nhật ký ra cùng kết quả. `start` chỉ dùng cho test thế cờ tàn.
- */
 export function replay(moves: readonly unknown[], start?: Int8Array): XqState {
   const s = emptyState(start);
-  // Thế cờ (bàn + lượt) → các thời điểm (số nước) từng gặp; và nước thứ k có chiếu tướng hay không.
   const seen = new Map<string, number[]>([[key(s.board, s.turn), [0]]]);
   const checks: boolean[] = [];
   for (const m of moves) {
@@ -305,7 +272,6 @@ export function replay(moves: readonly unknown[], start?: Int8Array): XqState {
     at.push(s.count);
     seen.set(k, at);
     if (at.length >= 3) {
-      // Vòng lặp từ lần đầu gặp thế cờ tới giờ: bên nào nước nào cũng chiếu thì phạm luật chiếu dai.
       const from0 = at[0];
       const nag = ([1, 2] as Side[]).filter((side) => {
         const mine = checks.filter((_, p) => p >= from0 && (p % 2 === 0 ? 1 : 2) === side);

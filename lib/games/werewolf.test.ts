@@ -29,7 +29,6 @@ import {
   type WolfOptions,
 } from "./werewolf.ts";
 
-/** Bộ sinh số giả ngẫu nhiên có hạt giống (mulberry32). */
 function rng(seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -41,7 +40,6 @@ function rng(seed: number) {
 
 const PLAYERS = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
-/** Ván 8 người với vai cố định: a, b là Sói; c Tiên Tri; d Bảo Vệ; e Phù Thủy; f, g, h Dân. */
 function fixed(opts: WolfOptions = DEFAULT_OPTIONS, players = PLAYERS): Game {
   const g = newGame(1, players, opts, 0, rng(1));
   const roles: Role[] = ["wolf", "wolf", "seer", "guard", "witch", "villager", "villager", "villager"];
@@ -52,10 +50,8 @@ function fixed(opts: WolfOptions = DEFAULT_OPTIONS, players = PLAYERS): Game {
 type Step = { actions?: Record<string, Action>; votes?: Record<string, Vote>; now: number; opts?: WolfOptions };
 const step = (g: Game, s: Step) => advance(g, { actions: s.actions ?? {}, votes: s.votes ?? {}, now: s.now, rand: rng(7), opts: s.opts ?? DEFAULT_OPTIONS });
 
-/** Hết giai đoạn hiện tại. */
 const timeout = (g: Game, s: Omit<Step, "now"> = {}) => step(g, { ...s, now: g.pub.until });
 
-/** Qua từng lượt của đêm: nhận hành động của vai đang được gọi; chưa chốt thì quản trò bỏ qua lượt. Dừng khi hết đêm. */
 function dawnNow(g: Game, actions: Record<string, Action> = {}, opts?: WolfOptions) {
   for (let i = 0; g.pub.stage === "night" && i < 20; i++) {
     const turn = g.pub.turn;
@@ -66,10 +62,8 @@ function dawnNow(g: Game, actions: Record<string, Action> = {}, opts?: WolfOptio
   return g;
 }
 
-/** Qua đêm rồi hết đếm ngược. */
 const night = (g: Game, actions: Record<string, Action> = {}, opts?: WolfOptions) => timeout(dawnNow(g, actions, opts), { opts });
 
-/** Qua các lượt trước cho tới lượt của vai `role`. */
 function toTurn(g: Game, role: Role, actions: Record<string, Action> = {}, opts?: WolfOptions) {
   for (let i = 0; g.pub.turn !== role && i < 20; i++) {
     const turn = g.pub.turn;
@@ -386,7 +380,6 @@ test("Bán Sói hoá Sói có thể khiến Sói thắng ngay lúc trời sáng"
   assert.equal(g.pub.roles?.b, "wolf");
 });
 
-/** Ván 8 người như `fixed`, h là Thợ Săn. */
 function withHunter(opts: WolfOptions = { ...DEFAULT_OPTIONS, hunter: true }) {
   const g = fixed(opts);
   g.sec.roles.h = "hunter";

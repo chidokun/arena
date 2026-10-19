@@ -20,10 +20,8 @@ import {
 
 const at = (x: number, y: number) => y * SIZE + x;
 
-/** Năm tàu nằm ngang ở các hàng chẵn, sát mép trái. */
 const ROWS: Fleet = [0, 2, 4, 6, 8].map((y) => ({ at: at(0, y), v: false }));
 
-/** Bên bị bắn trả lời mọi phát bằng sơ đồ thật — như máy tự trả lời. */
 function play(fleets: [Fleet, Fleet], targets: [number[], number[]], chain: boolean) {
   const log: Shot[] = [];
   const next = [0, 0];
@@ -140,7 +138,6 @@ test("không bắn tiếp: hai bên thay phiên tới khi một bên chìm hết
 
 test("đối chiếu: trả lời thật thì khớp, nói dối thì lệch", () => {
   const all = ROWS.flatMap((s, k) => shipCells(k, s)!);
-  // A bắn trượt, B bắn trượt, rồi A bắn trúng liền một mạch tới khi chìm hết.
   const s = play([ROWS, ROWS], [[at(9, 9), ...all], [at(9, 9)]], true);
   assert.equal(s.winner, 0);
   const answered = shotsAt(s, 1);

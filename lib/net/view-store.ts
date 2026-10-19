@@ -1,4 +1,3 @@
-/** Cầu nối tới React `useSyncExternalStore`: tính lại view lười biếng, gộp nhiều thay đổi trong một microtask. */
 export class ViewStore<V> {
   private fns = new Set<() => void>();
   private view: V | undefined;

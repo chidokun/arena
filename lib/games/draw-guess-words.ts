@@ -1,9 +1,6 @@
-/**
- * Bộ từ khoá của Vẽ Đoán, chia ba mức theo độ khó khi vẽ. Mã từ = mức × 1000 + số thứ tự trong mức (`wordId`) —
- * phòng nhớ mã các từ đã chơi để không bốc lại, nên chỉ thêm từ vào *cuối* mỗi mức, không xoá, không đổi chỗ.
- */
+// Mã từ = mức × 1000 + số thứ tự trong mức; phòng nhớ mã các từ đã chơi để không bốc lại, nên chỉ thêm từ vào *cuối*
+// mỗi mức, không xoá, không đổi chỗ.
 
-/** Đồ vật, con vật, hình quen thuộc — vài nét là ra. */
 const EASY = `
 con mèo
 con chó
@@ -161,7 +158,6 @@ cục tẩy
 cái thước
 `;
 
-/** Cần chút ý tưởng: con vật khó, đồ vật nhiều chi tiết, nơi chốn, nghề nghiệp, đặc sản Việt. */
 const MEDIUM = `
 con công
 con hạc
@@ -297,7 +293,6 @@ cái kìm
 con ốc vít
 `;
 
-/** Hành động, sự kiện, trò chơi, khái niệm — phải nghĩ cách vẽ. */
 const HARD = `
 đánh răng
 tắm biển
@@ -403,11 +398,9 @@ const parse = (list: string) =>
 
 export const TIERS = [parse(EASY), parse(MEDIUM), parse(HARD)] as const;
 
-/** Mức khó: 0 dễ, 1 vừa, 2 khó. */
 export type Tier = 0 | 1 | 2;
 
 export const wordId = (tier: Tier, i: number) => tier * 1000 + i;
 export const tierOf = (id: number) => Math.floor(id / 1000) as Tier;
 
-/** Từ theo mã; undefined nếu mã lạ. */
 export const wordOf = (id: number): string | undefined => TIERS[tierOf(id)]?.[id % 1000];

@@ -4,15 +4,8 @@ import type { ReactNode } from "react";
 import { seatOpen, type Result, type RoomSession, type RoomView } from "@/lib/net/room";
 import { ConfirmButton } from "../ConfirmButton";
 
-/** Phần view các câu nhắc / nút vào ghế cần: `RoomView` (view gộp) hoặc ghép từ `roomStore` + `peopleStore`. */
 export type SeatState = Pick<RoomView, "pending" | "mySeat" | "isHost" | "meta" | "seats">;
 
-/**
- * Thanh trạng thái dưới thanh người chơi, dùng chung cho các game: một câu nói mình đang ở đâu / cần làm gì, nền đổi màu
- * theo tình huống, và các nút hành động bên phải. Game chỉ cấp nội dung; khuôn, cỡ chữ, vị trí nút là của chung.
- *
- * Kết quả ván không nằm ở đây mà ở `ResultCard` — hết ván thì thanh quay về câu nhắc vào ghế / bắt đầu ván mới.
- */
 export function StatusBar({ tone = TONE.idle, message, stack, children }: { tone?: string; message: ReactNode; stack?: boolean; children?: ReactNode }) {
   return (
     <div className="card flex flex-wrap items-center gap-3 px-4 py-3" style={{ background: tone }} aria-live="polite">
@@ -22,7 +15,6 @@ export function StatusBar({ tone = TONE.idle, message, stack, children }: { tone
   );
 }
 
-/** Màu nền thanh trạng thái: chờ / tới lượt mình / nổi bật / cảnh báo / thông tin chung cả phòng. */
 export const TONE = {
   idle: "var(--sunken)",
   turn: "var(--lime-soft)",
@@ -31,11 +23,6 @@ export const TONE = {
   info: "var(--grape-soft)",
 } as const;
 
-/**
- * Câu nhắc lúc chưa vào ván (chờ, hoặc vừa hết ván): đang chờ xếp ghế / đã vào ghế / hết ghế / mời vào chơi.
- * `enough`: đủ người để bắt đầu chưa (mặc định: kín ghế). `startHint`: câu nhắc chủ phòng đã ngồi ghế. `join`: lời mời
- * người chưa vào ghế.
- */
 export function seatMessage(
   view: SeatState,
   {
@@ -56,7 +43,6 @@ export function seatMessage(
 
 const isFull = (view: SeatState) => !seatOpen(view.meta!);
 
-/** Lý do chủ phòng chưa bấm bắt đầu được (rỗng là bắt đầu được): mặc định cần kín ghế và mọi người chơi còn kết nối. */
 export function startBlocker(view: SeatState, { min }: { min?: number } = {}): string {
   const n = view.meta!.players.length;
   if (min === undefined ? !isFull(view) : n < min) return min === undefined ? "Cần đủ người vào ghế" : min <= 1 ? "Cần ít nhất một người vào ghế" : `Cần ít nhất ${min} người vào ghế`;
@@ -64,10 +50,6 @@ export function startBlocker(view: SeatState, { min }: { min?: number } = {}): s
   return "";
 }
 
-/**
- * Các nút lúc chưa vào ván: Vào chơi / Rời ghế, và Bắt đầu – Ván mới cho chủ phòng. `blocked` là lý do chưa bắt đầu
- * được (mặc định `startBlocker`), hiện khi rê chuột lên nút.
- */
 export function SeatButtons({
   view,
   session,
@@ -113,7 +95,6 @@ export function SeatButtons({
   );
 }
 
-/** Người chơi bỏ cuộc giữa ván (bấm hai lần). */
 export function ResignButton({ onConfirm, label = "Xin thua" }: { onConfirm: () => void; label?: string }) {
   return (
     <ConfirmButton className="btn btn-coral" onConfirm={onConfirm} confirmLabel={`Bấm lần nữa để ${label.toLowerCase()}`}>
@@ -122,7 +103,6 @@ export function ResignButton({ onConfirm, label = "Xin thua" }: { onConfirm: () 
   );
 }
 
-/** Chủ phòng dừng ván giữa chừng (bấm hai lần). */
 export function StopButton({ onConfirm }: { onConfirm: () => void }) {
   return (
     <ConfirmButton className="btn btn-coral" onConfirm={onConfirm} confirmLabel="Bấm lần nữa để dừng">
@@ -131,7 +111,6 @@ export function StopButton({ onConfirm }: { onConfirm: () => void }) {
   );
 }
 
-/** Lý do thắng không do luật mà do đối thủ bỏ (xin thua, rời trận, bị mời ra) hoặc bị xử thua vì gian lận; undefined nếu thắng theo luật. */
 export function forfeitWhy(r: Result): string | undefined {
   if (r.reason === "resign") return "Đối thủ xin thua";
   if (r.reason === "leave") return "Đối thủ rời trận";

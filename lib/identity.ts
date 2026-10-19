@@ -1,9 +1,5 @@
-/**
- * Danh tính người chơi, hoàn toàn phía trình duyệt.
- * - uid: mỗi tab một uid (sessionStorage) để tải lại trang vẫn là "mình" — chủ phòng tải lại vẫn giữ quyền.
- *   Tab nhân bản sao chép cả sessionStorage nên dùng BroadcastChannel phát hiện trùng và cấp uid mới.
- * - hồ sơ (tên, avatar, màu): localStorage, dùng chung mọi tab.
- */
+// uid nằm trong sessionStorage để tải lại trang vẫn là "mình" — chủ phòng tải lại vẫn giữ quyền. Tab nhân bản sao chép
+// cả sessionStorage nên phải dùng BroadcastChannel phát hiện trùng và cấp uid mới.
 
 export type Profile = { name: string; avatar: string; color: string };
 
@@ -58,7 +54,6 @@ export function saveProfile(p: Profile) {
 
 let uidPromise: Promise<string> | null = null;
 
-/** Lấy uid của tab; nếu tab khác đang giữ cùng uid (tab nhân bản) thì đổi uid mới. */
 export function resolveUid(): Promise<string> {
   uidPromise ??= claimUid();
   return uidPromise;

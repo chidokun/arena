@@ -1,9 +1,3 @@
-/**
- * Danh mục sticker dùng chung cho mạng (kiểm tra id nhận được) và giao diện (hiển thị).
- * - Bộ "nhanh": ảnh trong public/stickers/quick, mỗi cái có hiệu ứng bay riêng trên bàn chơi.
- * - KaiXin Stickers: ảnh tĩnh trong public/stickers/kaixin, gửi một cái là cả đàn bay qua bàn chơi.
- */
-
 const QUICK = [
   { id: "heart", label: "Trái tim" },
   { id: "brick", label: "Cục gạch" },
@@ -30,7 +24,6 @@ const KAIXIN = [
 export type QuickStickerId = (typeof QUICK)[number]["id"];
 export type StickerId = QuickStickerId | (typeof KAIXIN)[number]["id"];
 
-/** `pack`: "quick" bay một cái theo hiệu ứng riêng, "kaixin" bay cả đàn. */
 export type Sticker = { id: StickerId; label: string; src: string; pack: "quick" | "kaixin" };
 
 export const QUICK_STICKERS: Sticker[] = QUICK.map((s) => ({ ...s, src: `/stickers/quick/${s.id}.webp`, pack: "quick" }));

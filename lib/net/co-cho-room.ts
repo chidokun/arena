@@ -1,8 +1,3 @@
-/**
- * Phòng cờ chó: hai ghế, hai người chơi lần lượt nối điểm có quân vừa đi vào nhật ký `g:<ván>` (đích luôn là điểm
- * trống); ai cũng tự dựng lại ván bằng `replay` nên không cần ai "phán" thắng thua. Người đi trước (quân Đỏ) đổi mỗi
- * ván. Chủ phòng chọn cách xếp quân giữa các ván. Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { normOptions, replay, type CoChoState, type Move, type Setup } from "../games/co-cho";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -11,7 +6,6 @@ const FORFEIT_MS = 30000;
 export type CoChoMatch = {
   round: number;
   state: CoChoState;
-  /** lineup[0] cầm quân Đỏ đi trước, lineup[1] cầm quân Xanh. */
   lineup: SeatView[];
   myMark: 0 | 1 | 2;
   myTurn: boolean;
@@ -19,11 +13,8 @@ export type CoChoMatch = {
 };
 
 export type CoChoView = {
-  /** Cách xếp quân của phòng — ván mới dùng cách này. */
   setup: Setup;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: CoChoMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -36,7 +27,6 @@ export class CoChoRoom extends RoomSession<CoChoView> {
     return Array.isArray(list) ? (list as Move[]) : [];
   }
 
-  /** Cách xếp quân của ván đang / vừa chơi. */
   private setupOf(m: Meta) {
     return normOptions({ setup: m.cdSetup ?? m.opts?.setup }).setup;
   }
@@ -56,13 +46,12 @@ export class CoChoRoom extends RoomSession<CoChoView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người đi trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     m.cdSetup = normOptions(m.opts).setup;
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -74,7 +63,6 @@ export class CoChoRoom extends RoomSession<CoChoView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
@@ -123,7 +111,6 @@ export class CoChoRoom extends RoomSession<CoChoView> {
     this.react();
   }
 
-  /** Chủ phòng đổi cách xếp quân giữa các ván. */
   setSetup(setup: Setup) {
     this.hostEdit((m) => {
       if (m.status === "playing" || normOptions({ setup }).setup !== setup || normOptions(m.opts).setup === setup) return false;

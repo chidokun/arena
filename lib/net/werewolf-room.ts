@@ -1,22 +1,10 @@
-/**
- * Phòng Ma Sói. Máy chủ phòng là quản trò: chia vai, nhận hành động ban đêm, đếm phiếu, chuyển giai đoạn
- * (luật thuần ở `lib/games/werewolf.ts`). Mọi bản ghi gossip ai trong phòng cũng nhận được, nên phần bí mật được
- * niêm phong (`seal.ts`) giữa từng người và quản trò:
- *
- *   meta.ww          — phần công khai: giai đoạn, hạn chót, ai sống / chết, người bị treo.
- *   s:<ván>:<uid>    — quản trò gửi riêng từng người chơi: vai, đồng bọn, kết quả soi, nạn nhân cho phù thủy…
- *                      Có gì đổi với bất kỳ ai thì ghi lại cả loạt, độn cùng cỡ — không lộ ai vừa được báo tin.
- *                      Người xem (không chơi) nhận bản thấy hết: vai mọi người và hành động đêm nay.
- *   a:<ván>:<uid>    — hành động đêm gửi riêng quản trò. Ban đêm *mọi người còn sống* đều gửi đều đặn mỗi nhịp,
- *                      cùng cỡ (dân làng gửi hộp rỗng), nên nhìn lưu lượng không đoán được ai có chức năng.
- *   v:<ván>:<uid>    — phiếu bầu ban ngày, công khai.
- *
- * Người chơi là những người đã bấm sẵn sàng (ghế trong `meta.players`); hết ván ai cũng về xem, ván sau sẵn sàng lại.
- * Quản trò (chủ phòng) mặc định cũng chơi (luật `hostPlays`): được chia vai như mọi người, giao diện chỉ hiện phần của
- * mình (máy vẫn giữ bí mật của ván để điều khiển). Tắt luật đó thì quản trò chỉ xem hết mọi bí mật và điều khiển ván.
- * Bí mật của quản trò chỉ nằm trên máy chủ phòng (cất trong sessionStorage để tải lại trang vẫn giữ). Quản trò mất
- * kết nối thì người kế nhiệm không có bí mật để điều khiển tiếp: ván dừng.
- */
+// Mọi bản ghi gossip ai trong phòng cũng nhận được, nên phần bí mật được niêm phong (`seal.ts`) giữa từng người và quản
+// trò. Hộp `s:` có gì đổi với bất kỳ ai thì ghi lại cả loạt, độn cùng cỡ để không lộ ai vừa được báo tin. Ban đêm mọi
+// người còn sống đều gửi hộp hành động `a:` đều đặn mỗi nhịp, cùng cỡ (dân làng gửi hộp rỗng), để nhìn lưu lượng không
+// đoán được ai có chức năng.
+//
+// Bí mật của quản trò chỉ nằm trên máy chủ phòng (sessionStorage để tải lại trang vẫn giữ); quản trò mất kết nối thì
+// người kế nhiệm không có bí mật để điều khiển tiếp: ván dừng.
 import {
   advance,
   ballotsOf,
@@ -53,11 +41,9 @@ import { RoomSession, type Member, type Meta, type Result, type SeatView } from 
 import { Keyring, sealedSize, type KeyStore } from "./seal";
 import type { Channel } from "./wire";
 
-/** Người chơi mất kết nối quá lâu giữa ván thì coi như bỏ làng. */
 const LEFT_MS = 60000;
-/** Nhịp gửi hành động đêm. */
 const BEACON_MS = 2000;
-/** Cỡ tối thiểu của hộp hành động đêm: đủ chứa ba lời thì thầm dài nhất của Sói, để hộp của Sói không to hơn của dân. */
+// Đủ chứa ba lời thì thầm dài nhất của Sói, để hộp của Sói không to hơn của dân.
 const ACTION_SIZE = 1400;
 
 const gmKey = (id: string) => `arena:ww:${id}`;
@@ -82,7 +68,6 @@ function sessionStore(key: string): KeyStore {
 
 type GmState = { round: number; game: Game };
 
-/** Cảnh diễn trên màn hình khi ván chuyển biến (máy nào cũng tự suy ra từ phần công khai). */
 export type Scene = { id: string } & (
   | { kind: "dusk"; day: number }
   | { kind: "sunrise"; day: number; dead: Death[] }
@@ -96,35 +81,24 @@ type SceneBody = DistOmit<Scene, "id">;
 
 export type WolfView = {
   opts: WolfOptions;
-  /** Đội hình nếu bắt đầu với những người đang sẵn sàng. */
   plan: { cast: Cast; error?: string };
-  /** Ván đang chơi hoặc vừa xong. */
   pub?: Public;
   playing: boolean;
-  /** Hạn chót của giai đoạn hiện tại theo giờ máy mình. */
   deadline: number;
   me: {
-    /** Đã bấm sẵn sàng cho ván tới. */
     ready: boolean;
-    /** Có trong đội hình ván hiện tại / vừa xong. */
     inGame: boolean;
     alive: boolean;
     role?: Role;
     secret?: SecretView;
-    /** Hành động đêm nay của mình (chưa chắc quản trò đã nhận). */
     act: Action;
     vote?: Vote;
   };
-  /** Quản trò không ngồi chơi và người xem: thấy hết vai và hành động đêm nay. */
   seeAll?: WatchView;
-  /** Thợ Săn đang ngắm ai (null: không bắn; undefined: chưa chọn). */
   aim?: string | null;
-  /** Phiếu hợp lệ của lượt bỏ phiếu hiện tại. */
   ballots: Record<string, string | null>;
-  /** Những người muốn bỏ phiếu sớm. */
   ready: string[];
   people: Record<string, SeatView>;
-  /** Người đang sẵn sàng mà máy chưa có khoá — chưa bắt đầu được. */
   unkeyed: string[];
   result?: Result;
 };
@@ -135,15 +109,13 @@ export class WerewolfRoom extends RoomSession<WolfView> {
   private gm: GmState | null = null;
   private gmSaved = "";
   private sealed = { sig: "", busy: false };
-  /** Bản ghi niêm phong đã mở, theo khoá gossip và phiên bản. */
   private opened = new Map<string, { c: number; w: string; peer: string; v: unknown }>();
   private opening = new Set<string>();
-  /** Hành động đêm nay của mình (kèm vài lời thì thầm gần nhất nếu là Sói) — mỗi đêm của mỗi ván bắt đầu lại. */
   private night: { round: number; act: Action; said: { id: string; text: string }[] } = { round: 0, act: { day: 0 }, said: [] };
   private saySeq = 0;
   private beacon = { at: 0, busy: false };
   private stageSeen = { key: "", at: 0 };
-  /** Giai đoạn đã rao gần nhất; null khi chưa nhìn thấy gì (vừa vào phòng thì không rao lại chuyện cũ). */
+  // null khi chưa nhìn thấy gì, để vừa vào phòng thì không rao lại chuyện cũ.
   private heard: string | null = null;
   private deathsHeard = 0;
   private sceneSeq = 0;
@@ -182,9 +154,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return this.gm && this.gm.round === m.round && m.ww?.round === m.round ? this.gm.game : null;
   }
 
-  // ---------- niêm phong ----------
-
-  /** Mở bản ghi niêm phong dành cho mình: bí mật quản trò gửi mình; chủ phòng thì mở hành động đêm của mọi người. */
   private unseal(k: string) {
     const m = this.meta();
     if (!this.keys || !m || this.opening.has(k)) return;
@@ -222,7 +191,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return (this.opened.get(k)?.v ?? undefined) as T | undefined;
   }
 
-  /** Người xem đang online (không chơi, không phải quản trò) — nhận bản thấy hết. */
   private watchers(m: Meta) {
     return this.members()
       .filter((p) => p.uid !== this.me && !m.lineup.includes(p.uid) && !m.kicked.includes(p.uid) && !!p.key && this.isOnline(p.uid))
@@ -230,7 +198,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       .sort();
   }
 
-  /** Quản trò: gửi bí mật cho từng người (cả loạt, cùng cỡ) khi có gì thay đổi. */
   private publishSecrets(m: Meta) {
     const g = this.gameOf(m);
     const keys = this.keys;
@@ -265,7 +232,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return this.night;
   }
 
-  /** Ban đêm, mọi người còn sống gửi hành động của mình cho quản trò theo nhịp đều (dân làng gửi hộp rỗng). */
   private sendBeacon(m: Meta) {
     const pub = m.ww;
     if (m.status !== "playing" || !pub || pub.round !== m.round || pub.stage !== "night" || !pub.alive.includes(this.me)) return;
@@ -287,22 +253,15 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     );
   }
 
-  // ---------- luật ----------
-
-  /**
-   * Mỗi ván phải bấm sẵn sàng lại: phòng mới tạo và mỗi khi hết ván, mọi người (kể cả chủ phòng) về chế độ xem.
-   * `scored` ghi ván gần nhất đã được dọn.
-   */
   protected tidy(m: Meta) {
     if (m.scored === undefined || (m.status === "ended" && m.scored < m.round)) {
       m.scored = m.round;
       m.players = [];
     }
-    // Quản trò chỉ xem và điều khiển thì không ngồi chơi (luật cho quản trò chơi cùng thì được sẵn sàng như mọi người).
     if (m.status !== "playing" && !normOptions(m.opts).hostPlays) m.players = m.players.filter((u) => u !== m.host);
   }
 
-  /** Trong ván: người chết không được nói, ban đêm cả làng ngủ, người xem (thấy hết vai) giữ im lặng — trừ quản trò. */
+  // Người xem thấy hết vai nên phải giữ im lặng trong ván.
   protected muted(uid: string) {
     const m = this.meta();
     const pub = m?.ww;
@@ -327,7 +286,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return true;
   }
 
-  /** Quản trò ghi nhận trạng thái mới của ván: phần công khai vào `meta`, phần bí mật cất trên máy mình. */
   private commit(m: Meta, g: Game) {
     this.gm = { round: m.round, game: g };
     m.ww = g.pub;
@@ -386,9 +344,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.announce(m);
   }
 
-  // ---------- rao & cảnh ----------
-
-  /** Mỗi cảnh cần diễn trên màn hình (trời tối, trời sáng, treo cổ, hết ván). */
   onScene(fn: (s: Scene) => void) {
     this.sceneFns.add(fn);
     return () => {
@@ -415,7 +370,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.scene({ kind: "hang", death: d });
   }
 
-  /** Rao khi chuyển giai đoạn — máy nào cũng tự rao từ phần công khai nên ai cũng thấy như nhau. */
+  // Máy nào cũng tự rao từ phần công khai nên ai cũng thấy như nhau.
   private announce(m: Meta) {
     const pub = m.ww?.round === m.round ? m.ww : undefined;
     const key = pub && m.status === "playing" ? `${pub.round}:${pub.day}:${pub.stage}` : `${m.status}:${m.round}`;
@@ -493,10 +448,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     if (!shot) this.aftermath(fresh);
   }
 
-  /**
-   * Thợ Săn bắn, người yêu chết theo ban ngày (ban đêm thì đã công bố chung với những người chết đêm qua).
-   * Thợ Săn không bắn thì không có ai chết — nhắc một câu.
-   */
+  // Người yêu chết theo ban đêm đã công bố chung với những người chết đêm qua, ở đây chỉ kể ban ngày.
   private aftermath(fresh: Death[]) {
     for (const d of fresh) {
       if (d.how === "shot") {
@@ -506,8 +458,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
       if (d.how === "love") this.system(`💔 ${this.who(d)} đau buồn chết theo người yêu`);
     }
   }
-
-  // ---------- giao diện ----------
 
   /** Hạn chót theo giờ máy mình: đồng hồ hai máy khớp nhau thì dùng luôn giờ quản trò, lệch nhiều thì tính từ lúc thấy. */
   private deadlineOf(pub: Public) {
@@ -559,9 +509,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return `Ván ${r.round} đã dừng giữa chừng`;
   }
 
-  // ---------- hành động người chơi ----------
-
-  /** Bấm sẵn sàng (vào chơi ván tới) hoặc huỷ (về xem). Quản trò chỉ chơi khi luật cho phép. */
   setReady(on: boolean) {
     const m = this.meta();
     if (!m || m.status === "playing" || (m.host === this.me && !normOptions(m.opts).hostPlays)) return;
@@ -577,7 +524,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     return { m, pub };
   }
 
-  /** Ban đêm: đổi lựa chọn của mình (chưa chốt). Gửi ở nhịp kế tiếp. */
   private plan(change: Partial<Action>) {
     const live = this.livePub("night");
     if (!live) return;
@@ -589,27 +535,22 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.gameStore.invalidate();
   }
 
-  /** Chọn người để cắn (Sói), bảo vệ (Bảo Vệ) hoặc soi (Tiên Tri). */
   nightPick(kind: "wolf" | "guard" | "seer", target: string) {
     this.plan({ [kind]: target });
   }
 
-  /** Cupid: hai người sẽ ghép đôi. */
   cupid(pair: string[]) {
     this.plan({ cupid: pair.slice(-2) });
   }
 
-  /** Phù Thủy: cứu người bị cắn (null: thôi cứu), chọn người đầu độc (null: bỏ chọn). */
   witch(change: { save?: string | null; poison?: string | null }) {
     this.plan(change);
   }
 
-  /** Chốt hành động đêm nay — những người giữ vai đang được gọi chốt xong thì tới lượt vai kế tiếp. */
   confirm() {
     this.plan({ done: true });
   }
 
-  /** Sói thì thầm với bầy trong đêm (quản trò chuyển cho cả bầy). */
   whisper(text: string) {
     const live = this.livePub("night");
     const t = text.trim().slice(0, WHISPER_TEXT);
@@ -619,7 +560,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.store.invalidate();
   }
 
-  /** Bỏ phiếu treo một người (null: bỏ qua). */
   vote(target: string | null) {
     const live = this.livePub();
     if (!live || (live.pub.stage !== "vote" && live.pub.stage !== "revote")) return;
@@ -627,7 +567,7 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.react();
   }
 
-  /** Thợ Săn vừa chết: bắn một người (null: không bắn). Ai cũng thấy phát bắn nên ghi công khai. */
+  // Ai cũng thấy phát bắn nên ghi công khai.
   shoot(target: string | null) {
     const m = this.meta();
     const pub = m?.ww;
@@ -636,15 +576,12 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     this.react();
   }
 
-  /** Lúc thảo luận: muốn bỏ phiếu sớm (cả làng cùng muốn thì bỏ phiếu ngay). */
   readyToVote(on: boolean) {
     const live = this.livePub("day");
     if (!live) return;
     this.gossip.set<Vote>(`v:${live.m.round}:${this.me}`, { day: live.pub.day, stage: "day", ready: on });
     this.react();
   }
-
-  // ---------- hành động chủ phòng ----------
 
   setOptions(patch: Partial<WolfOptions>) {
     this.hostEdit((m) => {
@@ -655,7 +592,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
-  /** Hết giờ thảo luận sớm, bỏ phiếu ngay. */
   skipTalk() {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;
@@ -664,7 +600,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
-  /** Bỏ qua lượt của vai đang được gọi (người giữ vai treo máy), gọi vai kế tiếp. */
   skipTurn() {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;
@@ -673,7 +608,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
-  /** Cho trời sáng ngay, bỏ qua các lượt còn lại (vd. có người treo máy). */
   skipNight() {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;
@@ -682,7 +616,6 @@ export class WerewolfRoom extends RoomSession<WolfView> {
     });
   }
 
-  /** Dừng ván giữa chừng, lộ vai mọi người và diễn biến. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

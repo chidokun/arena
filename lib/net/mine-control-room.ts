@@ -1,36 +1,23 @@
-/**
- * Phòng dò mìn chiến thuật: 2–4 ghế, người tới lượt nối hành động (mở ô, kỹ năng, bỏ lượt) vào nhật ký `g:<ván>`;
- * ai cũng tự dựng lại ván bằng `replay` nên không cần ai "phán" điểm, và phát lại nhật ký không tính điểm hai lần.
- * Chủ phòng giữ `meta.mc` (seed, bản đồ, số mìn của ván, người bị loại vì bỏ cuộc / mất kết nối kèm số dòng nhật ký lúc
- * bị loại) và là người duy nhất được nối `skip` (người tới lượt vắng mặt / quá giờ).
- */
 import { MIN_PLAYERS, minesFor, normOptions, replay, winnersOf, type McAct, type McState } from "../games/mine-control";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
-/** Mất kết nối quá lâu thì bị loại khỏi ván (điểm, lãnh thổ vẫn giữ để xếp hạng). */
 const OUT_MS = 45000;
-/** Tới lượt mà mất kết nối quá lâu thì cho qua lượt. */
 const AWAY_MS = 15000;
-/** Thời gian tối đa cho một lượt (tính từ lúc máy chủ phòng thấy nhật ký đổi lần cuối). */
 export const TURN_MS = 45000;
 
 export type McMatch = {
   round: number;
   state: McState;
   lineup: SeatView[];
-  /** Chỉ số của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
   myTurn: boolean;
-  /** Lúc máy mình thấy nhật ký đổi lần cuối — để đếm giờ lượt. */
   since: number;
   result?: Result;
 };
 
 export type McView = {
-  /** Tuỳ chọn của phòng cho ván tới. */
   opts: ReturnType<typeof normOptions>;
   match?: McMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -59,7 +46,6 @@ export class MineControlRoom extends RoomSession<McView> {
   protected begin(m: Meta) {
     const players = m.players.filter((u) => this.isOnline(u));
     if (players.length < MIN_PLAYERS || players.length !== m.players.length) return false;
-    // Người đi trước xoay vòng giữa các ván (căn cứ đi theo thứ tự lượt).
     const k = (m.round - 1) % players.length;
     m.lineup = [...players.slice(k), ...players.slice(0, k)];
     const o = normOptions(m.opts);
@@ -67,7 +53,7 @@ export class MineControlRoom extends RoomSession<McView> {
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -79,7 +65,6 @@ export class MineControlRoom extends RoomSession<McView> {
     return m.mc ? this.gameOf(m).result : undefined;
   }
 
-  /** Loại người bỏ cuộc / mất kết nối lâu; cho qua lượt người tới lượt mà vắng mặt hoặc để quá giờ. */
   protected hostPlay(m: Meta) {
     if (!m.mc) return;
     const { acts, state } = this.gameOf(m);
@@ -104,7 +89,6 @@ export class MineControlRoom extends RoomSession<McView> {
     if (m.status === "playing" && m.mc && m.lineup.includes(uid) && m.mc.out[uid] === undefined) m.mc = { ...m.mc, out: { ...m.mc.out, [uid]: this.actsOf(m).length } };
   }
 
-  /** Mỗi nhịp, ở mọi máy: rao nổ mìn, bị loại vào khung chat. */
   protected watch(m: Meta) {
     if (m.round <= 0 || !m.mc || !m.lineup.length) return;
     const events = this.gameOf(m).state.events;
@@ -154,7 +138,6 @@ export class MineControlRoom extends RoomSession<McView> {
     return true;
   }
 
-  /** Nối một hành động của mình khi đang tới lượt; hành động sai luật thì bỏ qua, không mất lượt. */
   private act(act: McAct) {
     const m = this.meta();
     if (!m || m.status !== "playing" || !m.mc || !this.store.get().game?.match?.myTurn) return false;
@@ -185,7 +168,6 @@ export class MineControlRoom extends RoomSession<McView> {
     return this.act({ k: "pass", u: this.me });
   }
 
-  /** Chủ phòng đổi bản đồ / số mìn giữa các ván. */
   setOptions(next: Partial<ReturnType<typeof normOptions>>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;

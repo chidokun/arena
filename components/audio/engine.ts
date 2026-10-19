@@ -1,15 +1,6 @@
-/**
- * Lõi âm thanh dùng chung cho các game: mọi tiếng đều tổng hợp bằng Web Audio, không có tệp âm thanh nào.
- *
- *   - Ngữ cảnh âm thanh (`Bus`): đường ra chung có nén nhẹ, tiếng vang giả, kênh tiếng hiệu ứng, đoạn nhiễu dựng sẵn.
- *     Trình duyệt chỉ cho phát tiếng sau một thao tác của người dùng, nên ngữ cảnh mở bằng `unlock()` trong lúc bấm /
- *     gõ phím; tiếng tự đến (đếm ngược, người khác đi) dùng `ready()` và im nếu ngữ cảnh chưa mở.
- *   - Tuỳ chọn bật / tắt nhạc nền và tiếng hiệu ứng — của từng máy, chung cho mọi game (nhớ trong localStorage).
- *   - Nhạc cụ cơ bản để dựng bài nhạc (`music.ts`) và tiếng hiệu ứng (`sfx.ts`): `tone`, `hiss`, `bell`.
- */
+// Trình duyệt chỉ cho phát tiếng sau một thao tác của người dùng, nên ngữ cảnh mở bằng `unlock()` trong lúc bấm / gõ
+// phím; tiếng tự đến (đếm ngược, người khác đi) dùng `ready()` và im nếu ngữ cảnh chưa mở.
 import { useSyncExternalStore } from "react";
-
-// ---------- tuỳ chọn ----------
 
 export type AudioPrefs = { music: boolean; sound: boolean };
 
@@ -31,7 +22,7 @@ export function readPrefs(): AudioPrefs {
   return prefs;
 }
 
-/** Đổi tuỳ chọn — gọi trong lúc người dùng bấm, nên mở luôn ngữ cảnh để bật lên là có tiếng ngay. */
+// Gọi trong lúc người dùng bấm nên mở luôn ngữ cảnh, để bật lên là có tiếng ngay.
 export function setPrefs(next: Partial<AudioPrefs>) {
   prefs = { ...readPrefs(), ...next };
   try {
@@ -41,7 +32,6 @@ export function setPrefs(next: Partial<AudioPrefs>) {
   listeners.forEach((f) => f());
 }
 
-/** Theo dõi tuỳ chọn đổi; trả về hàm huỷ theo dõi. */
 export function onPrefs(f: () => void) {
   listeners.add(f);
   return () => {
@@ -49,31 +39,23 @@ export function onPrefs(f: () => void) {
   };
 }
 
-/** Tuỳ chọn âm thanh của máy này, kèm hàm bật / tắt. */
 export function useAudioPrefs() {
   const p = useSyncExternalStore(onPrefs, readPrefs, () => DEFAULT_PREFS);
   return { ...p, setMusic: (v: boolean) => setPrefs({ music: v }), setSound: (v: boolean) => setPrefs({ sound: v }) };
 }
 
-// ---------- ngữ cảnh ----------
-
 const SFX_LEVEL = 0.6;
 
 export type Bus = {
   ac: AudioContext;
-  /** Đường ra chung (qua bộ nén). */
   out: GainNode;
-  /** Kênh tiếng hiệu ứng. */
   sfx: GainNode;
-  /** Tiếng vang — nối thêm một nhánh vào đây để có vang. */
   verb: ConvolverNode;
-  /** Một giây nhiễu trắng dựng sẵn. */
   noise: AudioBuffer;
 };
 let bus: Bus | null = null;
 const wakers = new Set<() => void>();
 
-/** Tiếng vang giả: xung nhiễu tắt dần ~2 giây. */
 function impulse(ac: AudioContext, seconds = 2.2) {
   const len = Math.floor(ac.sampleRate * seconds);
   const buf = ac.createBuffer(2, len, ac.sampleRate);
@@ -109,10 +91,6 @@ function makeBus(): Bus | null {
   return { ac, out, sfx, verb, noise };
 }
 
-/**
- * Mở (hoặc đánh thức) ngữ cảnh âm thanh — gọi trong một thao tác của người dùng. Ngữ cảnh chạy được rồi thì báo cho
- * những ai đang chờ (`whenReady`), vd. bộ phát nhạc.
- */
 export function unlock() {
   if (!bus) bus = makeBus();
   const b = bus;
@@ -122,10 +100,8 @@ export function unlock() {
   return b;
 }
 
-/** Ngữ cảnh đang chạy được (đã mở bằng thao tác người dùng), null nếu chưa. */
 export const ready = () => (bus && bus.ac.state === "running" ? bus : null);
 
-/** Gọi `f` mỗi lần ngữ cảnh được mở / đánh thức; trả về hàm huỷ. */
 export function whenReady(f: () => void) {
   wakers.add(f);
   return () => {
@@ -133,12 +109,8 @@ export function whenReady(f: () => void) {
   };
 }
 
-// ---------- nhạc cụ cơ bản ----------
-
-/** Tần số (Hz) của nốt MIDI. */
 export const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
-/** Bộ sinh số giả ngẫu nhiên mulberry32: cùng seed ra cùng dãy. */
 export function rng(seed: number) {
   let a = seed >>> 0 || 1;
   return () => {
@@ -157,16 +129,12 @@ export type ToneOpts = {
   gain: number;
   type?: OscillatorType;
   attack?: number;
-  /** Trượt cao độ tới tần số này trong suốt nốt. */
   glide?: number;
   detune?: number;
-  /** Lọc thông thấp (Hz). */
   lp?: number;
-  /** Lượng gửi sang tiếng vang. */
   send?: number;
 };
 
-/** Một nốt từ bộ dao động: bật nhanh rồi tắt dần trong `dur` giây. */
 export function tone(b: Bus, dest: AudioNode, o: ToneOpts) {
   const { ac } = b;
   const osc = ac.createOscillator();
@@ -198,7 +166,6 @@ export function tone(b: Bus, dest: AudioNode, o: ToneOpts) {
 
 export type NoiseOpts = { t: number; dur: number; gain: number; type: BiquadFilterType; freq: number; q?: number; sweep?: number; send?: number };
 
-/** Một tiếng nhiễu qua bộ lọc (trống, tiếng gió…), tắt dần trong `dur` giây. */
 export function hiss(b: Bus, dest: AudioNode, o: NoiseOpts) {
   const { ac } = b;
   const src = ac.createBufferSource();
@@ -221,7 +188,6 @@ export function hiss(b: Bus, dest: AudioNode, o: NoiseOpts) {
   src.start(o.t, Math.random() * 0.5, o.dur + 0.05);
 }
 
-/** Chuông nhỏ trên kênh tiếng hiệu ứng: sine + triangle quãng tám, có vang. */
 export function bell(b: Bus, midi: number, t: number, gain: number, dur = 0.45) {
   tone(b, b.sfx, { freq: hz(midi), t, dur, gain, attack: 0.004, send: 0.4 });
   tone(b, b.sfx, { freq: hz(midi + 12), t, dur: dur * 0.5, gain: gain * 0.3, type: "triangle", attack: 0.003, send: 0.4 });

@@ -1,18 +1,8 @@
-/**
- * Phát hiện công cụ nhà phát triển (DevTools) — chống gian lận lúc đang chơi (soi bộ nhớ, sửa trạng thái, đọc bí mật
- * gửi riêng…). Trình duyệt không có API cho việc này nên dựa vào hai dấu hiệu:
- *
- *   - phím tắt mở DevTools: F12, Ctrl+Shift+I/J/C (Windows, Linux), ⌘+⌥+I/J/C (macOS);
- *   - câu lệnh `debugger` trong một Web Worker: DevTools đang mở thì trình duyệt dừng worker ở đó — worker tự đo thời
- *     gian quanh `debugger` (trang chính bận cũng không làm sai số đo), hoặc không trả lời nữa nếu vẫn đang dừng. Chỉ
- *     worker bị dừng, trang game vẫn chạy bình thường. Bắt được cả khi mở bằng chuột phải → "Kiểm tra" hay từ menu.
- *
- * Chrome / Edge dừng worker bất kể đang ở tab nào của DevTools; Firefox chỉ dừng khi đang mở tab Debugger. Người cố tình
- * tắt điểm dừng trước (Deactivate breakpoints) vẫn lách được — chặn hoàn toàn ở phía trình duyệt là không thể; đây là
- * hàng rào cho người tò mò bật lên giữa ván.
- *
- * Bật ở bản build, tắt khi `next dev` (lập trình viên mở DevTools suốt); NEXT_PUBLIC_ANTICHEAT=on / off để ép bật / tắt.
- */
+// Trình duyệt không có API phát hiện DevTools nên dựa vào hai dấu hiệu: phím tắt mở DevTools, và câu lệnh `debugger`
+// trong một Web Worker (DevTools đang mở thì trình duyệt dừng worker ở đó; chỉ worker bị dừng, trang game vẫn chạy).
+// Worker tự đo thời gian quanh `debugger` nên trang chính bận cũng không làm sai số đo.
+// Người cố tình tắt điểm dừng trước (Deactivate breakpoints) vẫn lách được — chặn hoàn toàn ở phía trình duyệt là không
+// thể; đây chỉ là hàng rào cho người tò mò bật lên giữa ván. Tắt khi `next dev` vì lập trình viên mở DevTools suốt.
 
 export type DevtoolsSignal = "shortcut" | "debugger";
 
@@ -22,7 +12,6 @@ export const ANTICHEAT = flag ? flag === "on" : process.env.NODE_ENV === "produc
 export const PROBE_MS = 1000;
 // `debugger` không dừng thì gần như tức thì; dừng thì ít nhất là lúc người dùng bấm tiếp / đóng DevTools.
 export const PAUSED_MS = 100;
-/** Worker chưa trả lời sau chừng này thì coi như đang dừng ở `debugger` (DevTools mở, chưa ai bấm tiếp). */
 export const STUCK_MS = 3000;
 // Nhịp hỏi trễ quá mức này là trang chính vừa bị nghẽn (hoặc tab nằm nền): lời đáp có thể còn kẹt trong hàng đợi.
 const LATE_MS = 500;
@@ -44,7 +33,7 @@ function spawnWorker(): ProbeWorker | null {
   }
 }
 
-/** Phím tắt mở DevTools. So `code` thay vì `key`: trên macOS giữ ⌥ làm `key` thành ký tự khác. */
+// So `code` thay vì `key`: trên macOS giữ ⌥ làm `key` thành ký tự khác.
 export function isDevtoolsShortcut(e: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">) {
   if (e.key === "F12" || e.code === "F12") return true;
   const panel = e.code === "KeyI" || e.code === "KeyJ" || e.code === "KeyC";
@@ -53,13 +42,11 @@ export function isDevtoolsShortcut(e: Pick<KeyboardEvent, "key" | "code" | "ctrl
 }
 
 export type DevtoolsWatch = {
-  /** Dò phím tắt (vd. mình đang ngồi ghế). */
   keys: () => boolean;
-  /** Dò bằng worker — chỉ lúc thật sự cần (đang đấu), để người mở DevTools ngoài ván không bị dừng worker liên tục. */
+  // Chỉ dò bằng worker lúc thật sự cần (đang đấu), để người mở DevTools ngoài ván không bị dừng worker liên tục.
   probe: () => boolean;
 };
 
-/** Theo dõi DevTools; `onOpen` gọi mỗi lần thấy dấu hiệu. Trả về hàm dừng. `deps` để test thay worker và đồng hồ. */
 export function watchDevtools(
   armed: DevtoolsWatch,
   onOpen: (how: DevtoolsSignal) => void,

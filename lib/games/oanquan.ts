@@ -1,21 +1,9 @@
-/**
- * Luật Ô ăn quan: vòng 12 ô — 2 ô quan ở hai đầu (mỗi ô một quân quan), giữa là 10 ô dân, mỗi bên 5 ô, mỗi ô 5 quân dân.
- * Đến lượt thì bốc hết quân một ô dân bên mình, rải mỗi ô một quân theo chiều đã chọn. Rải hết mà ô kế có dân thì bốc ô
- * đó rải tiếp; ô kế là ô quan còn quân thì mất lượt; ô kế trống thì ăn ô ngay sau nó — rồi cứ cách một ô trống lại có quân
- * thì ăn tiếp. Hết quân dân bên mình thì lấy 5 quân đã ăn rải lại (thiếu thì vay). Hai ô quan đều hết quân thì thu dân
- * còn lại về mỗi bên và đếm điểm: dân 1 điểm, quan 10 điểm.
- */
-
 export const SQUARES = 12;
-/** Hai ô quan ở hai đầu bàn: ô 0 và ô 6. */
 export const QUANS = [0, 6] as const;
-/** Ô dân của từng bên: bên 1 là ô 1–5, bên 2 là ô 7–11 (chỉ số tăng dần theo cùng một chiều vòng). */
 export const ROWS = { 1: [1, 2, 3, 4, 5], 2: [7, 8, 9, 10, 11] } as const;
 export const DAN_START = 5;
 export const QUAN_VALUE = 10;
-/** Ô quan còn quân quan mà ít hơn ngần này quân dân là "quan non". */
 export const QUAN_NON = 5;
-/** Tổng điểm cả bàn: 50 dân + 2 quan. */
 export const TOTAL = 10 * DAN_START + 2 * QUAN_VALUE;
 /** Chặn ván kéo dài vô tận: đủ ngần này nước thì thu quân, đếm điểm. */
 export const MAX_MOVES = 400;
@@ -23,7 +11,6 @@ export const MAX_MOVES = 400;
 const MAX_DROPS = 5000;
 
 export type OaqOptions = {
-  /** Cấm ăn quan non: ô quan còn quân quan mà dưới `QUAN_NON` dân thì chưa ăn được — tới đó là mất lượt. */
   quanNon: boolean;
 };
 
@@ -34,59 +21,39 @@ export function normOptions(raw: unknown): OaqOptions {
   return { quanNon: typeof o.quanNon === "boolean" ? o.quanNon : DEFAULT_OPTIONS.quanNon };
 }
 
-/** Nước đi: số ô dân (1–5 hoặc 7–11), dấu là chiều rải — dương rải theo chỉ số tăng (…5 → 6 → 7…11 → 0 → 1…), âm rải ngược lại. */
 export type Move = number;
 
 export type Board = {
-  /** Số quân dân trong từng ô. */
   dan: number[];
-  /** Quân quan còn nằm ở ô 0 / ô 6. */
   quan: [boolean, boolean];
-  /** Dân đã ăn của bên 1 / bên 2 (chỉ số 1, 2) — rải quân thì trừ đi, vay thì âm. */
   got: [number, number, number];
-  /** Số quan đã ăn của bên 1 / bên 2. */
   quans: [number, number, number];
-  /** Bên đã ăn quân quan ở ô 0 / ô 6 (0: chưa ai ăn). */
   quanBy: [0 | 1 | 2, 0 | 1 | 2];
-  /** Quân đang cầm trên tay — chỉ khác 0 giữa lúc diễn lại nước đi. */
   hand: number;
 };
 
-/** Diễn biến một nước, theo đúng thứ tự — áp lần lượt bằng `applyStep` là ra bàn sau nước đó. */
 export type Step =
-  /** Bốc hết dân trong ô. */
   | { k: "pick"; at: number; n: number }
-  /** Thả một quân xuống ô. */
   | { k: "drop"; at: number }
-  /** Bên `p` ăn cả ô: `n` dân, kèm quân quan nếu còn. */
   | { k: "eat"; at: number; n: number; quan: boolean; p: 1 | 2 }
-  /** Bên `p` hết dân: lấy 5 quân đã ăn rải lại mỗi ô một quân. */
   | { k: "scatter"; p: 1 | 2 }
-  /** Hết quan: thu dân còn lại trên bàn về bên sở hữu ô. */
   | { k: "sweep" };
 
 export type OaqState = Board & {
-  /** Số nước hợp lệ đã áp dụng. */
   count: number;
-  /** Lượt kế tiếp: 1 hoặc 2. */
   turn: 1 | 2;
   over: boolean;
-  /** Vì sao hết ván: "quan" hết quan, "limit" quá số nước tối đa. */
   end?: "quan" | "limit";
   winner: 0 | 1 | 2;
   draw: boolean;
-  /** Nước cuối, 0 nếu chưa có. */
   last: Move;
-  /** Diễn biến của nước cuối (kể cả rải quân / thu quân ngay sau đó). */
   steps: Step[];
 };
 
 export const isQuan = (i: number) => i === 0 || i === 6;
 const qi = (i: number) => (i === 0 ? 0 : 1);
 const wrap = (i: number) => ((i % SQUARES) + SQUARES) % SQUARES;
-/** Bên sở hữu ô dân; 0 với ô quan. */
 export const ownerOf = (i: number): 0 | 1 | 2 => (i >= 1 && i <= 5 ? 1 : i >= 7 && i <= 11 ? 2 : 0);
-/** Ô không còn quân nào (kể cả quân quan). */
 export const isEmpty = (b: Board, i: number) => b.dan[i] === 0 && !(isQuan(i) && b.quan[qi(i)]);
 export const hasQuan = (b: Board, i: number) => isQuan(i) && b.quan[qi(i)];
 export const isQuanNon = (b: Board, i: number) => hasQuan(b, i) && b.dan[i] < QUAN_NON;
@@ -101,7 +68,6 @@ export function cloneBoard(b: Board): Board {
   return { dan: [...b.dan], quan: [b.quan[0], b.quan[1]], got: [...b.got], quans: [...b.quans], quanBy: [b.quanBy[0], b.quanBy[1]], hand: b.hand };
 }
 
-/** Áp một bước diễn biến lên bàn (sửa trực tiếp `b`). */
 export function applyStep(b: Board, s: Step) {
   switch (s.k) {
     case "pick":
@@ -141,7 +107,6 @@ export function legal(s: OaqState, mv: Move) {
   return ownerOf(at) === s.turn && s.dan[at] > 0;
 }
 
-/** Rải một nước của bên `p` rồi ăn nếu được; trả về diễn biến. */
 function sow(b: Board, mv: Move, p: 1 | 2, opts: OaqOptions): Step[] {
   const steps: Step[] = [];
   const go = (s: Step) => {
@@ -161,13 +126,11 @@ function sow(b: Board, mv: Move, p: 1 | 2, opts: OaqOptions): Step[] {
     const next = wrap(at + dir);
     if (drops > MAX_DROPS) return steps;
     if (!isEmpty(b, next)) {
-      // Gặp ô quan thì mất lượt; gặp ô dân thì bốc lên rải tiếp.
       if (isQuan(next)) return steps;
       at = next;
       go({ k: "pick", at, n: b.dan[at] });
       continue;
     }
-    // Ô kế trống: ăn ô ngay sau nó, rồi cứ cách một ô trống lại có quân thì ăn tiếp.
     let gap = next;
     for (;;) {
       const prey = wrap(gap + dir);
@@ -179,7 +142,6 @@ function sow(b: Board, mv: Move, p: 1 | 2, opts: OaqOptions): Step[] {
   }
 }
 
-/** Áp một nước lên ván (sửa trực tiếp `s`); trả về false nếu nước không hợp lệ. */
 export function play(s: OaqState, mv: Move, opts: OaqOptions = DEFAULT_OPTIONS): boolean {
   if (!legal(s, mv)) return false;
   const steps = sow(s, mv, s.turn, opts);
@@ -206,10 +168,7 @@ export function play(s: OaqState, mv: Move, opts: OaqOptions = DEFAULT_OPTIONS):
   return true;
 }
 
-/**
- * Dựng lại ván từ nhật ký nước đi. Tất định: mọi peer có cùng nhật ký sẽ ra cùng kết quả, nên không cần ai "phán"
- * thắng thua. Gặp nước không hợp lệ (ô bên kia, ô trống, sau khi đã hết ván) thì dừng lại.
- */
+// Tất định: mọi peer có cùng nhật ký sẽ ra cùng kết quả, nên không cần ai "phán" thắng thua.
 export function replay(moves: readonly Move[], opts: OaqOptions = DEFAULT_OPTIONS): OaqState {
   const s = initialState();
   for (const mv of moves) if (!play(s, mv, opts)) break;

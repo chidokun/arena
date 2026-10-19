@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-/** Hộp thoại native <dialog>: có sẵn bẫy focus, phím Esc và lớp nền. */
+// Dùng <dialog> native vì có sẵn bẫy focus, phím Esc và lớp nền.
 export function Dialog({
   open,
   onClose,
@@ -15,9 +15,7 @@ export function Dialog({
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  /** false: bắt buộc làm xong mới đóng — không có nút đóng, Esc và bấm ra ngoài không đóng. */
   dismissable?: boolean;
-  /** Lớp thêm cho <dialog>, vd. "is-wide" cho hộp thoại rộng hơn. */
   className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);

@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<DotsView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useDotsView(session: DotsBoxesRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -29,11 +27,8 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "🟥", "🟦"];
 /** Ô cuối vừa khép thì chờ một nhịp cho nét kịp vẽ và ô kịp bật lên rồi mới diễn. */
 const CLAIM_PAUSE_MS = 900;
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function DotsBoxesTable({ id, slug, session }: { id: string; slug: string; session: DotsBoxesRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -58,7 +53,6 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
   const seated = view.mySeat >= 0;
   const inLineup = !!g && g.myMark > 0;
 
-  // Thanh đối đầu: trong ván thì theo thứ tự Đỏ–Xanh; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   const marks = { 1: slots[0]?.member?.avatar, 2: slots[1]?.member?.avatar };
   const seatCard = (k: 0 | 1) => {
@@ -110,7 +104,6 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
   );
 });
 
-/** Huy hiệu màu: một ô vuông Đỏ / Xanh. */
 const Swatch = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-md border-2 border-[#050312]" style={{ background: DB_TONE[v] }} />;
 
 const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" | "right") => (
@@ -124,7 +117,6 @@ const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" 
   />
 );
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ match: g, me, n }: { match: DotsMatch; me: string; n: number }) {
   const tip = g.myMark ? `Bạn cầm màu ${DB_NAME[g.myMark]} — ${g.myMark === 1 ? "kẻ trước nhé!" : "chờ Đỏ kẻ trước nhé!"}` : "Màu Đỏ kẻ trước — cùng xem nhé!";
   return (
@@ -134,7 +126,6 @@ function CountdownScene({ match: g, me, n }: { match: DotsMatch; me: string; n: 
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: DotsMatch, me: string): DuelSummary {
   const r = g.result!;
   const [a, b] = g.state.score;
@@ -156,7 +147,6 @@ function EndScene({ match: g, me, onClose }: { match: DotsMatch; me: string; onC
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Swatch v={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Thanh trạng thái: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu, chủ phòng chọn cỡ bàn (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
@@ -174,7 +164,6 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
           }
         />
       );
-    // Vừa khép ô mà vẫn đến lượt mình: nhắc là được kẻ tiếp.
     const bonus = g.state.fresh.length > 0;
     const mine = <b style={{ color: DB_TONE[g.myMark] }}>{DB_NAME[g.myMark]}</b>;
     return (

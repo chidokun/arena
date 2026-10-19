@@ -3,7 +3,6 @@
 import { memo, useId } from "react";
 import { COLS, dropRow, ROWS, type C4State } from "@/lib/games/connect-four";
 
-/** Cạnh một ô, lề khung và dải phía trên để quân "ma" báo cột sắp thả. */
 const C = 64;
 const P = 10;
 const T = C;
@@ -16,7 +15,6 @@ export const C4_NAME = { 1: "Đỏ", 2: "Vàng" } as const;
 
 const cx = (col: number) => P + col * C + C / 2;
 const cy = (row: number) => T + P + row * C + C / 2;
-/** Tâm từng lỗ trên khung, theo chỉ số ô. */
 const SPOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({ i, x: cx(i % COLS), y: cy(Math.floor(i / COLS)) }));
 
 function Piece({ v, x, y }: { v: 1 | 2; x: number; y: number }) {
@@ -29,10 +27,7 @@ function Piece({ v, x, y }: { v: 1 | 2; x: number; y: number }) {
   );
 }
 
-/**
- * Bàn thả cờ 4 SVG: quân nằm sau khung có khoét lỗ (mask) nên quân mới rơi từ trên xuống "lọt" vào khung.
- * Cả cột là vùng bấm; di chuột / tab tới cột thì hiện quân mờ ở dải trên.
- */
+// Quân nằm sau khung có khoét lỗ (mask) để quân mới rơi từ trên xuống trông như "lọt" vào khung.
 export const ConnectFourBoard = memo(function ConnectFourBoard({
   state,
   canPlay,

@@ -33,13 +33,9 @@ import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<UcView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useUcView(session: UndercoverRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -47,16 +43,13 @@ function useUcView(session: UndercoverRoom): View {
   return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
 }
 
-/** Lượt hiện tại (vòng · ngày · giai đoạn) — người đang chọn loại gắn với lượt này, sang lượt khác tự bỏ. */
+// Gắn lựa chọn đang dở với lượt để sang lượt khác tự bỏ.
 const turnOf = (view: View) => `${view.game!.pub?.round}:${view.game!.pub?.day}:${view.game!.pub?.stage}`;
 
-/** Người đang chọn loại (chưa xác nhận) ở lượt nào. */
 type Sel = { turn: string; uid: string } | null;
 
-/** Một lựa chọn đang mở trên bàn: bấm vào người chơi để chọn. */
 type Pick = { verb: string; can: (uid: string) => boolean; chosen?: string; onPick: (uid: string) => void };
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 500) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -70,7 +63,6 @@ function useNow(active: boolean, every = 500) {
 }
 
 const nameIn = (view: View, uid: string) => (uid === view.me ? "Bạn" : (view.game!.people[uid]?.member?.name ?? "Ai đó"));
-/** Tên dùng giữa câu: "bạn" viết thường. */
 const nameMid = (view: View, uid: string) => (uid === view.me ? "bạn" : nameIn(view, uid));
 const names = (view: View, uids: string[]) => uids.map((u) => nameIn(view, u)).join(", ");
 
@@ -78,13 +70,11 @@ const outOf = (pub: Public | undefined, uid: string) => pub?.outs.find((o) => o.
 const outText = (o: Out) => (o.how === "left" ? "rời ván" : `bị loại vòng ${o.day}`);
 const teamOf = (r: Role) => `${ROLES[r].emoji} ${ROLES[r].team}`;
 
-/** Phe của một người mà mình được biết: thấy hết, hết ván, người bị loại lộ phe, của mình. */
 function knownRole(view: View, uid: string): Role | undefined {
   const g = view.game!;
   return g.seeAll?.roles[uid] ?? g.pub?.roles?.[uid] ?? outOf(g.pub, uid)?.role ?? (uid === view.me ? g.me.role : undefined);
 }
 
-/** Lý do khoá ô chat: đang phát từ, phe Trắng đang đoán, người bị loại, người xem biết hết từ khoá. */
 function chatLock(g: UcView, isHost: boolean) {
   const stage = g.pub?.stage;
   if (!g.playing) return undefined;
@@ -95,19 +85,14 @@ function chatLock(g: UcView, isHost: boolean) {
   if (stage === "guess") return "👤 Phe Trắng đang đoán từ khoá — giữ im lặng nhé.";
 }
 
-/**
- * Bàn Gián Điệp tách theo store: khung chỉ đọc vài trường của `roomStore`; mỗi phần (sân khấu, hành động, từ khoá, bảng
- * mô tả, người chơi…) tự đăng ký store và bọc `memo`, nên nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
- */
+// Mỗi phần tự đăng ký store và bọc `memo` để nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
 export function UndercoverTable({ id, slug, session }: { id: string; slug: string; session: UndercoverRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const playing = useGame(session, (g) => !!g?.playing);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const [rules, setRules] = useState(false);
-  // Lá bài phát từ đã đóng ở ván nào (mở lại được trong lúc phát từ).
   const [dealClosed, setDealClosed] = useState(0);
-  // Người đang chọn loại ở lượt bỏ phiếu hiện tại (chưa xác nhận) — ActionCard xoá, Players chọn.
   const [sel, setSel] = useState<Sel>(null);
   const detail = useCallback((p: Member, seated: boolean) => <PersonLinePart session={session} uid={p.uid} seated={seated} />, [session]);
 
@@ -145,12 +130,9 @@ export function UndercoverTable({ id, slug, session }: { id: string; slug: strin
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round, players: r.meta!.players.length });
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Khung chat: chỉ cần biết lý do khoá chat (chuỗi) — đổi giai đoạn / bị loại mới vẽ lại, còn tin mới thì ChatPanel tự lo. */
+// Chỉ chọn lý do khoá chat (chuỗi) để chỉ vẽ lại khi đổi giai đoạn / bị loại; tin mới thì ChatPanel tự lo.
 const UcChat = memo(function UcChat({ session }: { session: UndercoverRoom }) {
   const isHost = useRoomState(session, (r) => r.isHost);
   const locked = useGame(session, (g) => (g ? chatLock(g, isHost) : undefined));
@@ -238,7 +220,6 @@ function RulesPart({ session }: { session: UndercoverRoom }) {
   return <Rules opts={opts} />;
 }
 
-/** Lựa chọn đang mở cho mình: chọn người để loại (rồi xác nhận), hoặc chủ phòng phá hoà. */
 function pickOf(view: View, session: UndercoverRoom, selected: string | undefined, select: (uid: string) => void): Pick | null {
   const g = view.game!;
   const pub = g.pub;
@@ -256,7 +237,6 @@ function pickOf(view: View, session: UndercoverRoom, selected: string | undefine
   return null;
 }
 
-/** Dòng mô tả từng người trong danh sách phòng. */
 function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: boolean }) {
   const g = view.game!;
   const pub = g.pub;
@@ -279,8 +259,6 @@ function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: bo
   if (g.playing) return <>Đang xem</>;
   return <>{seated ? "✅ Sẵn sàng" : "Đang xem"}</>;
 }
-
-// ---------- giai đoạn ----------
 
 function stageText(view: View): { icon: string; title: string; sub: string } {
   const m = view.meta!;
@@ -393,7 +371,6 @@ function StageCard({ view, session }: { view: View; session: UndercoverRoom }) {
   );
 }
 
-/** Ngoài ván: bấm sẵn sàng / huỷ, chủ phòng bắt đầu ván — nằm ngay trong khung giai đoạn. */
 function ReadyBar({ view, session }: { view: View; session: UndercoverRoom }) {
   const m = view.meta!;
   const g = view.game!;
@@ -456,8 +433,6 @@ function CastChips({ cast }: { cast: Record<Role, number> }) {
     </span>
   );
 }
-
-// ---------- việc của mình ----------
 
 function ActionCard({
   view,
@@ -590,7 +565,6 @@ function ActionCard({
   );
 }
 
-/** Khung riêng để điền mô tả khi tới lượt mình. */
 function ClueForm({ session, word }: { session: UndercoverRoom; word: string | null }) {
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | undefined>();
@@ -629,7 +603,6 @@ function ClueForm({ session, word }: { session: UndercoverRoom; word: string | n
   );
 }
 
-/** Các mô tả theo từng vòng: vòng hiện tại xếp theo thứ tự thảo luận (ai đã mô tả, ai đang điền, ai chờ), các vòng trước bên dưới. */
 function ClueBoard({ view, pub }: { view: View; pub: Public }) {
   const days = [...new Set([pub.day, ...pub.clues.map((c) => c.day)])].sort((a, b) => b - a);
   const speaker = speakerOf(pub);
@@ -641,7 +614,6 @@ function ClueBoard({ view, pub }: { view: View; pub: Public }) {
       <ol className="ww-story uc-board mt-2">
         {days.map((d) => {
           const said = cluesOf(pub, d);
-          // Vòng hiện tại: cả những người chưa tới lượt (người bị loại trước vòng này thì thôi).
           const rows = d === pub.day ? [...said.map((c) => c.uid), ...speakers(pub).filter((u) => !said.some((c) => c.uid === u))] : said.map((c) => c.uid);
           if (!rows.length) return null;
           return (
@@ -695,7 +667,6 @@ function GuessForm({ session }: { session: UndercoverRoom }) {
   );
 }
 
-/** Từ khoá của mình (và phe nếu được báo), có nút che khi có người ngồi cạnh. */
 function WordCard({ view }: { view: View }) {
   const g = view.game!;
   const word = g.me.word;
@@ -731,7 +702,6 @@ function WordCard({ view }: { view: View }) {
   );
 }
 
-/** Người điều hành không chơi và người xem: cặp từ khoá của ván. */
 function SeeAllCard({ view }: { view: View }) {
   const w = view.game!.seeAll!.words;
   return (
@@ -747,9 +717,6 @@ function SeeAllCard({ view }: { view: View }) {
   );
 }
 
-// ---------- bàn chơi ----------
-
-/** Những người chơi theo thứ tự thảo luận: ai còn, ai bị loại (lộ phe), ai đã lật bài, phiếu bầu. Bấm để chọn khi có lựa chọn mở. */
 function Players({ view, pick }: { view: View; pick: Pick | null }) {
   const m = view.meta!;
   const g = view.game!;
@@ -865,14 +832,8 @@ function Token({
   );
 }
 
-// ---------- cảnh diễn ----------
-
 const SCENE_MS: Record<Scene["kind"], number> = { out: 7000, spared: 3200, guess: 5500, end: 5000 };
 
-/**
- * Lớp phủ toàn màn hình cho những khoảnh khắc của ván: phát từ (bộ bài theo thứ tự thảo luận, bấm lá của mình để lật),
- * và các cảnh xếp hàng lần lượt: người bị loại bị lật bài phe, không ai bị loại, phe Trắng đoán, phe thắng.
- */
 function Cinema({ view, session, dealClosed, closeDeal }: { view: View; session: UndercoverRoom; dealClosed: boolean; closeDeal: () => void }) {
   const g = view.game!;
   const pub = g.pub;
@@ -908,10 +869,6 @@ function Cinema({ view, session, dealClosed, closeDeal }: { view: View; session:
   );
 }
 
-/**
- * Phát từ: mỗi người chơi một lá, xếp theo thứ tự thảo luận. Người chơi bấm lá của mình để lật xem từ khoá; lá của
- * người khác hiện ✅ khi họ đã lật. Người điều hành và người xem thấy mọi lá lật dần.
- */
 function DealScene({ view, session, close }: { view: View; session: UndercoverRoom; close: () => void }) {
   const g = view.game!;
   const pub = g.pub!;
@@ -1062,8 +1019,6 @@ function SceneView({ view, scene }: { view: View; scene: Scene }) {
   }
 }
 
-// ---------- kết quả ----------
-
 function ResultCard({ view }: { view: View }) {
   const m = view.meta!;
   const g = view.game!;
@@ -1133,10 +1088,8 @@ function ResultCard({ view }: { view: View }) {
   );
 }
 
-/** Diễn biến câu chuyện: phát từ, rồi từng vòng — ai gọi biểu quyết, ai bầu ai, ai bị loại (thuộc phe nào), phe Trắng đoán gì. */
 function Story({ view, pub, roles }: { view: View; pub: Public; roles: Record<string, Role> }) {
   const name = (uid: string) => nameMid(view, uid);
-  /** Tên đứng đầu câu: "Bạn" viết hoa. */
   const Name = (uid: string) => nameIn(view, uid);
   const days = [...new Set([...pub.calls.map((c) => c.day), ...pub.tallies.map((t) => t.day), ...pub.outs.map((o) => o.day)])].sort((a, b) => a - b);
   const team = (uid: string) => (roles[uid] ? ROLES[roles[uid]].team.replace("Phe", "phe") : "?");
@@ -1220,8 +1173,6 @@ function Story({ view, pub, roles }: { view: View; pub: Public; roles: Record<st
     </>
   );
 }
-
-// ---------- luật ----------
 
 function Settings({ view, session }: { view: View; session: UndercoverRoom }) {
   const g = view.game!;
@@ -1346,7 +1297,6 @@ function RoleHead({ role, note }: { role: Role; note: string }) {
   );
 }
 
-/** Chủ phòng chỉ điều hành: tự đặt cặp từ cho ván tới (chỉ nằm trên máy chủ phòng). */
 function CustomWords({ view, session }: { view: View; session: UndercoverRoom }) {
   const custom = view.game!.custom;
   const [civ, setCiv] = useState("");

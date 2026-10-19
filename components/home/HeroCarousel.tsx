@@ -4,11 +4,8 @@ import { useRef, useState, type ReactNode } from "react";
 
 export type HeroSlide = { label: string; content: ReactNode };
 
-/**
- * Băng chuyền đầu trang chủ: các cảnh xếp chồng cùng một ô lưới (khung cao bằng cảnh cao nhất, đổi cảnh không xô trang).
- * Nhịp đổi cảnh do thanh tiến trình CSS (`.hero-fill`) quyết định qua `onAnimationEnd` — tạm dừng thanh là dừng luôn
- * nhịp, không lệch giữa vạch chạy và lúc đổi cảnh. Dừng khi rê chuột / focus vào trong, hoặc bấm nút tạm dừng.
- */
+// Các cảnh xếp chồng cùng một ô lưới để khung cao bằng cảnh cao nhất, đổi cảnh không xô trang. Nhịp đổi cảnh lấy từ
+// `onAnimationEnd` của thanh tiến trình CSS: tạm dừng thanh là dừng luôn nhịp, không lệch giữa vạch chạy và lúc đổi cảnh.
 export function HeroCarousel({ slides, interval = 3000 }: { slides: HeroSlide[]; interval?: number }) {
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);

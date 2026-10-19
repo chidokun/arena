@@ -1,11 +1,7 @@
-/**
- * Niêm phong bản ghi bí mật trong gossip store (ai trong phòng cũng nhận được mọi bản ghi).
- *
- * Mỗi tab có một cặp khoá ECDH P-256; khoá công khai đi kèm bản ghi hiện diện `p:<uid>`. Hai người dùng chung khoá
- * AES-GCM suy ra từ ECDH (khoá riêng của mình + khoá công khai của người kia) — chỉ hai người đó mở được hộp, và mở
- * được nghĩa là hộp do một trong hai người đóng. Khoá của bản ghi gossip được gắn làm dữ liệu xác thực kèm (AAD) nên
- * không bê hộp sang khoá khác được. Nội dung được độn khoảng trắng tới bội số cố định để độ dài không tiết lộ gì.
- */
+// Ai trong phòng cũng nhận được mọi bản ghi gossip nên bản ghi bí mật phải niêm phong. Hai người dùng chung khoá AES-GCM
+// suy ra từ ECDH nên chỉ hai người đó mở được hộp, và mở được nghĩa là hộp do một trong hai người đóng. Khoá của bản ghi
+// gossip được gắn làm AAD để không bê hộp sang khoá khác được. Nội dung được độn tới bội số cố định để độ dài không
+// tiết lộ gì.
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -25,11 +21,9 @@ function unb64(s: string) {
   return out;
 }
 
-/** Nơi cất khoá riêng (sessionStorage theo uid của tab); thiếu thì mỗi lần mở trang sinh khoá mới. */
 export type KeyStore = { get(): string | null; set(v: string): void };
 
 export class Keyring {
-  /** Khoá công khai (base64, dạng raw). */
   readonly pub: string;
   private priv: CryptoKey;
   private shared = new Map<string, Promise<CryptoKey>>();
@@ -70,7 +64,6 @@ export class Keyring {
     return k;
   }
 
-  /** Đóng hộp cho `peer` (khoá công khai), gắn với khoá bản ghi `aad`, độn tới ít nhất `size` byte. */
   async seal(peer: string, aad: string, data: unknown, size = 0): Promise<string> {
     const json = JSON.stringify(data);
     const len = enc.encode(json).length;
@@ -84,7 +77,6 @@ export class Keyring {
     return b64(out);
   }
 
-  /** Mở hộp từ `peer`; null nếu không phải hộp của hai bên hoặc đã bị sửa. */
   async open<T>(peer: string, aad: string, box: string): Promise<T | null> {
     try {
       const raw = unb64(box);
@@ -100,5 +92,5 @@ export class Keyring {
   }
 }
 
-/** Số byte của dữ liệu khi đóng hộp (để độn mọi hộp trong một lượt về cùng cỡ). */
+// Để độn mọi hộp trong một lượt về cùng cỡ.
 export const sealedSize = (data: unknown) => enc.encode(JSON.stringify(data)).length;

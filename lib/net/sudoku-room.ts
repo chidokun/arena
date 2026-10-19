@@ -1,11 +1,3 @@
-/**
- * Phòng Sudoku tranh đấu. Bắt đầu ván, chủ phòng chốt đội hình và `meta.sd` (seed, mức, chế độ) — mọi máy tự sinh
- * cùng một đề từ seed. Người chơi chỉ nối nước điền của mình vào `m:<ván>:<uid>`; máy chủ phòng xét các nước mới theo
- * thứ tự mình thấy (`judge`) rồi ghi bàn chung `g:<ván>` — ai giữ ô nào (cùng giải đề), ai giải ô nào nhanh nhất
- * (đối kháng), điểm, người thắng đều suy ra tất định từ bàn chung. Đề lộ sau một nhịp đếm ngược tính trên giờ máy
- * từng người; điền sai ở chế độ đối kháng bị khoá tay tại máy mình. Đối kháng: người xong đầu tiên thắng ngay, những
- * người còn lại giải tiếp — ván xong khi mọi người đã giải xong (hoặc người chưa xong đều đã rời đi).
- */
 import {
   COUNTDOWN_MS,
   emptyBoard,
@@ -27,9 +19,7 @@ import {
 } from "../games/sudoku";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
-/** Cả đội hình mất kết nối chừng này thì dừng ván. */
 const ABANDON_MS = 60000;
-/** Đối kháng đã có người thắng: những người chưa xong đều mất kết nối chừng này thì kết thúc ván. */
 const QUIT_MS = 20000;
 
 export type SudokuMatch = {
@@ -38,33 +28,20 @@ export type SudokuMatch = {
   mode: Mode;
   puzzle: Puzzle;
   lineup: SeatView[];
-  /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
   state: SudokuState;
-  /** Các nước chủ phòng đã phân xử, theo thứ tự (để diễn hiệu ứng khi có người vừa giải đúng). */
   log: Entry[];
-  /**
-   * Bàn mình thấy: số cho sẵn và số đã giải. Đối kháng: người chơi thấy bàn riêng dựng từ nhật ký của mình, người xem
-   * thấy mọi ô đã có người giải; cùng giải đề: bàn chung.
-   */
   cells: number[];
-  /** Cùng giải đề: các ô mình vừa điền đúng, đang chờ chủ phòng ghi nhận. */
   pending: number[];
-  /** Giờ máy mình lúc lộ đề (hết đếm ngược). */
   opensAt: number;
-  /** Đối kháng: khoá tay tới lúc này (giờ máy mình). */
   lockedUntil: number;
-  /** Thời gian giải (ms) chủ phòng đo khi ván xong. */
   time?: number;
-  /** Đối kháng: thời gian từng người giải xong (theo thứ tự đội hình); null nếu chưa xong. */
   fin: (number | null)[];
   result?: Result;
 };
 
 export type SudokuView = {
-  /** Luật cho ván tới. */
   opts: SudokuOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa chơi ván nào. */
   match?: SudokuMatch;
 };
 
@@ -73,7 +50,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
   private cache: { seed: number; level: Level; puzzle: Puzzle } | null = null;
   private opened = { round: -1, at: 0 };
   private lock = { round: -1, until: 0 };
-  /** Đã báo người về nhất của ván nào (đối kháng). */
   private hailed = -1;
 
   private puzzleOf(sd: SudokuRound) {
@@ -98,10 +74,7 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     return replay(this.puzzleOf(sd), sd.mode, m.lineup.length, this.board(m).log);
   }
 
-  /**
-   * Giờ máy mình lúc lộ đề: lần đầu thấy ván thì đếm ngược phần còn lại theo giờ chủ phòng, tối đa một nhịp đếm ngược
-   * — máy chậm giờ không phải chờ lâu hơn; vào giữa ván (tải lại trang) thì chơi ngay, đồng hồ tính từ giờ lộ đề.
-   */
+  // Đếm ngược tối đa một nhịp để máy chậm giờ không phải chờ lâu hơn.
   private opensAt(m: Meta, sd: SudokuRound) {
     if (this.opened.round !== m.round) {
       const now = Date.now();
@@ -109,8 +82,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     }
     return this.opened.at;
   }
-
-  // ---------- luật ----------
 
   protected begin(m: Meta) {
     const lineup = m.players.filter((u) => this.isOnline(u));
@@ -128,17 +99,12 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     return { round: m.round, winner: winners.length === 1 ? winners[0] : null, winners, reason: "solve" };
   }
 
-  /** Kết quả khi ván kết thúc sớm (bị dừng, người chơi bỏ đi): đối kháng đã có người xong thì người đó vẫn thắng. */
   private cutShort(m: Meta): Result {
     const s = m.sd ? this.stateOf(m, m.sd) : undefined;
     if (m.sd?.mode === "race" && s?.winners.length) return { round: m.round, winner: m.lineup[s.winners[0]], winners: [m.lineup[s.winners[0]]], reason: "solve" };
     return { round: m.round, winner: null, winners: [], reason: "stop" };
   }
 
-  /**
-   * Chủ phòng phân xử các nước mới và ghi giờ xong — người bị xử thua vì gian lận không được điền thêm. Cả đội hình bỏ
-   * đi thì dừng ván; đối kháng đã có người thắng mà những người chưa xong đều bỏ đi (hoặc gian lận) thì kết thúc ván.
-   */
   protected hostPlay(m: Meta) {
     const sd = m.sd!;
     const puzzle = this.puzzleOf(sd);
@@ -161,7 +127,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     }
   }
 
-  /** Mọi máy: đối kháng có người về nhất thì báo vào khung chat. */
   protected watch(m: Meta) {
     const sd = m.sd;
     if (!sd || sd.mode !== "race" || m.status !== "playing" || this.hailed === m.round) return;
@@ -192,7 +157,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     let cells = shared;
     const pending: number[] = [];
     if (me >= 0 && sd.mode === "race") cells = ownBoard(puzzle, this.movesOf(m, this.me)).cells;
-    // Đối kháng: người xem cũng chỉ thấy ô nào đã có người giải (tô màu), hết ván mới thấy số.
     else if (sd.mode === "race" && m.status === "playing") cells = puzzle.givens.slice();
     else if (me >= 0) {
       for (const mv of this.movesOf(m, this.me)) {
@@ -230,12 +194,7 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     return w.length > 1 ? `${w.map(name).join(", ")} đồng hạng nhất ván ${r.round}` : `${name(w[0])} nhiều điểm nhất — thắng ván ${r.round}!`;
   }
 
-  // ---------- hành động ----------
-
-  /**
-   * Điền một số vào ô. Trả về "right" / "wrong" để giao diện phản hồi ngay (máy nào cũng có lời giải), hoặc null nếu
-   * không điền được (chưa lộ đề, đang khoá tay, ô đã có số…).
-   */
+  // Máy nào cũng có lời giải nên trả về "right" / "wrong" ngay để giao diện phản hồi.
   play(cell: number, digit: number): "right" | "wrong" | null {
     const m = this.meta();
     const g = this.store.get().game?.match;
@@ -254,7 +213,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     return right ? "right" : "wrong";
   }
 
-  /** Chủ phòng đổi luật cho ván tới. */
   setOptions(next: Partial<SudokuOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -264,7 +222,6 @@ export class SudokuRoom extends RoomSession<SudokuView> {
     });
   }
 
-  /** Chủ phòng dừng ván giữa chừng: không tính ai thắng, trừ người đã về nhất ở chế độ đối kháng. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

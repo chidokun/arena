@@ -22,7 +22,7 @@ test("nhận ra phím tắt mở DevTools trên Windows, Linux, macOS", () => {
 });
 
 test("bỏ qua phím tắt thường dùng khi chơi", () => {
-  assert.ok(!isDevtoolsShortcut(key("KeyC", { ctrlKey: true }))); // chép
+  assert.ok(!isDevtoolsShortcut(key("KeyC", { ctrlKey: true })));
   assert.ok(!isDevtoolsShortcut(key("KeyC", { metaKey: true })));
   assert.ok(!isDevtoolsShortcut(key("KeyI", { shiftKey: true })));
   assert.ok(!isDevtoolsShortcut(key("KeyU", { ctrlKey: true }))); // xem mã nguồn — không mở DevTools
@@ -30,9 +30,6 @@ test("bỏ qua phím tắt thường dùng khi chơi", () => {
   assert.ok(!isDevtoolsShortcut(key("Enter")));
 });
 
-// ---------- dò bằng worker ----------
-
-/** Worker giả: giữ các lượt hỏi để test tự trả lời (hoặc không trả lời — như đang dừng ở `debugger`). */
 function rig(opts: { probe?: () => boolean } = {}) {
   mock.timers.enable({ apis: ["setInterval"] });
   let clock = 0;
@@ -53,7 +50,6 @@ function rig(opts: { probe?: () => boolean } = {}) {
     asked,
     opened,
     target,
-    /** Trôi một nhịp dò; `late` ms là trang chính bị nghẽn thêm. */
     tick(late = 0) {
       clock += PROBE_MS + late;
       mock.timers.tick(PROBE_MS);
@@ -89,7 +85,7 @@ test("worker dừng ở debugger rồi chạy tiếp: báo theo thời gian work
 
 test("worker dừng mãi không trả lời: báo sau ngưỡng kẹt", () => {
   const r = rig();
-  r.tick(); // hỏi
+  r.tick();
   for (let t = PROBE_MS; t <= STUCK_MS; t += PROBE_MS) r.tick();
   assert.deepEqual(r.opened, []);
   r.tick();
@@ -100,9 +96,9 @@ test("worker dừng mãi không trả lời: báo sau ngưỡng kẹt", () => {
 test("trang chính bị nghẽn (lời đáp còn kẹt trong hàng đợi) thì không kết luận", () => {
   const r = rig();
   r.tick();
-  r.tick(STUCK_MS); // một nhịp trễ hẳn: không tính
+  r.tick(STUCK_MS);
   assert.deepEqual(r.opened, []);
-  r.reply(0.1); // lời đáp tới sau khi trang hết nghẽn
+  r.reply(0.1);
   r.tick();
   r.reply(0.1);
   assert.deepEqual(r.opened, []);

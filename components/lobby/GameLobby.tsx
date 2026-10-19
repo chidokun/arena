@@ -225,7 +225,6 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const cd = room.game === "co-cho";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
-  // Lô tô: hết tờ thì chỉ vào xem được.
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
   const status = playing
     ? {
@@ -739,26 +738,19 @@ function CreateForm({ slug }: { slug: string }) {
         if (!clean) return;
         const id = randomId(6);
         if (loto) {
-          // Bộ tờ của phòng sinh từ seed này; không giới hạn người vào xem, số người chơi giới hạn bởi số tờ.
           const seed = crypto.getRandomValues(new Uint32Array(1))[0];
           stashCreate(id, { name: clean, cap: 0, seats: SHEET_COUNT, opts: { seed, interval: pace } });
         } else if (wolf) {
-          // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: MAX_PLAYERS, opts: { ...DEFAULT_OPTIONS, talk } });
         } else if (spy) {
-          // Không giới hạn người xem; các luật khác chủ phòng chỉnh trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: UC_MAX, opts: { ...UC_DEFAULTS, hostPlays } });
         } else if (sudoku) {
-          // Không giới hạn người xem; mức và chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
         } else if (kw) {
-          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, chế độ đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize, mode: kwMode } });
         } else if (tx) {
-          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: txSize, level: txLevel } });
         } else if (ms) {
-          // Không giới hạn người chơi lẫn người xem (`seats` 0); cỡ bàn, số mìn đổi được trong phòng trước mỗi ván.
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });

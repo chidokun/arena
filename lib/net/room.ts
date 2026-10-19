@@ -1,40 +1,5 @@
-/**
- * Phiên phòng chơi. Toàn bộ trạng thái phòng là một gossip store nhân bản giữa những người trong phòng:
- *
- *   meta            — do chủ phòng ghi: tên, sức chứa, luật, danh sách ghế, trạng thái ván, danh sách bị kick…
- *   p:<uid>         — mỗi người tự ghi: hồ sơ, nhịp tim, và *ý định* (muốn vào ghế / rời ghế, chọn tờ) kèm số thứ tự.
- *   g:<round>       — nhật ký của ván: caro, cờ tướng, thả cờ 4, chấm nối ô, cờ lật, cờ chó là nước đi (hai người chơi lần lượt nối thêm, luôn ghi sau khi đã thấy
- *                     nước trước), bắn tàu là phát bắn và câu trả lời, lô tô là dãy số chủ phòng đã kêu; vẽ đoán là lời
- *                     đoán sai của lượt đang vẽ, chủ phòng công khai; cò chẹp là cú chọi (điểm rơi) và lệnh nhảy của người
- *                     tới lượt, kèm lệnh qua lượt / chốt ván của chủ phòng; dò mìn chiến thuật là hành động (mở ô, kỹ năng,
- *                     bỏ lượt) của người tới lượt, kèm lệnh cho qua lượt của chủ phòng; sudoku, nối thú kawaii, trúc xanh,
- *                     dò mìn cổ điển là bàn chung chủ phòng ghi sau khi phân xử nhật ký `m:` của từng người.
- *   x:<round>:<uid> — người chơi xin thua.
- *   z:<round>:<uid> — chống gian lận: máy người chơi tự báo đã mở công cụ nhà phát triển giữa ván; chủ phòng xử thua.
- *   v:<round>:<uid> — ma sói, undercover: phiếu bầu công khai của từng người; cờ tướng: lời xin hoà (kèm số nước lúc xin);
- *                     vẽ đoán: người vẽ chọn từ thứ mấy.
- *   a:<round>:<uid> — ma sói: hành động ban đêm; vẽ đoán: các lời đoán trong lượt — niêm phong gửi riêng chủ phòng.
- *   s:<round>:<uid> — ma sói, undercover, vẽ đoán: bí mật chủ phòng gửi riêng từng người (vai, từ khoá…), niêm phong.
- *   c:<round>:<uid> — undercover: mô tả từ khoá của từng người trong vòng hiện tại, công khai.
- *   w:<round>:<uid> — undercover: phe Trắng bị loại đoán từ khoá, công khai.
- *   m:<round>:<uid> — sudoku, nối thú kawaii, trúc xanh, dò mìn cổ điển: nhật ký nước điền / nước nối / lật ô, mở ô và lời
- *                     đoán của từng người;
- *                     chủ phòng phân xử thứ tự rồi ghi bàn chung vào `g:<ván>`.
- *   i:<uid>         — cờ tướng nhập vai: ý định hiện tại (claim lượt, giao lượt, đi quân), mỗi người tự ghi LWW.
- *   f:<round>:<uid> — bắn tàu: cam kết hạm đội (SHA-256) lúc bày xong, hết ván thêm hạm đội + muối để đối chiếu.
- *   d:<round>:<lượt>.<trang>:<uid> — vẽ đoán: tranh của người vẽ trong lượt, chia trang thao tác (nét, đổ màu, hoàn tác…).
- *
- * "Chốt" trạng thái người dùng: người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định
- * theo thứ tự rồi ghi nhận (`ack`). Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người
- * cuối cùng thấy cùng một `meta`. Kết quả ván suy ra tất định từ nhật ký nên ai cũng tự tính được.
- * Chủ phòng rớt mạng quá hạn thì người kế nhiệm (tất định: người chơi theo ghế, rồi người vào sớm nhất) tiếp quản.
- *
- * RoomSession lo phần chung (kết nối, ghế, chat, quyền chủ phòng); luật riêng của từng game nằm ở lớp con
- * (CaroRoom, LotoRoom, WerewolfRoom, UndercoverRoom, SudokuRoom, XiangqiRoom, XiangqiRoleRoom, ConnectFourRoom,
- * BattleshipRoom, DrawGuessRoom, OAnQuanRoom, ChessRoom, DotsBoxesRoom, CoChepRoom, MineControlRoom, KawaiiRoom,
- * TrucXanhRoom, MinesweeperRoom, ReversiRoom, CoChoRoom)
- * qua các hook `applyIntent`, `begin`, `outcome`, `hostPlay`, `gameView`…
- */
+// Người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định theo thứ tự rồi ghi nhận (`ack`).
+// Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người cuối cùng thấy cùng một `meta`.
 import type { CcPublic } from "../games/co-chep";
 import type { DwPublic } from "../games/draw-guess";
 import type { KwRound } from "../games/kawaii";
@@ -60,21 +25,10 @@ export type Status = "waiting" | "playing" | "ended";
 
 export type Result = {
   round: number;
-  /** Người thắng; null nếu hoà hoặc không ai thắng (lô tô kinh trùng xem `winners`). */
   winner: string | null;
   loser?: string;
-  /** Lô tô: những người kinh cùng một số — từ hai người trở lên là kinh trùng. */
   winners?: string[];
-  /**
-   * Cờ tướng: "mate" là thắng theo luật (chiếu bí, bí nước, đối phương chiếu dai), "agree" là hai bên đồng ý hoà. Bắn tàu:
-   * "sunk" là đánh chìm hết hạm đội. Vẽ đoán: "points" là hết các lượt, nhiều điểm nhất thắng (`winners`). Dò mìn
-   * chiến thuật: "survive" là người cuối cùng chưa bị loại. Trúc xanh: "guess" là có người đoán trúng tranh (`winner`), hoặc
-   * lật hết bàn, hết giờ đoán mà không ai đoán ra (`winner` null). Dò mìn cổ điển: "points" là mở hết bàn khi còn nhiều
-   * người trụ (nhiều điểm nhất thắng), "solve" là người trụ cuối cùng tự mở hết bàn, "boom" là ai cũng đạp mìn.
-   * Cờ chó: "blocked" là chặn hết đường đi của đối thủ. Mọi game hai người: "cheat" là đối thủ mở công cụ nhà phát triển giữa ván.
-   */
   reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked" | "cheat";
-  /** Ma sói, undercover: phe thắng (`winners` là những người thắng). */
   team?: Side | UcTeam;
 };
 
@@ -82,65 +36,40 @@ export type Meta = {
   game: string;
   name: string;
   host: string;
-  /** Số người chơi tối đa (caro: 2 ghế; lô tô: số tờ); 0 là không giới hạn (nối thú kawaii, trúc xanh, dò mìn cổ điển). */
   seats: number;
-  /** Số người tối đa trong phòng, tính cả người xem; 0 là không giới hạn. */
   cap: number;
-  /** Tuỳ chọn riêng của game (CaroOptions, LotoOptions). */
   opts: Record<string, unknown>;
   status: Status;
   round: number;
   players: string[];
-  /** Đội hình của ván hiện tại, chốt lúc bắt đầu (caro: lineup[0] cầm X đi trước, lineup[1] cầm O). */
   lineup: string[];
-  /** Lô tô: các tờ mỗi người đang giữ (đổi được giữa các ván). */
   claims?: Record<string, number[]>;
-  /** Lô tô: các tờ đã chia cho ván hiện tại, chốt lúc bắt đầu. */
   dealt?: Record<string, number[]>;
-  /** Lô tô: những người đã bấm sẵn sàng cho ván tới; xoá khi ván bắt đầu (mỗi ván sẵn sàng lại). */
   ready?: string[];
-  /** Lô tô: chủ phòng tạm dừng kêu số. */
   paused?: boolean;
-  /** Ma sói: phần công khai của ván gần nhất. */
   ww?: WolfPublic;
-  /** Undercover: phần công khai của ván gần nhất. */
   uc?: UcPublic;
-  /** Sudoku: đề và chế độ của ván gần nhất, chốt lúc bắt đầu. */
   sd?: SudokuRound;
-  /** Cờ tướng nhập vai: ownership + board + turn phase (chủ phòng ghi). */
   xqr?: XqRolePublic;
-  /** Undercover: mã các cặp từ đã chơi trong phòng (ghi khi hết ván) — không bốc lại. */
   ucUsed?: number[];
-  /** Vẽ đoán: phần công khai của ván gần nhất (thứ tự vẽ, lượt, giai đoạn, ai đoán đúng, điểm). */
   dw?: DwPublic;
-  /** Vẽ đoán: mã các từ đã chơi trong phòng — không bốc lại. */
   dwUsed?: number[];
-  /** Chấm nối ô: cỡ bàn của ván gần nhất, chốt lúc bắt đầu (chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong). */
+  // Chốt lúc bắt đầu để chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong.
   dbSize?: number;
-  /** Cờ chó: cách xếp quân của ván gần nhất, chốt lúc bắt đầu. */
   cdSetup?: string;
-  /** Cò chẹp: seed của ván và những người đã bị loại (bỏ cuộc, mất kết nối, bị mời ra). */
   cc?: CcPublic;
-  /** Dò mìn chiến thuật: seed, bản đồ, số mìn của ván và những người đã bị loại vì bỏ cuộc / mất kết nối / bị mời ra. */
   mc?: McPublic;
-  /** Nối thú kawaii: bàn (seed, cỡ) và giờ lộ bàn của ván gần nhất, chốt lúc bắt đầu. */
   kw?: KwRound;
-  /** Trúc xanh: bàn (seed, cỡ), mã tranh ẩn và giờ mở bàn của ván gần nhất, chốt lúc bắt đầu. */
   tx?: TxRound;
-  /** Trúc xanh: mã các tranh đã chơi trong phòng — không bốc lại. */
   txUsed?: number[];
-  /** Dò mìn cổ điển: bàn (seed, cỡ, số mìn) và giờ lộ bàn của ván gần nhất, chốt lúc bắt đầu. */
   ms?: MsRound;
   ack: Record<string, number>;
   kicked: string[];
-  /** Người chơi bị xử thua vì gian lận (mở công cụ nhà phát triển) trong ván hiện tại; xoá khi ván mới bắt đầu. */
   cheats?: string[];
   result?: Result;
-  /** Caro, cờ tướng: số ván thắng của từng người trong phòng, cộng dồn qua các ván. */
   wins?: Record<string, number>;
-  /** Caro, cờ tướng: số ván hoà. */
   draws?: number;
-  /** Caro: ván gần nhất đã cộng vào `wins`/`draws` — để mỗi kết quả chỉ được tính một lần. */
+  // Ván gần nhất đã cộng vào `wins`/`draws`, để mỗi kết quả chỉ được tính một lần.
   scored?: number;
   created: number;
 };
@@ -151,11 +80,8 @@ export type Member = Profile & {
   hb: number;
   joined: number;
   want: "play" | "watch" | null;
-  /** Lựa chọn đi kèm ý định (lô tô: các tờ muốn giữ). */
   pick?: number[];
-  /** Ý định "sẵn sàng chơi" đi kèm (lô tô: bấm sau khi chọn tờ). */
   ready?: boolean;
-  /** Khoá công khai ECDH để nhận / gửi bản ghi niêm phong (ma sói, undercover). */
   key?: string;
   seq: number;
   left?: boolean;
@@ -174,13 +100,10 @@ export type ChatMsg = {
   text?: string;
   sticker?: StickerId;
   system?: boolean;
-  /** Câu rao tự động thay người chơi (lô tô: "Hò!", "Kinh!"). */
   shout?: boolean;
-  /** Undercover: mô tả từ khoá của người chơi, chép vào khung chat (tô tím). */
   clue?: boolean;
-  /** Vẽ đoán: kết quả chấm một lời đoán — sai (tô tím), gần đúng (chỉ người đoán thấy), đúng (tô xanh). */
   guess?: GuessMark;
-  /** Chỉ hiện trên máy mình, không gửi lại cho người mới vào (vẽ đoán: lời đoán của chính mình — có thể là đáp án). */
+  // Không gửi lại cho người mới vào: vẽ đoán dùng cho lời đoán của chính mình, có thể là đáp án.
   local?: boolean;
 };
 
@@ -191,7 +114,6 @@ export type Phase = "connecting" | "ready" | "notfound" | "full" | "kicked" | "l
 
 export type SeatView = { uid: string; member?: Member; online: boolean };
 
-/** `roomStore`: trạng thái chung của phòng — pha, meta, vai trò của mình. Đổi khi meta / pha / số peer đổi. */
 export type RoomState = {
   phase: Phase;
   me: string;
@@ -200,20 +122,16 @@ export type RoomState = {
   peers: number;
   mySeat: number;
   pending: "play" | "watch" | null;
-  /** Chỉ có lúc đang vào phòng (`connecting`). */
   joining?: JoinProgress;
 };
 
-/** `peopleStore`: ai đang ở phòng, ai ngồi ghế nào, ai còn kết nối. Đổi khi có người vào / ra / đổi ghế / rớt mạng. */
 export type PeopleView = {
-  /** Người đang trong phòng (còn kết nối). */
   members: Member[];
   online: Set<string>;
   seats: SeatView[];
   spectators: Member[];
 };
 
-/** View gộp cả phòng trong một store — các bàn chơi chưa tách theo store đọc cái này. */
 export type RoomView<G = unknown> = {
   phase: Phase;
   me: string;
@@ -226,19 +144,15 @@ export type RoomView<G = unknown> = {
   spectators: Member[];
   mySeat: number;
   pending: "play" | "watch" | null;
-  /** Phần riêng của game (bàn cờ, tờ lô tô…); có khi đã có meta. */
   game?: G;
   chat: ChatMsg[];
-  /** Chỉ có lúc đang vào phòng (`connecting`). */
   joining?: JoinProgress;
 };
 
-/** Thông báo gian lận cho giao diện: `warn` là mình mở DevTools lúc đang ngồi ghế chờ ván (chưa bị phạt). */
 export type CheatAlert = { kind: "cheat"; uid: string; name: string; round: number; mine: boolean } | { kind: "warn" };
 
 export type CreateRoom = { name: string; cap: number; seats: number; opts: Record<string, unknown> };
 
-/** Nhịp đếm ngược 3‑2‑1 lúc mở ván; game có đồng hồ do chủ phòng giữ thì lùi mốc chạy thật lại bấy nhiêu. */
 export const START_COUNTDOWN_MS = 3000;
 
 const HEARTBEAT_MS = 2000;
@@ -262,9 +176,7 @@ const CHEAT_FRESH_MS = 15000;
 // Nhắc đóng DevTools trước ván không quá dày.
 const CHEAT_WARN_GAP_MS = 20000;
 
-// Bản ghi gắn với một ván (`<tiền tố><ván>:…`), dọn khi sang ván mới.
 const ROUND_KEYS = ["g:", "x:", "v:", "a:", "s:", "c:", "w:", "m:", "f:", "d:", "z:"];
-// Bản ghi chỉ chính chủ được ghi (khoá kết thúc bằng `:<uid>` của người ghi).
 const OWN_KEYS = ["x:", "v:", "a:", "c:", "w:", "m:", "i:", "f:", "d:", "z:"];
 
 const createKey = (id: string) => `arena:create:${id}`;
@@ -286,7 +198,6 @@ function takeCreate(id: string): CreateRoom | null {
   }
 }
 
-/** Còn ghế trống không — `seats` 0 là không giới hạn. */
 export const seatOpen = (m: Pick<Meta, "players" | "seats">) => m.seats <= 0 || m.players.length < m.seats;
 
 type RoomCtor<T> = new (id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) => T;
@@ -294,7 +205,6 @@ type RoomCtor<T> = new (id: string, me: string, profile: Profile, lobby: Lobby, 
 export abstract class RoomSession<G = unknown> {
   readonly id: string;
   readonly me: string;
-  /** Slug của game; phòng của game khác thì không vào. */
   abstract readonly game: string;
   private profile: Profile;
   private lobby: Lobby;
@@ -307,7 +217,6 @@ export abstract class RoomSession<G = unknown> {
   private chat: ChatMsg[] = [];
   private chatFns = new Set<(m: ChatMsg) => void>();
   private chatRate = new RateLimit(CHAT_RATE, CHAT_RATE_WINDOW_MS);
-  /** Lúc máy mình thấy từng người bắt đầu bị cấm chat (`muted`). */
   private mutedSince = new Map<string, number>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private prevOnline = new Set<string>();
@@ -324,26 +233,19 @@ export abstract class RoomSession<G = unknown> {
   private reactAgain = false;
   private stopDevtools: (() => void) | null = null;
   private cheatFns = new Set<(a: CheatAlert) => void>();
-  /** Các bản ghi gian lận (`<ván>:<uid>`) đã báo trên máy mình. */
   private cheatsTold = new Set<string>();
   private lastWarn = 0;
   private readyAt = 0;
   readonly store: ViewStore<RoomView<G>>;
-  /**
-   * Các store tách theo phần cho giao diện: mỗi phần của bàn chơi đăng ký đúng store mình cần, và mỗi store chỉ được báo
-   * khi đúng nguồn dữ liệu của nó đổi — nên chỉ phần đọc store đó vẽ lại.
-   */
+  // Store tách theo phần: mỗi store chỉ được báo khi đúng nguồn dữ liệu của nó đổi, nên chỉ phần bàn chơi đọc store đó
+  // vẽ lại.
   readonly roomStore = new ViewStore<RoomState>(() => this.computeRoom());
   readonly peopleStore = new ViewStore<PeopleView>(() => this.computePeople());
   readonly gameStore = new ViewStore<G | undefined>(() => this.computeGame());
-  /** Khung chat phòng: chỉ báo khi có tin mới. */
   readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
-  /** Nguồn đổi theo thời gian đã báo store lần trước (`syncViews`). */
   private viewSeen = { phase: "" as Phase | "", online: "" };
-  /** Phần hiển thị đã báo của từng bản ghi hiện diện (`shownChanged`). */
   private viewShown = new Map<string, string>();
 
-  /** Mở phiên phòng của một game cụ thể, vd. `LotoRoom.open(...)`. */
   static async open<T extends RoomSession>(this: RoomCtor<T>, id: string, me: string, profile: Profile, lobby: Lobby): Promise<T> {
     const channel = await openChannel(`room:${id}`);
     const session = new this(id, me, profile, lobby, channel);
@@ -374,7 +276,7 @@ export abstract class RoomSession<G = unknown> {
     });
   }
 
-  /** Khởi động phiên. Tách khỏi constructor để hook của lớp con chạy khi lớp con đã khởi tạo xong. */
+  // Tách khỏi constructor để hook của lớp con chạy khi lớp con đã khởi tạo xong.
   private boot() {
     // Khôi phục khi tải lại trang: giữ được đồng hồ Lamport, nhật ký ván, và quyền chủ phòng.
     try {
@@ -467,54 +369,35 @@ export abstract class RoomSession<G = unknown> {
       );
   }
 
-  // ---------- luật riêng của từng game ----------
-
-  /** Ghi nhận ý định của một người lúc ngoài ván. Mặc định: vào ghế nếu còn chỗ / rời ghế. */
   protected applyIntent(m: Meta, p: Member) {
     const i = m.players.indexOf(p.uid);
     if (p.want === "play" && i < 0 && seatOpen(m)) m.players.push(p.uid);
     if (p.want === "watch" && i >= 0) m.players.splice(i, 1);
   }
 
-  /** Chuẩn bị ván mới (đã tăng `round`): chốt đội hình… Trả về false nếu chưa đủ điều kiện bắt đầu. */
   protected abstract begin(m: Meta): boolean;
 
-  /** Kết quả ván đang chơi suy ra từ nhật ký — tất định, máy nào cũng tính ra như nhau; undefined nếu chưa xong. */
   protected abstract outcome(m: Meta): Result | undefined;
 
-  /** Chủ phòng, trong ván chưa có kết quả: việc riêng của game (xử thua người rớt mạng, kêu số…). Được sửa `m`. */
   protected hostPlay?(m: Meta): void;
 
-  /** Giữ dữ liệu riêng của game khớp với danh sách ghế sau mỗi lần chủ phòng sửa `meta`. */
   protected tidy?(m: Meta): void;
 
-  /**
-   * Một người bị kick (đã bị gỡ khỏi ghế), hoặc bị xử thua vì gian lận (`reason` "cheat", vẫn ở ghế): caro thì kết thúc
-   * ván nếu người đó đang đấu, game nhiều người thì loại người đó khỏi ván.
-   */
   protected onKick?(m: Meta, uid: string, reason?: "kick" | "cheat"): void;
 
-  /** Người này đang bị cấm chat theo luật game (ma sói: người chết, ban đêm…): máy họ không gửi, máy khác bỏ tin. */
   protected muted?(uid: string): boolean;
 
-  /** Mỗi nhịp, ở mọi máy: theo dõi diễn biến để rao, nhắn hệ thống… */
   protected watch?(m: Meta): void;
 
-  /** Đóng phiên: dọn hẹn giờ riêng. */
   protected stopped?(): void;
 
-  /** Trường thêm vào bản ghi hiện diện của mình (ma sói: khoá công khai). */
   protected memberExtra?(): Partial<Member>;
 
-  /** Thông tin thêm khi quảng bá phòng ra sảnh. */
   protected adExtra?(m: Meta): Partial<RoomAd>;
 
   protected abstract gameView(m: Meta, seatOf: (uid: string) => SeatView): G;
 
-  /** Câu nhắn hệ thống khi ván kết thúc. */
   protected abstract resultText(r: Result, name: (uid: string) => string): string;
-
-  // ---------- trạng thái ----------
 
   meta() {
     return this.gossip.get<Meta>("meta");
@@ -536,7 +419,6 @@ export abstract class RoomSession<G = unknown> {
     return this.gossip.get<Member>(`p:${uid}`)?.name ?? "Ai đó";
   }
 
-  /** Ý định gần nhất của mình và chủ phòng đã ghi nhận chưa. */
   protected myIntent(m: Meta) {
     return { want: this.want, pick: this.choice, ready: this.ready, pending: this.seq > (m.ack[this.me] ?? 0) };
   }
@@ -558,7 +440,6 @@ export abstract class RoomSession<G = unknown> {
     this.gossip.set(`p:${this.me}`, me, eager);
   }
 
-  /** Ghi lại bản ghi hiện diện ngay (vd. khi trường của `memberExtra` vừa có). */
   protected refresh() {
     this.beat(true);
   }
@@ -578,7 +459,6 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  /** Chạy lại vòng lặp chính; lời gọi lồng nhau (ghi gossip ngay trong vòng lặp) được dồn thành lượt kế tiếp. */
   protected react() {
     if (this.reacting) {
       this.reactAgain = true;
@@ -596,7 +476,6 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  /** Một lượt của vòng lặp chính: chuyển pha, bầu lại chủ phòng, chủ phòng xử lý ý định, nhắn hệ thống. */
   private step() {
     const now = Date.now();
     if (this.phase === "connecting" || this.phase === "ready") this.redialer.check(now);
@@ -675,7 +554,6 @@ export abstract class RoomSession<G = unknown> {
     this.system(`${title} mất kết nối — bạn trở thành ${title.toLowerCase()} mới`);
   }
 
-  /** Chủ phòng: xử lý ý định, loại người rớt mạng, chốt kết quả ván, việc riêng của game, quảng bá phòng ra sảnh. */
   private hostLoop() {
     const cur = this.meta()!;
     const m: Meta = structuredClone(cur);
@@ -725,12 +603,6 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  // ---------- các store tách theo phần ----------
-
-  /**
-   * Báo mọi store tách theo phần tính lại — gọi khi trạng thái riêng của game (không đi qua gossip) vừa đổi, vd. vừa
-   * giải mã xong bí mật. Game đã tách store thì gọi cái này thay cho `store.invalidate()`.
-   */
   protected refreshViews() {
     this.roomStore.invalidate();
     this.peopleStore.invalidate();
@@ -738,10 +610,8 @@ export abstract class RoomSession<G = unknown> {
     this.store.invalidate();
   }
 
-  /**
-   * Nguồn không đi qua gossip mà đổi theo thời gian (gọi mỗi lượt vòng lặp chính): pha của phòng và ai còn kết nối (nhịp
-   * tim im quá lâu là rớt mạng — không có sự kiện nào báo). Chỉ báo store có nguồn vừa đổi.
-   */
+  // Pha của phòng và ai còn kết nối đổi theo thời gian mà không có sự kiện nào báo (nhịp tim im quá lâu là rớt mạng), nên
+  // kiểm tra mỗi lượt vòng lặp chính.
   private syncViews() {
     const phase = this.phase !== this.viewSeen.phase;
     const online = this.onlineKey();
@@ -756,7 +626,6 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  /** Dấu vết tập người còn kết nối, để biết lượt này có ai vừa rớt / vừa nối lại không. */
   private onlineKey() {
     const kicked = this.meta()?.kicked ?? [];
     return this.members()
@@ -766,7 +635,6 @@ export abstract class RoomSession<G = unknown> {
       .join(",");
   }
 
-  /** Phần hiển thị của bản ghi hiện diện `k` (bỏ hb, seq, peer — đổi mỗi nhịp tim) có khác lần trước không. */
   private shownChanged(k: string, m: Member | undefined) {
     const sig = m ? JSON.stringify(m, (key, v) => (key === "hb" || key === "seq" || key === "peer" ? undefined : v)) : "";
     if (this.viewShown.get(k) === sig) return false;
@@ -774,19 +642,14 @@ export abstract class RoomSession<G = unknown> {
     return true;
   }
 
-  /**
-   * Bản ghi gossip `k` (ngoài `meta` và `p:*`) có ảnh hưởng tới `gameView` không — không thì đổi nó chẳng báo `gameStore`.
-   * Mặc định là có; game có bản ghi chỉ máy khác đọc (vd. hộp niêm phong gửi quản trò) thì loại ra.
-   */
   protected viewKey?(k: string): boolean;
 
-  /** Meta dùng được cho bàn chơi game này không (phòng của game khác thì không có ghế, không có ván). */
   private ownMeta() {
     const m = this.meta();
     return m && m.game === this.game ? m : undefined;
   }
 
-  /** Bản ghi hiện diện (kể cả người đã rớt mạng, để còn tên người ở ghế) và tập người còn kết nối. */
+  // Giữ cả bản ghi của người đã rớt mạng để còn tên người ở ghế.
   private presence() {
     const m = this.meta();
     const members = this.members();
@@ -886,17 +749,10 @@ export abstract class RoomSession<G = unknown> {
     return base;
   }
 
-  // ---------- chống gian lận ----------
-
-  /** Người này đã bị xử thua vì gian lận trong ván hiện tại. */
   protected cheated(m: Meta, uid: string) {
     return !!m.cheats?.includes(uid);
   }
 
-  /**
-   * Mức dò DevTools: "play" là đang đấu trong ván (chưa bị bắt) — dò đủ cả phím tắt lẫn worker; "seat" là đang ngồi ghế
-   * chờ ván — chỉ dò phím tắt để nhắc, không phạt; null là không dò.
-   */
   private armed(): "play" | "seat" | null {
     const m = this.meta();
     if (this.phase !== "ready" || !m) return null;
@@ -918,7 +774,6 @@ export abstract class RoomSession<G = unknown> {
     for (const fn of this.cheatFns) fn({ kind: "warn" });
   }
 
-  /** Những người trong đội hình ván hiện tại đã tự báo mở DevTools. */
   private cheatersOf(m: Meta) {
     if (m.round <= 0) return [];
     const prefix = `z:${m.round}:`;
@@ -928,7 +783,6 @@ export abstract class RoomSession<G = unknown> {
       .filter((c) => m.lineup.includes(c.uid) || this.cheated(m, c.uid));
   }
 
-  /** Chủ phòng, trong ván: xử thua người vừa bị phát hiện gian lận — game hai người kết thúc ván, game nhiều người loại khỏi ván. */
   private punishCheats(m: Meta) {
     for (const { uid } of this.cheatersOf(m)) {
       if (m.status !== "playing" || this.cheated(m, uid)) continue;
@@ -937,7 +791,6 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  /** Chủ phòng: người gian lận không được tính thắng, ván kết thúc theo đường nào cũng vậy. */
   private denyCheaters(m: Meta) {
     const r = m.result;
     const bad = m.cheats;
@@ -948,7 +801,6 @@ export abstract class RoomSession<G = unknown> {
     m.result = { ...r, winner, ...(winners ? { winners } : {}) };
   }
 
-  /** Mọi máy: báo người gian lận vào khung chat và bật thông báo trên giao diện. */
   private announceCheats(m: Meta) {
     const now = Date.now();
     for (const c of this.cheatersOf(m)) {
@@ -974,8 +826,6 @@ export abstract class RoomSession<G = unknown> {
     };
   }
 
-  // ---------- chat ----------
-
   private onRumor(r: Rumor, replayed: boolean) {
     if (r.t !== "chat") return;
     const msg = r.p as ChatMsg;
@@ -997,10 +847,8 @@ export abstract class RoomSession<G = unknown> {
     }
   }
 
-  /**
-   * Chặn ở máy nhận (máy gửi bị sửa vẫn không lọt): người đang bị cấm thì bỏ tin, trừ tin đang trên đường lúc họ vừa
-   * bị cấm. Lịch sử chat gửi lại cho người mới vào thì xét theo giờ gửi — tin nói lúc còn được nói vẫn giữ.
-   */
+  // Chặn ở máy nhận để máy gửi bị sửa vẫn không lọt. Lịch sử chat gửi lại cho người mới vào thì xét theo giờ gửi — tin
+  // nói lúc còn được nói vẫn giữ.
   private chatAllowed(msg: ChatMsg, replayed: boolean) {
     if (!this.muted?.(msg.uid)) return true;
     const since = this.mutedSince.get(msg.uid);
@@ -1029,7 +877,6 @@ export abstract class RoomSession<G = unknown> {
     };
   }
 
-  /** Trả về false nếu gửi quá nhanh (người khác sẽ bỏ tin) để giao diện nhắc. */
   send(content: { text: string } | { sticker: StickerId }): boolean | void {
     if (this.phase !== "ready" || this.muted?.(this.me)) return;
     const { name, avatar, color } = this.profile;
@@ -1043,8 +890,6 @@ export abstract class RoomSession<G = unknown> {
     const r = this.gossip.broadcast("chat", body);
     this.pushChat({ ...body, id: r.id });
   }
-
-  // ---------- hành động người chơi ----------
 
   protected intend(want: "play" | "watch", pick?: number[], ready = false) {
     this.want = want;
@@ -1071,8 +916,6 @@ export abstract class RoomSession<G = unknown> {
     this.profile = p;
     this.beat(true);
   }
-
-  // ---------- hành động chủ phòng ----------
 
   protected hostEdit(fn: (m: Meta) => boolean | void) {
     const cur = this.meta();
@@ -1106,7 +949,6 @@ export abstract class RoomSession<G = unknown> {
     });
   }
 
-  /** Chủ phòng kéo một người xem vào ghế trống. */
   seat(uid: string) {
     this.hostEdit((m) => {
       if (m.status === "playing" || m.players.includes(uid) || !seatOpen(m) || !this.isOnline(uid)) return false;
@@ -1114,7 +956,6 @@ export abstract class RoomSession<G = unknown> {
     });
   }
 
-  /** Chủ phòng mời một người chơi ra khỏi ghế (vẫn ở lại xem). */
   unseat(uid: string) {
     this.hostEdit((m) => {
       if (m.status === "playing" || !m.players.includes(uid)) return false;
@@ -1129,8 +970,6 @@ export abstract class RoomSession<G = unknown> {
     });
   }
 
-  // ---------- vòng đời ----------
-
   private schedulePersist() {
     if (this.persistTimer) return;
     this.persistTimer = setTimeout(() => {
@@ -1142,7 +981,6 @@ export abstract class RoomSession<G = unknown> {
     }, 800);
   }
 
-  /** Rời phòng chủ động: chủ phòng bàn giao cho người kế nhiệm, hoặc đóng phòng nếu không còn ai. */
   leave() {
     if (this.phase === "ready") {
       const m = this.meta();
@@ -1180,7 +1018,6 @@ export abstract class RoomSession<G = unknown> {
     this.syncViews();
   }
 
-  /** Huỷ phiên khi component unmount (vd. chuyển trang); khác `leave()` ở chỗ giữ snapshot nếu chỉ là tải lại. */
   dispose() {
     if (this.phase === "ready" || this.phase === "connecting") this.leave();
     else this.shutdown(false);

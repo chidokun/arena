@@ -1,13 +1,5 @@
-/**
- * Luật Undercover. Máy chủ phòng là người điều hành: giữ bí mật của ván (`Secret` — phe của từng người, cặp từ
- * khoá) và công bố phần ai cũng biết (`Public` — giai đoạn, thứ tự thảo luận, các mô tả, phiếu bầu, ai đã bị loại).
- * Ván chạy theo vòng: phát từ (lật bài, chốt thứ tự thảo luận) → [mô tả (lần lượt từng người, bắt buộc, không đếm
- * giờ) → thảo luận tự do trong khung chat → biểu quyết (ai bấm cũng được) → (bỏ phiếu phụ) → (chủ phòng phá hoà) →
- * loại một người, lộ phe → (phe Trắng đoán từ)].
- *
- * Mọi bước là hàm thuần trên (Public, Secret) + đầu vào (mô tả, phiếu bầu, lời đoán — đều công khai —, giờ, hàm ngẫu nhiên)
- * nên chạy được trong unit test, không phụ thuộc mạng.
- */
+// Máy chủ phòng điều hành vì chỉ nó giữ bí mật của ván (`Secret` — phe của từng người, cặp từ khoá). Mọi bước là hàm
+// thuần trên (Public, Secret) + đầu vào nên chạy được trong unit test, không phụ thuộc mạng.
 import { PAIRS } from "./undercover-words.ts";
 
 export type Role = "civilian" | "undercover" | "white";
@@ -33,23 +25,16 @@ export const ROLES: Record<Role, { name: string; team: string; emoji: string; br
   },
 };
 
-/** Thứ tự hiện các phe. */
 export const ROLE_ORDER: Role[] = ["civilian", "undercover", "white"];
 
 export type Tie = "random" | "none" | "host";
 
 export type UcOptions = {
-  /** Số Gián Điệp; 0 là tự động theo số người chơi. */
   undercovers: number;
-  /** Có phe Trắng trong ván. */
   white: boolean;
-  /** Số người phe Trắng khi có. */
   whites: number;
-  /** Báo phe cho người chơi; tắt thì phe Dân và Gián Điệp chỉ thấy từ khoá, tự đoán mình thuộc phe nào. */
   reveal: boolean;
-  /** Bỏ phiếu phụ vẫn hoà: bốc thăm, không ai bị loại, hoặc chủ phòng (không chơi) chọn. */
   tie: Tie;
-  /** Chủ phòng cũng chơi; tắt thì chủ phòng là người điều hành — thấy hết phe và từ khoá, tự đặt cặp từ được. */
   hostPlays: boolean;
 };
 
@@ -70,22 +55,16 @@ export const DEFAULT_OPTIONS: UcOptions = {
   hostPlays: true,
 };
 
-/** Thời lượng các giai đoạn (ms). */
 export const DURATION = {
-  /** Phát từ: chờ mọi người lật bài, tối đa bấy nhiêu. */
   intro: 30000,
-  /** Phát từ kéo dài ít nhất bấy nhiêu (để kịp xem lá bài vừa lật). */
+  // Phát từ kéo dài ít nhất chừng này để kịp xem lá bài vừa lật.
   introMin: 3000,
   vote: 60000,
-  /** Người bị loại bị lật bài phe. */
   verdict: 7000,
-  /** Phe Trắng đoán từ khoá. */
   guess: 45000,
-  /** Công bố phe Trắng đoán đúng hay sai. */
   judged: 6000,
 };
 
-/** Tuỳ chọn trong `meta.opts`; giá trị lạ thì về mặc định. */
 export function normOptions(o: unknown): UcOptions {
   const x = (o && typeof o === "object" ? o : {}) as Partial<Record<keyof UcOptions, unknown>>;
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
@@ -104,15 +83,10 @@ export function normOptions(o: unknown): UcOptions {
   };
 }
 
-/**
- * Số Gián Điệp tự động: nhiều nhất có thể mà vẫn ít hơn phe Dân ít nhất 2 người (phe Trắng tính riêng),
- * vd 6 người không có phe Trắng là 4 Dân / 2 Gián Điệp.
- */
 export const autoUndercovers = (n: number, whites = 0) => Math.max(1, Math.floor((n - whites - 2) / 2));
 
 export type Cast = Record<Role, number>;
 
-/** Đội hình cho n người chơi; `error` nếu không chia được. */
 export function castFor(n: number, opts: UcOptions): { cast: Cast; error?: string } {
   const white = opts.white ? opts.whites : 0;
   const undercover = opts.undercovers || autoUndercovers(n, white);
@@ -136,17 +110,14 @@ export function shuffle<T>(list: readonly T[], rand: () => number): T[] {
   return a;
 }
 
-/** Chia phe ngẫu nhiên. */
 export function deal(players: string[], cast: Cast, rand: () => number): Record<string, Role> {
   const deck = ROLE_ORDER.flatMap((r) => Array<Role>(cast[r]).fill(r));
   const order = shuffle(players, rand);
   return Object.fromEntries(order.map((uid, i) => [uid, deck[i] ?? "civilian"]));
 }
 
-/** Cặp từ của ván; `id` là mã cặp trong bộ từ (cặp chủ phòng tự đặt thì không có). */
 export type Words = { civilian: string; undercover: string; id?: number };
 
-/** Bốc một cặp từ chưa dùng (`used`: các mã cặp đã chơi); dùng hết thì bốc lại từ đầu. Từ nào thuộc phe Dân cũng bốc ngẫu nhiên. */
 export function pickWords(used: readonly number[], rand: () => number): Words & { id: number } {
   const done = new Set(used);
   const fresh = PAIRS.map((_, i) => i).filter((i) => !done.has(i));
@@ -157,7 +128,6 @@ export function pickWords(used: readonly number[], rand: () => number): Words & 
   return { civilian, undercover, id };
 }
 
-/** Chuẩn hoá để so từ: bỏ dấu, chữ thường, bỏ ký tự lạ — "Cà phê!" ≡ "ca phe". */
 export function normWord(s: string) {
   return s
     .replace(/[đĐ]/g, "d")
@@ -168,19 +138,16 @@ export function normWord(s: string) {
     .trim();
 }
 
-/** Phe Trắng đoán đúng từ khoá (không phân biệt dấu, hoa thường, khoảng trắng). */
 export function sameWord(guess: string, word: string) {
   const a = normWord(guess).replace(/ /g, "");
   return !!a && a === normWord(word).replace(/ /g, "");
 }
 
-/** Câu `text` có nói thẳng từ khoá `word` không (khớp nguyên từ, không phân biệt dấu). */
 export function mentions(text: string, word: string) {
   const w = normWord(word);
   return !!w && ` ${normWord(text)} `.includes(` ${w} `);
 }
 
-/** Mô tả hợp lệ: không rỗng, ngắn gọn, không nói thẳng từ khoá của chính mình. */
 export function clueError(text: string, word: string | null | undefined) {
   const t = text.trim();
   if (!t) return "Hãy nhập một từ hoặc một câu ngắn";
@@ -188,72 +155,49 @@ export function clueError(text: string, word: string | null | undefined) {
   if (word && mentions(t, word)) return "Không được nói thẳng từ khoá";
 }
 
-// ---------- trạng thái ván ----------
-
 export type Stage = "intro" | "clue" | "talk" | "vote" | "revote" | "decide" | "verdict" | "guess" | "judged";
 
-/** Người bị loại: bị biểu quyết loại hoặc rời ván (rớt mạng / bị mời ra). Phe luôn được công khai. */
 export type Out = { uid: string; day: number; role: Role; how: "vote" | "left" };
 
-/** Một lượt bỏ phiếu đã kết thúc. */
 export type Tally = { day: number; stage: "vote" | "revote"; ballots: Record<string, string> };
 
-/** Lời đoán của phe Trắng vừa bị loại; null là hết giờ mà không đoán. */
 export type Guess = { uid: string; day: number; text: string | null; right: boolean };
 
-/** Mô tả của một người trong vòng `day`; null là bị chủ phòng bỏ qua lượt. */
 export type Clue = { uid: string; day: number; text: string | null };
 
-/** Ai gọi biểu quyết ở vòng nào. */
 export type Call = { day: number; uid?: string };
 
-/** Phần ai cũng biết, nằm trong `meta.uc`. */
 export type Public = {
   round: number;
   stage: Stage;
-  /** Vòng chơi thứ mấy. */
   day: number;
-  /** Giờ máy chủ phòng lúc vào giai đoạn và hạn chót. */
   since: number;
   until: number;
   alive: string[];
   outs: Out[];
   cast: Cast;
-  /** Người chơi có được báo phe không (luật `reveal` lúc bắt đầu ván). */
   reveal: boolean;
-  /** Thứ tự thảo luận, chốt lúc phát từ (người bị loại thì bỏ qua). */
   order: string[];
-  /** Lượt mô tả: chỉ số trong `order` của người đang mô tả. */
   turn: number;
   clues: Clue[];
   tallies: Tally[];
   calls: Call[];
   guesses: Guess[];
-  /** Bỏ phiếu phụ / chủ phòng phá hoà: chỉ được chọn những người này. */
   candidates?: string[];
-  /** Người bị loại vòng này; null là không ai. */
   out?: string | null;
-  /** Người bị loại được chọn bằng cách phá hoà. */
   tiebreak?: "random" | "host";
   winner?: Role;
   winners?: string[];
-  /** Hết ván: phe của mọi người và cặp từ khoá. */
   roles?: Record<string, Role>;
   words?: Words;
 };
 
-/** Bí mật của người điều hành. */
 export type Secret = { roles: Record<string, Role>; words: Words };
 
 export type Game = { pub: Public; sec: Secret };
 
-/** Mô tả công khai `c:<ván>:<uid>` / lời đoán công khai của phe Trắng `w:<ván>:<uid>`. */
 export type Say = { day: number; text: string };
 
-/**
- * Bản ghi công khai `v:<ván>:<uid>`. Phát từ: `ready` là đã lật bài. Thảo luận: `ready` là bấm biểu quyết (`at`: lúc
- * bấm, để biết ai gọi trước). Biểu quyết: `target` là người mình xác nhận loại.
- */
 export type Vote = { day: number; stage: Stage; target?: string; ready?: boolean; at?: number };
 
 export type Input = {
@@ -271,7 +215,6 @@ function enter(pub: Public, stage: Stage, now: number, ms: number) {
   pub.until = now + ms;
 }
 
-/** Thứ tự thảo luận: xáo ngẫu nhiên, người nói đầu không phải phe Trắng. */
 export function talkOrder(players: string[], roles: Record<string, Role>, rand: () => number) {
   const order = shuffle(players, rand);
   const s = Math.max(0, order.findIndex((u) => roles[u] !== "white"));
@@ -305,10 +248,8 @@ export function newGame(round: number, players: string[], opts: UcOptions, words
 
 const count = (alive: string[], roles: Record<string, Role>, r: Role) => alive.filter((u) => roles[u] === r).length;
 
-/**
- * Phe thắng nếu ván đã ngã ngũ: hết Gián Điệp và phe Trắng thì phe Dân thắng; Gián Điệp đông bằng phe Dân thì áp đảo
- * được phiếu bầu; chỉ còn hai người mà phe đối lập vẫn còn thì phe đó sống sót tới cùng.
- */
+// Gián Điệp đông bằng phe Dân thì áp đảo được phiếu bầu nên coi như thắng; chỉ còn hai người mà phe đối lập vẫn còn thì
+// phe đó sống sót tới cùng.
 export function winnerOf(alive: string[], roles: Record<string, Role>): Role | undefined {
   const uc = count(alive, roles, "undercover");
   const wh = count(alive, roles, "white");
@@ -318,12 +259,10 @@ export function winnerOf(alive: string[], roles: Record<string, Role>): Role | u
   if (alive.length <= 2) return uc > 0 ? "undercover" : "white";
 }
 
-/** Người thắng: cả phe thắng (kể cả người đã bị loại); Gián Điệp thắng thì phe Trắng còn sống cũng thắng. */
 export function winnersOf(winner: Role, roles: Record<string, Role>, alive: string[]) {
   return Object.keys(roles).filter((u) => roles[u] === winner || (winner === "undercover" && roles[u] === "white" && alive.includes(u)));
 }
 
-/** Lộ hết bí mật khi hết ván (thắng thua hoặc chủ phòng dừng). */
 export function unveil(g: Game): Public {
   return { ...g.pub, roles: { ...g.sec.roles }, words: { ...g.sec.words } };
 }
@@ -338,10 +277,8 @@ function settle(g: Game) {
   return !!w;
 }
 
-/** Lời đoán của người bị loại vòng này (nếu đã đoán). */
 export const guessOf = (pub: Public) => pub.guesses.find((x) => x.uid === pub.out && x.day === pub.day);
 
-/** Phe Trắng vừa bị loại và chưa đoán xong: chưa được kết thúc ván. */
 const whitePending = (g: Game) =>
   (g.pub.stage === "verdict" || g.pub.stage === "guess") && !!g.pub.out && g.sec.roles[g.pub.out] === "white" && !guessOf(g.pub);
 
@@ -351,7 +288,6 @@ function eliminate(g: Game, uid: string, how: Out["how"]) {
   g.pub.outs.push({ uid, day: g.pub.day, role: g.sec.roles[uid], how });
 }
 
-/** Đếm phiếu: người nhiều phiếu nhất (hoà thì nhiều người). */
 export function tally(ballots: Record<string, string>) {
   const counts: Record<string, number> = {};
   for (const t of Object.values(ballots)) counts[t] = (counts[t] ?? 0) + 1;
@@ -365,7 +301,6 @@ export function tally(ballots: Record<string, string>) {
   return { counts, max, top };
 }
 
-/** Các phiếu đã xác nhận của lượt bỏ phiếu hiện tại: người còn trong ván loại một người khác còn trong ván. */
 export function ballotsOf(pub: Public, votes: Record<string, Vote | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
   if (pub.stage !== "vote" && pub.stage !== "revote") return out;
@@ -378,7 +313,6 @@ export function ballotsOf(pub: Public, votes: Record<string, Vote | undefined>):
   return out;
 }
 
-/** Phát từ: những người đã lật bài. Thảo luận: những người đã bấm biểu quyết (ai bấm trước đứng trước). */
 export function readyOf(pub: Public, votes: Record<string, Vote | undefined>) {
   if (pub.stage !== "intro" && pub.stage !== "talk") return [];
   const at = (u: string) => votes[u]?.at ?? 0;
@@ -390,16 +324,12 @@ export function readyOf(pub: Public, votes: Record<string, Vote | undefined>) {
     .sort((a, b) => at(a) - at(b));
 }
 
-/** Thứ tự thảo luận của vòng hiện tại (bỏ người đã bị loại). */
 export const speakers = (pub: Public) => pub.order.filter((u) => pub.alive.includes(u));
 
-/** Người đang mô tả; undefined nếu không phải lượt mô tả. */
 export const speakerOf = (pub: Public) => (pub.stage === "clue" ? pub.order[pub.turn] : undefined);
 
-/** Mô tả của vòng hiện tại. */
 export const cluesOf = (pub: Public, day = pub.day) => pub.clues.filter((c) => c.day === day);
 
-/** Từ lượt `from` trở đi, tới người còn trong ván kế tiếp; hết người thì sang thảo luận tự do. Không đếm giờ. */
 function seek(g: Game, from: number, now: number) {
   const { pub } = g;
   let i = from;
@@ -409,7 +339,6 @@ function seek(g: Game, from: number, now: number) {
   else enter(pub, "talk", now, 0);
 }
 
-/** Vào vòng mới: lần lượt mô tả theo thứ tự thảo luận. */
 function startClues(g: Game, now: number) {
   const { pub } = g;
   delete pub.out;
@@ -423,7 +352,6 @@ function startVote(g: Game, now: number, by?: string) {
   enter(g.pub, "vote", now, DURATION.vote);
 }
 
-/** Loại `uid` (null: không ai) rồi lật bài phe; ván ngã ngũ thì kết thúc luôn (trừ khi phải chờ phe Trắng đoán). */
 function verdict(g: Game, uid: string | null, now: number, tiebreak?: "random" | "host") {
   const { pub } = g;
   pub.out = uid;
@@ -448,7 +376,6 @@ function judge(g: Game, text: string | null, now: number) {
   if (right) finish(g, "white");
 }
 
-/** Một bước của người điều hành: nhận phiếu / lời đoán, chuyển giai đoạn khi đủ điều kiện hoặc hết giờ. Không sửa `g0`. */
 export function advance(g0: Game, inp: Input): Game {
   const g: Game = structuredClone(g0);
   const { pub } = g;
@@ -523,7 +450,6 @@ export function advance(g0: Game, inp: Input): Game {
   return g;
 }
 
-/** Chủ phòng (người điều hành) chọn người bị loại khi bỏ phiếu phụ vẫn hoà. */
 export function decide(g0: Game, uid: string, now: number): Game {
   if (g0.pub.stage !== "decide" || g0.pub.winner || !g0.pub.candidates?.includes(uid) || !g0.pub.alive.includes(uid)) return g0;
   const g: Game = structuredClone(g0);
@@ -531,7 +457,6 @@ export function decide(g0: Game, uid: string, now: number): Game {
   return g;
 }
 
-/** Chủ phòng bỏ qua lượt mô tả của người đang treo máy. */
 export function skipClue(g0: Game, now: number): Game {
   if (g0.pub.stage !== "clue" || g0.pub.winner) return g0;
   const g: Game = structuredClone(g0);
@@ -540,7 +465,6 @@ export function skipClue(g0: Game, now: number): Game {
   return g;
 }
 
-/** Chủ phòng không chơi gọi biểu quyết ngay. */
 export function skipTalk(g0: Game, now: number, by?: string): Game {
   if (g0.pub.stage !== "talk" || g0.pub.winner) return g0;
   const g: Game = structuredClone(g0);
@@ -548,23 +472,19 @@ export function skipTalk(g0: Game, now: number, by?: string): Game {
   return g;
 }
 
-/** Người chơi rời ván (rớt mạng quá lâu, bị mời ra): bị loại ngay, lộ phe, có thể khiến ván ngã ngũ. */
 export function depart(g0: Game, uid: string): Game {
   if (!g0.pub.alive.includes(uid) || g0.pub.winner) return g0;
   const g: Game = structuredClone(g0);
   eliminate(g, uid, "left");
   if (g.pub.candidates) g.pub.candidates = g.pub.candidates.filter((u) => u !== uid);
   if (!whitePending(g) && g.pub.stage !== "judged" && settle(g)) return g;
-  // Người đang mô tả rời ván thì sang lượt người kế.
   if (g.pub.stage === "clue" && g.pub.order[g.pub.turn] === uid) seek(g, g.pub.turn + 1, g.pub.since);
   return g;
 }
 
-/** Phần bí mật người điều hành gửi riêng cho một người chơi: từ khoá (phe Trắng: null), phe nếu được báo. */
 export type SecretView = {
   word?: string | null;
   role?: Role;
-  /** Người xem / người điều hành không chơi: thấy hết. */
   watch?: WatchView;
 };
 
@@ -590,7 +510,6 @@ export const STAGE_NAMES: Record<Stage, string> = {
   judged: "Kết quả đoán",
 };
 
-/** "A", "A và B", "A, B và C". */
 export function joinNames(names: string[]) {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} và ${names[names.length - 1]}`;

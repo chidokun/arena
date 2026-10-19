@@ -1,17 +1,5 @@
-/**
- * Phòng Trúc Xanh: không giới hạn ghế, một người cũng chơi được. Bắt đầu ván, chủ phòng xáo thứ tự lượt (đội hình) và
- * chốt `meta.tx` (seed, cỡ bàn, mã tranh ẩn, giờ mở bàn) — mọi máy tự sinh cùng một bàn từ seed. Người chơi chỉ nối nước
- * của mình (lật ô, lời đoán) vào `m:<ván>:<uid>`; máy chủ phòng xét các nước mới theo thứ tự mình thấy (`judge`), thêm
- * mốc qua lượt / hết giờ đoán rồi ghi bàn chung `g:<ván>` — ô nào đã lật được, tới lượt ai, ai đoán gì, ai thắng đều suy
- * ra tất định từ bàn chung.
- *
- * Lời đoán gửi từ ô đoán dưới tranh, khung chat chỉ để thảo luận (người chơi lỡ gõ đúng đáp án vào chat thì tính là lời
- * đoán, không gửi lên chat). Chấm xong mỗi máy tự chép kết quả vào khung chat như tin của người đoán: sai — ô tím kèm lời
- * đoán; gần đúng — chỉ người đoán thấy; đúng — ô xanh, hết ván.
- *
- * Tranh và từ khoá nằm sẵn trong bản build (mã tranh công khai trong `meta`), nên ai mở công cụ dev vẫn tra ra được — chỉ
- * giao diện là giữ kín tới hết ván.
- */
+// Tranh và từ khoá nằm sẵn trong bản build (mã tranh công khai trong `meta`), nên ai mở công cụ dev vẫn tra ra được —
+// chỉ giao diện là giữ kín tới hết ván.
 import {
   canFlip,
   COUNTDOWN_MS,
@@ -42,7 +30,6 @@ import {
 } from "../games/truc-xanh";
 import { RoomSession, type Member, type Meta, type Result, type SeatView, type StickerId } from "./room";
 
-/** Cả đội hình mất kết nối chừng này thì dừng ván. */
 const ABANDON_MS = 60000;
 
 export type GuessState = "wait" | "wrong" | "near" | "right";
@@ -51,48 +38,33 @@ export type TxMatch = {
   round: number;
   size: SizeKey;
   level: Level;
-  /** Thứ tự lượt. */
   lineup: SeatView[];
-  /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
-  /** Người thứ k của đội hình bị xử thua vì gian lận: gạch tên, không được lật ô hay đoán nữa. */
   cheats: boolean[];
   state: TxState;
-  /** Ảnh tranh ẩn. */
   img: string;
-  /** Câu gợi ý của tranh (bộ Khó) — chỉ có khi đã mở (lật được nửa bàn, hoặc hết ván). */
   hint?: string;
-  /** Tranh có câu gợi ý nhưng chưa mở. */
   hintLocked: boolean;
-  /** Từ khoá — chỉ có khi đã hết ván. */
   answer?: string;
-  /** Các ô mình thấy đang ngửa: ô ngửa trên bàn chung cộng ô mình vừa lật đang chờ chủ phòng ghi nhận. */
   open: number[];
-  /** Lời đoán của mình và kết quả chấm. */
   guesses: { text: string; state: GuessState }[];
-  /** Giờ máy mình lúc mở bàn (hết đếm ngược). */
   opensAt: number;
-  /** Hạn chót theo giờ máy mình: hết lượt hiện tại, hoặc hết giờ đoán khi đã lật hết bàn. */
   deadline: number;
   result?: Result;
 };
 
 export type TxView = {
-  /** Luật cho ván tới. */
   opts: TxOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa chơi ván nào. */
   match?: TxMatch;
-  /** Số tranh đã chơi / cả bộ của mức khó đang chọn cho ván tới. */
   pics: { used: number; total: number };
 };
 
 export class TrucXanhRoom extends RoomSession<TxView> {
   readonly game = "truc-xanh";
-  /** Trạng thái dựng gần nhất — nhật ký chỉ dài thêm nên dựng tiếp từ đây thay vì từ đầu. */
+  // Nhật ký chỉ dài thêm nên dựng tiếp từ trạng thái gần nhất thay vì từ đầu.
   private cache: { round: number; seed: number; tail: string; state: TxState } | null = null;
   private opened = { round: -1, at: 0 };
   private stageSeen = { key: "", at: 0 };
-  /** Đã rao tới dòng nhật ký / lời đoán thứ mấy của ván nào. */
   private told = { round: -1, log: 0, guesses: 0 };
 
   private board(m: Meta): Board {
@@ -115,10 +87,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return state;
   }
 
-  /**
-   * Giờ máy mình lúc mở bàn: lần đầu thấy ván thì đếm ngược phần còn lại theo giờ chủ phòng, tối đa một nhịp đếm ngược;
-   * vào giữa ván (tải lại trang) thì chơi ngay.
-   */
   private opensAt(m: Meta, tx: TxRound) {
     if (this.opened.round !== m.round) {
       const now = Date.now();
@@ -136,12 +104,9 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return at >= since - 3000 - COUNTDOWN_MS && at <= since + ms + 3000 ? since + ms : at + ms;
   }
 
-  // ---------- luật ----------
-
   protected begin(m: Meta) {
     const players = m.players.filter((u) => this.isOnline(u));
     if (players.length < MIN_PLAYERS) return false;
-    // Thứ tự lượt xáo ngẫu nhiên mỗi ván.
     for (let i = players.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [players[i], players[j]] = [players[j], players[i]];
@@ -151,7 +116,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     const pic = pickPicture(used, opts.level, Math.random);
     m.lineup = players;
     m.tx = { ...opts, seed: crypto.getRandomValues(new Uint32Array(1))[0], pic, t0: Date.now() + COUNTDOWN_MS };
-    // Chơi hết bộ tranh của mức này thì đếm lại từ đầu (bộ của mức kia giữ nguyên).
     const full = usedOf(used, opts.level).length >= LEVELS[opts.level].pictures.length;
     m.txUsed = [...(full ? this.otherLevels(used, opts.level) : used), usedId(opts.level, pic)];
     return true;
@@ -165,10 +129,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return { round: m.round, winner, winners: winner ? [winner] : [], reason: "guess" };
   }
 
-  /**
-   * Chủ phòng phân xử các nước mới, cho qua lượt / hết giờ đoán — người bị xử thua vì gian lận coi như rời ván (mất lượt,
-   * không được lật / đoán thêm); cả đội hình bỏ đi, hoặc không còn ai chơi được (bị kick / gian lận hết) thì dừng ván.
-   */
   protected hostPlay(m: Meta) {
     const tx = m.tx!;
     const online = (u: string) => !m.kicked.includes(u) && !this.cheated(m, u) && this.isOnline(u);
@@ -190,7 +150,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     }
   }
 
-  /** Mọi máy: chép lời đoán, mất lượt, lật hết bàn vào khung chat — id cố định nên tải lại trang không rao lặp. */
+  // Id cố định nên tải lại trang không rao lặp.
   protected watch(m: Meta) {
     if (!m.tx || m.status !== "playing") return;
     const s = this.stateOf(m, m.tx);
@@ -212,7 +172,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     }
     if (s.cleared) this.say(`tx-clear:${r}`, `🖼️ Đã lật hết bàn — còn ${FINAL_MS / 1000} giây để đoán tranh!`);
     this.told.log = log.length;
-    // Lời đoán: sai — công khai (ô tím); gần đúng — chỉ người đoán thấy; đúng — ô xanh.
     for (let i = this.told.guesses; i < s.guesses.length; i++) {
       const g = s.guesses[i];
       const uid = m.lineup[g.k];
@@ -297,9 +256,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return r.winner ? `🏆 ${name(r.winner)} đoán trúng tranh, thắng ván ${r.round}${reveal}!` : `Ván ${r.round} kết thúc, không ai đoán ra${reveal}`;
   }
 
-  // ---------- hành động ----------
-
-  /** Ván đang chơi mà mình là người chơi (chưa bị xử thua vì gian lận) và bàn đã mở. */
   private playable() {
     const m = this.meta();
     const g = this.store.get().game?.match;
@@ -313,7 +269,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     this.react();
   }
 
-  /** Lật ô `cell` (đang tới lượt mình, chưa ngửa đủ hai ô). Trả về false nếu không lật được. */
   flip(cell: number): boolean {
     const p = this.playable();
     if (!p) return false;
@@ -324,7 +279,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return true;
   }
 
-  /** Gửi một lời đoán (bất cứ lúc nào trong ván). Kết quả hiện trong khung chat khi chủ phòng chấm xong. */
   guess(text: string): boolean {
     const p = this.playable();
     const t = text.trim().slice(0, GUESS_LEN);
@@ -337,10 +291,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return true;
   }
 
-  /**
-   * Khung chat để thảo luận. Người chơi gõ trúng đáp án vào chat thì tính là lời đoán (không gửi lên chat); người xem gõ
-   * trúng đáp án thì không gửi, để khỏi lộ cho người chơi.
-   */
+  // Người xem gõ trúng đáp án thì không gửi, để khỏi lộ cho người chơi.
   send(content: { text: string } | { sticker: StickerId }): boolean | void {
     const m = this.meta();
     const pic = m?.tx && m.status === "playing" ? pictureOf(m.tx) : undefined;
@@ -354,7 +305,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     return super.send(content);
   }
 
-  /** Chủ phòng đổi cỡ bàn / mức khó cho ván tới. */
   setOptions(next: Partial<TxOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -364,12 +314,10 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     });
   }
 
-  /** Các tranh đã chơi của những mức khác `level`. */
   private otherLevels(used: readonly number[], level: Level) {
     return used.filter((id) => !usedOf([id], level).length);
   }
 
-  /** Xoá đánh dấu các tranh đã chơi của mức khó đang chọn để bốc lại từ đầu bộ. */
   resetPictures() {
     this.hostEdit((m) => {
       const { level } = normOptions(m.opts);
@@ -379,7 +327,6 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     });
   }
 
-  /** Chủ phòng dừng ván giữa chừng: không tính ai thắng. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

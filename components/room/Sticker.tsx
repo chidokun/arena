@@ -2,7 +2,6 @@ import { getSticker, type StickerId } from "@/lib/stickers";
 
 const base = process.env.BASE_PATH ?? "";
 
-/** Vẽ một sticker theo `size` (px). */
 export function StickerArt({ id, size, className = "" }: { id: StickerId; size: number; className?: string }) {
   const s = getSticker(id);
   if (!s) return <span className={className}>❓</span>;

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Gossip, Liveness, type Wire, type WireKind } from "./gossip.ts";
 
-/** Mạng giả lập đồng bộ: `links` quy định cặp nào nối trực tiếp được với nhau. */
 function network(ids: string[], links: [string, string][]) {
   const handlers = new Map<string, Map<WireKind, (d: unknown, from: string) => void>>();
   const joins = new Map<string, (p: string) => void>();

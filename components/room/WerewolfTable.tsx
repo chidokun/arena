@@ -31,13 +31,9 @@ import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn ma sói đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<WolfView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useWolfView(session: WerewolfRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -45,15 +41,13 @@ function useWolfView(session: WerewolfRoom): View {
   return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
 }
 
-/** Lượt hiện tại (vòng · ngày · giai đoạn) — Phù Thủy chọn đầu độc gắn với lượt này, sang lượt khác tự tắt. */
+// Gắn lựa chọn đầu độc với lượt để sang lượt khác tự tắt.
 const turnOf = (view: View) => `${view.game!.pub?.round}:${view.game!.pub?.day}:${view.game!.pub?.stage}`;
 
-/** Một lựa chọn đang mở trên bàn: bấm vào người trong làng để chọn (Cupid chọn hai người). */
 type Pick = { verb: string; can: (uid: string) => boolean; chosen: string[]; onPick: (uid: string) => void };
 
 const one = (u: string | null | undefined) => (u ? [u] : []);
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 500) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -67,14 +61,12 @@ function useNow(active: boolean, every = 500) {
 }
 
 const nameIn = (view: View, uid: string) => (uid === view.me ? "Bạn" : (view.game!.people[uid]?.member?.name ?? "Ai đó"));
-/** Tên dùng giữa câu: "bạn" viết thường. */
 const nameMid = (view: View, uid: string) => (uid === view.me ? "bạn" : nameIn(view, uid));
 
 function deathOf(view: View, uid: string): Death | undefined {
   return view.game!.pub?.deaths.find((d) => d.uid === uid);
 }
 
-/** Vai của một người mà mình được biết: thấy hết (quản trò, người xem), hết ván, của mình, đồng bọn Sói, người yêu. */
 function knownRole(view: View, uid: string): Role | undefined {
   const g = view.game!;
   const s = g.me.secret;
@@ -88,39 +80,32 @@ function knownRole(view: View, uid: string): Role | undefined {
   );
 }
 
-/** Cặp đôi mình được biết: thấy hết, hết ván, Cupid, hoặc mình là một trong hai. */
 function knownLovers(view: View): string[] {
   const g = view.game!;
   const s = g.me.secret;
   return g.seeAll?.lovers ?? g.pub?.lovers ?? s?.lovers ?? (s?.lover ? [view.me, s.lover] : []);
 }
 
-/** Bán Sói đã hoá Sói mà mình được biết. */
 function knownTurned(view: View): string[] {
   const g = view.game!;
   return g.seeAll?.turned ?? g.pub?.turned ?? (g.me.secret?.turned ? [view.me] : []);
 }
 
-/** Hai người Cupid đang chọn ghép đôi. */
 const cupidPair = (g: WolfView) => (g.me.act.cupid ?? g.me.secret?.cupid ?? []).slice(-2);
 
 const isNight = (g: WolfView) => g.playing && (g.pub?.stage === "night" || g.pub?.stage === "dawn");
-/** Đã chốt hành động đêm nay. */
 const isDone = (g: WolfView) => !!(g.me.act.done || g.me.secret?.done);
 
-/** Lựa chọn đang mở cho mình theo giai đoạn và vai. */
 function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | null {
   const g = view.game!;
   const pub = g.pub;
   const me = g.me;
   if (!g.playing || !pub) return null;
   const alive = (u: string) => pub.alive.includes(u);
-  // Thợ Săn vừa chết chọn người bắn theo.
   if (pub.stage === "hunt" && pub.hunt?.uid === view.me)
     return { verb: "Bắn", can: alive, chosen: one(g.aim), onPick: (u) => session.shoot(u) };
   if (!me.alive) return null;
   const s = me.secret;
-  // Ban đêm chỉ vai đang được gọi mới chọn được.
   if (pub.stage === "night" && s && s.role === pub.turn && !isDone(g)) {
     if (s.role === "cupid") {
       const pair = cupidPair(g);
@@ -170,7 +155,7 @@ function pickOf(view: View, session: WerewolfRoom, poisoning: boolean): Pick | n
   return null;
 }
 
-/** Lý do khoá ô chat: ban đêm cả làng ngủ, người chết không được nói, người xem biết hết vai. Khớp `WerewolfRoom.muted`. */
+// Phải khớp `WerewolfRoom.muted`.
 function chatLock(g: WolfView, isHost: boolean) {
   if (!g.playing) return undefined;
   if (!g.me.inGame) return !isHost ?"👀 Bạn đang xem và thấy hết vai — giữ im lặng tới hết ván để không lộ bí mật." : undefined;
@@ -178,16 +163,12 @@ function chatLock(g: WolfView, isHost: boolean) {
   if (isNight(g)) return "🌙 Ban đêm cả làng ngủ — chờ trời sáng rồi trò chuyện.";
 }
 
-/**
- * Bàn ma sói tách theo store: khung chỉ đọc vài trường của `roomStore`; mỗi phần (sân khấu, hành động, làng, vai…) tự
- * đăng ký store và bọc `memo`, nên nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
- */
+// Mỗi phần tự đăng ký store và bọc `memo` để nhịp tim, tin chat hay sticker bay không làm cả bàn vẽ lại.
 export function WerewolfTable({ id, slug, session }: { id: string; slug: string; session: WerewolfRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const playing = useGame(session, (g) => !!g?.playing);
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
-  // Phù Thủy đang chọn người đầu độc ở lượt nào (rỗng: không chọn) — ActionCard bật / tắt, Village dùng để chọn người.
   const [poisonTurn, setPoisonTurn] = useState("");
   const [rules, setRules] = useState(false);
   const detail = useCallback((p: Member, seated: boolean) => <PersonLinePart session={session} uid={p.uid} seated={seated} />, [session]);
@@ -225,12 +206,9 @@ export function WerewolfTable({ id, slug, session }: { id: string; slug: string;
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round, players: r.meta!.players.length });
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Khung chat: chỉ cần biết lý do khoá chat (chuỗi) — đổi giai đoạn / chết mới vẽ lại, còn tin mới thì ChatPanel tự lo. */
+// Chỉ chọn lý do khoá chat (chuỗi) để chỉ vẽ lại khi đổi giai đoạn / chết; tin mới thì ChatPanel tự lo.
 const WolfChat = memo(function WolfChat({ session }: { session: WerewolfRoom }) {
   const isHost = useRoomState(session, (r) => r.isHost);
   const locked = useGame(session, (g) => (g ? chatLock(g, isHost) : undefined));
@@ -308,12 +286,10 @@ function RulesPart({ session }: { session: WerewolfRoom }) {
   return <Rules opts={opts} />;
 }
 
-/** Dòng mô tả từng người trong danh sách phòng. */
 function PersonLine({ view, uid, seated }: { view: View; uid: string; seated: boolean }) {
   const g = view.game!;
   const pub = g.pub;
   const m = view.meta!;
-  // Quản trò không ngồi chơi (hoặc chưa sẵn sàng): chỉ xem và điều khiển.
   if (uid === m.host && !(pub && m.lineup.includes(uid) && (g.playing || g.result)) && !(seated && g.opts.hostPlays))
     return <>🎩 Quản trò — xem và điều khiển ván</>;
   if (pub && view.meta!.lineup.includes(uid) && (g.playing || g.result)) {
@@ -345,21 +321,17 @@ const deathText = (d: Death) =>
         : d.how === "shot"
           ? "bị Thợ Săn bắn"
           : `chết đêm ${d.day}`;
-/** Tên vai; Bán Sói đã hoá Sói thì ghi rõ. */
 const roleName = (role: Role, turned: boolean) => (turned ? "Sói (vốn Bán Sói)" : ROLES[role].name);
 const deathIcon = (d: Death) => ({ hang: "🪢", left: "🚪", love: "💔", shot: "🎯", night: "💀" })[d.how];
 
 const SIDE_TITLE: Record<Side, string> = { wolf: "Phe Ma Sói thắng!", village: "Dân làng thắng!", lovers: "Cặp đôi thắng!" };
 const SIDE_ICON: Record<Side, string> = { wolf: "🐺", village: "👨‍🌾", lovers: "💘" };
 
-/** Phe của mình khi hết ván (cần vai mọi người đã lộ). */
 function mySide(view: View): Side | undefined {
   const g = view.game!;
   const roles = g.pub?.roles;
   return g.me.inGame && roles?.[view.me] ? sideOf(roles, g.pub?.lovers, view.me) : undefined;
 }
-
-// ---------- giai đoạn ----------
 
 function stageText(view: View): { icon: string; title: string; sub: string } {
   const m = view.meta!;
@@ -504,7 +476,6 @@ function StageCard({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
-/** Ngoài ván: bấm sẵn sàng / huỷ, quản trò bắt đầu ván — nằm ngay trong khung giai đoạn. */
 function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
   const m = view.meta!;
   const g = view.game!;
@@ -556,7 +527,6 @@ function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
-/** Thứ tự quản trò gọi các vai đêm nay: vai đang thức, vai đã xong, vai sắp tới. */
 function NightTurns({ pub }: { pub: NonNullable<WolfView["pub"]> }) {
   const order = nightTurns(pub);
   const now = pub.turn ? order.indexOf(pub.turn) : order.length;
@@ -593,7 +563,6 @@ const TEAM_GOAL: Record<"wolf" | "village", string> = {
   village: "Phe Dân — thắng khi không còn con Sói nào",
 };
 
-/** Vai này làm gì ban đêm. */
 function nightNote(role: Role) {
   const order = NIGHT_ORDER.filter((r) => r !== "cupid")
     .map((r) => ROLES[r].name)
@@ -614,10 +583,7 @@ function nightNote(role: Role) {
   }
 }
 
-/**
- * Balloon cách chơi của một vai khi rê chuột (hoặc focus) vào. Vẽ ra ngoài `body` với vị trí cố định, kẹp trong màn
- * hình — không bị thẻ cha cắt mất, không làm trang cuộn ngang. `focusable` cho phần tử không tự nhận focus (chip, biểu tượng).
- */
+// Vẽ ra `body` với vị trí cố định, kẹp trong màn hình, để không bị thẻ cha cắt mất và không làm trang cuộn ngang.
 function RoleTip({
   role,
   children,
@@ -629,7 +595,6 @@ function RoleTip({
   children: React.ReactNode;
   className?: string;
   focusable?: boolean;
-  /** Bọc khối (thẻ vai trong Luật của làng) thì dùng div. */
   block?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -686,8 +651,6 @@ function RoleTip({
     </Tag>
   );
 }
-
-// ---------- việc của mình ----------
 
 function ActionCard({
   view,
@@ -779,7 +742,6 @@ function ActionCard({
         </>
       );
     } else if (turn !== s.role) {
-      // Chưa tới lượt / đã qua lượt của mình / vai không thức dậy ban đêm.
       tone = "var(--sunken)";
       const mine = order.indexOf(s.role);
       const now = turn ? order.indexOf(turn) : order.length;
@@ -971,7 +933,6 @@ function ActionCard({
   );
 }
 
-/** Bầy Sói thì thầm với nhau trong đêm — đi riêng qua quản trò. */
 function WolfDen({ view, session }: { view: View; session: WerewolfRoom }) {
   const g = view.game!;
   const s = g.me.secret!;
@@ -1034,9 +995,6 @@ function WolfDen({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
-// ---------- làng ----------
-
-/** Vòng làng: mọi người chơi, ai sống ai chết, phiếu bầu, và những gì mình được biết. Bấm để chọn khi có lựa chọn mở. */
 function Village({ view, pick }: { view: View; pick: Pick | null }) {
   const m = view.meta!;
   const g = view.game!;
@@ -1044,7 +1002,6 @@ function Village({ view, pick }: { view: View; pick: Pick | null }) {
   const inRound = !!pub && (g.playing || !!g.result);
   const roster = inRound ? m.lineup : m.players;
   const s = g.me.secret;
-  // Ai đang nhắm vào ai: Sói thấy lựa chọn của cả bầy, người thấy hết thấy mọi thứ, lúc bỏ phiếu ai cũng thấy phiếu bầu.
   const marks: Record<string, string[]> = {};
   const add = (target: string | undefined | null, by: string) => {
     if (target) (marks[target] ??= []).push(by);
@@ -1166,8 +1123,6 @@ function Token({ view, uid, pick, by, inRound }: { view: View; uid: string; pick
   );
 }
 
-// ---------- vai của mình ----------
-
 function RoleCard({ view }: { view: View }) {
   const g = view.game!;
   const role = g.me.role!;
@@ -1267,15 +1222,8 @@ function RoleCard({ view }: { view: View }) {
   );
 }
 
-// ---------- cảnh diễn ----------
-
 const SCENE_MS: Record<Scene["kind"], number> = { dusk: 3200, sunrise: 6000, hang: 7500, shot: 4500, spared: 3200, end: 5000 };
 
-/**
- * Lớp phủ toàn màn hình cho những khoảnh khắc của ván: trời tối rồi lật bài vai (giai đoạn nhận vai), đếm ngược
- * 3‑2‑1 trước khi trời sáng, và các cảnh xếp hàng lần lượt: trời sáng (ai chết đêm qua), treo cổ (bay lên, lật bài
- * Sói / không phải Sói), không ai bị treo, phe thắng. Bấm để bỏ qua.
- */
 function Cinema({ view, session }: { view: View; session: WerewolfRoom }) {
   const g = view.game!;
   const pub = g.pub;
@@ -1313,7 +1261,6 @@ function Cinema({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
-/** "Trời tối rồi…", rồi chia bài: mỗi người chơi một lá. Người chơi chỉ lật lá của mình; quản trò và người xem lật hết. */
 function IntroScene({ view, elapsed }: { view: View; elapsed: number }) {
   const g = view.game!;
   const lineup = view.meta!.lineup;
@@ -1486,8 +1433,6 @@ function SceneView({ view, scene }: { view: View; scene: Scene }) {
   }
 }
 
-// ---------- kết quả ----------
-
 function ResultCard({ view }: { view: View }) {
   const m = view.meta!;
   const g = view.game!;
@@ -1551,16 +1496,13 @@ function ResultCard({ view }: { view: View }) {
   );
 }
 
-/** Diễn biến từng ngày: đêm ai cắn ai, ai bảo vệ, soi, cứu, đầu độc; ngày ai bầu ai, ai bị treo. */
 function Story({ view, story, roles, turned }: { view: View; story: Chapter[]; roles: Record<string, Role>; turned: string[] }) {
   const name = (uid: string) => nameMid(view, uid);
   const holder = (r: Role) => {
     const uid = Object.keys(roles).find((u) => roles[u] === r);
     return uid ? `${ROLES[r].name} ${uid === view.me ? "(bạn)" : name(uid)}` : ROLES[r].name;
   };
-  // Bán Sói hoá Sói từ đêm sau đêm bị cắn.
   const turnedAt = (u: string) => story.find((c) => c.turned === u)?.day ?? 0;
-  // Bầy Sói của từng đêm: những con còn sống tới đêm đó (chết từ ngày trước trở về trước thì không tính).
   const pack = (day: number) =>
     Object.keys(roles).filter(
       (u) => roles[u] === "wolf" && !((deathOf(view, u)?.day ?? Infinity) < day) && !(turned.includes(u) && turnedAt(u) >= day),
@@ -1607,7 +1549,6 @@ function Story({ view, story, roles, turned }: { view: View; story: Chapter[]; r
           if (c.shot) {
             const target = c.shot.target;
             const line = `🏹 Thợ Săn ${name(c.shot.by)} ${target ? `bắn ${name(target)}${roles[target] ? ` (${ROLES[roles[target]].name})` : ""}.` : "không bắn ai."}`;
-            // Thợ Săn chết đêm thì bắn lúc sáng ra; bị treo (hoặc chết theo người bị treo) thì bắn sau tuyên án.
             const how = deathOf(view, c.shot.by)?.how;
             if (how === "hang" || how === "love") days.push(line);
             else nights.push(line);
@@ -1648,8 +1589,6 @@ function Story({ view, story, roles, turned }: { view: View; story: Chapter[]; r
     </>
   );
 }
-
-// ---------- luật ----------
 
 function Settings({ view, session }: { view: View; session: WerewolfRoom }) {
   const g = view.game!;
@@ -1709,7 +1648,6 @@ function Settings({ view, session }: { view: View; session: WerewolfRoom }) {
   );
 }
 
-/** Thẻ một vai trong Luật của làng: Sói luôn có (chọn số lượng), các vai khác bấm để bật / tắt. */
 function RolePick({ role, view, session }: { role: Role; view: View; session: WerewolfRoom }) {
   const g = view.game!;
   const o = g.opts;

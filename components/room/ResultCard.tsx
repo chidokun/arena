@@ -2,11 +2,7 @@
 
 import type { ReactNode } from "react";
 
-/**
- * Thẻ kết quả của ván vừa xong, nằm dưới thanh trạng thái tới khi bắt đầu ván mới (cảnh diễn chỉ hiện một lúc rồi tắt,
- * thẻ này thì ở lại). Một dòng tiêu đề lớn, một dòng giải thích, rồi phần thêm của từng game (thường là `Standings`).
- * Tiêu đề / giải thích nên lấy từ cùng chỗ với cảnh chiến thắng (`WinCine`) để hai nơi nói giống nhau.
- */
+// Tiêu đề / giải thích nên lấy từ cùng chỗ với cảnh chiến thắng (`WinCine`) để hai nơi nói giống nhau.
 export function ResultCard({ round, title, sub, note, children }: { round: number; title: ReactNode; sub?: ReactNode; note?: ReactNode; children?: ReactNode }) {
   return (
     <section className="card loto-result mt-4 p-4 sm:p-5" aria-label={`Kết quả ván ${round}`}>
@@ -18,7 +14,6 @@ export function ResultCard({ round, title, sub, note, children }: { round: numbe
   );
 }
 
-/** Ván bị chủ phòng dừng giữa chừng: không tính ai thắng. */
 export function StoppedCard({ round, sub = `Ván ${round} dừng giữa chừng — không tính ai thắng.` }: { round: number; sub?: ReactNode }) {
   return <ResultCard round={round} title="⏹ Dừng ván" sub={sub} />;
 }
@@ -27,7 +22,6 @@ export type Standing = { uid: string; name: ReactNode; value: ReactNode; rank?: 
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-/** Bảng xếp hạng trong thẻ kết quả: huy chương cho ba hạng đầu (`rank` 0 là chưa xếp hạng, hiện "–"). */
 export function Standings({ rows }: { rows: Standing[] }) {
   return (
     <ol className="mt-3 grid gap-2">
@@ -46,10 +40,6 @@ export function Standings({ rows }: { rows: Standing[] }) {
   );
 }
 
-/**
- * Kết quả ván đối kháng hai người, dùng chung cho cảnh hết ván (WinCine / DrawCine) và thẻ kết quả: `winner` null là
- * hoà; `title` / `sub` / `note` như trong cảnh diễn.
- */
 export type DuelSummary = { winner: string | null; title: string; sub?: string; note?: string };
 
 export function DuelResult({ round, summary: s, me }: { round: number; summary: DuelSummary; me: string }) {

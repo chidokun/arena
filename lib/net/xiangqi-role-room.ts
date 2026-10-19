@@ -1,7 +1,3 @@
-/**
- * Phòng Cờ Tướng nhập vai: mỗi người một role (cung / xe / pháo / mã / tốt);
- * cung = Tướng+Sĩ+Tượng. Claim → Tướng chọn ai đi → move. Chủ phòng chốt timeout/bot.
- */
 import {
   AFK_LIMIT,
   afterMove,
@@ -50,11 +46,9 @@ export type XqRoleMatch = {
   mySide: Side | null;
   myPieceIds: number[];
   canClaim: boolean;
-  /** Palace player of current side can pick who moves. */
   canAssign: boolean;
   assignPicks: number[];
   myTurn: boolean;
-  /** pieceId → legal destinations (when my turn). */
   legalByPiece: Record<number, number[]>;
   dead: boolean;
   result?: Result;
@@ -62,7 +56,6 @@ export type XqRoleMatch = {
 
 export type XqRoleView = {
   opts: XqRoleOptions;
-  /** Waiting / playing: roleId → uid */
   seats: Record<number, string>;
   match?: XqRoleMatch;
   teamChat: TeamChatMsg[];
@@ -71,7 +64,7 @@ export type XqRoleView = {
 export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
   readonly game = "xiangqi-role";
   private teamChat: TeamChatMsg[] = [];
-  /** Chat phe (cả hai phe — giao diện lọc theo phe mình): tách khỏi `gameStore` để tin mới không kéo bàn cờ vẽ lại. */
+  // Tách khỏi `gameStore` để tin mới không kéo bàn cờ vẽ lại.
   readonly teamStore = new ViewStore<TeamChatMsg[]>(() => this.teamChat);
   private teamFns = new Set<(m: TeamChatMsg) => void>();
   private teamWired = false;
@@ -184,7 +177,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
       const claimants = claims.map((c) => c.roleId);
       const cur = claimants.join() !== xq.claimants.join() ? { ...xq, claimants } : xq;
       if (cur !== xq) m.xqr = cur;
-      // 2+ claims: Tướng may pick early. 0–1: wait for claim window.
       if (claimants.length >= 2 && this.tryPalaceAssign(m, cur, now)) return;
       if (now >= xq.claimDeadline) {
         this.resolveAfterClaim(m, cur, now, claimMs);
@@ -259,15 +251,10 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
       out.push({ uid, roleId, at: intent.at });
     }
     out.sort((a, b) => a.at - b.at || (a.uid < b.uid ? -1 : 1));
-    // Dedupe role (keep earliest claim).
     const seen = new Set<number>();
     return out.filter((c) => (seen.has(c.roleId) ? false : (seen.add(c.roleId), true)));
   }
 
-  /**
-   * After claim window:
-   * 1 claim → that role moves; 2+ → Tướng picks; 0 → fallback.
-   */
   private resolveAfterClaim(m: Meta, xq: XqRolePublic, now: number, claimMs: number) {
     const picks = xq.claimants.filter((id) => roleCanMove(xq, id));
     if (picks.length === 1) {
@@ -283,7 +270,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     this.autoAssignIfBot(m, next, now);
   }
 
-  /** Human Tướng picks among 2+ claimants; returns true if token assigned. */
   private tryPalaceAssign(m: Meta, xq: XqRolePublic, now: number): boolean {
     if (xq.phase !== "claim" && xq.phase !== "assign") return false;
     if (xq.claimants.filter((id) => roleCanMove(xq, id)).length < 2) return false;
@@ -342,7 +328,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     const myTurn = pub.phase === "move" && pub.tokenRoleId === myRoleId && !dead;
     const palaceId = PALACE_ROLE_ID[pub.side];
     const liveClaimants = pub.claimants.filter((id) => roleCanMove(pub, id));
-    // Tướng chỉ chọn khi ≥2 người claim.
     const canAssign =
       (pub.phase === "claim" || pub.phase === "assign") &&
       liveClaimants.length >= 2 &&
@@ -390,7 +375,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     return `Ván ${r.round} kết thúc.`;
   }
 
-  /** Host: đổi thời gian claim (chỉ ngoài ván). */
   setClaimMs(ms: ClaimMs) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -399,7 +383,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     });
   }
 
-  /** Chọn role còn trống (ngoài ván). */
   pickRole(roleId: number) {
     if (!Number.isInteger(roleId) || roleId < 0 || roleId >= ROLE_COUNT) return;
     this.intend("play", [roleId], true);
@@ -421,7 +404,6 @@ export class XiangqiRoleRoom extends RoomSession<XqRoleView> {
     this.react();
   }
 
-  /** Tướng picks which claimed/eligible role gets the turn token. */
   assign(roleId: number) {
     const m = this.meta();
     const g = this.store.get().game?.match;

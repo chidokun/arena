@@ -1,38 +1,21 @@
-/**
- * Máy chủ TURN cho WebRTC. Trystero mặc định chỉ có STUN: đủ khi hai máy cùng mạng LAN, nhưng hai máy khác mạng
- * — nhất là điện thoại dùng 4G/5G (NAT nhà mạng, NAT đối xứng) — thường không đục được NAT, bắt tay xong vẫn
- * không thông kênh, mỗi bên chỉ thấy mỗi mình. TURN chuyển tiếp lưu lượng giúp hai bên trong trường hợp đó.
- *
- * Cấu hình lúc build (site tĩnh nên giá trị được nhúng thẳng vào bundle):
- * - NEXT_PUBLIC_TURN_API: URL trả về mảng RTCIceServer (hoặc `{ iceServers }`) dạng JSON — ở đây là Worker
- *   arena-turn-api (github.com/chidokun/arena-turn-api) cấp credential Cloudflare TURN ngắn hạn. Gọi khi tải
- *   trang và gọi lại định kỳ trước khi hết hạn.
- * - NEXT_PUBLIC_TURN_URLS (cách nhau dấu phẩy) + NEXT_PUBLIC_TURN_USERNAME + NEXT_PUBLIC_TURN_CREDENTIAL:
- *   thông tin đăng nhập tĩnh (vd. ExpressTURN, coturn tự dựng).
- * Thứ tự ưu tiên: P2P (STUN công cộng có sẵn trong Trystero) > relay từ API (Cloudflare) > relay tĩnh
- * (ExpressTURN). Không phải chọn tay — trình duyệt xin ứng viên ở mọi nơi rồi ICE chọn cặp thông được có
- * priority cao nhất, và đổi sang cặp tốt hơn khi nó thông:
- * - Ứng viên host/srflx (P2P) luôn có priority cao hơn mọi ứng viên relay (quy tắc ICE, RFC 8445).
- * - Giữa các máy chủ TURN, Chrome cho máy chủ đứng trước trong danh sách priority cao hơn (đã đo thực tế),
- *   nên `prioritize` xếp máy chủ API trước máy chủ tĩnh. Máy chủ tĩnh vì vậy chỉ được dùng khi Cloudflare
- *   không thông, API lỗi, hoặc hết quota.
- * Không đặt gì thì chỉ có STUN.
- *
- * Thử TURN trên một máy: thêm `?relay` vào URL để ép mọi kết nối đi qua TURN (giữ trong tab đến khi đóng).
- *
- * Tiết kiệm allocation: mỗi RTCPeerConnection xin một allocation TURN cho *mỗi* URL, mà Trystero luôn giữ sẵn
- * 20 kết nối chào hàng (offer pool) và làm mới chúng mỗi ~1 phút — nếu cấp TURN cho cả pool thì một tab ngốn
- * hàng chục allocation, gói miễn phí hết quota ngay ("486 Allocation Quota Reached") và TURN coi như không có.
- * Vì vậy chỉ phía trả lời offer mới xin TURN (`turnOnAnswer`): một cặp peer chỉ cần một bên có ứng viên relay
- * là đi được, kể cả khi bên kia sau NAT đối xứng. Mỗi máy chủ cũng chỉ giữ một URL UDP và một URL TCP/TLS.
- */
+// Trystero mặc định chỉ có STUN: đủ khi hai máy cùng mạng LAN, nhưng hai máy khác mạng — nhất là điện thoại dùng 4G/5G
+// (NAT nhà mạng, NAT đối xứng) — thường không đục được NAT, bắt tay xong vẫn không thông kênh. TURN chuyển tiếp lưu
+// lượng giúp hai bên trong trường hợp đó.
+//
+// Không phải chọn tay giữa P2P, relay từ API (Cloudflare) và relay tĩnh: ICE tự chọn cặp thông được có priority cao
+// nhất. Ứng viên host/srflx (P2P) luôn có priority cao hơn relay (RFC 8445); giữa các máy chủ TURN, Chrome cho máy chủ
+// đứng trước trong danh sách priority cao hơn (đã đo thực tế), nên `prioritize` xếp máy chủ API trước máy chủ tĩnh.
+//
+// Tiết kiệm allocation: mỗi RTCPeerConnection xin một allocation TURN cho *mỗi* URL, mà Trystero luôn giữ sẵn 20 kết
+// nối chào hàng (offer pool) và làm mới chúng mỗi ~1 phút — nếu cấp TURN cho cả pool thì một tab ngốn hàng chục
+// allocation, gói miễn phí hết quota ngay ("486 Allocation Quota Reached"). Vì vậy chỉ phía trả lời offer mới xin TURN
+// (`turnOnAnswer`): một cặp peer chỉ cần một bên có ứng viên relay là đi được, kể cả khi bên kia sau NAT đối xứng.
 
 export type IceServer = { urls: string | string[]; username?: string; credential?: string };
 
 const API_TIMEOUT_MS = 4000;
 /** Credential từ Worker sống 24 giờ; xin lại sớm để tab mở lâu không cầm credential hết hạn. */
 const API_REFRESH_MS = 6 * 3600_000;
-/** Lấy credential lỗi thì thử lại sau khoảng này (trong lúc đó vẫn còn máy chủ tĩnh). */
 const API_RETRY_MS = 60_000;
 const RELAY_KEY = "arena:relay";
 
@@ -57,10 +40,8 @@ const isTcp = (u: string) => /^turns:/i.test(u) || /transport=tcp/i.test(u);
 /** Ưu tiên cổng 443 (ít bị tường lửa chặn), rồi tới TLS (`turns:`) cho đường TCP. */
 const rank = (u: string) => Number(/:443\b/.test(u)) * 2 + Number(/^turns:/i.test(u));
 
-/**
- * Chỉ giữ địa chỉ TURN (STUN đã có sẵn trong Trystero), và mỗi máy chủ chỉ một URL UDP + một URL TCP/TLS:
- * nhà cung cấp hay trả về 4–6 URL, mỗi URL lại là một allocation riêng.
- */
+// Mỗi máy chủ chỉ giữ một URL UDP + một URL TCP/TLS (STUN đã có sẵn trong Trystero): nhà cung cấp hay trả về 4–6 URL,
+// mỗi URL lại là một allocation riêng.
 export function turnOnly(list: IceServer[]): IceServer[] {
   return list
     .map((s) => {
@@ -72,10 +53,7 @@ export function turnOnly(list: IceServer[]): IceServer[] {
     .filter((s) => s.urls.length > 0);
 }
 
-/**
- * RTCPeerConnection chỉ thêm máy chủ TURN khi nhận offer (tức là phía trả lời), ngay trước khi bắt đầu thu thập
- * ứng viên ICE. Kết nối chào hàng trong pool của Trystero vì vậy không chiếm allocation nào.
- */
+// Chỉ thêm TURN khi nhận offer (phía trả lời) để kết nối chào hàng trong pool của Trystero không chiếm allocation nào.
 export function turnOnAnswer(getTurn: () => IceServer[]): typeof RTCPeerConnection | undefined {
   if (typeof RTCPeerConnection === "undefined") return undefined;
   return class extends RTCPeerConnection {
@@ -103,7 +81,6 @@ export function turnOnAnswer(getTurn: () => IceServer[]): typeof RTCPeerConnecti
   };
 }
 
-/** Danh sách máy chủ từ API, hoặc `null` khi lỗi. */
 async function fetchServers(url: string): Promise<IceServer[] | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
@@ -121,10 +98,7 @@ async function fetchServers(url: string): Promise<IceServer[] | null> {
   }
 }
 
-/**
- * Danh sách TURN cuối cùng theo thứ tự ưu tiên: máy chủ từ API (Cloudflare) trước, máy chủ tĩnh (ExpressTURN)
- * sau. Thứ tự này quyết định priority của ứng viên relay — đừng đảo.
- */
+// Thứ tự này quyết định priority của ứng viên relay — đừng đảo.
 export function prioritize(fromApi: IceServer[], fixed: IceServer[]): IceServer[] {
   return turnOnly([...fromApi, ...fixed]);
 }
@@ -132,7 +106,6 @@ export function prioritize(fromApi: IceServer[], fixed: IceServer[]): IceServer[
 let current: IceServer[] = [];
 let serversPromise: Promise<IceServer[]> | null = null;
 
-/** Lấy (lại) danh sách từ API rồi hẹn lần lấy sau: đều đặn khi thành công, sớm hơn khi lỗi. */
 async function refresh(api: string | undefined, keep: IceServer[]): Promise<IceServer[]> {
   const fetched = api ? await fetchServers(api) : [];
   // Lỗi tạm thời thì giữ credential API cũ (vẫn còn hạn) thay vì chỉ còn máy chủ tĩnh.
@@ -141,16 +114,13 @@ async function refresh(api: string | undefined, keep: IceServer[]): Promise<IceS
   return current;
 }
 
-/** Danh sách máy chủ TURN lúc mở trang (chờ lần lấy đầu tiên). */
 export function turnServers(): Promise<IceServer[]> {
   serversPromise ??= refresh(process.env.NEXT_PUBLIC_TURN_API, []);
   return serversPromise;
 }
 
-/** Danh sách máy chủ TURN mới nhất (đã làm mới credential nếu có). */
 export const currentTurn = () => current;
 
-/** `?relay` trên URL: ép đi qua TURN để kiểm tra cấu hình ngay trên một máy. */
 export function forceRelay(): boolean {
   try {
     if (new URLSearchParams(location.search).has("relay")) sessionStorage.setItem(RELAY_KEY, "1");

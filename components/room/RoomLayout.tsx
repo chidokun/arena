@@ -26,14 +26,6 @@ export function Notice({ emoji, title, children, spin }: { emoji: string; title:
 
 const SIDE_KEY = "arena:room-side-hidden";
 
-/**
- * Khung chung của phòng: thanh vị trí với nút mời / luật chơi / rời phòng, cột bàn chơi và phần xã hội (người trong
- * phòng, trò chuyện, `panels` thêm của từng game).
- * Màn hình rộng: sidebar neo mép phải màn hình, cao từ dưới thanh đầu trang tới đáy — người trong phòng ở trên, khung chat
- * lấp phần còn lại, `panels` thành tab trong khung chat; ẩn được (nhớ lựa chọn) để bàn chơi rộng hết khung, lúc đó chat còn
- * nút tròn ở góc. Điện thoại: dải avatar đầu trang, còn danh sách người và `panels` thành tab trong khung chat nổi.
- * Game bọc bàn chơi trong `StageArea` thì có thêm nút Trình chiếu (stage.tsx).
- */
 export function RoomLayout({
   id,
   slug,
@@ -135,8 +127,7 @@ export function RoomLayout({
             {children}
           </div>
           {wide ? (
-            // Ngay dưới thanh đầu trang (cao 4rem + viền 2px). Khi ẩn, khung chat vẫn ở đây (giữ tin chưa đọc, chữ đang gõ)
-            // nhưng chỉ còn nút tròn nổi ở góc. Lúc trình chiếu cũng vậy (sidebar nằm dưới lớp trình chiếu, chat nổi lên trên).
+            // Khi ẩn, khung chat vẫn nằm đây (chỉ còn nút tròn nổi ở góc) để giữ tin chưa đọc, chữ đang gõ.
             <aside
               className={hidden || stage.ctx.on ? undefined : "fixed top-[66px] right-0 bottom-0 z-30 flex w-[360px] flex-col gap-3 border-l-2 border-edge bg-sunken p-3"}
               aria-label="Người trong phòng và trò chuyện"
@@ -153,7 +144,6 @@ export function RoomLayout({
   );
 }
 
-/** Đầu bàn chơi: tên phòng, trạng thái ván, rồi các chip luật / thông tin riêng của game (`children`). */
 export function RoomHeader({ name, status, round, playing, children }: { name: string; status: string; round: number; playing?: string; children?: React.ReactNode }) {
   return (
     <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -164,10 +154,6 @@ export function RoomHeader({ name, status, round, playing, children }: { name: s
   );
 }
 
-/**
- * Lời nhắc nổi giữa bàn chơi lúc chưa có ván (đặt trong khối `relative` bọc bàn): chờ đủ người / chủ phòng bấm bắt đầu.
- * `enough`: đủ người để bắt đầu chưa (mặc định: kín ghế); `waiting`: câu khi chưa đủ.
- */
 export function WaitingOverlay({ isHost, players, seats, enough = players >= seats, waiting = `Đang chờ đủ ${seats} người vào ghế…` }: { isHost: boolean; players: number; seats: number; enough?: boolean; waiting?: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
@@ -178,7 +164,6 @@ export function WaitingOverlay({ isHost, players, seats, enough = players >= sea
   );
 }
 
-/** Dòng nhắc dưới bàn chơi cho người không chơi ván này. */
 export function SpectatorNote() {
   return <p className="mt-3 text-center text-sm text-ink-3">👀 Bạn đang ở chế độ xem.</p>;
 }
@@ -203,7 +188,6 @@ export function StatusChip({ status, round, playing = "đang đấu" }: { status
   );
 }
 
-/** Sticker và pháo giấy bay ngang bàn chơi (đặt trong khối `relative`). */
 export function Flyers({ flyers }: { flyers: Flyer[] }) {
   return flyers.map((f) => {
     const style = {

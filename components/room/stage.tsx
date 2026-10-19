@@ -2,16 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-/**
- * Chế độ trình chiếu của phòng: chỉ còn bàn chơi giữa màn hình, phủ lên thanh đầu trang, chat, người trong phòng…
- * Game hỗ trợ bằng cách bọc khối bàn chơi (bàn + sticker bay) trong `StageArea`: RoomLayout thấy có StageArea thì hiện
- * nút Trình chiếu. Mỗi game tự chỉnh cỡ bàn lúc trình chiếu qua `fit`, nên chưa bọc thì chưa có nút.
- */
+// Nút Trình chiếu chỉ hiện khi game bọc bàn trong `StageArea`: mỗi game phải tự chỉnh cỡ bàn lúc trình chiếu qua `fit`.
 type Stage = { on: boolean; exit: () => void; mount: () => () => void };
 
 export const StageCtx = createContext<Stage | null>(null);
 
-/** Do RoomLayout gọi: `available` — bàn chơi có bọc trong StageArea không; `ctx` — cấp xuống qua `StageCtx`. */
 export function useStageHost() {
   const [count, setCount] = useState(0);
   const [on, setOn] = useState(false);
@@ -41,16 +36,11 @@ export function useStageHost() {
   return { ctx, available, enter: () => setOn(true) };
 }
 
-/** Bàn chơi đang được trình chiếu không — để bàn đổi bố cục cho vừa màn hình (vd. hai hải đồ cạnh nhau khi màn hình ngang). */
 export const useStaged = () => !!useContext(StageCtx)?.on;
 
-/** Lúc vào trình chiếu thanh công cụ xổ ra một lúc cho thấy có gì, rồi tự thu về nút [>]. */
+// Xổ ra một lúc khi vào trình chiếu để người dùng thấy có gì.
 const TOOLS_PEEK_MS = 1800;
 
-/**
- * Thanh công cụ góc trên trái lúc trình chiếu: nút xổ / thu [>] / [<], Quay lại, rồi các nút điều khiển ván của game
- * (`tools`). Vừa vào trình chiếu thì xổ ra, sau `TOOLS_PEEK_MS` tự thu lại — trừ khi người dùng đã chạm vào thanh.
- */
 function StageTools({ on, exit, tools }: { on: boolean; exit: () => void; tools?: ReactNode }) {
   const [open, setOpen] = useState(on);
   const [wasOn, setWasOn] = useState(on);
@@ -100,20 +90,9 @@ function StageTools({ on, exit, tools }: { on: boolean; exit: () => void; tools?
   );
 }
 
-/**
- * Khối bàn chơi được trình chiếu. Bình thường chỉ là một `div` mang `className`; lúc trình chiếu thì nổi phủ cả màn hình.
- * Bàn nằm trong ô `container-type: size` chiếm phần còn trống, nên `fit` tính cỡ bàn theo `cqw` / `cqh` của ô (khối mang
- * `fit` vẫn `relative` để sticker bay đúng chỗ). Người chơi chỉ hiện lúc trình chiếu, một trong hai kiểu:
- * - `flanks`: màn hình ngang thì đứng hai bên bàn, màn hình dọc thì một trên một dưới — hợp với bàn vuông (caro);
- * - `head`: một hàng phía trên bàn — hợp với bàn bè ngang (hai hải đồ của bắn tàu).
- * Có cả hai thì thường dùng `head`, màn hình rất rộng (từ 2:1) mới đưa người chơi ra hai bên để bàn không bị bẹp.
- * `center`: bề ngang khối bàn khi người chơi đứng hai bên, theo `cqw` / `cqh` của cả lớp trình chiếu (mặc định `100cqh` —
- * bàn vuông); luôn chừa đủ chỗ cho hai người chơi.
- * `tools`: các nút điều khiển ván (vào ghế, bắt đầu, xin thua…) đặt trên thanh công cụ cạnh nút Quay lại.
- * Các `div` bọc luôn đứng yên trong cây nên bật / tắt không dựng lại bàn chơi (giữ nét vẽ, trạng thái…). Bàn phải vừa ô —
- * phần tràn bị cắt; `scroll` thì cho cuộn dọc (sticker bay bị cắt ở mép ô), dành cho lúc bàn tạm thời cao hơn màn hình.
- * Khung chat không nằm trong đây mà tự nổi lên trên lớp trình chiếu (ChatPanel, `useStaged`).
- */
+// Các `div` bọc luôn đứng yên trong cây để bật / tắt trình chiếu không dựng lại bàn chơi (giữ nét vẽ, trạng thái…).
+// Khối mang `fit` vẫn `relative` để sticker bay đúng chỗ. Có cả `flanks` lẫn `head` thì màn hình rất rộng (từ 2:1) mới
+// đưa người chơi ra hai bên, để bàn không bị bẹp.
 export function StageArea({
   className,
   fit = "w-full",

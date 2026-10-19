@@ -8,10 +8,6 @@ export const sheetStyle = (id: number) => {
   return { "--sheet": c.hex, "--sheet-ink": c.ink } as React.CSSProperties;
 };
 
-/**
- * Một tờ lô tô: 9 hàng × 9 cột chia 3 khối, ô trống tô màu của tờ. Số đã kêu có "nắp" đỏ đè lên (như nắp chai
- * người ta vẫn dùng để dò), hàng đã có 4/5 số viền vàng và số còn thiếu nhấp nháy, hàng kinh sáng vàng.
- */
 export const LotoSheet = memo(function LotoSheet({
   sheet,
   drawn,
@@ -21,12 +17,9 @@ export const LotoSheet = memo(function LotoSheet({
   pending,
 }: {
   sheet: Sheet;
-  /** Các số đã kêu; bỏ trống khi tờ chưa vào ván (không đánh dấu). */
   drawn?: readonly boolean[];
   last?: number;
-  /** Các hàng kinh trên tờ này. */
   wins?: readonly number[];
-  /** Ván đang chơi: tô hàng đang đợi (4/5 số). */
   live?: boolean;
   pending?: boolean;
 }) {
@@ -63,7 +56,6 @@ export const LotoSheet = memo(function LotoSheet({
   );
 });
 
-/** Chấm màu các tờ một người đang giữ. */
 export function SheetDots({ ids, size = 12 }: { ids: readonly number[]; size?: number }) {
   if (!ids.length) return null;
   return (

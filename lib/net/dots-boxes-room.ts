@@ -1,8 +1,3 @@
-/**
- * Phòng chấm nối ô: hai ghế, hai người chơi lần lượt nối chỉ số cạnh vào nhật ký `g:<ván>` (khép ô thì người đó nối
- * tiếp); ai cũng tự dựng lại ván bằng `replay` nên không cần ai "phán" thắng thua. Người đi trước đổi mỗi ván.
- * Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { normOptions, replay, type DotsState, type Move } from "../games/dots-boxes";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -11,7 +6,6 @@ const FORFEIT_MS = 30000;
 export type DotsMatch = {
   round: number;
   state: DotsState;
-  /** lineup[0] đi trước (màu Đỏ), lineup[1] đi sau (màu Xanh). */
   lineup: SeatView[];
   myMark: 0 | 1 | 2;
   myTurn: boolean;
@@ -19,11 +13,8 @@ export type DotsMatch = {
 };
 
 export type DotsView = {
-  /** Cỡ bàn (số ô mỗi cạnh) của phòng — ván mới dùng cỡ này. */
   size: number;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: DotsMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -36,7 +27,6 @@ export class DotsBoxesRoom extends RoomSession<DotsView> {
     return Array.isArray(list) ? (list as Move[]) : [];
   }
 
-  /** Cỡ bàn của ván đang / vừa chơi. */
   private sizeOf(m: Meta) {
     return m.dbSize ?? normOptions(m.opts).size;
   }
@@ -56,13 +46,12 @@ export class DotsBoxesRoom extends RoomSession<DotsView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người đi trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     m.dbSize = normOptions(m.opts).size;
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -74,7 +63,6 @@ export class DotsBoxesRoom extends RoomSession<DotsView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
@@ -122,7 +110,6 @@ export class DotsBoxesRoom extends RoomSession<DotsView> {
     this.react();
   }
 
-  /** Chủ phòng đổi cỡ bàn giữa các ván. */
   setSize(size: number) {
     this.hostEdit((m) => {
       if (m.status === "playing" || normOptions({ size }).size !== size || normOptions(m.opts).size === size) return false;

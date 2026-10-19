@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<OaqView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useOaqView(session: OAnQuanRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -28,11 +26,8 @@ function useOaqView(session: OAnQuanRoom): View {
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🪨", "🐚"];
 const START = initialState();
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function OAnQuanTable({ id, slug, session }: { id: string; slug: string; session: OAnQuanRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -61,9 +56,7 @@ const OAnQuanBody = memo(function OAnQuanBody({ session }: { session: OAnQuanRoo
   const playing = m.status === "playing";
   const seated = view.mySeat >= 0;
   const side = g && showGame ? g.mySide : 0;
-  // Thanh đối đầu: trong ván thì theo thứ tự bên 1 – bên 2; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
-  // Kho quân: bên mình ở dưới bàn, đối thủ ở trên (người xem: bên 2 trên, bên 1 dưới).
   const below: 1 | 2 = side === 2 ? 2 : 1;
   const above: 1 | 2 = below === 1 ? 2 : 1;
   const seatCard = (k: 0 | 1) => {
@@ -101,7 +94,6 @@ const OAnQuanBody = memo(function OAnQuanBody({ session }: { session: OAnQuanRoo
 
       <div className="relative mt-4">
         {showGame && <Store board={board} p={above} seat={g!.lineup[above - 1]} me={view.me} seed={g!.round} />}
-        {/* Bàn dọc: cao vừa màn hình (chừa chỗ hai kho quân) chứ không giãn hết bề ngang. */}
         <div
           ref={boardRef}
           className="card mx-auto my-2 overflow-hidden p-2 sm:p-3"
@@ -133,7 +125,6 @@ const OAnQuanBody = memo(function OAnQuanBody({ session }: { session: OAnQuanRoo
   );
 });
 
-/** Kho quân đã ăn của một bên: số dân, số quan và tổng điểm. */
 function Store({ board, p, seat, me, seed }: { board: Board; p: 1 | 2; seat?: SeatView; me: string; seed: number }) {
   const dan = board.got[p];
   const quans = board.quans[p];
@@ -157,13 +148,11 @@ function Store({ board, p, seat, me, seed }: { board: Board; p: 1 | 2; seat?: Se
   );
 }
 
-/** Ảnh quân (ngọc / avatar quan) trong giao diện HTML. */
 function Art({ src, size, title }: { src: string; size: number; title?: string }) {
   // eslint-disable-next-line @next/next/no-img-element -- site xuất tĩnh, ảnh đã thu nhỏ sẵn
   return <img src={src} alt="" title={title} width={size} height={size} draggable={false} className="flex-none object-contain select-none" style={{ width: size, height: size }} />;
 }
 
-/** Huy hiệu bên: viên ngọc màu của bên đó. */
 const Pebble = ({ p }: { p: 1 | 2 }) => <Art src={SIDE_GEM[p]} size={26} />;
 
 const fighter = (seat: SeatView | undefined, p: 1 | 2, me: string, side: "left" | "right") => (
@@ -177,7 +166,6 @@ const fighter = (seat: SeatView | undefined, p: 1 | 2, me: string, side: "left" 
   />
 );
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ match: g, me, n }: { match: OaqMatch; me: string; n: number }) {
   const tip = g.mySide ? (g.mySide === 1 ? "Bạn đi trước — chọn một ô dân bên mình để rải nhé!" : "Đối thủ đi trước — chờ một chút nhé!") : "Cùng xem hai bên tranh quan nhé!";
   return (
@@ -187,7 +175,6 @@ function CountdownScene({ match: g, me, n }: { match: OaqMatch; me: string; n: n
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: OaqMatch, me: string): DuelSummary {
   const r = g.result!;
   if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} — mỗi bên ${TOTAL / 2} điểm` };
@@ -209,7 +196,6 @@ function EndScene({ match: g, me, onClose }: { match: OaqMatch; me: string; onCl
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Pebble p={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Thanh trạng thái: lượt rải trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session, animating, tall }: { view: View; session: OAnQuanRoom; animating: boolean; tall: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;

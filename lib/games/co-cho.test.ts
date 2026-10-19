@@ -67,7 +67,6 @@ test("thế cờ lặp lại lần thứ ba thì hoà", () => {
   assert.equal(s2.winner, 0);
 });
 
-/** Giải trọn bàn: thế nào người tới lượt chắc thắng (W) / chắc thua (L); còn lại là hoà nếu cả hai đi đúng. */
 function solve() {
   const states: { board: number[]; turn: 1 | 2 }[] = [];
   for (let e = 0; e < POINTS; e++)

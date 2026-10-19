@@ -1,20 +1,12 @@
-/**
- * Multiplayer Xiangqi: each human owns one *role* (piece kind on one side), e.g. all Red Cannons.
- * Max 10 humans; leftover roles are bots. Claim → palace assigns token; traditional move rules.
- */
-
 export type Side = "red" | "black";
 export type PieceKind = "general" | "advisor" | "elephant" | "horse" | "chariot" | "cannon" | "soldier";
-/** claim = xin lượt; assign = Tướng chọn ai đi; move = đi quân. */
 export type TurnPhase = "claim" | "assign" | "move" | "ended";
 
 export const FILES = 9;
 export const RANKS = 10;
 export const PIECE_COUNT = 32;
 export const MIN_PLAYERS = 2;
-/** Humans in a room — leftover roles are bots. */
 export const MAX_PLAYERS = 10;
-/** Claim window options (host-configurable). */
 export const CLAIM_OPTIONS = [5_000, 10_000, 15_000, 60_000] as const;
 export type ClaimMs = (typeof CLAIM_OPTIONS)[number];
 export const CLAIM_MS = 5_000;
@@ -27,7 +19,6 @@ export function claimLabel(ms: number) {
   return `${ms / 1000}s`;
 }
 
-/** Seat slots per side — palace merges Tướng+Sĩ+Tượng into one player. */
 export type RoleKey = "palace" | "horse" | "chariot" | "cannon" | "soldier";
 
 export const ROLE_SLOTS: { key: RoleKey; kinds: PieceKind[]; name: string }[] = [
@@ -46,7 +37,6 @@ export type RoleDef = {
   side: Side;
 };
 
-/** 0–4 red, 5–9 black (10 seats total). */
 export const ROLES: RoleDef[] = [
   ...ROLE_SLOTS.map((s, i) => ({ id: i, key: s.key, kinds: s.kinds, name: s.name, side: "red" as const })),
   ...ROLE_SLOTS.map((s, i) => ({ id: 5 + i, key: s.key, kinds: s.kinds, name: s.name, side: "black" as const })),
@@ -89,11 +79,9 @@ export type PieceDef = {
   id: number;
   kind: PieceKind;
   side: Side;
-  /** UI label, e.g. "left" | "right" | "1"…"5" */
   label: string;
 };
 
-/** Fixed roster: 0–15 red, 16–31 black. */
 export const ROSTER: PieceDef[] = [
   { id: 0, kind: "chariot", side: "red", label: "left" },
   { id: 1, kind: "horse", side: "red", label: "left" },
@@ -129,14 +117,13 @@ export const ROSTER: PieceDef[] = [
   { id: 31, kind: "soldier", side: "black", label: "5" },
 ];
 
-/** Starting square index (rank * 9 + file) per piece id. Red at bottom (rank 0). */
 const START: number[] = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, // red back
-  19, 25, // cannons r2
-  27, 29, 31, 33, 35, // soldiers r3
-  81, 82, 83, 84, 85, 86, 87, 88, 89, // black back r9
-  64, 70, // cannons r7
-  54, 56, 58, 60, 62, // soldiers r6
+  0, 1, 2, 3, 4, 5, 6, 7, 8,
+  19, 25,
+  27, 29, 31, 33, 35,
+  81, 82, 83, 84, 85, 86, 87, 88, 89,
+  64, 70,
+  54, 56, 58, 60, 62,
 ];
 
 export type PieceState = {
@@ -151,7 +138,6 @@ export type PieceState = {
 
 export type BoardState = {
   pieces: PieceState[];
-  /** cell → pieceId, -1 empty */
   cells: Int8Array;
 };
 
@@ -162,22 +148,16 @@ export type LastMove = {
   captured?: number;
 };
 
-/** Host-written public match state. */
 export type XqRolePublic = {
   side: Side;
   phase: TurnPhase;
   turn: number;
   claimDeadline: number;
-  /** Deadline for palace (Tướng) to pick who moves. */
   assignDeadline: number;
   moveDeadline: number;
-  /** Role holding the turn token (controls all pieces of that kind+side). */
   tokenRoleId: number | null;
-  /** Roles that claimed this turn (ordered by first claim time). */
   claimants: number[];
-  /** roleId → uid (human) or "" for bot */
   owners: Record<number, string>;
-  /** uid → consecutive move timeouts */
   timeouts: Record<string, number>;
   pieces: PieceState[];
   check: boolean;
@@ -287,7 +267,6 @@ function at(board: BoardState, file: number, rank: number): PieceState | null {
   return id < 0 ? null : board.pieces[id];
 }
 
-/** Pseudo-legal moves (ignore check). */
 export function rawMoves(board: BoardState, pieceId: number): number[] {
   const p = board.pieces[pieceId];
   if (!p?.alive) return [];
@@ -399,7 +378,6 @@ export function rawMoves(board: BoardState, pieceId: number): number[] {
     return out;
   }
 
-  // soldier
   const fwd = p.side === "red" ? 1 : -1;
   push(p.file, p.rank + fwd);
   if (crossedRiver(p.side, p.rank)) {
@@ -409,7 +387,6 @@ export function rawMoves(board: BoardState, pieceId: number): number[] {
   return out;
 }
 
-/** Generals face each other on an open file — both sides are in check-like illegal state. */
 function flyingGeneral(board: BoardState): boolean {
   const a = board.pieces.find((p) => p.alive && p.kind === "general" && p.side === "red");
   const b = board.pieces.find((p) => p.alive && p.kind === "general" && p.side === "black");
@@ -442,7 +419,6 @@ function applyRaw(board: BoardState, pieceId: number, to: number): BoardState {
   return boardFromPieces(pieces);
 }
 
-/** Legal destinations (not leaving own general in check). */
 export function legalMoves(board: BoardState, pieceId: number): number[] {
   const p = board.pieces[pieceId];
   if (!p?.alive) return [];
@@ -483,7 +459,6 @@ export function roleOfOwner(owners: Record<number, string>, uid: string): number
   return null;
 }
 
-/** Role has at least one legal move on this side. */
 export function roleCanMove(pub: XqRolePublic, roleId: number): boolean {
   const role = ROLES[roleId];
   if (!role || role.side !== pub.side) return false;
@@ -491,16 +466,11 @@ export function roleCanMove(pub: XqRolePublic, roleId: number): boolean {
   return piecesOfRole(pub.pieces, roleId).some((p) => p.alive && legalMoves(board, p.id).length > 0);
 }
 
-/** Role can claim during claim phase. */
 export function canClaim(pub: XqRolePublic, roleId: number): boolean {
   if (pub.phase !== "claim") return false;
   return roleCanMove(pub, roleId);
 }
 
-/**
- * Roles eligible for the token.
- * With claimants → those; else every role that can move (0-claim fallback).
- */
 export function assignCandidates(pub: XqRolePublic): number[] {
   const claimed = pub.claimants.filter((id) => roleCanMove(pub, id));
   if (claimed.length) return claimed;
@@ -534,7 +504,6 @@ export function startMatch(owners: Record<number, string>, now = Date.now(), cla
   return freshClaim("red", 1, now, claimMs, emptyBoard().pieces, false, { owners: { ...owners } });
 }
 
-/** After a completed move: next side claim, or checkmate. */
 export function afterMove(pub: XqRolePublic, board: BoardState, last: LastMove, now = Date.now(), claimMs: number = CLAIM_MS): XqRolePublic {
   const enemy: Side = pub.side === "red" ? "black" : "red";
   const check = isInCheck(board, enemy);
@@ -588,7 +557,6 @@ export function assignToken(pub: XqRolePublic, roleId: number, now = Date.now())
   };
 }
 
-/** Auto-pick when Tướng AFK / bot: first claimant, else palace, else any. */
 export function fallbackToken(pub: XqRolePublic, now = Date.now()): XqRolePublic {
   const picks = assignCandidates(pub);
   if (picks.length) return assignToken(pub, picks[0], now);
@@ -618,7 +586,6 @@ export function pickBotMove(board: BoardState, roleId: number): { pieceId: numbe
   return candidates[(Math.random() * candidates.length) | 0];
 }
 
-/** Reassign AFK role to a random living human teammate, else bot. */
 export function reassignAfk(pub: XqRolePublic, uid: string, rng = Math.random): XqRolePublic {
   const roleId = roleOfOwner(pub.owners, uid);
   if (roleId == null) return pub;

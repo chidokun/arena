@@ -6,14 +6,9 @@ import { Dialog } from "../Dialog";
 
 type Cheat = Extract<Alert, { kind: "cheat" }>;
 
-/** Người khác gian lận thì thông báo tự tắt sau chừng này; mình bị bắt thì phải bấm đóng. */
 const OTHER_MS = 8000;
 const WARN_MS = 9000;
 
-/**
- * Chống gian lận: bật hộp thoại khi có người chơi bị bắt mở công cụ nhà phát triển giữa ván (mọi người trong phòng đều
- * thấy), và nhắc mình đóng DevTools nếu đang mở lúc ngồi ghế chờ ván.
- */
 export function CheatAlert({ session }: { session: RoomSession }) {
   const [cheat, setCheat] = useState<Cheat | null>(null);
   const [warn, setWarn] = useState(0);
@@ -22,7 +17,6 @@ export function CheatAlert({ session }: { session: RoomSession }) {
     () =>
       session.onCheat((a) => {
         if (a.kind === "warn") setWarn(Date.now());
-        // Mình bị bắt thì giữ thông báo của mình, không để thông báo người khác đè lên.
         else setCheat((cur) => (cur?.mine && !a.mine ? cur : a));
       }),
     [session],

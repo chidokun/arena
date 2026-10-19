@@ -1,15 +1,11 @@
-/**
- * Lớp vận chuyển P2P dựa trên Trystero (WebRTC; tín hiệu bắt tay đi qua relay Nostr công khai — không có server riêng).
- * Mỗi "kênh" (sảnh, từng phòng) là một room Trystero. Kênh được đếm tham chiếu để React Strict Mode
- * hay việc chuyển trang nhanh không làm rời rồi vào lại room liên tục.
- */
+// Kênh được đếm tham chiếu để React Strict Mode hay việc chuyển trang nhanh không làm rời rồi vào lại room liên tục.
 import type { Wire, WireKind } from "./gossip";
 import { currentTurn, forceRelay, turnOnAnswer, turnServers } from "./ice";
 
 export const APP_ID = "arena.nguyentuan.dev/v1";
 const KINDS: WireKind[] = ["dig", "dlt", "req", "rum"];
 const LEAVE_DELAY_MS = 1500;
-/** Peer bắt tay hỏng được tính là "không nối được" trong khoảng này (Trystero thử lại khi vào lại room). */
+// Trystero thử lại khi vào lại room nên chỉ tính "không nối được" trong một khoảng.
 const UNREACHABLE_TTL_MS = 90000;
 /**
  * Relay Nostr cố định thay cho danh sách mặc định của Trystero (nhiều relay trong đó đã chết hoặc chặn event
@@ -40,7 +36,6 @@ class Hub {
   joins = new Set<PeerFn>();
   leaves = new Set<PeerFn>();
   peers = new Set<string>();
-  /** Peer đã trao đổi SDP nhưng không thông kênh (thường do NAT chặn, thiếu TURN) → lúc thất bại gần nhất. */
   unreachable = new Map<string, number>();
   senders = new Map<WireKind, Send>();
   room!: TrysteroRoom;
@@ -76,10 +71,7 @@ class Hub {
     };
   }
 
-  /**
-   * Rời room Trystero rồi vào lại: phát lại lời chào lên relay và bắt tay từ đầu. Dùng khi lần bắt tay trước
-   * thất bại (vd. đầu kia đang bận, tín hiệu bị rơi) — Trystero không tự thử lại với peer đã từng thất bại.
-   */
+  // Rời room rồi vào lại để bắt tay từ đầu: Trystero không tự thử lại với peer đã từng thất bại.
   noteFailure(peer: string) {
     if (!this.peers.has(peer)) this.unreachable.set(peer, Date.now());
   }
@@ -121,14 +113,11 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") (win
 export type Channel = Wire & {
   selfId: string;
   onPeerLeave(fn: PeerFn): void;
-  /** Số peer gần đây bắt tay được nhưng không nối thông (mạng chặn P2P). */
   unreachable(): number;
-  /** Vào lại room để bắt tay lại từ đầu (khi kênh trống bất thường). */
   rejoin(): Promise<void>;
   release(): void;
 };
 
-/** Mở (hoặc dùng lại) một kênh P2P. Gọi `release()` khi không dùng nữa. */
 export async function openChannel(name: string): Promise<Channel> {
   const mod = await import("trystero");
   const { joinRoom, selfId } = mod;
@@ -210,10 +199,6 @@ export async function openChannel(name: string): Promise<Channel> {
   };
 }
 
-/**
- * Gọi lại khi kênh trống bất thường: kênh không có peer nào liên tục quá `wait` ms trong khi `expectPeers()`
- * cho biết lẽ ra phải có người (vd. sảnh thấy chủ phòng đang ở phòng này) thì vào lại room, giãn dần giữa các lần.
- */
 export class Redialer {
   private emptySince = 0;
   private lastTry = 0;

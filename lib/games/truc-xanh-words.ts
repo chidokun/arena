@@ -1,18 +1,14 @@
-/**
- * Bộ tranh ẩn của Trúc Xanh: từ khoá (`w`), các cách gọi khác cũng tính đúng (`alt`), và ảnh. Ảnh là ảnh đại diện bài
- * Wikipedia của từ khoá (thay tay vài ảnh chưa ổn bằng ảnh Wikimedia Commons), cỡ chuẩn 960px của upload.wikimedia.org
- * — giấy phép tự do, cho phép nhúng trực tiếp.
- *
- * Ảnh bắt buộc khổ ngang (rộng gấp 1,25–1,9 lần cao): bàn chơi khung 4:3 phủ kín ảnh, ảnh dọc bị cắt mất chủ thể.
- *
- * Mã tranh = vị trí trong mảng; phòng nhớ mã các tranh đã chơi để không bốc lại, nên chỉ thêm tranh vào *cuối*, không
- * xoá, không đổi chỗ.
- */
+// Ảnh lấy từ Wikipedia / Wikimedia Commons (cỡ chuẩn 960px) vì giấy phép tự do, cho phép nhúng trực tiếp.
+//
+// Ảnh bắt buộc khổ ngang (rộng gấp 1,25–1,9 lần cao): bàn chơi khung 4:3 phủ kín ảnh, ảnh dọc bị cắt mất chủ thể.
+//
+// Mã tranh = vị trí trong mảng; phòng nhớ mã các tranh đã chơi để không bốc lại, nên chỉ thêm tranh vào *cuối*, không
+// xoá, không đổi chỗ.
 
 export type Picture = {
   w: string;
   alt?: readonly string[];
-  /** Câu gợi ý hiện cho cả phòng trong lúc chơi (bộ Khó) — không được chứa đáp án. */
+  // Hiện cho cả phòng trong lúc chơi nên không được chứa đáp án.
   hint?: string;
   img: string;
 };

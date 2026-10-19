@@ -1,11 +1,7 @@
-/**
- * Luật chơi chi tiết của từng game, hiện trong popup "Luật chơi" ở sảnh. Viết theo luật đang chạy trong code
- * (`lib/games/*.ts`) — sửa luật thì sửa cả ở đây. Game chưa có mục ở đây thì popup dùng mô tả ngắn từ API.
- */
+// Viết theo luật đang chạy trong code (`lib/games/*.ts`) — sửa luật thì sửa cả ở đây.
 
 export type RuleSection = { emoji: string; title: string; items: string[] };
 export type GameRules = {
-  /** Một hai câu giới thiệu ngay dưới lời chào. */
   intro: string;
   sections: RuleSection[];
 };

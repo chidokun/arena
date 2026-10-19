@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CELLS, emptyState, flipsOf, legalMoves, replay } from "./reversi.ts";
 
-/** Ô theo ký hiệu cờ lật: cột a–h, hàng 1–8 tính từ trên xuống. */
 const at = (sq: string) => (Number(sq[1]) - 1) * 8 + (sq.charCodeAt(0) - 97);
 
 test("khai cuộc: bốn quân chéo, Đen có đúng bốn nước", () => {
@@ -59,7 +58,6 @@ test("người hết nước tự bị bỏ lượt, đối thủ đi tiếp", (
   assert.deepEqual(legalMoves(s.board, 1), []);
   assert.ok(s.legal.length > 0);
   assert.equal(s.over, false);
-  // Trắng đi tiếp hợp lệ.
   assert.equal(replay([...moves, s.legal[0]]).count, moves.length + 1);
 });
 

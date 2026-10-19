@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<MsView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useMsView(session: MinesweeperRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -25,19 +23,15 @@ function useMsView(session: MinesweeperRoom): View {
   return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
 }
 
-/** Màu của từng người chơi theo thứ tự đội hình — ô đã mở, bảng điểm. Hết bảng màu thì xoay vòng sắc độ. */
 const PLAYER_COLORS = ["var(--sky)", "var(--lime)", "var(--grape)", "var(--sun)", "var(--coral)", "#ff6fb5", "#14b8c4", "#ff8a3d", "#8a9a2c", "#a0785a"];
 const colorOf = (k: number) => PLAYER_COLORS[k] ?? `hsl(${Math.round((k * 137.508) % 360)} 70% 52%)`;
 
 const CONFETTI = ["🎉", "🏆", "✨", "🚩", "🎊", "⭐"];
 const WIN_SCENE_MS = 6500;
-/** Giữ ô chừng này (màn cảm ứng) thì cắm cờ thay vì mở. */
 const LONG_PRESS_MS = 380;
-/** Bề ngang tối thiểu / tối đa mỗi ô (px) — bàn rộng hơn khung (bàn lớn trên điện thoại) thì cuộn ngang. */
 const MIN_CELL = 26;
 const MAX_CELL = 44;
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 250) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -50,7 +44,7 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
-/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ. */
+// Chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ.
 function useReached(at: number | undefined) {
   const [hit, setHit] = useState<number | undefined>(undefined);
   useEffect(() => {
@@ -70,7 +64,6 @@ function nameIn(view: View, uid: string) {
 
 const aliveOf = (s: MsState) => s.alive.flatMap((a, k) => (a ? [k] : []));
 
-/** Thứ hạng: người thắng, rồi người còn trụ, rồi người bị loại — cùng nhóm thì nhiều điểm hơn đứng trên. */
 function ranking(g: MsMatch) {
   const s = g.state;
   const won = new Set(s.winners);
@@ -78,11 +71,8 @@ function ranking(g: MsMatch) {
   return g.lineup.map((_, k) => k).sort((a, b) => tier(a) - tier(b) || s.score[b] - s.score[a] || a - b);
 }
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function MinesweeperTable({ id, slug, session }: { id: string; slug: string; session: MinesweeperRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -132,10 +122,8 @@ const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: Mi
   );
 });
 
-/** Ván vừa mở hết bàn (có người thắng) — số ván, 0 nếu chưa. */
 const winKey = (g?: MsMatch) => ((g?.result?.reason === "points" || g?.result?.reason === "solve") && g.result.winners?.length ? g.round : 0);
 
-/** Lớp phủ toàn màn hình: đếm ngược trước khi lộ bàn, và cảnh chiến thắng (bấm để đóng). */
 function Cinema({ match: g, count, win, onClose }: { match: MsMatch; count: number; win: boolean; onClose: () => void }) {
   if (count > 0)
     return (
@@ -173,12 +161,10 @@ function Cinema({ match: g, count, win, onClose }: { match: MsMatch; count: numb
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session }: { view: View; session: MinesweeperRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
-  // Đồng hồ chỉ chạy lúc đếm ngược tới khi lộ bàn (để hiện số giây), lộ bàn rồi thì thôi.
   const opened = useReached(g?.opensAt);
   const now = useNow(live && !opened);
 
@@ -226,7 +212,6 @@ function ActionBar({ view, session }: { view: View; session: MinesweeperRoom }) 
   );
 }
 
-/** Luật ván tới: chủ phòng chọn cỡ bàn và số mìn, người khác xem. */
 function Rules({ view, session }: { view: View; session: MinesweeperRoom }) {
   const opts = view.game!.opts;
   const host = view.isHost;
@@ -262,7 +247,6 @@ function Rules({ view, session }: { view: View; session: MinesweeperRoom }) {
   );
 }
 
-/** Thẻ kết quả: người thắng (hoặc vì sao không ai thắng) và bảng xếp hạng cả phòng. */
 function ResultCard({ view, match: g }: { view: View; match: MsMatch }) {
   const r = g.result!;
   const winners = r.winners ?? [];
@@ -315,7 +299,6 @@ function ResultCard({ view, match: g }: { view: View; match: MsMatch }) {
   );
 }
 
-/** Bàn trống khi chưa chơi ván nào: các ô ẩn. */
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
   const { w, h } = SIZES[view.game!.opts.size];
@@ -335,7 +318,6 @@ function EmptyBoard({ view }: { view: View }) {
   );
 }
 
-/** Khung lưới: ô vuông, co theo bề ngang (tối đa `MAX_CELL`), hẹp quá thì cuộn ngang. */
 function Grid({ w, label, shake, scrollRef, children }: { w: number; label: string; shake?: number; scrollRef?: React.Ref<HTMLDivElement>; children: React.ReactNode }) {
   return (
     <div ref={scrollRef} className="overflow-x-auto pb-1">
@@ -352,7 +334,6 @@ function Grid({ w, label, shake, scrollRef, children }: { w: number; label: stri
   );
 }
 
-/** Bàn chơi: thanh công cụ (mìn còn lại, đồng hồ, chế độ cắm cờ) và lưới ô. */
 function Play({ view, session, match: g }: { view: View; session: MinesweeperRoom; match: MsMatch }) {
   const live = isLive(view);
   const player = g.me >= 0;
@@ -412,7 +393,7 @@ function Play({ view, session, match: g }: { view: View; session: MinesweeperRoo
   );
 }
 
-/** Đồng hồ ván: `time` khi ván đã xong; đang chơi thì đếm từ `since`. Tách riêng để nhịp đồng hồ chỉ vẽ lại ô này. */
+// Tách riêng để nhịp đồng hồ chỉ vẽ lại ô này.
 function Elapsed({ time, since }: { time?: number; since?: number }) {
   const now = useNow(time == null && since !== undefined);
   const elapsed = time ?? (since !== undefined && now ? now - since : 0);
@@ -423,10 +404,6 @@ function Elapsed({ time, since }: { time?: number; since?: number }) {
   );
 }
 
-/**
- * Lưới ô dò mìn. Ô ẩn nổi lên như viên gạch (cờ của mình cắm 🚩); ô đã mở phẳng, tô nhạt màu người mở, hiện số mìn
- * xung quanh; mìn đã nổ 💥 viền màu người đạp. Hết ván thì lật các mìn còn lại, cờ cắm nhầm gạch chéo.
- */
 const Board = memo(function Board({
   state: s,
   layout: lay,
@@ -442,9 +419,7 @@ const Board = memo(function Board({
   state: MsState;
   layout: Layout;
   flags: number[];
-  /** Đang đếm ngược: úp hết. */
   hide: boolean;
-  /** Hết ván: lật hết mìn. */
   reveal: boolean;
   canPlay: boolean;
   flagMode: boolean;
@@ -453,7 +428,6 @@ const Board = memo(function Board({
   onFlag: (c: number) => void;
 }) {
   const flagged = new Set(flags);
-  // Bàn rộng hơn khung (cuộn ngang): lộ bàn thì cuộn tới vùng xuất phát.
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scroller.current;
@@ -553,7 +527,6 @@ const Board = memo(function Board({
   );
 });
 
-/** Bảng điểm: màu từng người, số ô đã mở, ai đã bị loại. */
 function Scoreboard({ view, match: g }: { view: View; match: MsMatch }) {
   const s = g.state;
   const order = ranking(g);

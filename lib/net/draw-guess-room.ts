@@ -1,26 +1,9 @@
-/**
- * Phòng Vẽ Đoán. Máy chủ phòng điều hành (luật thuần ở `lib/games/draw-guess.ts`): bốc ba từ cho người vẽ, chấm lời
- * đoán, mở gợi ý, cộng điểm. Ai trong phòng cũng nhận được mọi bản ghi gossip nên từ khoá và lời đoán được niêm phong
- * (`seal.ts`) giữa từng người và chủ phòng:
- *
- *   meta.dw          — phần công khai: thứ tự vẽ, lượt, giai đoạn, hạn chót, khung đáp án, ai đoán đúng, điểm.
- *   meta.dwUsed      — mã các từ đã chơi trong phòng — không bốc lại.
- *   s:<ván>:<uid>    — chủ phòng gửi riêng: người vẽ nhận ba từ để chọn; người đoán nhận những lời đoán gần đúng, và
- *                      đáp án khi đã đoán đúng.
- *   v:<ván>:<uid>    — người vẽ chọn từ thứ mấy (chỉ số — vô nghĩa với ai không có bộ từ).
- *   a:<ván>:<uid>    — các lời đoán của mình trong lượt, niêm phong gửi chủ phòng.
- *   g:<ván>          — lời đoán sai của lượt hiện tại, chủ phòng công khai; mọi máy chép vào khung chat (ô tím).
- *   d:<ván>:<lượt>.<trang>:<uid> — tranh của người vẽ: các thao tác (nét, đổ màu, hoàn tác, xoá), `PAGE` thao tác mỗi
- *                      trang — trang đầy không đổi nữa nên mỗi lần vẽ chỉ gửi lại trang cuối. Hết lượt thì mọi máy dọn.
- *
- * Nét đang vẽ dở đi theo kênh rumor `ink` (chỉ phần điểm mới, vài chục lần mỗi giây) để người xem thấy nét chạy ngay;
- * vẽ xong nét mới ghi vào trang. Lời đoán chỉ gửi từ ô đoán dưới tranh, khung chat chỉ để thảo luận; chấm xong mỗi máy tự
- * chép kết quả vào khung chat như tin của người đoán: sai — ô tím kèm lời đoán; đúng — ô xanh, chỉ người đoán thấy chữ;
- * gần đúng — chỉ người đoán thấy. Người đã đoán đúng bị khoá chat tới hết lượt vẽ; người vẽ không nhắn được tin có đáp án.
- *
- * Bí mật của lượt chỉ nằm trên máy chủ phòng (sessionStorage — tải lại trang vẫn giữ); chủ phòng mất kết nối thì người
- * kế nhiệm dừng lượt đang dở (không có đáp án) rồi điều hành tiếp từ lượt sau.
- */
+// Ai trong phòng cũng nhận được mọi bản ghi gossip nên từ khoá và lời đoán được niêm phong (`seal.ts`) giữa từng người
+// và chủ phòng. Tranh chia trang `PAGE` thao tác: trang đầy không đổi nữa nên mỗi lần vẽ chỉ gửi lại trang cuối. Nét
+// đang vẽ dở đi riêng theo kênh rumor `ink` (chỉ phần điểm mới) để người xem thấy nét chạy ngay.
+//
+// Bí mật của lượt chỉ nằm trên máy chủ phòng (sessionStorage để tải lại trang vẫn giữ); chủ phòng mất kết nối thì người
+// kế nhiệm không có đáp án nên phải dừng lượt đang dở rồi điều hành tiếp từ lượt sau.
 import {
   GUESS_LEN,
   GUESS_MAX,
@@ -56,7 +39,6 @@ import { RoomSession, START_COUNTDOWN_MS, type ChatMsg, type Member, type Meta, 
 import { Keyring, type KeyStore } from "./seal";
 import type { Channel } from "./wire";
 
-/** Người chơi mất kết nối chừng này thì không còn tính trong ván; còn dưới hai người thì dừng ván. */
 const LEFT_MS = 60000;
 
 const hostKey = (id: string) => `arena:dw:${id}`;
@@ -80,13 +62,9 @@ function sessionStore(key: string): KeyStore {
   };
 }
 
-/** Hộp chủ phòng gửi riêng: người vẽ nhận ba từ để chọn; người đoán nhận lời đoán gần đúng và đáp án khi đã đúng. */
 type Private = { turn: number; choices?: string[]; near?: number[]; word?: string };
-/** Hộp lời đoán gửi chủ phòng. */
 type Guesses = { turn: number; list: string[] };
-/** Người vẽ chọn từ. */
 type Pick = { turn: number; pick: number };
-/** Gói nét đang vẽ dở: ván, lượt, thao tác thứ mấy, từ điểm thứ mấy, màu, cỡ, các điểm mới. */
 type Ink = { r: number; t: number; n: number; o: number; c: number; z: number; p: number[] };
 
 export type GuessState = "wait" | "wrong" | "near" | "right";
@@ -94,21 +72,14 @@ export type GuessState = "wait" | "wrong" | "near" | "right";
 export type DwMatch = {
   round: number;
   pub: DwPublic;
-  /** Thứ tự vẽ. */
   lineup: SeatView[];
   role: "drawer" | "guesser" | "watcher";
-  /** Từ khoá mình biết: người vẽ (đã chọn), người đã đoán đúng; ai cũng biết lúc lộ đáp án. */
   word?: string;
-  /** Người vẽ, lúc chọn từ: ba từ dễ, vừa, khó. */
   choices?: string[];
-  /** Tranh của lượt hiện tại. */
   ops: Op[];
-  /** Mình đang được vẽ. */
   canDraw: boolean;
-  /** Lời đoán của mình trong lượt và kết quả chấm. */
   guesses: { text: string; state: GuessState }[];
   hit?: Hit;
-  /** Hạn chót của giai đoạn theo giờ máy mình. */
   deadline: number;
   result?: Result;
 };
@@ -116,7 +87,6 @@ export type DwMatch = {
 export type DwView = {
   opts: DwOptions;
   match?: DwMatch;
-  /** Người trong ghế mà máy chưa có khoá niêm phong — chưa bắt đầu được. */
   unkeyed: string[];
   words: { used: number; total: number };
 };
@@ -124,25 +94,20 @@ export type DwView = {
 export class DrawGuessRoom extends RoomSession<DwView> {
   readonly game = "draw-guess";
   private keys: Keyring | null = null;
-  /** Bí mật của lượt (chỉ có ở máy chủ phòng). */
   private secret: Secret | null = null;
   private secretSaved = "";
-  /** Hộp niêm phong đã mở: của mình (`s:`), và chủ phòng mở hộp lời đoán (`a:`). */
   private opened = new Map<string, { c: number; w: string; peer: string; v: unknown }>();
   private opening = new Set<string>();
-  /** Chủ phòng: chữ ký nội dung hộp đã gửi từng người, và các hộp đang niêm phong. */
   private boxSig = new Map<string, string>();
   private boxBusy = new Set<string>();
-  /** Lời đoán của mình trong lượt hiện tại. */
   private mine: Guesses & { round: number } = { round: -1, turn: -1, list: [] };
   private mineSeal = { busy: false, sig: "" };
   private ops = { sig: "", list: [] as Op[] };
-  /** Nét người vẽ đang vẽ dở (theo thứ tự thao tác), nhận qua rumor. */
   private ink = { key: "", strokes: new Map<number, Stroke>() };
   private inkFns = new Set<() => void>();
   private stageSeen = { key: "", at: 0 };
   private heard = "";
-  /** Id các câu đã rao trong lượt — tin cũ trôi khỏi khung chat cũng không rao lại. */
+  // Nhớ id các câu đã rao trong lượt để tin cũ trôi khỏi khung chat cũng không rao lại.
   private said = { key: "", ids: new Set<string>() };
 
   constructor(id: string, me: string, profile: Profile, lobby: Lobby, channel: Channel) {
@@ -172,16 +137,12 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return this.gossip.get<Member>(`p:${uid}`)?.key;
   }
 
-  /** Ván đang chơi (meta.dw khớp ván hiện tại). */
   private livePub(m = this.meta()) {
     const pub = m?.dw;
     if (!m || m.status !== "playing" || !pub || pub.round !== m.round) return null;
     return { m, pub };
   }
 
-  // ---------- niêm phong ----------
-
-  /** Mở hộp: của chủ phòng gửi mình (`s:<ván>:<mình>`), hoặc — chủ phòng — hộp lời đoán của từng người (`a:`). */
   private unseal(k: string) {
     const m = this.meta();
     if (!this.keys || !m || this.opening.has(k)) return;
@@ -219,13 +180,11 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return v && v.turn === pub.turn ? v : undefined;
   }
 
-  /** Chủ phòng: lời đoán (đã mở hộp) của một người trong ván. */
   private inboxOf(m: Meta, uid: string): Guesses | undefined {
     const v = this.opened.get(`a:${m.round}:${uid}`)?.v as Guesses | null | undefined;
     return v && Number.isInteger(v.turn) && Array.isArray(v.list) ? v : undefined;
   }
 
-  /** Chủ phòng: nội dung hộp riêng cho từng người theo bí mật của lượt. */
   private privates(pub: DwPublic): Map<string, Private> {
     const out = new Map<string, Private>();
     const s = this.secret;
@@ -241,7 +200,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return out;
   }
 
-  /** Chủ phòng: gửi lại hộp riêng của người nào có nội dung mới (bộ từ, lời đoán gần đúng, đáp án khi đã đúng). */
   private publishSecrets(m: Meta) {
     const live = this.livePub(m);
     const keys = this.keys;
@@ -268,7 +226,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     }
   }
 
-  /** Gửi (lại) hộp lời đoán của mình cho chủ phòng — khi có lời đoán mới hoặc chủ phòng đổi khoá. */
   private flushGuesses(m: Meta) {
     const keys = this.keys;
     const peer = this.keyOf(m.host);
@@ -304,9 +261,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.gameStore.invalidate();
   }
 
-  // ---------- tranh ----------
-
-  /** Các thao tác của tranh lượt hiện tại, đọc từ các trang liên tiếp của người vẽ (nhớ theo phiên bản trang). */
   private opsOf(m: Meta, pub: DwPublic): Op[] {
     const pages: unknown[][] = [];
     const vers: string[] = [];
@@ -331,12 +285,10 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return list;
   }
 
-  /** Nét đang vẽ dở của người vẽ (thao tác thứ n → nét), để vẽ lên lớp trên của tranh. */
   liveInk(): ReadonlyMap<number, Stroke> {
     return this.ink.strokes;
   }
 
-  /** Gọi lại mỗi khi nét đang vẽ dở thay đổi. */
   onInk(fn: () => void) {
     this.inkFns.add(fn);
     return () => {
@@ -344,7 +296,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     };
   }
 
-  /** Nhận gói nét vẽ dở của người vẽ qua rumor. */
   private receiveInk(x: Rumor) {
     if (x.t !== "ink") return;
     const live = this.livePub();
@@ -365,7 +316,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     for (const fn of this.inkFns) fn();
   }
 
-  /** Bỏ nét dở của lượt khác và nét đã ghi vào tranh. */
   private syncLive(m: Meta, pub: DwPublic) {
     const key = `${m.round}:${pub.turn}`;
     let changed = false;
@@ -382,20 +332,17 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     if (changed) for (const fn of this.inkFns) fn();
   }
 
-  /** Người vẽ: phát phần điểm mới của nét đang vẽ dở (thao tác thứ `n`, từ điểm thứ `from`). */
   sendInk(n: number, from: number, c: number, z: number, points: number[]) {
     const live = this.livePub();
     if (!live || live.pub.phase !== "draw" || live.pub.drawer !== this.me || !points.length) return;
     this.gossip.broadcast<Ink>("ink", { r: live.m.round, t: live.pub.turn, n, o: from, c, z, p: points });
   }
 
-  /** Số thao tác hiện có của tranh — người vẽ đánh số nét mới theo đây (đọc thẳng gossip, không chờ giao diện). */
   opCount() {
     const live = this.livePub();
     return live ? this.opsOf(live.m, live.pub).length : 0;
   }
 
-  /** Người vẽ: thêm một thao tác vào tranh (nét đã vẽ xong, đổ màu, hoàn tác, xoá). */
   draw(raw: Op): boolean {
     const live = this.livePub();
     const op = parseOp(raw);
@@ -407,8 +354,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.react();
     return true;
   }
-
-  // ---------- luật ----------
 
   protected begin(m: Meta) {
     const players = m.players.filter((u) => this.isOnline(u));
@@ -486,16 +431,12 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.announce(m);
   }
 
-  // ---------- rao ----------
-
-  /** Đưa một tin vào khung chat đúng một lần mỗi lượt (theo id). */
   private once(id: string, msg: () => Omit<ChatMsg, "id">) {
     if (this.said.ids.has(id)) return;
     this.said.ids.add(id);
     this.pushChat({ id, ...msg() });
   }
 
-  /** Tên, avatar, màu của một người để đứng tên tin trong khung chat. */
   private author(uid: string) {
     const p = this.gossip.get<Member>(`p:${uid}`);
     return { uid, name: p?.name ?? "Ai đó", avatar: p?.avatar ?? "", color: p?.color ?? "" };
@@ -505,7 +446,7 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.once(id, () => ({ uid: "", name: "", avatar: "", color: "", at: Date.now(), text, system: true }));
   }
 
-  /** Rao diễn biến vào khung chat — mỗi máy tự suy ra từ phần công khai, id cố định nên tải lại trang không rao lặp. */
+  // Mỗi máy tự suy ra từ phần công khai; id cố định nên tải lại trang không rao lặp.
   private announce(m: Meta) {
     const live = this.livePub(m);
     if (!live) return;
@@ -515,7 +456,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     const who = (u: string) => (u === this.me ? "Bạn" : this.nameOf(u));
     if (this.said.key !== `${r}:${t}`) this.said = { key: `${r}:${t}`, ids: new Set() };
     const mine = this.mine.round === r && this.mine.turn === t ? this.mine.list : [];
-    // Kết quả chấm chép vào khung chat như tin của người đoán. Sai: công khai cả lời đoán (ô tím).
     const feed = this.gossip.get<Feed>(`g:${r}`);
     if (feed && feed.turn === t && Array.isArray(feed.list))
       for (const f of feed.list) {
@@ -530,7 +470,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
         guess: "right",
         ...(h.u === this.me ? { text: `${mine[h.i] ? `“${mine[h.i]}” · ` : ""}+${h.p} điểm`, local: true } : { text: `🎉 +${h.p} điểm` }),
       }));
-    // Gần đúng: chỉ máy mình biết.
     for (const i of this.privateOf(m, pub)?.near ?? (m.host === this.me && this.secret?.turn === t ? (this.secret.near[this.me] ?? []) : []))
       if (mine[i] !== undefined) this.once(`dw-near:${r}:${t}:${i}`, () => ({ ...this.author(this.me), at: Date.now(), text: mine[i], guess: "near", local: true }));
     // Chuyển giai đoạn rao sau cùng: ai vừa đoán đúng hiện trước câu lộ đáp án.
@@ -561,8 +500,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     }
   }
 
-  // ---------- giao diện ----------
-
   /** Hạn chót theo giờ máy mình: đồng hồ hai máy khớp nhau thì dùng luôn giờ chủ phòng, lệch nhiều thì tính từ lúc thấy. */
   private deadlineOf(pub: DwPublic) {
     const key = `${pub.round}:${pub.turn}:${pub.phase}:${pub.since}`;
@@ -572,7 +509,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return at >= pub.since - 3000 - START_COUNTDOWN_MS && at <= pub.until + 3000 ? pub.until : at + (pub.until - pub.since);
   }
 
-  /** Từ khoá mình đang biết trong lượt (người vẽ, chủ phòng có bộ từ, người đã đoán đúng). */
   private wordFor(m: Meta, pub: DwPublic): { word?: string; choices?: string[] } {
     const own = m.host === this.me && this.secret?.round === pub.round && this.secret.turn === pub.turn ? this.secret : null;
     const box = this.privateOf(m, pub);
@@ -636,9 +572,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return `🏆 ${w.map(name).join(", ")} ${w.length > 1 ? "đồng hạng nhất" : "thắng"} ván ${r.round}${top ? ` với ${top} điểm` : ""}!`;
   }
 
-  // ---------- hành động người chơi ----------
-
-  /** Người vẽ chọn từ thứ `i` (0 dễ, 1 vừa, 2 khó). */
   choose(i: number) {
     const live = this.livePub();
     if (!live || live.pub.phase !== "pick" || live.pub.drawer !== this.me || ![0, 1, 2].includes(i)) return;
@@ -646,10 +579,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     this.react();
   }
 
-  /**
-   * Gửi một lời đoán từ ô đoán (đang lượt vẽ, mình là người đoán chưa đoán đúng). Kết quả hiện trong khung chat khi chủ
-   * phòng chấm xong. Trả về false nếu không gửi được.
-   */
   guess(text: string): boolean {
     const live = this.livePub();
     const t = text.trim().slice(0, GUESS_LEN);
@@ -678,10 +607,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return !!live && live.pub.phase === "draw" && live.pub.hits.some((h) => h.u === this.me);
   }
 
-  /**
-   * Khung chat chỉ để thảo luận (lời đoán gửi qua `guess`). Người đã đoán đúng bị khoá chat tới hết lượt vẽ; người vẽ
-   * không được nhắn đáp án.
-   */
   send(content: { text: string } | { sticker: StickerId }): boolean | void {
     if (this.chatLocked()) return;
     const live = this.livePub();
@@ -695,8 +620,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     return super.send(content);
   }
 
-  // ---------- hành động chủ phòng ----------
-
   setOptions(patch: Partial<DwOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -706,7 +629,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     });
   }
 
-  /** Xoá đánh dấu các từ đã chơi để bốc lại từ đầu. */
   resetWords() {
     this.hostEdit((m) => {
       if (!m.dwUsed?.length) return false;
@@ -714,7 +636,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     });
   }
 
-  /** Dừng ván giữa chừng: không tính ai thắng. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

@@ -41,7 +41,6 @@ function faceValue(kind: PieceKind, side: Side) {
   return side === "red" ? code : -code;
 }
 
-/** Icon for a role seat (palace shows general face). */
 function roleFace(roleId: number) {
   const r = ROLES[roleId];
   const kind = r.key === "palace" ? "general" : r.kinds[0];
@@ -54,10 +53,7 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
 
 const QUICK = ["Chờ", "Tấn công", "Phòng thủ", "Đừng đi", "Nước hay", "Cứu", "Tôi có kế hoạch", "Canh quân này"];
 
-/**
- * Bàn cờ tướng nhập vai tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; thanh trạng thái, chọn
- * role, bàn cờ, cảnh diễn tự đăng ký store và bọc `memo`; chat phe đọc `teamStore` riêng nên tin mới không kéo bàn cờ.
- */
+// Mỗi phần tự đăng ký store và bọc `memo`; chat phe đọc `teamStore` riêng nên tin mới không kéo bàn cờ vẽ lại.
 export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: string; session: XiangqiRoleRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const turn = useGame(
@@ -95,12 +91,8 @@ export function XiangqiRoleTable({ id, slug, session }: { id: string; slug: stri
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Chat phe: `teamStore` (tin mới) + phe của mình. */
 const TeamChatPart = memo(function TeamChatPart({ session }: { session: XiangqiRoleRoom }) {
   const all = useSyncExternalStore(session.teamStore.subscribe, session.teamStore.get, session.teamStore.get);
   const side = useGame(session, (g) => g?.match?.mySide ?? sideFromSeats(g!.seats, session.me));
@@ -108,7 +100,6 @@ const TeamChatPart = memo(function TeamChatPart({ session }: { session: XiangqiR
   return <TeamChat session={session} messages={messages} me={session.me} side={side} />;
 });
 
-/** Thanh trạng thái lúc chưa vào ván: `roomStore` (vai trò, ghế) + `peopleStore` (ghế còn kết nối). */
 const ActionPart = memo(function ActionPart({ session }: { session: XiangqiRoleRoom }) {
   const room = useRoomState(session);
   const seats = usePeople(session, (p) => p.seats);
@@ -121,7 +112,6 @@ const ResultPart = memo(function ResultPart({ session }: { session: XiangqiRoleR
   return ended && match ? <ResultCard match={match} /> : null;
 });
 
-/** Chọn role và cấu hình thời gian claim (chỉ lúc chưa vào ván). */
 const SetupPart = memo(function SetupPart({ session }: { session: XiangqiRoleRoom }) {
   const room = useRoomState(session, (r) => ({ status: r.meta!.status, isHost: r.isHost, me: r.me }), shallowEqual);
   const game = useGame(session);
@@ -134,7 +124,6 @@ const SetupPart = memo(function SetupPart({ session }: { session: XiangqiRoleRoo
   );
 });
 
-/** Bàn cờ và cột bên: role của mình, lượt hiện tại. */
 const BoardPart = memo(function BoardPart({ session }: { session: XiangqiRoleRoom }) {
   const game = useGame(session);
   const members = usePeople(session, (p) => p.members);
@@ -167,14 +156,12 @@ const BoardPart = memo(function BoardPart({ session }: { session: XiangqiRoleRoo
   );
 });
 
-/** Cảnh đếm ngược trước lượt claim đầu tiên và cảnh hết ván (kèm pháo giấy). */
 const CinemaPart = memo(function CinemaPart({ session }: { session: XiangqiRoleRoom }) {
   const room = useRoomState(session, (r) => ({ status: r.meta!.status, round: r.meta!.round }), shallowEqual);
   const game = useGame(session);
   const members = usePeople(session, (p) => p.members);
   const me = session.me;
   const match = game?.match;
-  // Đếm ngược trước lượt claim đầu tiên (chủ phòng đã lùi hạn claim lại một nhịp đếm).
   const opening = room.status === "playing" && !!match && match.round === room.round && match.pub.turn === 1 && match.pub.phase === "claim" && !match.pub.lastMove;
   const count = useCountdown(opening ? match!.round : 0, { endsAt: match ? match.pub.claimDeadline - game!.opts.claimMs : undefined });
   const won = match?.pub.winner;
@@ -188,7 +175,6 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: XiangqiRoleR
   );
 });
 
-/** Người giữ từng role của một phe (role không ai giữ là Bot), kèm quân đại diện của role. */
 function teamOf(match: XqRoleMatch, side: Side, members: RoomView["members"], me: string): CrowdItem[] {
   return ROLES.filter((r) => r.side === side).map((r) => {
     const uid = match.pub.owners[r.id] ?? "";
@@ -204,7 +190,6 @@ function teamOf(match: XqRoleMatch, side: Side, members: RoomView["members"], me
   });
 }
 
-/** Cảnh mở ván: hai phe năm role đối đầu, đếm ngược 3‑2‑1 rồi mở lượt claim đầu tiên. */
 function CountdownScene({ match, members, me, n }: { match: XqRoleMatch; members: RoomView["members"]; me: string; n: number }) {
   const team = (side: Side) => (
     <div className="grid max-w-[300px] justify-items-center gap-3">
@@ -226,7 +211,6 @@ function CountdownScene({ match, members, me, n }: { match: XqRoleMatch; members
   );
 }
 
-/** Tiêu đề / giải thích kết quả — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(match: XqRoleMatch, side: Side) {
   const mine = match.mySide;
   return {
@@ -242,7 +226,6 @@ function EndScene({ match, members, me, onClose }: { match: XqRoleMatch; members
   return <WinCine winners={people.map((x) => ({ uid: x.uid, p: x.p, badge: x.badge, plainBadge: true }))} {...summary(match, side)} onClose={onClose} />;
 }
 
-/** Thẻ kết quả: phe thắng, hoặc ván dừng vì không đủ người. */
 function ResultCard({ match }: { match: XqRoleMatch }) {
   const side = match.pub.winner;
   if (!side) return <StoppedCard round={match.round} sub={`Ván ${match.round} dừng giữa chừng — không đủ người chơi.`} />;
@@ -272,7 +255,6 @@ function ClaimConfig({ claimMs, onChange }: { claimMs: ClaimMs; onChange: (ms: C
   );
 }
 
-/** Thanh trạng thái ngoài ván: vào ghế (chọn role bên dưới) / bắt đầu. Trong ván thì bảng lượt bên cạnh bàn cờ lo. */
 function ActionBar({ view, session }: { view: SeatState; session: XiangqiRoleRoom }) {
   const m = view.meta!;
   const n = m.players.length;
@@ -507,7 +489,6 @@ function TeamChat({
   if (!side) {
     return <div className="p-4 text-sm text-ink-3">Chọn role để mở chat phe.</div>;
   }
-  // Nằm trong tab "Phe" của khung chat phòng: lấp đầy tab, danh sách tin tự cuộn.
   return (
     <div className="flex h-full flex-col p-3">
       <h3 className="font-display text-base font-extrabold">Chat phe {side === "red" ? "Đỏ" : "Đen"}</h3>

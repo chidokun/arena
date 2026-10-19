@@ -1,26 +1,8 @@
-/**
- * Phòng Undercover. Máy chủ phòng là người điều hành: bốc cặp từ khoá, chia phe, chốt thứ tự thảo luận, đếm phiếu,
- * cho phe Trắng đoán (luật thuần ở `lib/games/undercover.ts`). Ai trong phòng cũng nhận được mọi bản ghi gossip, nên
- * phe và từ khoá được niêm phong (`seal.ts`) giữa từng người và người điều hành:
- *
- *   meta.uc          — phần công khai: giai đoạn, hạn chót, thứ tự thảo luận, phiếu bầu, ai đã bị loại (lộ phe).
- *   meta.ucUsed      — mã các cặp từ đã chơi trong phòng (ghi khi hết ván, lúc cặp từ đã lộ) — không bốc lại.
- *   s:<ván>:<uid>    — người điều hành gửi riêng từng người chơi: từ khoá (phe Trắng: không có), phe nếu luật cho báo.
- *                      Ghi cả loạt, độn cùng cỡ — độ dài hộp không tiết lộ ai thuộc phe Trắng hay từ nào dài hơn.
- *                      Người xem (không chơi) nhận bản thấy hết: phe của mọi người và cặp từ khoá.
- *   c:<ván>:<uid>    — mô tả của mình trong vòng hiện tại, công khai (người điều hành chỉ nhận khi tới lượt).
- *   v:<ván>:<uid>    — công khai: đã lật bài (phát từ), bấm biểu quyết (thảo luận), phiếu đã xác nhận (biểu quyết).
- *   w:<ván>:<uid>    — phe Trắng vừa bị loại đoán từ khoá của phe Dân, công khai.
- *
- * Mỗi vòng, từng người lần lượt điền mô tả vào khung riêng theo thứ tự thảo luận chốt lúc phát từ (bắt buộc, không đếm
- * giờ; chủ phòng bỏ qua được lượt người treo máy). Mô tả được mọi máy tự chép vào khung chat (tô tím); mô tả xong mới
- * được thảo luận tự do trong khung chat, rồi ai cũng có thể gọi biểu quyết.
- * Người chơi là những người đã bấm sẵn sàng (ghế trong `meta.players`); hết ván ai cũng về xem, ván sau sẵn sàng lại.
- * Mặc định chủ phòng cũng chơi — giao diện chỉ hiện phần của mình, máy vẫn giữ bí mật của ván để điều hành. Luật
- * "chủ phòng chỉ điều hành" cho chủ phòng xem hết, tự đặt cặp từ khoá và phá hoà. Bí mật chỉ nằm trên máy chủ phòng
- * (cất trong sessionStorage để tải lại trang vẫn giữ); chủ phòng mất kết nối thì người kế nhiệm không điều hành tiếp
- * được: ván dừng.
- */
+// Ai trong phòng cũng nhận được mọi bản ghi gossip, nên phe và từ khoá được niêm phong (`seal.ts`) giữa từng người và
+// người điều hành; hộp `s:` ghi cả loạt, độn cùng cỡ để độ dài hộp không tiết lộ ai thuộc phe Trắng hay từ nào dài hơn.
+//
+// Bí mật chỉ nằm trên máy chủ phòng (sessionStorage để tải lại trang vẫn giữ); chủ phòng mất kết nối thì người kế nhiệm
+// không có bí mật nên không điều hành tiếp được: ván dừng.
 import {
   advance,
   ballotsOf,
@@ -64,7 +46,6 @@ import { RoomSession, type Member, type Meta, type Result, type SeatView, type S
 import { Keyring, sealedSize, type KeyStore } from "./seal";
 import type { Channel } from "./wire";
 
-/** Người chơi mất kết nối quá lâu giữa ván thì coi như rời ván. */
 const LEFT_MS = 60000;
 
 const gmKey = (id: string) => `arena:uc:${id}`;
@@ -90,7 +71,6 @@ function sessionStore(key: string): KeyStore {
 
 type GmState = { round: number; game: Game };
 
-/** Cảnh diễn trên màn hình khi ván chuyển biến (máy nào cũng tự suy ra từ phần công khai). */
 export type Scene = { id: string } & (
   | { kind: "out"; out: Out; tiebreak?: "random" | "host" }
   | { kind: "spared" }
@@ -102,42 +82,26 @@ type SceneBody = DistOmit<Scene, "id">;
 
 export type UcView = {
   opts: UcOptions;
-  /** Đội hình nếu bắt đầu với những người đang sẵn sàng. */
   plan: { cast: Cast; error?: string };
-  /** Ván đang chơi hoặc vừa xong. */
   pub?: Public;
   playing: boolean;
-  /** Hạn chót của giai đoạn hiện tại theo giờ máy mình. */
   deadline: number;
   me: {
-    /** Đã bấm sẵn sàng cho ván tới. */
     ready: boolean;
-    /** Có trong đội hình ván hiện tại / vừa xong. */
     inGame: boolean;
     alive: boolean;
-    /** Từ khoá của mình: null là phe Trắng, undefined là chưa nhận được. */
     word?: string | null;
-    /** Phe của mình nếu được báo (hoặc hết ván, hoặc đã bị loại). */
     role?: Role;
-    /** Phiếu mình đã xác nhận ở lượt bỏ phiếu hiện tại. */
     vote?: string;
-    /** Mô tả mình đã gửi trong vòng này. */
     clue?: string;
-    /** Lời đoán đã gửi (phe Trắng vừa bị loại). */
     guess?: string;
   };
-  /** Người điều hành không chơi và người xem: thấy hết phe và cặp từ. */
   seeAll?: WatchView;
-  /** Phiếu đã xác nhận của lượt bỏ phiếu hiện tại. */
   ballots: Record<string, string>;
-  /** Phát từ: những người đã lật bài. Thảo luận: những người đã bấm biểu quyết. */
   ready: string[];
   people: Record<string, SeatView>;
-  /** Người đang sẵn sàng mà máy chưa có khoá — chưa bắt đầu được. */
   unkeyed: string[];
-  /** Chủ phòng (không chơi): cặp từ tự đặt cho ván tới. */
   custom: Words | null;
-  /** Bộ từ: số cặp đã chơi trong phòng / tổng số cặp. */
   words: { used: number; total: number };
   result?: Result;
 };
@@ -149,11 +113,10 @@ export class UndercoverRoom extends RoomSession<UcView> {
   private gmSaved = "";
   private custom: Words | null = null;
   private sealed = { sig: "", busy: false };
-  /** Bản ghi niêm phong đã mở, theo khoá gossip và phiên bản. */
   private opened = new Map<string, { c: number; w: string; peer: string; v: unknown }>();
   private opening = new Set<string>();
   private stageSeen = { key: "", at: 0 };
-  /** Giai đoạn đã rao gần nhất; null khi chưa nhìn thấy gì (vừa vào phòng thì không rao lại chuyện cũ). */
+  // null khi chưa nhìn thấy gì, để vừa vào phòng thì không rao lại chuyện cũ.
   private heard: string | null = null;
   private outsHeard = 0;
   private cluesHeard = 0;
@@ -200,9 +163,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     return this.gm && this.gm.round === m.round && m.uc?.round === m.round ? this.gm.game : null;
   }
 
-  // ---------- niêm phong ----------
-
-  /** Mở hộp bí mật người điều hành gửi cho mình. */
   private unseal(k: string) {
     const m = this.meta();
     if (!this.keys || !m || this.opening.has(k)) return;
@@ -237,7 +197,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     return (this.opened.get(`s:${m.round}:${this.me}`)?.v ?? undefined) as SecretView | undefined;
   }
 
-  /** Người xem đang online (không chơi, không phải người điều hành) — nhận bản thấy hết. */
   private watchers(m: Meta) {
     return this.members()
       .filter((p) => p.uid !== this.me && !m.lineup.includes(p.uid) && !m.kicked.includes(p.uid) && !!p.key && this.isOnline(p.uid))
@@ -245,7 +204,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
       .sort();
   }
 
-  /** Người điều hành: gửi bí mật cho từng người (cả loạt, cùng cỡ) khi có gì thay đổi (vd. có người xem mới). */
   private publishSecrets(m: Meta) {
     const g = this.gameOf(m);
     const keys = this.keys;
@@ -275,12 +233,7 @@ export class UndercoverRoom extends RoomSession<UcView> {
     );
   }
 
-  // ---------- luật ----------
-
-  /**
-   * Mỗi ván phải bấm sẵn sàng lại: phòng mới tạo và mỗi khi hết ván, mọi người (kể cả chủ phòng) về chế độ xem.
-   * `scored` ghi ván gần nhất đã được dọn. Hết ván thì đánh dấu cặp từ vừa chơi (lúc này cặp từ đã lộ).
-   */
+  // Đánh dấu cặp từ đã chơi lúc hết ván vì lúc này cặp từ đã lộ.
   protected tidy(m: Meta) {
     if (m.scored === undefined || (m.status === "ended" && m.scored < m.round)) {
       m.scored = m.round;
@@ -288,7 +241,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     }
     const id = m.uc?.round === m.round ? m.uc.words?.id : undefined;
     if (m.status === "ended" && id !== undefined && !m.ucUsed?.includes(id)) m.ucUsed = [...(m.ucUsed ?? []), id];
-    // Chủ phòng chỉ điều hành thì không ngồi chơi.
     if (m.status !== "playing" && !normOptions(m.opts).hostPlays) m.players = m.players.filter((u) => u !== m.host);
   }
 
@@ -310,7 +262,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     return true;
   }
 
-  /** Người điều hành ghi nhận trạng thái mới của ván: phần công khai vào `meta`, phần bí mật cất trên máy mình. */
   private commit(m: Meta, g: Game) {
     this.gm = { round: m.round, game: g };
     m.uc = g.pub;
@@ -367,9 +318,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.announce(m);
   }
 
-  // ---------- rao & cảnh ----------
-
-  /** Mỗi cảnh cần diễn trên màn hình (lật bài người bị loại, phe Trắng đoán, hết ván). */
   onScene(fn: (s: Scene) => void) {
     this.sceneFns.add(fn);
     return () => {
@@ -394,7 +342,7 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.scene({ kind: "guess", guess: g });
   }
 
-  /** Chép mô tả vào khung chat như tin của chính người đó, tô tím; id cố định nên máy nào cũng chỉ có một bản. */
+  // Id cố định nên máy nào cũng chỉ có một bản.
   private clueSaid(c: Clue) {
     if (c.text === null) {
       this.system(`⏭ ${this.nameOf(c.uid)} bị bỏ qua lượt mô tả`);
@@ -419,7 +367,7 @@ export class UndercoverRoom extends RoomSession<UcView> {
       .join(" → ");
   }
 
-  /** Rao khi chuyển giai đoạn — máy nào cũng tự rao từ phần công khai nên ai cũng thấy như nhau. */
+  // Máy nào cũng tự rao từ phần công khai nên ai cũng thấy như nhau.
   private announce(m: Meta) {
     const pub = m.uc?.round === m.round ? m.uc : undefined;
     const key = pub && m.status === "playing" ? `${pub.round}:${pub.day}:${pub.stage}` : `${m.status}:${m.round}`;
@@ -489,8 +437,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     }
   }
 
-  // ---------- giao diện ----------
-
   /** Hạn chót theo giờ máy mình: đồng hồ hai máy khớp nhau thì dùng luôn giờ chủ phòng, lệch nhiều thì tính từ lúc thấy. */
   private deadlineOf(pub: Public) {
     const key = `${pub.round}:${pub.day}:${pub.stage}:${pub.since}`;
@@ -550,9 +496,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     return `Ván ${r.round} đã dừng giữa chừng`;
   }
 
-  // ---------- hành động người chơi ----------
-
-  /** Bấm sẵn sàng (vào chơi ván tới) hoặc huỷ (về xem). Chủ phòng chỉ điều hành thì không chơi. */
   setReady(on: boolean) {
     const m = this.meta();
     if (!m || m.status === "playing" || (m.host === this.me && !normOptions(m.opts).hostPlays)) return;
@@ -560,7 +503,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     else this.leaveSeat();
   }
 
-  /** Ván đang chơi và mình còn trong ván (tuỳ chọn: đang ở giai đoạn `stage`). */
   private livePub(...stages: Public["stage"][]) {
     const m = this.meta();
     const pub = m?.uc;
@@ -576,12 +518,10 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.react();
   }
 
-  /** Phát từ: đã lật bài xem từ của mình (mọi người lật xong thì vào lượt mô tả). */
   flip() {
     this.mark({ stage: "intro", ready: true });
   }
 
-  /** Tới lượt mình: gửi mô tả. Trả về lý do nếu mô tả không hợp lệ. */
   describe(text: string): string | undefined {
     const live = this.livePub("clue");
     if (!live || speakerOf(live.pub) !== this.me) return "Chưa tới lượt bạn";
@@ -592,7 +532,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.react();
   }
 
-  /** Thảo luận: gọi biểu quyết ngay — ai bấm cũng được. Chủ phòng không chơi cũng gọi được. */
   callVote() {
     if (this.livePub("talk")) {
       this.mark({ stage: "talk", ready: true, at: Date.now() });
@@ -605,7 +544,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
-  /** Xác nhận phiếu loại một người — đã xác nhận thì không đổi được. */
   vote(target: string) {
     const live = this.livePub("vote", "revote");
     if (!live || target === this.me) return;
@@ -614,7 +552,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.mark({ stage: live.pub.stage, target });
   }
 
-  /** Phe Trắng vừa bị loại đoán từ khoá của phe Dân — chỉ một lần, không đổi được. */
   guess(text: string) {
     const m = this.meta();
     const pub = m?.uc;
@@ -626,7 +563,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.react();
   }
 
-  /** Không cho nói thẳng từ khoá của mình trong chat. */
   send(content: { text: string } | { sticker: StickerId }): boolean | void {
     const m = this.meta();
     const word = m?.status === "playing" && m.lineup.includes(this.me) ? this.mySecret(m)?.word : undefined;
@@ -637,8 +573,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     return super.send(content);
   }
 
-  // ---------- hành động chủ phòng ----------
-
   setOptions(patch: Partial<UcOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -648,7 +582,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
-  /** Chủ phòng chỉ điều hành: tự đặt cặp từ cho ván tới (chỉ nằm trên máy mình); null để bốc ngẫu nhiên. */
   setCustom(words: Words | null) {
     const w = words && words.civilian.trim() && words.undercover.trim() ? { civilian: words.civilian.trim(), undercover: words.undercover.trim() } : null;
     this.custom = w;
@@ -661,7 +594,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     this.gameStore.invalidate();
   }
 
-  /** Xoá đánh dấu các cặp từ đã chơi để bốc lại từ đầu. */
   resetWords() {
     this.hostEdit((m) => {
       if (!m.ucUsed?.length) return false;
@@ -669,7 +601,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
-  /** Bỏ qua lượt mô tả của người đang treo máy. */
   skipClue() {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;
@@ -678,7 +609,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
-  /** Bỏ phiếu phụ vẫn hoà: chủ phòng chọn người bị loại. */
   decide(uid: string) {
     this.hostEdit((m) => {
       const g = m.status === "playing" ? this.gameOf(m) : null;
@@ -687,7 +617,6 @@ export class UndercoverRoom extends RoomSession<UcView> {
     });
   }
 
-  /** Dừng ván giữa chừng, lộ phe mọi người và cặp từ. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

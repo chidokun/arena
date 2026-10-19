@@ -15,13 +15,9 @@ import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<BsView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useBsView(session: BattleshipRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -32,24 +28,14 @@ function useBsView(session: BattleshipRoom): View {
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
 /** Phát bắn chìm chiếc tàu cuối: chờ một nhịp cho hiệu ứng nổ kịp diễn rồi mới vào cảnh chiến thắng. */
 const SUNK_PAUSE_MS = 2200;
-/**
- * Cỡ khối bàn lúc trình chiếu (theo ô còn trống, `cqw` / `cqh`). Màn hình ngang: hai hải đồ cạnh nhau (hoặc bộ bày tàu)
- * vừa khít chiều cao — mỗi hải đồ là hình vuông cộng phần chữ (dòng phát bắn cuối, tiêu đề, danh sách tàu), các số px là
- * phần chữ đó. Màn hình dọc không đủ chỗ cho hai hải đồ nên mỗi cái rộng hết bề ngang, chồng lên nhau và cuộn dọc.
- */
+// Các số px là phần chữ dưới mỗi hải đồ (dòng phát bắn cuối, tiêu đề, danh sách tàu). Màn hình dọc không đủ chỗ cho
+// hai hải đồ nên mỗi cái rộng hết bề ngang, chồng lên nhau và cuộn dọc.
 const WATERS_FIT = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_290px)]";
 const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
-/**
- * Bề ngang khối giữa khi màn hình rất rộng và người chơi đứng hai bên (`cqh` của cả lớp trình chiếu): mỗi bên một hải đồ
- * vuông cao gần hết màn hình, danh sách tàu ở bên phải; hoặc bộ bày tàu. Ước lượng thôi — hải đồ vẫn tự co cho vừa.
- */
+// Ước lượng thôi — hải đồ vẫn tự co cho vừa.
 const WATERS_CENTER = "200cqh + 260px";
 const EDITOR_CENTER = "100cqh + 134px";
 
-/**
- * Bàn bắn tàu tách theo store: khung chỉ đọc vài trường của `roomStore` / `gameStore`; thanh đối đầu, thanh trạng thái,
- * thẻ kết quả, hải đồ tự đăng ký store và bọc `memo`.
- */
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   const rules = useGame(session, (v) => ({ setup: v?.match?.phase === "setup", chain: !!v?.opts.chain }), shallowEqual);
@@ -76,12 +62,8 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Thanh đối đầu kèm tỉ số — lúc trình chiếu cũng hiện phía trên hai hải đồ. */
 const SeatRowPart = memo(function SeatRowPart({ session }: { session: BattleshipRoom }) {
   const view = useBsView(session);
   const { g, slots, busy } = seatsOf(view);
@@ -94,9 +76,6 @@ const SeatRowPart = memo(function SeatRowPart({ session }: { session: Battleship
   );
 });
 
-/**
- * Hai người chơi trong ván (theo thứ tự bắn) hoặc theo ghế khi chờ; `busy` — bên đó đang phải làm gì (bày tàu / bắn).
- */
 function seatsOf(view: View) {
   const m = view.meta!;
   const g = view.game!.match;
@@ -106,7 +85,6 @@ function seatsOf(view: View) {
   return { g, slots, busy };
 }
 
-/** Một người chơi đứng cạnh hải đồ lúc trình chiếu trên màn hình rất rộng — tự ghi số ván thắng (không có ô tỉ số ở giữa). */
 const FlankPart = memo(function FlankPart({ session, i }: { session: BattleshipRoom; i: 0 | 1 }) {
   const view = useBsView(session);
   const { g, slots, busy } = seatsOf(view);
@@ -133,20 +111,17 @@ const ActionPart = memo(function ActionPart({ session }: { session: BattleshipRo
   return <ActionBar view={view} session={session} />;
 });
 
-/** Các nút điều khiển ván trên thanh công cụ lúc trình chiếu. */
 const ControlsPart = memo(function ControlsPart({ session }: { session: BattleshipRoom }) {
   const view = useBsView(session);
   return actionsOf(view, session).buttons;
 });
 
-/** Thẻ kết quả ván vừa xong. */
 const ResultPart = memo(function ResultPart({ session }: { session: BattleshipRoom }) {
   const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
   const g = useGame(session, (v) => v?.match);
   return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
 });
 
-/** Hải đồ (hoặc bộ bày tàu), sticker bay, đếm ngược vào trận (khoá bắn trong lúc đếm), cảnh hết ván. */
 const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }) {
   const view = useBsView(session);
   const m = view.meta!;
@@ -155,7 +130,6 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && !!g && !g.result;
   const seated = view.mySeat >= 0;
-  // Đếm ngược khi hai bên bày xong và vào trận (chưa ai khai hoả); trong lúc đếm chưa được bắn.
   const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   return (
@@ -199,7 +173,6 @@ const fighter = (g: BsMatch, i: 0 | 1, me: string) => {
   );
 };
 
-/** Cảnh vào trận: hai hạm đội đã bày xong, đếm ngược 3‑2‑1 rồi khai hoả. */
 function CountdownScene({ match: g, me, n }: { match: BsMatch; me: string; n: number }) {
   const first = g.sides[0].seat;
   const tip = g.me === 0 ? "Bạn khai hoả trước — ngắm cho chuẩn nhé!" : g.me === 1 ? "Đối thủ khai hoả trước — giữ vững hạm đội nhé!" : `${first.member?.name ?? "Ai đó"} khai hoả trước — cùng xem nhé!`;
@@ -210,7 +183,6 @@ function CountdownScene({ match: g, me, n }: { match: BsMatch; me: string; n: nu
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: BsMatch, me: string): DuelSummary {
   const r = g.result!;
   if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} hoà` };
@@ -258,10 +230,6 @@ function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"];
 const nameOf = (view: View, uid?: string | null) =>
   uid ? (view.members.find((p) => p.uid === uid)?.name ?? view.game?.match?.sides.find((s) => s.seat.uid === uid)?.seat.member?.name ?? "Ai đó") : "";
 
-/**
- * Câu trạng thái và các nút điều khiển ván: bày tàu / lượt bắn trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả
- * ván nằm ở thẻ kết quả). Dùng cho thanh trạng thái và thanh công cụ lúc trình chiếu.
- */
 function actionsOf(view: View, session: BattleshipRoom): { tone?: string; message: React.ReactNode; buttons?: React.ReactNode } {
   const m = view.meta!;
   const { opts, match: g } = view.game!;
@@ -304,7 +272,6 @@ function actionsOf(view: View, session: BattleshipRoom): { tone?: string; messag
   return { message: seatMessage(view), buttons: <SeatButtons view={view} session={session} /> };
 }
 
-/** Thanh trạng thái dưới thanh đối đầu. */
 function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
   const { tone, message, buttons } = actionsOf(view, session);
   return (
@@ -314,9 +281,6 @@ function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
   );
 }
 
-// ---------- giao chiến ----------
-
-/** Hai hải đồ: người chơi thấy hải đồ đối phương (để bắn) trước, hạm đội mình sau; người xem thấy theo thứ tự bắn. */
 function Waters({ view, session, locked }: { view: View; session: BattleshipRoom; locked: boolean }) {
   const g = view.game!.match;
   const m = view.meta!;
@@ -337,8 +301,7 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
       </div>
     );
   const order: (0 | 1)[] = g.me !== -1 ? [(1 - g.me) as 0 | 1, g.me] : [0, 1];
-  // Trình chiếu màn hình ngang: hai hải đồ cao hết ô, mỗi hải đồ co vừa phần còn lại sau chữ (dòng phát bắn, danh sách
-  // tàu, đối chiếu cam kết lúc hết ván…) — chữ nhiều lên thì hải đồ nhỏ lại chứ không tràn.
+  // Hải đồ co vừa phần còn lại sau chữ để chữ nhiều lên thì hải đồ nhỏ lại chứ không tràn.
   return (
     <div className={staged ? "landscape:flex landscape:h-full landscape:flex-col" : undefined}>
       {g.phase === "battle" && <LastShot g={g} view={view} />}
@@ -363,10 +326,6 @@ function LastShot({ g, view }: { g: BsMatch; view: View }) {
   );
 }
 
-/**
- * `fit`: lúc trình chiếu — màn hình ngang thì cao hết ô, hải đồ vuông lớn nhất vừa phần còn lại; thẻ bè ngang thì danh sách
- * tàu sang bên phải hải đồ (globals.css, `.bs-fit`).
- */
 function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view: View; session: BattleshipRoom; locked: boolean; fit?: boolean }) {
   const side = g.sides[i];
   const mine = g.me === i;
@@ -375,7 +334,6 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
   const setup = g.phase === "setup";
   const who = nameOf(view, side.seat.uid);
   const title = mine ? "⚓ Hạm đội của bạn" : foeOfMine ? `🎯 Hải đồ của ${who}` : `Hạm đội ${who}`;
-  // Hải đồ đang bị nhắm bắn: viền theo màu người bắn.
   const shooter = BS_TONE[(1 - i) as 0 | 1];
   const targeted = !setup && !ended && view.meta!.status === "playing" && g.turn !== i;
   const last = g.last && g.last.by !== i ? g.last : undefined;
@@ -436,7 +394,6 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
   );
 }
 
-/** Danh sách tàu: tàu chìm gạch ngang; biết sơ đồ thì tô số ô đã trúng. */
 function FleetList({ side }: { side: BsSide }) {
   const hits = side.fleet ? damage(side.fleet, side.marks) : null;
   return (
@@ -479,14 +436,10 @@ function Honesty({ side }: { side: BsSide }) {
   return <p className="mt-2 px-1 text-[12.5px] font-semibold text-ink-3">⏳ Đang chờ công bố hạm đội để đối chiếu…</p>;
 }
 
-// ---------- bày tàu ----------
-
-/** Tàu đang cầm trên tay: hướng, ô đang nắm (thứ tự trong thân tàu) và chỗ cũ để huỷ thì trả về. */
 type Held = { k: number; v: boolean; off: number; from: Ship | null };
 
 const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
 
-/** Vị trí tàu khi ô đang nắm nằm ở ô `c`, kéo vào trong hải đồ nếu tràn mép. */
 function anchorOf(k: number, v: boolean, off: number, c: number): Ship {
   const len = FLEET[k].len;
   const x = clamp((c % SIZE) - (v ? 0 : off), 0, SIZE - (v ? 1 : len));
@@ -525,7 +478,6 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
     el.classList.add("shake");
   };
 
-  /** Nhấc tàu `k` lên tay (trả tàu đang cầm về chỗ cũ trước). */
   const lift = (k: number, off: number) => {
     let f = fleet;
     if (held?.from) f = f.map((s, j) => (j === held.k ? held.from : s));
@@ -549,14 +501,12 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
     if (!fits(fleet, held.k, ship)) return shake();
     const next = fleet.map((s, j) => (j === held.k ? ship : s));
     setFleet(next);
-    // Còn tàu chưa đặt (vừa xoá hết) thì cầm luôn tàu kế tiếp.
     const k = next.findIndex((s) => !s);
     setHeld(k >= 0 ? { k, v: false, off: 0, from: null } : null);
   };
 
   const rotate = () => {
     if (held) return setHeld({ ...held, v: !held.v });
-    // Không cầm tàu nào: xoay tàu dưới con trỏ quanh ô đang trỏ.
     const k = hover >= 0 ? shipAt(hover) : -1;
     if (k < 0) return;
     const s = fleet[k]!;

@@ -1,7 +1,3 @@
-/**
- * Ảnh xem trước khi dán link (Facebook, Messenger, Zalo, Discord…): 1200×630, vẽ bằng `next/og` lúc build rồi xuất thành
- * file PNG tĩnh (app/og/[file]/route.tsx). Màu lấy từ bảng màu sáng trong globals.css.
- */
 import { ImageResponse } from "next/og";
 import type { GameDef } from "@/lib/games/registry";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
@@ -26,7 +22,7 @@ export const OG_HUE: Record<GameDef["hue"], { soft: string; solid: string }> = {
   sun: { soft: "#fff1cc", solid: "#ffc23d" },
 };
 
-/** Tải font từ Google Fonts, chỉ lấy đúng các ký tự cần vẽ (TTF — Satori không đọc được woff2). */
+// Lấy TTF vì Satori không đọc được woff2; chỉ lấy đúng các ký tự cần vẽ.
 async function googleFont(family: string, weight: number, text: string) {
   const url = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}&text=${encodeURIComponent(text)}`;
   const css = await (await fetch(url)).text();

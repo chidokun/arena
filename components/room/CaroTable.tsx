@@ -18,12 +18,7 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "❌", "⭕"];
 /** Thắng bằng chuỗi 5 thì chờ một nhịp cho mọi người kịp thấy đường thắng trên bàn rồi mới diễn. */
 const LINE_PAUSE_MS = 1100;
 
-/**
- * Bàn caro tách theo store: mỗi phần đăng ký đúng store mình cần, nên đổi gì thì chỉ phần đọc store đó vẽ lại.
- * - Khung (header) — một phần `roomStore` (tên phòng, trạng thái, luật).
- * - Thanh đối đầu, thanh trạng thái, thẻ kết quả, bàn chơi — `gameStore` + phần `roomStore` / `peopleStore` liên quan.
- * - Danh sách người — `peopleStore`; khung chat — `chatStore` (PeoplePanel, ChatPanel tự đăng ký).
- */
+// Mỗi phần đăng ký đúng store mình cần để đổi gì thì chỉ phần đọc store đó vẽ lại.
 export function CaroTable({ id, slug, session }: { id: string; slug: string; session: CaroRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   return (
@@ -45,7 +40,6 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => {
   const m = r.meta!;
   const opts = m.opts as CaroOptions;
@@ -58,7 +52,6 @@ const headOf = (r: RoomState) => {
   };
 };
 
-/** Phần `roomStore` thanh đối đầu cần. */
 const duelOf = (r: RoomState) => {
   const m = r.meta!;
   return {
@@ -70,22 +63,16 @@ const duelOf = (r: RoomState) => {
   };
 };
 
-/** Ván để hiện (đang chơi, hoặc đã có nước đi) — chưa có thì bàn trống, đội hình theo ghế. */
 const shownMatch = (game: CaroView | undefined, status: string) => {
   const g = game?.match;
   return g && (status !== "waiting" || g.state.count > 0) ? g : undefined;
 };
 
-/**
- * Hai thẻ người chơi (thanh đối đầu, và hai bên bàn lúc trình chiếu): `gameStore` (lượt, đội hình X–O, tỉ số) +
- * `peopleStore` (ghế lúc chưa vào ván) + một phần `roomStore`.
- */
 function useDuel(session: CaroRoom) {
   const room = useRoomState(session, duelOf, shallowEqual);
   const game = useGame(session);
   const seats = usePeople(session, (p) => p.seats);
   const g = shownMatch(game, room.status);
-  // Trong ván thì theo thứ tự X–O; khi chờ thì theo ghế.
   const slots = g ? g.lineup : Array.from({ length: room.seats }, (_, i) => seats[i]);
   const wins = game?.wins ?? {};
   const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
@@ -105,7 +92,6 @@ function useDuel(session: CaroRoom) {
   return { seat, slots, wins, draws: game?.draws ?? 0, played: room.scored };
 }
 
-/** Thanh đối đầu: hai thẻ người chơi và tỉ số. */
 function DuelBar({ session }: { session: CaroRoom }) {
   const { seat, slots, wins, draws, played } = useDuel(session);
   return (
@@ -117,7 +103,6 @@ function DuelBar({ session }: { session: CaroRoom }) {
   );
 }
 
-/** Thẻ kết quả ván vừa xong: `gameStore` + trạng thái phòng. */
 function Result({ session }: { session: CaroRoom }) {
   const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
   const g = useGame(session, (v) => v?.match);
@@ -125,7 +110,6 @@ function Result({ session }: { session: CaroRoom }) {
   return <DuelResult round={g.round} summary={summary(g, me)} me={me} />;
 }
 
-/** Phần `roomStore` bàn chơi cần. */
 const playOf = (r: RoomState) => {
   const m = r.meta!;
   return {
@@ -139,7 +123,6 @@ const playOf = (r: RoomState) => {
   };
 };
 
-/** Bàn chơi (kèm hai thẻ người chơi lúc trình chiếu), sticker bay, cảnh đếm ngược / hết ván. */
 function Play({ session }: { session: CaroRoom }) {
   const room = useRoomState(session, playOf, shallowEqual);
   const game = useGame(session);
@@ -162,7 +145,6 @@ function Play({ session }: { session: CaroRoom }) {
 
   return (
     <>
-      {/* Trình chiếu: hai người chơi kèm bàn vuông lớn nhất vừa ô còn trống. */}
       <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={onPlay} />
@@ -190,7 +172,6 @@ const fighter = (seat: SeatView | undefined, mark: 1 | 2, me: string, side: "lef
   />
 );
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ match: g, me, n }: { match: CaroMatch; me: string; n: number }) {
   const tip = g.myMark === 1 ? "Bạn cầm X — đi trước nhé!" : g.myMark === 2 ? "Bạn cầm O — chờ X đi trước nhé!" : "X đi trước — cùng xem ván cờ nhé!";
   return (
@@ -200,7 +181,6 @@ function CountdownScene({ match: g, me, n }: { match: CaroMatch; me: string; n: 
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: CaroMatch, me: string): DuelSummary {
   const r = g.result!;
   if (!r.winner)
@@ -219,7 +199,6 @@ function summary(g: CaroMatch, me: string): DuelSummary {
   };
 }
 
-/** Cảnh hết ván: người thắng (vàng rực như Sudoku) hoặc hoà — bấm để đóng. */
 function EndScene({ match: g, me, onClose }: { match: CaroMatch; me: string; onClose: () => void }) {
   const s = summary(g, me);
   if (!s.winner)
@@ -253,7 +232,6 @@ function EndScene({ match: g, me, onClose }: { match: CaroMatch; me: string; onC
   );
 }
 
-/** Giữa hai thẻ người chơi: "VS" khi chưa xong ván nào, sau đó là tỉ số thắng cộng dồn trong phòng. */
 export function Score({ left, right, wins, draws, played }: { left?: string; right?: string; wins: Record<string, number>; draws: number; played: number }) {
   if (!played)
     return (
@@ -282,7 +260,6 @@ export function Score({ left, right, wins, draws, played }: { left?: string; rig
   );
 }
 
-/** Số ván thắng dưới tên người chơi lúc trình chiếu — cỡ chữ như ô tỉ số, "–" khi chưa thắng ván nào; `color` khi đang dẫn. */
 export function Wins({ n, color }: { n: number; color?: string }) {
   return (
     <p className="mt-2 font-display text-2xl leading-none font-extrabold tabular-nums sm:text-3xl" style={{ color }} aria-label={n ? `Thắng ${n} ván` : "Chưa thắng ván nào"}>
@@ -291,11 +268,6 @@ export function Wins({ n, color }: { n: number; color?: string }) {
   );
 }
 
-/**
- * Câu trạng thái và các nút điều khiển ván: lượt đi trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ
- * kết quả). Dùng cho thanh trạng thái và thanh công cụ lúc trình chiếu.
- * Đăng ký `roomStore` (vai trò, ghế), `peopleStore` (ghế còn kết nối, tên người) và `gameStore` (lượt).
- */
 function useActions(session: CaroRoom): {
   tone?: string;
   message: ReactNode;
@@ -335,7 +307,6 @@ function useActions(session: CaroRoom): {
   };
 }
 
-/** Thanh trạng thái dưới thanh đối đầu. */
 function ActionBar({ session }: { session: CaroRoom }) {
   const { tone, message, buttons } = useActions(session);
   return (
@@ -345,7 +316,6 @@ function ActionBar({ session }: { session: CaroRoom }) {
   );
 }
 
-/** Các nút điều khiển ván trên thanh công cụ lúc trình chiếu. */
 function Controls({ session }: { session: CaroRoom }) {
   return useActions(session).buttons;
 }

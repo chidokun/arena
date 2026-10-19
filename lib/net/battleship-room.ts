@@ -1,14 +1,3 @@
-/**
- * Phòng bắn tàu: hai ghế, mỗi ván qua hai giai đoạn.
- *
- *   bày tàu    — mỗi người bày hạm đội trên máy mình rồi bấm Sẵn sàng: máy cất sơ đồ + muối (sessionStorage) và công
- *                bố cam kết `f:<ván>:<uid>` = { commit }. Đủ hai cam kết thì vào trận.
- *   giao chiến — người tới lượt nối phát bắn { c } vào nhật ký `g:<ván>`; máy bên bị bắn thấy phát đang chờ thì tự trả
- *                lời từ sơ đồ cất trên máy (trúng / trượt / chìm kèm vị trí tàu). Ai cũng tự dựng lại ván bằng `replay`.
- *
- * Hết ván, máy hai người tự công bố hạm đội + muối vào `f:<ván>:<uid>`; mọi máy tính lại cam kết và đối chiếu từng câu
- * trả lời — lệch thì gắn cờ gian lận. `lineup[0]` bắn trước, đổi mỗi ván. Xin thua, rớt mạng 30 giây bị xử thua như caro.
- */
 import {
   answerShot,
   commitOf,
@@ -39,44 +28,31 @@ const isCommit = (c: unknown): c is string => typeof c === "string" && /^[0-9a-f
 
 export type BsSide = {
   seat: SeatView;
-  /** Đã bày xong và công bố cam kết. */
   ready: boolean;
   commit?: string;
-  /** Hải đồ của người này: -1 chưa bị bắn, 0 trượt, 1 trúng. */
   marks: Int8Array;
   sunk: Sunk[];
-  /** Hạm đội: của chính mình (cất trên máy), hoặc của người khác khi đã công bố lúc hết ván. */
   fleet?: Fleet;
-  /** Đối chiếu bản công bố: undefined là chưa công bố / đang tính, false là lệch cam kết hoặc lệch câu trả lời. */
   honest?: boolean;
 };
 
 export type BsMatch = {
   round: number;
-  /** Đang bày tàu (chưa đủ hai cam kết) hay đã vào trận. */
   phase: "setup" | "battle";
-  /** Theo đội hình: [0] bắn trước. */
   sides: [BsSide, BsSide];
-  /** Chỗ của mình trong đội hình; -1 là người xem. */
   me: -1 | 0 | 1;
-  /** Người bắn kế tiếp, hoặc người đang chờ câu trả lời. */
   turn: 0 | 1;
   pending: number;
-  /** Phát đã được trả lời gần nhất (và số thứ tự của nó — để chỉ diễn hiệu ứng một lần). */
   last?: Shot & { by: 0 | 1; n: number };
   myTurn: boolean;
-  /** Mình đang ở giai đoạn bày tàu và chưa chốt. */
   placing: boolean;
-  /** Đã chốt nhưng máy này không còn sơ đồ (vd. mở ở trình duyệt khác) — không tự trả lời được. */
   lost: boolean;
   result?: Result;
 };
 
 export type BsView = {
   opts: BsOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: BsMatch;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -85,9 +61,9 @@ export class BattleshipRoom extends RoomSession<BsView> {
   readonly game = "battleship";
   private mine: Secret | null | undefined;
   private committing = false;
-  /** Kết quả đối chiếu bản công bố (băm SHA-256 là bất đồng bộ): đang tính thì giữ lời hứa. */
+  // Băm SHA-256 là bất đồng bộ nên lúc đang tính thì giữ lời hứa.
   private checks = new Map<string, boolean | Promise<void>>();
-  /** Số phát đã trả lời lúc thấy lần trước — để rao "bắn chìm" chỉ với diễn biến mới. */
+  // Để rao "bắn chìm" chỉ với diễn biến mới.
   private seen = { round: -1, n: 0 };
 
   private logOf(m: Meta): Shot[] {
@@ -127,12 +103,11 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người bắn trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -144,7 +119,6 @@ export class BattleshipRoom extends RoomSession<BsView> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
@@ -159,7 +133,6 @@ export class BattleshipRoom extends RoomSession<BsView> {
     }
   }
 
-  /** Mỗi nhịp, ở mọi máy: rao tàu chìm; người chơi thì tự trả lời phát đang nhắm vào mình và công bố hạm đội khi hết ván. */
   protected watch(m: Meta) {
     if (m.round <= 0 || m.lineup.length !== 2) return;
     const g = this.gameOf(m);
@@ -191,7 +164,6 @@ export class BattleshipRoom extends RoomSession<BsView> {
     this.seen = { round: m.round, n: answered.length };
   }
 
-  /** Đối chiếu bản công bố của một người; undefined trong lúc đang băm. */
   private check(m: Meta, uid: string, rec: FleetRecord, answered: Shot[]): boolean | undefined {
     const fleet = parseFleet(rec.fleet);
     if (!fleet || typeof rec.salt !== "string" || !isCommit(rec.commit)) return false;
@@ -209,7 +181,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
           .then((ok) => {
             this.checks.set(key, ok);
             this.store.invalidate();
-            // Kết quả đối chiếu (`honest`) nằm ngoài gossip.
+            // Kết quả đối chiếu (`honest`) nằm ngoài gossip nên phải tự báo store đổi.
             this.gameStore.invalidate();
           }),
       );
@@ -279,9 +251,6 @@ export class BattleshipRoom extends RoomSession<BsView> {
     return `${name(r.winner)} thắng ván ${r.round}${why}`;
   }
 
-  // ---------- hành động người chơi ----------
-
-  /** Sơ đồ đang bày dở của ván này (tải lại trang không mất). */
   draft(round: number): Fleet | null {
     try {
       const raw = JSON.parse(sessionStorage.getItem(draftKey(this.id)) ?? "null");
@@ -297,7 +266,6 @@ export class BattleshipRoom extends RoomSession<BsView> {
     } catch {}
   }
 
-  /** Chốt hạm đội: cất sơ đồ + muối trên máy, công bố cam kết. Không đổi được nữa trong ván này. */
   async lockFleet(fleet: Fleet) {
     const m = this.meta();
     if (!m || this.committing || !this.store.get().game?.match?.placing || !fleetGrid(fleet)) return;

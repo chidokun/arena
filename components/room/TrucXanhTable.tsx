@@ -13,10 +13,8 @@ import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<TxView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useTxView(session: TrucXanhRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -27,7 +25,6 @@ function useTxView(session: TrucXanhRoom): View {
 const CONFETTI = ["🎉", "🏆", "✨", "🎋", "🎊", "⭐"];
 const WIN_SCENE_MS = 6500;
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 250) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -40,7 +37,7 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
-/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ. */
+// Chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ.
 function useReached(at: number | undefined) {
   const [hit, setHit] = useState<number | undefined>(undefined);
   useEffect(() => {
@@ -58,20 +55,14 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-/** Người tới lượt (thứ tự trong đội hình) — chưa lật hết bàn, chưa hết ván. */
 const turnOf = (g: TxMatch) => (g.state.cleared || g.state.over ? -1 : g.state.current);
 
-/** Mình bị xử thua vì gian lận trong ván này: bị gạch tên, không được lật ô hay đoán nữa. */
 const banned = (g: TxMatch) => g.me >= 0 && !!g.cheats[g.me];
 
-/** Mình đoán được không: người chơi chưa bị xử thua, ván đang chạy, bàn đã mở. */
 const canGuess = (view: View, g: TxMatch, opened: boolean) => isLive(view) && g.me >= 0 && !banned(g) && !g.state.over && opened;
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function TrucXanhTable({ id, slug, session }: { id: string; slug: string; session: TrucXanhRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<TxChat session={session} />}>
@@ -80,7 +71,6 @@ export function TrucXanhTable({ id, slug, session }: { id: string; slug: string;
   );
 }
 
-/** Khung chat: gợi ý trong ô nhập theo vai (người chơi thì đoán ở ô dưới tranh, người xem đừng nhắc đáp án). */
 const TxChat = memo(function TxChat({ session }: { session: TrucXanhRoom }) {
   const live = useRoomState(session, (r) => r.meta!.status === "playing" && r.meta!.round);
   const game = useGame(session, (v) => (v?.match ? { round: v.match.round, player: v.match.me >= 0 } : null), shallowEqual);
@@ -131,7 +121,6 @@ const TrucXanhBody = memo(function TrucXanhBody({ session }: { session: TrucXanh
   );
 });
 
-/** Cảnh mở ván: những người chơi theo thứ tự lượt, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ view, match: g, n }: { view: View; match: TxMatch; n: number }) {
   const first = g.lineup[0]?.uid;
   const people = g.lineup.map((s, i) => ({ uid: s.uid, p: s.member, name: nameIn(view, s.uid), ring: i === 0 ? "#3fe0a5" : "#be97ff", badge: `${i + 1}` }));
@@ -148,7 +137,6 @@ function CountdownScene({ view, match: g, n }: { view: View; match: TxMatch; n: 
   );
 }
 
-/** Cảnh chiến thắng khi có người đoán trúng ngay trước mắt (vào phòng / tải lại trang thì không diễn lại). */
 function WinScene({ view, match: g, onClose }: { view: View; match: TxMatch; onClose: () => void }) {
   const winner = g.result?.winner;
   if (!winner) return null;
@@ -163,7 +151,6 @@ function WinScene({ view, match: g, onClose }: { view: View; match: TxMatch; onC
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
@@ -226,7 +213,6 @@ function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
   );
 }
 
-/** Luật ván tới: chủ phòng chọn cỡ bàn, người khác xem. */
 function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
   const { opts, pics } = view.game!;
   const host = view.isHost;
@@ -285,7 +271,6 @@ function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
   );
 }
 
-/** Thẻ kết quả: ai đoán trúng, đáp án. */
 function ResultCard({ view, match: g }: { view: View; match: TxMatch }) {
   const r = g.result!;
   if (r.reason === "cheat") return <StoppedCard round={g.round} sub={`Ván ${g.round} dừng — người chơi bị xử thua vì gian lận, không ai thắng. Đáp án là “${g.answer}”.`} />;
@@ -295,7 +280,6 @@ function ResultCard({ view, match: g }: { view: View; match: TxMatch }) {
   return <Result round={g.round} title={r.winner === view.me ? "🏆 Bạn đoán trúng tranh!" : `🏆 ${nameIn(view, r.winner)} đoán trúng tranh!`} sub={`Đáp án “${g.answer}” · ${opened}.`} />;
 }
 
-/** Bàn trống khi chưa chơi ván nào: các ô úp. */
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
   const { w, h } = SIZES[view.game!.opts.size];
@@ -321,7 +305,7 @@ function EmptyBoard({ view }: { view: View }) {
   );
 }
 
-/** Thanh thời gian còn lại của lượt — tách riêng để nhịp đồng hồ chỉ vẽ lại thanh này. Chưa mở bàn thì trống. */
+// Tách riêng để nhịp đồng hồ chỉ vẽ lại thanh này.
 function TurnTimer({ deadline, total, color }: { deadline?: number; total: number; color: string }) {
   const now = useNow(deadline !== undefined);
   const left = deadline !== undefined && now ? Math.max(0, Math.min(1, (deadline - now) / total)) : 0;
@@ -332,7 +316,6 @@ function TurnTimer({ deadline, total, color }: { deadline?: number; total: numbe
   );
 }
 
-/** Bàn chơi: tranh ẩn dưới lưới ô; tới lượt thì bấm ô để lật. Dưới tranh là đồng hồ lượt và ô đoán. */
 function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; match: TxMatch }) {
   const live = isLive(view);
   const s = g.state;
@@ -364,15 +347,14 @@ function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; 
         </p>
       )}
       <div className="tx-board" style={{ "--cols": w } as React.CSSProperties}>
-        {/* Tranh ẩn chỉ hiện qua những ô đã lật được; ảnh tải sẵn từ lúc đếm ngược. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="tx-pic" src={g.img} alt={done && g.answer ? `Tranh: ${g.answer}` : ""} draggable={false} referrerPolicy="no-referrer" onLoad={() => setPic("ok")} onError={() => setPic("err")} />
         <div className="tx-grid" role="grid" aria-label={`Bàn Trúc Xanh ${w}×${h}`} style={{ gridTemplateColumns: `repeat(${w}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${h}, minmax(0, 1fr))` }}>
           {s.tiles.map((kind, i) => {
             const owned = s.owner[i] >= 0;
             const open = g.open.includes(i);
-            // Ô nào cũng là cùng một nút từ đầu tới cuối ván để CSS diễn liền mạch: úp → lật ngửa → (trúng) giữ hai
-            // hình một nhịp rồi mờ đi. Ô đã lật được từ trước khi mình vào bàn thì ẩn luôn, không diễn lại.
+            // Ô nào cũng là cùng một nút từ đầu tới cuối ván để CSS diễn liền mạch: úp → lật ngửa → (trúng) giữ hai hình một nhịp
+            // rồi mờ đi.
             const state = owned ? (gone.has(i) ? "is-cleared" : "is-gone") : done ? "is-done" : open ? "is-open" : myTurn ? "is-pickable" : "";
             return (
               <button
@@ -415,10 +397,7 @@ function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; 
 const GUESS_ICON: Record<GuessState, string> = { wait: "⏳", wrong: "❌", near: "🔥", right: "✅" };
 const GUESS_LABEL: Record<GuessState, string> = { wait: "đang chấm", wrong: "sai", near: "gần đúng!", right: "đúng!" };
 
-/**
- * Ô đoán — nơi gửi lời đoán (khung chat chỉ để thảo luận). Bàn mở thì tự đặt con trỏ vào ô trên máy có chuột, trừ khi
- * đang gõ ở chỗ khác; điện thoại thì không, để bàn phím ảo không che tranh.
- */
+// Chỉ tự đặt con trỏ vào ô trên máy có chuột — trên điện thoại bàn phím ảo sẽ che tranh.
 function GuessBox({ session, match: g }: { session: TrucXanhRoom; match: TxMatch }) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -475,7 +454,6 @@ function GuessBox({ session, match: g }: { session: TrucXanhRoom; match: TxMatch
   );
 }
 
-/** Người chơi theo thứ tự lượt: ai đang tới lượt, số cặp lật được, số lần đoán. */
 function Scoreboard({ view, match: g }: { view: View; match: TxMatch }) {
   const s = g.state;
   const turn = isLive(view) ? turnOf(g) : -1;

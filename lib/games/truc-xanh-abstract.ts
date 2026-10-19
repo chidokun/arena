@@ -1,12 +1,8 @@
-/**
- * Bộ tranh ẩn mức Khó của Trúc Xanh: khái niệm trừu tượng (cảm xúc, xã hội, khoa học, thiên nhiên…), mỗi khái niệm một
- * ảnh minh hoạ và một câu gợi ý (`hint` — chỉ nói khái niệm thuộc loại gì, không tả thêm, để vẫn phải lật tranh mới
- * đoán ra). Ảnh là ảnh đại diện bài Wikipedia của khái niệm, chỗ nào chưa ổn (bản đồ, sơ đồ, ảnh có chữ lộ đáp án, ảnh
- * dọc…) thay tay bằng ảnh Wikimedia Commons khổ ngang, cỡ chuẩn 960px — giấy phép tự do, cho phép nhúng trực tiếp.
- *
- * Mã tranh = vị trí trong mảng; phòng nhớ mã các tranh đã chơi để không bốc lại, nên chỉ thêm tranh vào *cuối*, không
- * xoá, không đổi chỗ.
- */
+// Câu gợi ý (`hint`) chỉ nói khái niệm thuộc loại gì, không tả thêm, để vẫn phải lật tranh mới đoán ra. Ảnh lấy từ
+// Wikimedia Commons (khổ ngang, cỡ chuẩn 960px) vì giấy phép tự do, cho phép nhúng trực tiếp.
+//
+// Mã tranh = vị trí trong mảng; phòng nhớ mã các tranh đã chơi để không bốc lại, nên chỉ thêm tranh vào *cuối*, không
+// xoá, không đổi chỗ.
 import type { Picture } from "./truc-xanh-words.ts";
 
 export const ABSTRACT: readonly Picture[] = [

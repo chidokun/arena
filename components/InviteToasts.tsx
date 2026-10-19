@@ -9,7 +9,6 @@ import { useNet } from "./NetProvider";
 
 type Toast = Invite & { key: number };
 
-/** Lời mời vào phòng từ người chơi khác (gửi qua sảnh P2P). */
 export function InviteToasts() {
   const { lobby } = useNet();
   const [toasts, setToasts] = useState<Toast[]>([]);

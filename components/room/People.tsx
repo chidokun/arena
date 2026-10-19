@@ -12,7 +12,6 @@ import { shallowEqual, usePeople, useRoomState } from "./useRoom";
 
 const FOLD_KEY = "arena:people-folded";
 
-/** Phần view danh sách người cần — `RoomView` (view gộp) cũng đáp ứng. */
 type PeopleSlice = {
   me: string;
   isHost: boolean;
@@ -22,13 +21,12 @@ type PeopleSlice = {
   meta?: Pick<Meta, "host" | "game" | "name" | "status" | "lineup" | "cap" | "players" | "seats">;
 };
 
-/** Phần `roomStore` danh sách người cần (đổi luật, điểm… của phòng không làm danh sách vẽ lại). */
+// Chỉ lấy vài trường để đổi luật, điểm… của phòng không làm danh sách vẽ lại.
 const roomBitsOf = (r: RoomState) => {
   const { host, game, name, status, lineup, cap, players, seats } = r.meta!;
   return { me: r.me, isHost: r.isHost, host, game, name, status, lineup, cap, players, seats };
 };
 
-/** Thẻ người chơi trong thanh đối đầu. Mặc định huy hiệu là X / O (caro); game khác đặt `badge`, `tone`. */
 export function SeatCard({
   seat,
   mark,
@@ -43,16 +41,13 @@ export function SeatCard({
 }: {
   seat?: SeatView;
   mark?: 1 | 2;
-  /** Chữ (hoặc hình nhỏ co theo khung) trên huy hiệu. */
   badge?: ReactNode;
   tone?: string;
   active?: boolean;
   isHost?: boolean;
   me: string;
   align?: "left" | "right";
-  /** Luôn xếp dọc (avatar trên tên) như trên điện thoại — cho chỗ hẹp như hai bên bàn lúc trình chiếu. */
   stacked?: boolean;
-  /** Dòng thêm dưới tên (dùng với `stacked`), vd. số ván thắng lúc trình chiếu. */
   footer?: ReactNode;
 }) {
   const m = seat?.member;
@@ -109,11 +104,6 @@ export function SeatCard({
   );
 }
 
-/**
- * Danh sách người trong phòng; chủ phòng có thêm nút thêm vào ghế / mời ra ghế / kick / nhường chủ phòng.
- * Game tuỳ biến được dòng mô tả từng người (`detail`), có cho kéo người xem vào ghế không (`canSeat`) và nhãn nút mời ra ghế.
- * Cách vẽ theo chỗ RoomLayout đặt (`PeopleVariantCtx`): khối thu gọn được trong sidebar, tab Người, hay dải avatar.
- */
 export const PeoplePanel = memo(function PeoplePanel({
   view: given,
   session,
@@ -122,7 +112,6 @@ export const PeoplePanel = memo(function PeoplePanel({
   canSeat = true,
   unseatLabel = "Rời ghế",
 }: {
-  /** Không truyền thì tự đăng ký `peopleStore` + một phần `roomStore` (bàn chơi đã tách theo store). */
   view?: PeopleSlice;
   session: RoomSession;
   roomId: string;
@@ -222,7 +211,7 @@ export const PeoplePanel = memo(function PeoplePanel({
       </section>
     );
 
-  // Khối trong sidebar: cao tối đa ~45% để nhường chỗ cho khung chat, danh sách tự cuộn; thu gọn được còn một hàng avatar.
+  // Cao tối đa ~45% để nhường chỗ cho khung chat.
   return (
     <section className={`card flex flex-none flex-col overflow-hidden ${folded ? "" : "max-h-[45%]"}`} aria-labelledby={headId}>
       <div className="flex items-center gap-2 py-2.5 pr-3 pl-4">
@@ -244,7 +233,6 @@ export const PeoplePanel = memo(function PeoplePanel({
   );
 });
 
-/** Hàng avatar chồng lên nhau (tối đa `max` người, còn lại hiện +n). */
 function AvatarStack({ people, online, max = 5 }: { people: Member[]; online: Set<string>; max?: number }) {
   const more = people.length - max;
   return (
@@ -259,7 +247,6 @@ function AvatarStack({ people, online, max = 5 }: { people: Member[]; online: Se
   );
 }
 
-/** Dải avatar gọn đầu trang (điện thoại): ai đang trong phòng; bấm để mở danh sách đầy đủ trong khung chat. */
 function PeopleStrip({
   people,
   online,
@@ -292,10 +279,8 @@ function PeopleStrip({
   );
 }
 
-/**
- * Menu ⋯ của chủ phòng cho từng người. Đặt `fixed` theo vị trí nút (mở lên trên nếu sát đáy màn hình) để không bị danh
- * sách cuộn trong sidebar / khung chat cắt mất; cuộn hay đổi cỡ màn hình thì đóng.
- */
+// Đặt `fixed` theo vị trí nút để không bị danh sách cuộn trong sidebar / khung chat cắt mất; vì vậy cuộn hay đổi cỡ
+// màn hình thì đóng.
 function HostMenu({ onKick, onMakeHost, name, host }: { onKick: () => void; onMakeHost: () => void; name: string; host: string }) {
   const [at, setAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   useEffect(() => {

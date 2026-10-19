@@ -17,10 +17,8 @@ import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<KwView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useKwView(session: KawaiiRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -28,10 +26,9 @@ function useKwView(session: KawaiiRoom): View {
   return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
 }
 
-/** Màu của từng người chơi theo thứ tự đội hình — đường nối, bảng điểm. Hết bảng màu thì xoay vòng sắc độ. */
 const PLAYER_COLORS = ["var(--coral)", "var(--sky)", "var(--lime)", "var(--sun)", "var(--grape)", "#ff6fb5", "#14b8c4", "#ff8a3d", "#8a9a2c", "#a0785a"];
 const colorOf = (k: number) => PLAYER_COLORS[k] ?? `hsl(${Math.round((k * 137.508) % 360)} 70% 52%)`;
-/** Sắc độ nền của từng loại hình — các loại liền nhau lệch màu rõ. */
+// Góc vàng (137.5°) để các loại liền nhau lệch màu rõ.
 const hueOf = (kind: number) => Math.round((kind * 137.508) % 360);
 
 const CONFETTI = ["🎉", "🏆", "✨", "🐾", "🎊", "⭐"];
@@ -39,7 +36,6 @@ const WIN_SCENE_MS = 6500;
 const FX_MS = 650;
 const HINT_MS = 4000;
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 250) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -52,7 +48,7 @@ function useNow(active: boolean, every = 250) {
   return now;
 }
 
-/** Đã tới mốc `at` chưa — chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ. */
+// Chỉ vẽ lại đúng một lần lúc vượt mốc (vd. lộ bàn), không theo nhịp đồng hồ.
 function useReached(at: number | undefined) {
   const [hit, setHit] = useState<number | undefined>(undefined);
   useEffect(() => {
@@ -69,7 +65,7 @@ const subscribeNarrow = (f: () => void) => {
   q.addEventListener("change", f);
   return () => q.removeEventListener("change", f);
 };
-/** Màn hẹp (điện thoại dọc) — bàn xoay dọc cho ô to hơn. */
+// Màn hẹp thì xoay bàn dọc cho ô to hơn.
 const useNarrow = () =>
   useSyncExternalStore(
     subscribeNarrow,
@@ -79,13 +75,8 @@ const useNarrow = () =>
 
 const isLive = (view: View) => view.meta!.status === "playing" && view.game?.match?.round === view.meta!.round;
 
-/** Đối kháng: người chơi xong thứ mấy (0 là chưa xong). */
 const rankOf = (g: KwMatch, k: number) => g.state.finished.indexOf(k) + 1;
 
-/**
- * Đối kháng: bàn đang xem khi mình không còn bàn để chơi (người xem, hoặc đã dọn xong) — người mình chọn, mặc định
- * người đầu đội hình chưa xong; -1 là bàn của mình (hoặc bàn chung ở chế độ cùng giải đề).
- */
 function watchedOf(g: KwMatch, pick: number) {
   if (g.mode !== "race" || (g.me >= 0 && !g.cleared)) return -1;
   if (pick >= 0 && pick < g.lineup.length && pick !== g.me) return pick;
@@ -98,11 +89,8 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function KawaiiTable({ id, slug, session }: { id: string; slug: string; session: KawaiiRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -125,7 +113,6 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
   useCueSounds(g, count, end.shown);
   const size = live && g ? g.size : opts.size;
   const mode = live && g ? g.mode : opts.mode;
-  // Đối kháng: bàn người khác mình đang xem (bấm vào bảng tiến độ để đổi) — theo từng ván.
   const [pick, setPick] = useState({ round: 0, k: -1 });
   const watched = g ? watchedOf(g, pick.round === g.round ? pick.k : -1) : -1;
   const onPick = g ? (k: number) => setPick({ round: g.round, k }) : undefined;
@@ -158,14 +145,9 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
   );
 });
 
-/**
- * Khoảnh khắc thắng của ván — cùng giải đề: lúc dọn sạch bàn; đối kháng: lúc người đầu tiên dọn sạch bàn của mình (ván
- * vẫn tiếp tục). Trả về số ván, 0 nếu chưa ai thắng.
- */
 const winKey = (g?: KwMatch) =>
   g && (g.mode === "race" ? g.state.winners.length > 0 : g.result?.reason === "points" && !!g.result.winners?.length) ? g.round : 0;
 
-/** Lớp phủ toàn màn hình: đếm ngược trước khi lộ bàn, và cảnh chiến thắng (bấm để đóng). */
 function Cinema({ match: g, count, win, onClose }: { match: KwMatch; count: number; win: boolean; onClose: () => void }) {
   if (count > 0)
     return (
@@ -213,15 +195,12 @@ function Cinema({ match: g, count, win, onClose }: { match: KwMatch; count: numb
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session }: { view: View; session: KawaiiRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
-  // Đồng hồ chỉ chạy lúc đếm ngược tới khi lộ bàn (để hiện số giây), lộ bàn rồi thì thôi.
   const opened = useReached(g?.opensAt);
   const unlocked = useReached(g?.lockedUntil);
-  // Đồng hồ chỉ chạy khi có số giây cần hiện: đếm ngược tới lúc lộ bàn, hoặc đang bị khoá tay.
   const now = useNow(live && (!opened || (!!g?.lockedUntil && !unlocked)));
 
   if (live && g) {
@@ -293,7 +272,6 @@ function ActionBar({ view, session }: { view: View; session: KawaiiRoom }) {
   );
 }
 
-/** Luật ván tới: chủ phòng chọn cỡ bàn, người khác xem. */
 function Rules({ view, session }: { view: View; session: KawaiiRoom }) {
   const opts = view.game!.opts;
   const host = view.isHost;
@@ -339,7 +317,6 @@ function Rules({ view, session }: { view: View; session: KawaiiRoom }) {
   );
 }
 
-/** Thẻ kết quả: người thắng và bảng điểm cả phòng. */
 function ResultCard({ view, match: g }: { view: View; match: KwMatch }) {
   const r = g.result!;
   const winners = r.winners ?? [];
@@ -360,7 +337,6 @@ function ResultCard({ view, match: g }: { view: View; match: KwMatch }) {
       />
     );
   if (race) {
-    // Đối kháng: xếp hạng theo thứ tự dọn xong, người chưa xong xếp theo số cặp đã nối.
     const total = (g.state.w * g.state.h) / 2;
     const rest = g.lineup.map((_, i) => i).filter((i) => !rankOf(g, i)).sort((a, b) => s.pairs[b] - s.pairs[a] || s.hints[a] - s.hints[b] || a - b);
     const done = s.finished.length;
@@ -393,7 +369,6 @@ function ResultCard({ view, match: g }: { view: View; match: KwMatch }) {
         rows={order.map((i) => ({
           uid: g.lineup[i].uid,
           name: nameIn(view, g.lineup[i].uid),
-          // Đồng điểm thì đồng hạng.
           rank: order.findIndex((j) => s.score[j] === s.score[i]) + 1,
           mark: <span className="sd-swatch" style={{ background: colorOf(i) }} aria-hidden="true" />,
           value: `${s.score[i]} điểm · ${s.pairs[i]} cặp${s.hints[i] ? ` · ${s.hints[i]} gợi ý` : ""}`,
@@ -403,7 +378,7 @@ function ResultCard({ view, match: g }: { view: View; match: KwMatch }) {
   );
 }
 
-/** Khung bàn: lưới (cột + 2) × (hàng + 2) — vành ngoài một ô để vẽ đường nối đi vòng viền. `plain`: tắt màu nền ô. */
+// Lưới (cột + 2) × (hàng + 2): vành ngoài một ô để vẽ đường nối đi vòng viền.
 function Frame({ cols, rows, children, label, plain }: { cols: number; rows: number; children: React.ReactNode; label?: string; plain?: boolean }) {
   return (
     <div
@@ -425,10 +400,6 @@ function Frame({ cols, rows, children, label, plain }: { cols: number; rows: num
   );
 }
 
-/**
- * Tiếng đếm ngược (mỗi giây một tiếng, lộ bàn một tiếng) và tiếng lúc hiện cảnh thắng — đối kháng mà người khác về
- * nhất thì tiếng nhẹ hơn.
- */
 function useCueSounds(g: KwMatch | undefined, count: number, win: boolean) {
   const last = useRef(count);
   useEffect(() => {
@@ -446,7 +417,6 @@ function useCueSounds(g: KwMatch | undefined, count: number, win: boolean) {
   }, [win]);
 }
 
-/** Bàn trống khi chưa chơi ván nào: các ô úp. */
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
   const { w, h } = SIZES[view.game!.opts.size];
@@ -473,7 +443,6 @@ function EmptyBoard({ view }: { view: View }) {
 
 const TINT_KEY = "arena:kawaii:tint";
 
-/** Có tô nền ô theo loại hình không — mặc định có; tắt / bật chỉ áp dụng cho máy này (nhớ trong localStorage). */
 function useTintPref() {
   const [on, setOn] = useState(() => {
     try {
@@ -491,13 +460,9 @@ function useTintPref() {
   return [on, set] as const;
 }
 
-/** Một cặp vừa biến mất: đường nối (màu người nối) và hai ô mờ dần. */
 type Fx = { key: string; path: Point[]; color: string; cells: { i: number; kind: number }[] };
 
-/**
- * Diễn các cặp người khác vừa nối (cặp của mình đã diễn lúc bấm) — đối kháng chỉ diễn trên bàn đang xem (`watched`).
- * Chỉ diễn những cặp mới thấy khi đang ở trong phòng; nhiều cặp tới cùng lúc (vừa nối lại mạng) thì chỉ diễn vài cặp cuối.
- */
+// Chỉ diễn cặp người khác nối — cặp của mình đã diễn lúc bấm.
 function useFx(g: KwMatch, active: boolean, watched: number) {
   const [fx, setFx] = useState<Fx[]>([]);
   const add = (made: Fx[]) => {
@@ -535,10 +500,6 @@ function useFx(g: KwMatch, active: boolean, watched: number) {
   return { fx, add };
 }
 
-/**
- * Bàn chơi: bấm hai ô cùng hình để nối; nút gợi ý (cùng giải đề: bị trừ điểm; đối kháng: bị khoá tay). Đối kháng mà
- * mình không còn bàn để chơi (`watched` ≥ 0) thì xem bàn của người đó.
- */
 function Play({ view, session, match: g, watched }: { view: View; session: KawaiiRoom; match: KwMatch; watched: number }) {
   const live = isLive(view);
   const race = g.mode === "race";
@@ -552,7 +513,6 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
   const canPlay = live && player && !counting && !locked && !g.state.over;
   const { w, h } = g.state;
   const narrow = useNarrow();
-  // Màn hẹp thì xoay bàn: cột hiển thị là hàng của bàn.
   const turn = narrow && w > h;
   const [cols, rows] = turn ? [h, w] : [w, h];
   const place = (x: number, y: number) => (turn ? [y, x] : [x, y]);
@@ -567,7 +527,6 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
   const left = desk ? desk.left : g.left;
   const shuffles = desk ? desk.shuffles : g.shuffles;
 
-  // Tiếng bàn tự xáo (bàn đang thấy) và tiếng mình vừa dọn sạch bàn (đối kháng) — chỉ khi đổi lúc đang chơi.
   const seenShuffles = useRef(shuffles);
   useEffect(() => {
     if (shuffles > seenShuffles.current && live && !counting) play("shuffle");
@@ -579,12 +538,10 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
     wasCleared.current = g.cleared;
   }, [g.cleared]);
 
-  // Ô đang chọn / ô gợi ý bị người khác nối mất thì coi như bỏ chọn, tắt gợi ý.
   const sel = picked >= 0 && tiles[picked] >= 0 ? picked : -1;
   const hinted = hint && tiles[hint.pair[0]] >= 0 && tiles[hint.pair[1]] >= 0 ? hint.pair : null;
   useEffect(() => {
     if (!hint) return;
-    // Đối kháng: gợi ý hiện suốt lúc khoá tay và thêm một lúc sau đó.
     const t = setTimeout(() => setHint(null), HINT_MS + (race ? HINT_LOCK_MS : 0));
     return () => clearTimeout(t);
   }, [hint, race]);
@@ -715,13 +672,13 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
   );
 }
 
-/** Số giây còn bị khoá tay — tách riêng để nhịp đồng hồ chỉ vẽ lại dòng chữ này, không kéo cả bàn. */
+// Tách riêng để nhịp đồng hồ chỉ vẽ lại dòng chữ này, không kéo cả bàn.
 function LockLeft({ until }: { until: number }) {
   const now = useNow(true);
   return <>{now ? `🔒 khoá tay ${Math.max(0, Math.ceil((until - now) / 1000))}s` : "🔒 khoá tay"}</>;
 }
 
-/** Đồng hồ ván (đối kháng) — tách riêng để nhịp đồng hồ không kéo cả bảng. */
+// Tách riêng để nhịp đồng hồ không kéo cả bảng.
 function Elapsed({ from, live }: { from: number; live: boolean }) {
   const now = useNow(live);
   if (!live || !now || now <= from) return null;
@@ -732,21 +689,15 @@ function Elapsed({ from, live }: { from: number; live: boolean }) {
   );
 }
 
-/**
- * Bảng điểm — cùng giải đề: màu từng người, số cặp, số lần gợi ý, điểm; đối kháng: tiến độ dọn bàn, giờ dọn xong, bấm
- * vào một người để xem bàn của họ (khi mình là người xem hoặc đã dọn xong).
- */
 function Scoreboard({ view, match: g, watched, onPick }: { view: View; match: KwMatch; watched: number; onPick?: (k: number) => void }) {
   const s = g.state;
   const race = g.mode === "race";
   const total = (s.w * s.h) / 2;
-  // Đối kháng: người đã xong theo thứ tự xong, rồi tới người đang dọn theo số cặp đã nối.
   const done = (k: number) => rankOf(g, k) || Infinity;
   const order = g.lineup
     .map((_, k) => k)
     .sort((a, b) => (race ? done(a) - done(b) : 0) || (race ? 0 : s.score[b] - s.score[a]) || s.pairs[b] - s.pairs[a] || a - b);
   const winners = new Set(race ? s.winners.map((k) => g.lineup[k].uid) : (g.result?.winners ?? []));
-  // Đối kháng: người xem / người đã xong bấm vào một người để xem bàn của họ.
   const canPick = race && watched >= 0 && !!onPick;
   return (
     <section className="card p-4" aria-labelledby="kw-score-h">

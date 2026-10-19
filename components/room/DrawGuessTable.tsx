@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<DwView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useDwView(session: DrawGuessRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -28,7 +26,6 @@ function useDwView(session: DrawGuessRoom): View {
 const CONFETTI = ["🎉", "🏆", "🎨", "🖌️", "✨", "⭐"];
 const WIN_SCENE_MS = 6500;
 
-/** Giờ hiện tại, cập nhật đều khi `active`. */
 function useNow(active: boolean, every = 250) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -48,20 +45,14 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.uid === uid)?.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-/** Người đoán chưa đoán ra trong lượt đang vẽ. */
 const guessing = (g: DwMatch) => g.role === "guesser" && g.pub.phase === "draw" && !g.hit;
 
-/** Ai còn đoán được trong lượt: người chơi trừ người vẽ. */
 const guessersOf = (pub: DwPublic) => pub.order.filter((u) => u !== pub.drawer);
 
-/** Tranh của các lượt đã lộ đáp án, chụp trên máy mình (mất khi tải lại trang). */
 type Shot = { round: number; turn: number; drawer: string; word: string; url: string };
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function DrawGuessTable({ id, slug, session }: { id: string; slug: string; session: DrawGuessRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<DwChat session={session} />}>
@@ -70,10 +61,7 @@ export function DrawGuessTable({ id, slug, session }: { id: string; slug: string
   );
 }
 
-/**
- * Khung chat: gợi ý trong ô nhập theo vai (người đoán thì đoán ở ô dưới tranh) và khoá chat khi đã đoán đúng — chỉ chọn
- * hai chuỗi đó từ store, nên chỉ vẽ lại khi chúng đổi.
- */
+// Chỉ chọn hai chuỗi từ store nên chỉ vẽ lại khi chúng đổi.
 const DwChat = memo(function DwChat({ session }: { session: DrawGuessRoom }) {
   const room = useRoomState(session, (r) => (r.meta!.status === "playing" ? r.meta!.round : 0));
   const chat = useGame(
@@ -101,7 +89,6 @@ const DrawGuessBody = memo(function DrawGuessBody({ session }: { session: DrawGu
   const [tool, setTool] = useState<Tool>({ kind: "pen", color: 1, size: 1 });
   const [shots, setShots] = useState<Shot[]>([]);
   const end = useEndScene(g?.result?.reason === "points" && g.result.winners?.length ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
-  // Mở ván: chủ phòng lùi lượt chọn từ đầu tiên lại một nhịp đếm ngược 3‑2‑1.
   const count = useCountdown(live && g && g.pub.turn === 0 && g.pub.phase === "pick" ? g.round : 0, { endsAt: g?.pub.since });
   const shown = live && g ? { rounds: g.pub.rounds, time: g.pub.time / 1000, hints: g.pub.hints } : opts;
 
@@ -147,7 +134,6 @@ const DrawGuessBody = memo(function DrawGuessBody({ session }: { session: DrawGu
   );
 });
 
-/** Cảnh mở ván: những người chơi theo thứ tự vẽ, đếm ngược 3‑2‑1 rồi người vẽ đầu tiên chọn từ. */
 function CountdownScene({ view, match: g, n }: { view: View; match: DwMatch; n: number }) {
   const drawer = g.pub.drawer;
   const people = g.lineup.map((s, i) => ({ uid: s.uid, p: s.member, name: nameIn(view, s.uid), ring: s.uid === drawer ? "#ffc23d" : "#be97ff", badge: s.uid === drawer ? "✏️" : `${i + 1}` }));
@@ -159,7 +145,6 @@ function CountdownScene({ view, match: g, n }: { view: View; match: DwMatch; n: 
   );
 }
 
-/** Cảnh chiến thắng khi ván vừa kết thúc ngay trước mắt (vào phòng / tải lại trang thì không diễn lại). */
 function WinScene({ view, match: g, onClose }: { view: View; match: DwMatch; onClose: () => void }) {
   const winners = g.result?.winners ?? [];
   const top = standings(g.pub)[0]?.score ?? 0;
@@ -178,9 +163,7 @@ function WinScene({ view, match: g, onClose }: { view: View; match: DwMatch; onC
   );
 }
 
-/** Lời nhắc theo vai trò và nút chính: vào ghế / rời ghế / bắt đầu / dừng ván. */
 function ActionBar({ view, session }: { view: View; session: DrawGuessRoom }) {
-  // Đồng hồ của thanh trạng thái (số giây còn lại) chạy riêng ở đây.
   const now = useNow(isLive(view));
   const { match: g, unkeyed } = view.game!;
   const live = isLive(view);
@@ -242,7 +225,6 @@ function ActionBar({ view, session }: { view: View; session: DrawGuessRoom }) {
   );
 }
 
-/** Luật ván tới: chủ phòng chọn số vòng, thời gian vẽ, gợi ý; người khác xem. */
 function Rules({ view, session }: { view: View; session: DrawGuessRoom }) {
   const { opts, words } = view.game!;
   const host = view.isHost;
@@ -292,7 +274,6 @@ function Rules({ view, session }: { view: View; session: DrawGuessRoom }) {
   );
 }
 
-/** Khung đáp án: mỗi chữ cái một ô, chữ đã mở gợi ý hiện ra; số chữ cái mỗi tiếng ghi nhỏ bên cạnh. */
 function Mask({ mask }: { mask: string }) {
   const words = mask.split(" ").filter(Boolean);
   const letters = words.reduce((n, w) => n + Array.from(w).length, 0);
@@ -321,7 +302,6 @@ function TierChip({ tier }: { tier?: 0 | 1 | 2 }) {
   );
 }
 
-/** Thanh trên tranh: lượt / vòng, đáp án (hoặc khung đáp án), đồng hồ. */
 function Stage({ view, match: g }: { view: View; match: DwMatch }) {
   const pub = g.pub;
   const live = isLive(view);
@@ -380,7 +360,6 @@ function Stage({ view, match: g }: { view: View; match: DwMatch }) {
   );
 }
 
-/** Lớp phủ trên tranh: chưa có ván, chọn từ, lộ đáp án. */
 function Overlay({ view, session, match: g }: { view: View; session: DrawGuessRoom; match?: DwMatch }) {
   const m = view.meta!;
   const live = isLive(view);
@@ -491,7 +470,6 @@ function Reveal({ view, match: g }: { view: View; match: DwMatch }) {
 const GUESS_ICON: Record<GuessState, string> = { wait: "⏳", wrong: "❌", near: "🔥", right: "✅" };
 const GUESS_LABEL: Record<GuessState, string> = { wait: "đang chấm", wrong: "sai", near: "gần đúng!", right: "đúng!" };
 
-/** Dưới tranh: ô đoán cho người đoán, khung đáp án người đoán thấy cho người vẽ. */
 function Prompt({ view, session, match: g }: { view: View; session: DrawGuessRoom; match: DwMatch }) {
   const pub = g.pub;
   if (pub.phase !== "draw") return null;
@@ -511,10 +489,7 @@ function Prompt({ view, session, match: g }: { view: View; session: DrawGuessRoo
   return <GuessBox key={`${g.round}:${pub.turn}`} view={view} session={session} match={g} />;
 }
 
-/**
- * Ô đoán — nơi duy nhất gửi lời đoán (khung chat chỉ để thảo luận). Vào lượt vẽ thì tự đặt con trỏ vào ô trên máy có
- * chuột, trừ khi đang gõ ở chỗ khác; điện thoại thì không, để bàn phím ảo không che tranh.
- */
+// Chỉ tự đặt con trỏ vào ô trên máy có chuột — trên điện thoại bàn phím ảo sẽ che tranh.
 function GuessBox({ view, session, match: g }: { view: View; session: DrawGuessRoom; match: DwMatch }) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -569,7 +544,6 @@ function GuessBox({ view, session, match: g }: { view: View; session: DrawGuessR
   );
 }
 
-/** Bảng điểm: dải người chơi theo thứ tự vẽ — hạng, điểm, ai đang vẽ, ai đã đoán ra, điểm vừa cộng lúc lộ đáp án. */
 function Scoreboard({ view, match: g }: { view: View; match: DwMatch }) {
   const pub = g.pub;
   const live = isLive(view);
@@ -616,7 +590,6 @@ function Scoreboard({ view, match: g }: { view: View; match: DwMatch }) {
   );
 }
 
-/** Chưa có ván: những người đã vào ghế. */
 function Waiting({ view }: { view: View }) {
   const m = view.meta!;
   return (
@@ -642,7 +615,6 @@ function Waiting({ view }: { view: View }) {
   );
 }
 
-/** Thẻ kết quả: người thắng và bảng điểm cả ván. */
 function ResultCard({ view, match: g }: { view: View; match: DwMatch }) {
   const r = g.result!;
   if (r.reason !== "points") return <StoppedCard round={g.round} />;
@@ -656,7 +628,6 @@ function ResultCard({ view, match: g }: { view: View; match: DwMatch }) {
   );
 }
 
-/** Triển lãm: tranh các lượt đã lộ đáp án trong ván, chụp trên máy mình. */
 function Gallery({ view, shots }: { view: View; shots: Shot[] }) {
   if (!shots.length) return null;
   return (

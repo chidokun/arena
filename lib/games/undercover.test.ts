@@ -34,7 +34,6 @@ import {
 } from "./undercover.ts";
 import { PAIRS } from "./undercover-words.ts";
 
-/** Bộ sinh số giả ngẫu nhiên có hạt giống (mulberry32). */
 function rng(seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -47,7 +46,6 @@ function rng(seed: number) {
 const PLAYERS = ["a", "b", "c", "d", "e", "f"];
 const WORDS = { civilian: "Cà phê", undercover: "Trà" };
 
-/** Ván 6 người với phe cố định: a, b, c, d là Dân; e Gián Điệp; f phe Trắng. */
 function fixed(opts: UcOptions = DEFAULT_OPTIONS, players = PLAYERS, roles: Role[] = ["civilian", "civilian", "civilian", "civilian", "undercover", "white"]): Game {
   const g = newGame(1, players, opts, WORDS, 0, rng(1));
   g.sec.roles = Object.fromEntries(players.map((u, i) => [u, roles[i] ?? "civilian"]));
@@ -61,14 +59,12 @@ const timeout = (g: Game, s: Omit<Step, "now"> = {}) => step(g, { ...s, now: g.p
 const ready = (g: Game, uids: string[], at = 0): Record<string, Vote> =>
   Object.fromEntries(uids.map((u, i) => [u, { day: g.pub.day, stage: g.pub.stage, ready: true, at: at + i }]));
 
-/** Ai cũng lật bài, sang lượt mô tả. */
 function flipAll(g: Game, opts?: UcOptions) {
   g = step(g, { votes: ready(g, g.pub.alive), opts, now: g.pub.since + DURATION.introMin });
   assert.equal(g.pub.stage, "clue");
   return g;
 }
 
-/** Ai cũng mô tả (gửi cùng lúc, nhận theo thứ tự), sang thảo luận. */
 function describe(g: Game, opts?: UcOptions) {
   const clues: Record<string, Say> = {};
   for (const u of g.pub.alive) clues[u] = { day: g.pub.day, text: `mô tả của ${u}` };
@@ -77,14 +73,12 @@ function describe(g: Game, opts?: UcOptions) {
   return g;
 }
 
-/** Xác nhận phiếu theo bảng `voter → target` rồi hết giờ. */
 function vote(g: Game, ballots: Record<string, string>, opts?: UcOptions) {
   const votes: Record<string, Vote> = {};
   for (const [v, t] of Object.entries(ballots)) votes[v] = { day: g.pub.day, stage: g.pub.stage, target: t };
   return timeout(g, { votes, opts });
 }
 
-/** Từ đầu ván tới lúc biểu quyết vòng đầu. */
 const toVote = (g: Game, opts?: UcOptions) => skipTalk(describe(flipAll(g, opts), opts), 1);
 
 test("bộ từ: đúng 1000 cặp, không cặp nào trùng hay hai từ như nhau", () => {

@@ -28,7 +28,6 @@ import {
 } from "./draw-guess.ts";
 import { TIERS, tierOf, wordId, wordOf } from "./draw-guess-words.ts";
 
-/** Bộ sinh số giả ngẫu nhiên tất định cho test. */
 function rng(seed = 1) {
   let s = seed >>> 0;
   return () => {
@@ -43,7 +42,6 @@ function input(now: number, extra: Partial<TickInput> = {}): TickInput {
   return { now, rand: rng(7), guesses: {}, ...everyone, ...extra };
 }
 
-/** Chạy tới khi qua giai đoạn chọn từ: người vẽ chọn từ thứ `pick`. */
 function startDrawing(s: HostState, now: number, pick = 0) {
   return tick(s, input(now, { pick: { turn: s.pub.turn, pick } }));
 }
@@ -153,7 +151,6 @@ test("một lượt trọn vẹn: chọn từ → vẽ → đoán → lộ đáp
   const word = wordOf(s.secret!.word!)!;
   assert.equal(s.pub.mask, maskOf(word, []));
 
-  // g1 đoán sai rồi đúng; g2 đoán sai.
   s = tick(s, input(31000, { guesses: { [g1]: { turn: 0, list: ["zzzz", word] }, [g2]: { turn: 0, list: ["qqqqqq"] } } }));
   assert.deepEqual(
     s.pub.hits.map((h) => [h.u, h.i]),

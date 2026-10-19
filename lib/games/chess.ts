@@ -1,14 +1,6 @@
-/**
- * Luật cờ vua: bàn 8 × 8, quân Trắng ở dưới đi trước. Ván dựng lại tất định từ nhật ký nước đi nên mọi máy tự tính ra
- * cùng kết quả. Có nhập thành, bắt tốt qua đường, phong cấp (chọn Hậu, Xe, Tượng hay Mã). Bên tới lượt hết nước đi hợp
- * lệ: đang bị chiếu là thua (chiếu hết), không bị chiếu là hoà (hết nước). Hoà khi thế cờ lặp lại lần thứ ba, 50 nước
- * mỗi bên không ăn quân và không đi Tốt, hoặc hai bên không đủ quân để chiếu hết.
- */
-
 export const SIZE = 8;
 export const SQUARES = SIZE * SIZE;
 
-/** Loại quân; quân Trắng mang số dương, quân Đen mang số âm, 0 là ô trống. */
 export const PAWN = 1;
 export const KNIGHT = 2;
 export const BISHOP = 3;
@@ -16,11 +8,8 @@ export const ROOK = 4;
 export const QUEEN = 5;
 export const KING = 6;
 
-/** 1 là Trắng (đi trước, ở dưới), 2 là Đen. */
 export type Side = 1 | 2;
-/** [từ ô, tới ô] hoặc [từ ô, tới ô, quân phong cấp] — ô 0 là a8, ô 63 là h1. */
 export type Move = [from: number, to: number] | [from: number, to: number, promo: number];
-/** Cách ván kết thúc: chiếu hết, hết nước (không bị chiếu), lặp thế cờ, 50 nước, không đủ quân chiếu hết. */
 export type End = "mate" | "stalemate" | "repeat" | "fifty" | "material";
 
 export const PIECES: Record<number, { name: string; letter: string; value: number }> = {
@@ -32,13 +21,10 @@ export const PIECES: Record<number, { name: string; letter: string; value: numbe
   [KING]: { name: "Vua", letter: "K", value: 0 },
 };
 
-/** Các quân Tốt được phong thành, theo thứ tự hiện trong bảng chọn. */
 export const PROMOTIONS = [QUEEN, ROOK, BISHOP, KNIGHT] as const;
 
-/** 50 nước mỗi bên không ăn quân, không đi Tốt thì hoà. */
 export const FIFTY_PLIES = 100;
 
-/** Quyền nhập thành: Trắng cánh Vua / cánh Hậu, Đen cánh Vua / cánh Hậu. */
 const WK = 1;
 const WQ = 2;
 const BK = 4;
@@ -51,15 +37,11 @@ export const rowOf = (i: number) => i >> 3;
 export const colOf = (i: number) => i & 7;
 export const sideOf = (v: number): 0 | Side => (v > 0 ? 1 : v < 0 ? 2 : 0);
 export const other = (s: Side): Side => (s === 1 ? 2 : 1);
-/** Tên ô kiểu "e4". */
 export const squareName = (i: number) => `${"abcdefgh"[colOf(i)]}${SIZE - rowOf(i)}`;
-/** Ô sáng (a8, h1…) hay ô tối. */
 export const isLight = (i: number) => (rowOf(i) + colOf(i)) % 2 === 0;
 
-/** Thế cờ: bàn, lượt, quyền nhập thành, ô bắt tốt qua đường (-1 nếu không có). */
 export type Position = { board: Int8Array; turn: Side; castling: number; ep: number };
 
-/** Thế cờ từ chuỗi FEN (bỏ qua hai số đếm cuối). */
 export function parseFen(fen: string): Position {
   const [rows, turn = "w", castle = "-", ep = "-"] = fen.trim().split(/\s+/);
   const board = new Int8Array(SQUARES);
@@ -106,7 +88,6 @@ const KNIGHT_STEPS = [
 ];
 const KING_STEPS = [...ORTHO, ...DIAG];
 
-/** Ô `sq` bị bên `by` khống chế (có quân của `by` ăn được vào đó). */
 export function attacked(board: Int8Array, sq: number, by: Side): boolean {
   const r = rowOf(sq);
   const c = colOf(sq);
@@ -135,13 +116,11 @@ export function attacked(board: Int8Array, sq: number, by: Side): boolean {
   return ray(ORTHO, ROOK, QUEEN) || ray(DIAG, BISHOP, QUEEN);
 }
 
-/** Vua bên `side` đang bị chiếu. */
 export function inCheck(board: Int8Array, side: Side): boolean {
   const king = board.indexOf(side === 1 ? KING : -KING);
   return king < 0 || attacked(board, king, other(side));
 }
 
-/** Các nước đi đúng cách đi của quân (chưa xét Vua mình có bị chiếu sau nước đi hay không; chưa gồm nhập thành). */
 function pseudoMoves(p: Position): Move[] {
   const { board, turn } = p;
   const out: Move[] = [];
@@ -202,7 +181,6 @@ function pseudoMoves(p: Position): Move[] {
   return out;
 }
 
-/** Ô bị đụng tới thì mất quyền nhập thành tương ứng (Vua hay Xe rời chỗ, hoặc Xe bị ăn). */
 const CASTLE_MASK = new Map<number, number>([
   [60, ~(WK | WQ)],
   [63, ~WK],
@@ -214,14 +192,11 @@ const CASTLE_MASK = new Map<number, number>([
 
 export type Applied = {
   pos: Position;
-  /** Quân bị ăn (0 nếu không ăn) và ô của nó (khác ô tới khi bắt tốt qua đường). */
   taken: number;
   takenAt: number;
-  /** Xe đi kèm khi nhập thành. */
   rook: [from: number, to: number] | null;
 };
 
-/** Áp dụng một nước (coi như đã hợp lệ) — trả thế cờ mới, không sửa thế cũ. */
 export function applyMove(p: Position, m: Move): Applied {
   const [from, to, promo] = m;
   const board = p.board.slice();
@@ -247,7 +222,6 @@ export function applyMove(p: Position, m: Move): Applied {
   return { pos: { board, turn: other(p.turn), castling, ep }, taken, takenAt, rook };
 }
 
-/** Các nước hợp lệ của bên tới lượt: đi đúng cách và không để Vua mình bị chiếu. */
 export function legalMoves(p: Position): Move[] {
   const { board, turn } = p;
   const foe = other(turn);
@@ -265,7 +239,6 @@ export function legalMoves(p: Position): Move[] {
 
 const sameMove = (a: Move, b: readonly unknown[]) => a[0] === b[0] && a[1] === b[1] && (a[2] ?? 0) === (b[2] ?? 0);
 
-/** Ký hiệu đại số chuẩn (SAN) của nước `m` trong thế `p`, chưa gồm dấu chiếu (+ / #). */
 export function notate(p: Position, m: Move, legal: Move[] = legalMoves(p)): string {
   const [from, to, promo] = m;
   const v = p.board[from];
@@ -274,7 +247,6 @@ export function notate(p: Position, m: Move, legal: Move[] = legalMoves(p)): str
   const capture = !!p.board[to] || (type === PAWN && to === p.ep);
   const dest = squareName(to);
   if (type === PAWN) return `${capture ? `${squareName(from)[0]}x` : ""}${dest}${promo ? `=${PIECES[promo].letter}` : ""}`;
-  // Quân cùng loại khác cũng tới được ô này thì ghi thêm cột, hàng, hoặc cả hai để phân biệt.
   const rivals = legal.filter(([f, t]) => t === to && f !== from && p.board[f] === v).map(([f]) => f);
   let which = "";
   if (rivals.length) {
@@ -285,7 +257,6 @@ export function notate(p: Position, m: Move, legal: Move[] = legalMoves(p)): str
   return `${PIECES[type].letter}${which}${capture ? "x" : ""}${dest}`;
 }
 
-/** Hai bên không còn đủ quân để chiếu hết: chỉ còn Vua, Vua + một Mã / Tượng, hoặc chỉ còn Tượng cùng màu ô. */
 export function insufficient(board: Int8Array): boolean {
   const rest: number[] = [];
   for (let i = 0; i < SQUARES; i++) if (board[i] && Math.abs(board[i]) !== KING) rest.push(i);
@@ -295,23 +266,17 @@ export function insufficient(board: Int8Array): boolean {
 }
 
 export type ChessState = Position & {
-  /** Mã quân (vị trí ban đầu) đang đứng ở từng ô, -1 nếu trống — để giao diện trượt đúng quân khi đi. */
+  // Giữ mã quân để giao diện trượt đúng quân khi đi.
   ids: Int16Array;
-  /** Số nước hợp lệ đã áp dụng. */
   count: number;
-  /** Bên tới lượt đang bị chiếu. */
   check: boolean;
-  /** Các nước hợp lệ của bên tới lượt (rỗng khi hết ván). */
   legal: Move[];
   last: Move | null;
   winner: 0 | Side;
   draw: boolean;
   end: End | null;
-  /** Quân bị ăn theo thứ tự (mã quân có dấu). */
   captured: number[];
-  /** Biên bản từng nước (SAN). */
   notes: string[];
-  /** Số nước liên tiếp không ăn quân, không đi Tốt. */
   quiet: number;
 };
 
@@ -333,10 +298,6 @@ function key(s: ChessState) {
   return `${s.turn}:${s.castling}:${ep}:${s.board.join(",")}`;
 }
 
-/**
- * Dựng lại ván từ nhật ký nước đi. Nước không hợp lệ (sai luật, sau khi đã hết ván) thì dừng ở đó — mọi máy cùng
- * nhật ký ra cùng kết quả. `start` chỉ dùng cho test thế cờ tàn.
- */
 export function replay(moves: readonly unknown[], start?: Position): ChessState {
   const s = emptyState(start);
   const seen = new Map<string, number>([[key(s), 1]]);
@@ -391,7 +352,6 @@ export function replay(moves: readonly unknown[], start?: Position): ChessState 
   return s;
 }
 
-/** Chênh lệch quân (Trắng trừ Đen) theo thang điểm thông dụng Tốt 1, Mã / Tượng 3, Xe 5, Hậu 9. */
 export function material(board: Int8Array): number {
   let sum = 0;
   for (const v of board) if (v) sum += Math.sign(v) * PIECES[Math.abs(v)].value;

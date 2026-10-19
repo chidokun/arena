@@ -14,10 +14,8 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<CoChoView>, "chat">;
 
-/** Đăng ký ba store và ghép lại thành view cho bàn chơi: vẽ lại khi phòng / người / ván đổi, không theo nhịp tim hay tin chat. */
 function useCoChoView(session: CoChoRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -27,11 +25,8 @@ function useCoChoView(session: CoChoRoom): View {
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🐕", "🦴"];
 
-/**
- * Bàn chơi tách theo store: khung chỉ giữ RoomLayout — danh sách người (`peopleStore`) và khung chat (`chatStore`) tự
- * đăng ký; phần bàn chơi bọc `memo`, đọc `roomStore` + `peopleStore` + `gameStore`, nên nhịp tim, tin chat hay người
- * vào ra không làm bàn vẽ lại, và nước đi không làm danh sách người / khung chat vẽ lại.
- */
+// Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
+// không làm danh sách người / khung chat vẽ lại.
 export function CoChoTable({ id, slug, session }: { id: string; slug: string; session: CoChoRoom }) {
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -57,7 +52,6 @@ const CoChoBody = memo(function CoChoBody({ session }: { session: CoChoRoom }) {
   const seated = view.mySeat >= 0;
   const inLineup = !!g && g.myMark > 0;
 
-  // Thanh đối đầu: trong ván thì theo thứ tự Đỏ–Xanh; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   const seatCard = (k: 0 | 1) => {
     const v = (k + 1) as 1 | 2;
@@ -109,7 +103,6 @@ const CoChoBody = memo(function CoChoBody({ session }: { session: CoChoRoom }) {
   );
 });
 
-/** Huy hiệu quân: một nắp chai nhỏ. */
 const Badge = ({ v }: { v: 1 | 2 }) => (
   <svg viewBox="-14 -14 28 28" className="block h-[24px] w-[24px]" aria-hidden>
     <Cap v={v} r={12.5} />
@@ -127,7 +120,6 @@ const fighter = (seat: SeatView | undefined, v: 1 | 2, me: string, side: "left" 
   />
 );
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, đếm ngược 3‑2‑1 rồi mở bàn. */
 function CountdownScene({ match: g, me, n }: { match: CoChoMatch; me: string; n: number }) {
   const tip = g.myMark ? `Bạn cầm quân ${CD_NAME[g.myMark]} — ${g.myMark === 1 ? "đi trước nhé!" : "chờ Đỏ đi trước nhé!"}` : "Quân Đỏ đi trước — cùng xem nhé!";
   return (
@@ -137,7 +129,6 @@ function CountdownScene({ match: g, me, n }: { match: CoChoMatch; me: string; n:
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: CoChoMatch, me: string): DuelSummary {
   const r = g.result!;
   if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} — thế cờ lặp lại ${REPEAT_DRAW} lần` };
@@ -158,7 +149,6 @@ function EndScene({ match: g, me, onClose }: { match: CoChoMatch; me: string; on
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Badge v={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Thanh trạng thái: lượt đi trong ván (kèm nhắc khi thế cờ đang lặp); ngoài ván thì nhắc vào ghế / bắt đầu, chủ phòng chọn cách xếp quân. */
 function ActionBar({ view, session }: { view: View; session: CoChoRoom }) {
   const m = view.meta!;
   const g = view.game?.match;

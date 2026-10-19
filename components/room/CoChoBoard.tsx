@@ -3,17 +3,14 @@
 import { memo, useId, useState } from "react";
 import { LINES, POINTS, type CoChoState } from "@/lib/games/co-cho";
 
-/** Lề và cạnh hình vuông (theo đơn vị viewBox — bàn co giãn theo khung). */
 const P = 64;
 const S = 292;
 const W = S + 2 * P;
 const R = 31;
 
-/** Màu hai loại nắp chai — dùng cho cả quân, thẻ ghế và vòng sáng. */
 export const CD_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 export const CD_NAME = { 1: "Đỏ", 2: "Xanh" } as const;
 
-/** Toạ độ từng điểm theo chỉ số: bốn góc (trên trái, trên phải, dưới trái, dưới phải) rồi tâm. */
 const XY: readonly (readonly [number, number])[] = [
   [P, P],
   [P + S, P],
@@ -24,10 +21,8 @@ const XY: readonly (readonly [number, number])[] = [
 
 const PLACE = ["góc trên trái", "góc trên phải", "góc dưới trái", "góc dưới phải", "tâm"] as const;
 
-/** Thời gian quân trượt sang điểm mới (ms) — bàn chơi chờ ngần ấy rồi mới diễn cảnh hết ván. */
 export const SLIDE_MS = 420;
 
-/** Quân là một nắp chai: viền răng cưa, lòng nắp sáng hơn một chút. */
 export function Cap({ v, x = 0, y = 0, r = R }: { v: 1 | 2; x?: number; y?: number; r?: number }) {
   const tone = CD_TONE[v];
   return (
@@ -40,11 +35,6 @@ export function Cap({ v, x = 0, y = 0, r = R }: { v: 1 | 2; x?: number; y?: numb
   );
 }
 
-/**
- * Bàn cờ chó SVG: hình vuông kẻ phấn trên nền gạch, hai đường chéo, cạnh trái có chó canh (không kẻ, không đi được).
- * Đến lượt mình thì quân đi được nhấp nháy; di chuột / tab tới quân thì hiện quân mờ ở điểm trống. Bấm là đi luôn —
- * đích lúc nào cũng là điểm trống duy nhất.
- */
 export const CoChoBoard = memo(function CoChoBoard({
   state,
   canPlay,
@@ -61,7 +51,6 @@ export const CoChoBoard = memo(function CoChoBoard({
   const legal = new Set(canPlay ? state.legal : []);
   const aiming = legal.has(aim) ? aim : -1;
   const { last, empty } = state;
-  // Hết ván vì bị chặn: quân người thua mờ đi, điểm trống đánh dấu "hết đường".
   const blocked = state.over && state.winner ? ((3 - state.winner) as 1 | 2) : 0;
   const [ex, ey] = XY[empty];
 
@@ -90,7 +79,6 @@ export const CoChoBoard = memo(function CoChoBoard({
       </defs>
       <rect x={1.5} y={1.5} width={W - 3} height={W - 3} rx={18} fill={`url(#${tiles})`} className="cd-frame" />
 
-      {/* Tam giác của chó: sát cạnh bị chặn. */}
       <polygon points={`${P},${P} ${P + S / 2},${P + S / 2} ${P},${P + S}`} className="cd-den" />
       <line x1={P} y1={P} x2={P} y2={P + S} className="cd-fence" />
       <g className="cd-chalk">
@@ -108,7 +96,6 @@ export const CoChoBoard = memo(function CoChoBoard({
         </text>
       </g>
 
-      {/* Vệt nước vừa đi. */}
       {last && !state.over && (
         <line key={`t${state.count}`} x1={XY[last.from][0]} y1={XY[last.from][1]} x2={XY[last.to][0]} y2={XY[last.to][1]} className="cd-trail" />
       )}

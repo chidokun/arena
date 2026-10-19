@@ -34,7 +34,6 @@ function Stat({ value, label, tone }: { value: number | null; label: string; ton
   );
 }
 
-/** Thẻ game nhóm theo thể loại (thứ tự `CATEGORIES`); trong nhóm giữ thứ tự của API, nhóm rỗng thì ẩn. */
 export function GameGrid() {
   const view = useLobbyView();
   const games = useGames();

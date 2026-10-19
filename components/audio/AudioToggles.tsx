@@ -2,7 +2,6 @@
 
 import { useAudioPrefs } from "./engine";
 
-/** Nút bật / tắt nhạc nền và tiếng hiệu ứng — tuỳ chọn riêng của máy này, chung cho mọi game. */
 export function AudioToggles() {
   const a = useAudioPrefs();
   return (

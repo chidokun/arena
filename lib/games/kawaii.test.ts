@@ -26,14 +26,12 @@ import {
 } from "./kawaii.ts";
 
 const E = -1;
-/** Bàn 4×3 vẽ tay: chữ cái là loại hình, "." là ô trống. */
 function grid(rows: string[]) {
   const tiles = rows.flatMap((r) => [...r].map((ch) => (ch === "." ? E : ch.charCodeAt(0) - 65)));
   return { tiles, w: rows[0].length, h: rows.length };
 }
 const turns = (path: [number, number][]) => path.length - 2;
 
-/** Nối hết bàn bằng nước gợi ý đầu tiên, luân phiên giữa các người chơi. */
 function playOut(seed: number, players: number) {
   const r = { seed, size: "s" as const };
   const moves: Move[][] = Array.from({ length: players }, () => []);
@@ -169,7 +167,6 @@ test("nước gửi lên bàn trước lần xáo thì không tính", () => {
 });
 
 test("bế tắc thì bàn tự xáo lại cho tới khi có nước nối, tất định", () => {
-  // Tìm một ván có lúc bị xáo khi chơi hết bàn.
   let found = false;
   for (let seed = 1; seed <= 60 && !found; seed++) {
     const a = playOut(seed, 2);
@@ -202,9 +199,6 @@ test("bàn tạm áp các cặp mình vừa nối chưa được ghi nhận", ()
   assert.equal(s.desks[0].tiles[a] >= 0, true, "không sửa bàn chung");
 });
 
-// ---------- đối kháng ----------
-
-/** Đối kháng: từng người lần lượt nối một cặp gợi ý trên bàn của mình; `slow` là những người chỉ đi mỗi `lag` lượt. */
 function race(seed: number, players: number, { slow = [] as number[], lag = 1, turns = 400 } = {}) {
   const r = { seed, size: "s" as const, mode: "race" as const };
   const moves: Move[][] = Array.from({ length: players }, () => []);
@@ -255,7 +249,6 @@ test("đối kháng: người dọn sạch trước thắng ngay, ván chạy ti
 
 test("đối kháng: bàn người đã xong không nhận thêm nước, người chưa xong vẫn chơi tiếp", () => {
   const pairs = (SIZES.s.w * SIZES.s.h) / 2;
-  // Người 0 vừa dọn xong, người 1 mới đi được vài cặp.
   const { r, s, board, moves } = race(5, 2, { slow: [1], lag: 3, turns: pairs });
   assert.deepEqual(s.finished, [0]);
   assert.equal(s.over, false);
@@ -275,7 +268,6 @@ test("đối kháng: bàn tự dựng từ nước của mình khớp với bàn
     const own = ownGame(r, moves[1]);
     assert.deepEqual(own.desks[0], s.desks[1]);
     assert.equal(own.pairs[0], s.pairs[1]);
-    // Dựng tiếp từ nửa đầu ra cùng kết quả.
     const half = ownGame(r, moves[1].slice(0, 7));
     assert.deepEqual(ownGame(r, moves[1], half), own);
   }

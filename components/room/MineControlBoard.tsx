@@ -3,21 +3,13 @@
 import { memo, useState } from "react";
 import { area3, isBase, type McState } from "@/lib/games/mine-control";
 
-/** Màu của từng người theo thứ tự lượt (căn cứ góc trên trái, dưới phải, trên phải, dưới trái). */
 export const MC_TONES = ["var(--coral)", "var(--sky)", "var(--lime)", "var(--grape)"] as const;
 export const MC_TONE_NAMES = ["Đỏ", "Xanh", "Lục", "Tím"] as const;
 
-/** Việc đang chọn trên bàn: bấm ô là mở / quét Radar / xây Pháo đài / Cướp Đất. */
 export type McTool = "open" | "radar" | "fort" | "grab";
 
-/** Bề ngang tối thiểu mỗi ô (px) — bàn rộng hơn khung (bản đồ lớn trên điện thoại) thì cuộn ngang. */
 const MIN_CELL = 26;
 
-/**
- * Bàn dò mìn: lưới ô bấm được. Ô ẩn nổi lên như viên gạch; ô đã mở phẳng, tô màu chủ ô (ô trung lập để trống), hiện số
- * mìn xung quanh; căn cứ in hình đại diện của chủ, Pháo đài 🏰, mìn đã nổ 💥. Tới lượt mình thì các ô hợp lệ với việc
- * đang chọn được viền màu của mình; chọn Radar thì rê chuột thấy trước vùng 3×3 sẽ quét.
- */
 export const MineControlBoard = memo(function MineControlBoard({
   state: s,
   avatars,
@@ -31,13 +23,9 @@ export const MineControlBoard = memo(function MineControlBoard({
   state: McState;
   avatars: string[];
   tool: McTool | null;
-  /** Chỉ số của mình (màu viền ô hợp lệ); -1 nếu chỉ xem. */
   me: number;
-  /** Ô `c` có bấm được với việc đang chọn không; null là không phải lượt mình. */
   valid: ((c: number) => boolean) | null;
-  /** Hết ván: lật hết mìn còn ẩn. */
   reveal: boolean;
-  /** Ô của hành động vừa xong (nhấp nháy viền). */
   last: number;
   onCell: (c: number) => void;
 }) {

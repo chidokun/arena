@@ -1,7 +1,3 @@
-/**
- * Sảnh chung: mọi người đang mở trang đều ở chung một kênh gossip để biết ai đang online, đang ở game nào,
- * và phòng nào đang mở (chủ phòng quảng bá). Trang chủ đếm số phòng / số người từ đây.
- */
 import type { Profile } from "../identity";
 import type { StickerId } from "../stickers";
 import { Gossip, Liveness } from "./gossip";
@@ -25,7 +21,6 @@ export type RoomAd = {
   seats: number;
   members: number;
   players: number;
-  /** Lô tô: số tờ đã có người chọn. */
   sheets?: number;
   status: "waiting" | "playing" | "ended";
   opts: Record<string, unknown>;
@@ -44,7 +39,6 @@ export type Invite = {
 export type LobbyView = {
   connected: boolean;
   peers: number;
-  /** Số máy thấy được qua relay nhưng không nối thông được (mạng chặn P2P, cần TURN). */
   unreachable: number;
   users: LobbyUser[];
   rooms: RoomAd[];
@@ -72,7 +66,6 @@ export class Lobby {
   private chatFns = new Set<(m: ChatMsg) => void>();
   private chatRate = new RateLimit(CHAT_RATE, CHAT_RATE_WINDOW_MS);
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Tin chat công cộng, cũ trước mới sau. */
   readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
 
   static async open(uid: string, profile: Profile) {
@@ -87,7 +80,6 @@ export class Lobby {
     this.gossip = new Gossip(uid, channel, {
       fanout: 3,
       intervalMs: 1500,
-      // Bản ghi hiện diện chỉ chính chủ được ghi.
       accept: (e) => !e.k.startsWith("u:") || e.k === `u:${e.w}`,
     });
     this.store = new ViewStore(() => this.compute());
@@ -183,8 +175,6 @@ export class Lobby {
     return { connected: peers > 0, peers, unreachable: this.channel.unreachable(), users, rooms };
   }
 
-  // ---------- chat công cộng ----------
-
   private pushChat(msg: ChatMsg) {
     const next = insertMsg(this.chat, msg);
     if (!next) return;
@@ -194,7 +184,6 @@ export class Lobby {
     this.schedulePersist();
   }
 
-  /** Tải lại trang vẫn còn lịch sử (mỗi tab một bản, như uid). */
   private restoreChat() {
     try {
       const list = JSON.parse(sessionStorage.getItem(CHAT_KEY) ?? "[]");
@@ -219,7 +208,6 @@ export class Lobby {
     }, 800);
   }
 
-  /** Gửi tin vào kênh công cộng. Trả về false nếu gửi quá nhanh (người khác sẽ bỏ tin). */
   say(content: { text: string } | { sticker: StickerId }): boolean {
     const { name, avatar, color } = this.profile;
     const body: ChatMsg = { id: "", uid: this.uid, name, avatar, color, at: Date.now() };
@@ -241,8 +229,6 @@ export class Lobby {
     };
   }
 
-  // ---------- API ----------
-
   setWhere(w: Where) {
     if (w.game === this.where.game && w.room === this.where.room) return;
     this.where = w;
@@ -254,7 +240,6 @@ export class Lobby {
     this.beat(true);
   }
 
-  /** Chủ phòng quảng bá phòng ra sảnh. Gọi định kỳ để làm mới nhịp tim của quảng cáo. */
   publishRoom(ad: Omit<RoomAd, "hb">, eager = true) {
     this.gossip.set(`r:${ad.id}`, { ...ad, hb: Date.now() } satisfies RoomAd, eager);
   }
@@ -281,7 +266,7 @@ export class Lobby {
     };
   }
 
-  /** Báo rời đi ngay (đóng tab) để người khác không phải đợi hết hạn nhịp tim. */
+  // Báo rời đi ngay khi đóng tab để người khác không phải đợi hết hạn nhịp tim.
   goodbye() {
     const cur = this.gossip.get<LobbyUser>(`u:${this.uid}`);
     if (cur) this.gossip.set(`u:${this.uid}`, { ...cur, hb: Date.now(), left: true });

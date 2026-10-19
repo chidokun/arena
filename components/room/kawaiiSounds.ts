@@ -1,17 +1,11 @@
-/**
- * Bộ tiếng Nối Thú Kawaii: tiếng dùng chung (chọn ô, hụt, đếm ngược, thắng…) cộng tiếng riêng của game — nối được một
- * cặp (nối liên tiếp nhanh thì cao dần), xin gợi ý, bàn tự xáo.
- */
 import { bell, hiss, tone } from "../audio/engine";
 import { COMMON_SFX, defineSfx } from "../audio/sfx";
 
-/** Nối liên tiếp nhanh thì tiếng nối cao dần (combo). */
 let combo = { at: 0, n: 0 };
 const COMBO_MS = 3000;
 
 export const play = defineSfx({
   ...COMMON_SFX,
-  /** Nối được một cặp: ba tiếng chuông rải hợp âm trưởng. */
   pair: {
     gesture: true,
     play: (b, t) => {
@@ -21,9 +15,7 @@ export const play = defineSfx({
       [0, 4, 7].forEach((d, i) => bell(b, base + d, t + i * 0.055, 0.13));
     },
   },
-  /** Xin gợi ý: bốn tiếng chuông đi lên. */
   hint: { gesture: true, play: (b, t) => [79, 83, 86, 91].forEach((n, i) => bell(b, n, t + i * 0.06, 0.07, 0.6)) },
-  /** Bàn tự xáo: tiếng "vù" kèm lạch cạch. */
   shuffle: {
     play: (b, t) => {
       hiss(b, b.sfx, { t, dur: 0.5, gain: 0.12, type: "bandpass", freq: 400, sweep: 3200, q: 1.2 });

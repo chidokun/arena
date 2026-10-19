@@ -14,13 +14,9 @@ import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from ".
 import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
-/** View các phần của bàn đọc — ghép từ `roomStore` + `peopleStore` + `gameStore` (chat đi riêng `chatStore`). */
 type View = Omit<RoomView<ChessView>, "chat">;
 
-/**
- * Đăng ký ba store và ghép lại thành view cho một phần của bàn: phần đó vẽ lại khi phòng / người / ván đổi, nhưng không
- * theo nhịp tim, không theo tin chat, và không kéo các phần khác theo.
- */
+// Ghép riêng ba store để phần bàn không vẽ lại theo nhịp tim, theo tin chat, và không kéo các phần khác theo.
 function useChessView(session: ChessRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -35,7 +31,6 @@ const CONFETTI = ["🎉", "🏆", "✨", "🎊", "♟️", "⭐"];
 const INTRO_MS = 4200;
 const CHECK_MS = 1500;
 
-/** Lý do thắng / hoà theo cách ván kết thúc. */
 function reasonOf(r: Result, end: End | null) {
   switch (r.reason) {
     case "resign":
@@ -64,10 +59,6 @@ function reasonOf(r: Result, end: End | null) {
   return "";
 }
 
-/**
- * Bàn cờ vua tách theo store: khung chỉ đọc vài trường của `roomStore`; thanh đối đầu, thanh trạng thái, thẻ kết quả,
- * bàn cờ tự đăng ký store và bọc `memo`.
- */
 export function ChessTable({ id, slug, session }: { id: string; slug: string; session: ChessRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
   return (
@@ -84,18 +75,13 @@ export function ChessTable({ id, slug, session }: { id: string; slug: string; se
   );
 }
 
-/** Phần `roomStore` khung bàn cần. */
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
-/** Đang có ván để hiện (đang chơi, hoặc đã có nước đi). */
 const showOf = (view: View) => {
   const g = view.game?.match;
   return !!g && (view.meta!.status !== "waiting" || g.state.count > 0);
 };
 
-// ---------- các phần của bàn: mỗi phần tự đăng ký store ----------
-
-/** Thanh đối đầu (hai thẻ người chơi, tỉ số) và quân đã bị ăn. */
 const DuelPart = memo(function DuelPart({ session }: { session: ChessRoom }) {
   const view = useChessView(session);
   const m = view.meta!;
@@ -104,7 +90,6 @@ const DuelPart = memo(function DuelPart({ session }: { session: ChessRoom }) {
   const state = showGame ? g!.state : emptyState();
   const playing = m.status === "playing";
   const lead = material(state.board);
-  // Thanh đối đầu: trong ván thì Trắng bên trái, Đen bên phải; khi chờ thì theo ghế.
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   return (
     <>
@@ -145,14 +130,12 @@ const ActionPart = memo(function ActionPart({ session }: { session: ChessRoom })
   return <ActionBar view={view} session={session} />;
 });
 
-/** Thẻ kết quả ván vừa xong. */
 const ResultPart = memo(function ResultPart({ session }: { session: ChessRoom }) {
   const { me, ended } = useRoomState(session, (r) => ({ me: r.me, ended: r.meta!.status === "ended" }), shallowEqual);
   const g = useGame(session, (v) => v?.match);
   return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
 });
 
-/** Bàn cờ, danh sách nước đi, sticker bay, chiếu, cảnh mở ván / hết ván. */
 const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
   const view = useChessView(session);
   const m = view.meta!;
@@ -200,13 +183,8 @@ const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
   );
 });
 
-/** Quân Vua trên huy hiệu ghế, co theo khung huy hiệu. */
 const SeatPiece = ({ v }: { v: number }) => <ChessPieceIcon v={v} className="h-[88%] w-[88%]" />;
 
-/**
- * Các cảnh diễn khi khoảnh khắc xảy ra ngay trước mắt: mở ván (ván mới chưa ai đi), hết ván (kèm pháo giấy, trừ người
- * thua), chiếu. Vào phòng / tải lại trang giữa chừng thì không diễn lại.
- */
 function useScenes(view: View) {
   const m = view.meta!;
   const g = view.game?.match;
@@ -217,7 +195,6 @@ function useScenes(view: View) {
   return { intro, end, check: check.shown };
 }
 
-/** Một bên trong cảnh đối đầu: avatar viền theo phe, quân Vua của bên đó, tên. */
 function fighter(seat: SeatView, side: Side, me: string) {
   return (
     <Fighter
@@ -232,7 +209,6 @@ function fighter(seat: SeatView, side: Side, me: string) {
   );
 }
 
-/** Cảnh mở ván: hai bên lao vào từ hai phía, "Khai cuộc!" — bấm để vào bàn. */
 function IntroScene({ match: g, me, onClose }: { match: ChessMatch; me: string; onClose: () => void }) {
   const tip =
     g.mySide === 1 ? "Bạn cầm quân Trắng — đi trước nhé!" : g.mySide === 2 ? "Bạn cầm quân Đen — chờ Trắng đi trước nhé!" : "Quân Trắng đi trước — cùng xem ván cờ nhé!";
@@ -246,7 +222,6 @@ function IntroScene({ match: g, me, onClose }: { match: ChessMatch; me: string; 
   );
 }
 
-/** Kết quả ván — dùng chung cho cảnh hết ván và thẻ kết quả. */
 function summary(g: ChessMatch, me: string): DuelSummary {
   const r = g.result!;
   const why = reasonOf(r, g.state.end);
@@ -269,7 +244,6 @@ function EndScene({ match: g, me, onClose }: { match: ChessMatch; me: string; on
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <ChessPieceIcon v={side === 1 ? KING : -KING} size={40} />, plainBadge: true }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-/** Quân đã ăn được của một bên, kèm số điểm quân hơn đối thủ (nếu có). */
 function Captured({ pieces, lead, align = "left" }: { pieces: number[]; lead: number; align?: "left" | "right" }) {
   const order = [...pieces].sort((a, b) => PIECES[Math.abs(b)].value - PIECES[Math.abs(a)].value || Math.abs(b) - Math.abs(a));
   return (
@@ -282,7 +256,6 @@ function Captured({ pieces, lead, align = "left" }: { pieces: number[]; lead: nu
   );
 }
 
-/** Biên bản nước đi: mỗi dòng một lượt Trắng – Đen. */
 function MoveList({ state }: { state: ChessState }) {
   const ref = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -313,7 +286,6 @@ function MoveList({ state }: { state: ChessState }) {
   );
 }
 
-/** Thanh trạng thái: lượt đi / lời xin hoà trong ván; ngoài ván thì nhắc vào ghế / bắt đầu (kết quả ván nằm ở thẻ kết quả). */
 function ActionBar({ view, session }: { view: View; session: ChessRoom }) {
   const m = view.meta!;
   const g = view.game?.match;

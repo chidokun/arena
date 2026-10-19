@@ -8,15 +8,14 @@ import { burst, type Bit } from "./Cine";
 const VOICE_KEY = "arena:loto-voice";
 
 const hasSpeech = () => typeof window !== "undefined" && "speechSynthesis" in window;
-/** Chỉ nhận giọng tiếng Việt (mã ngôn ngữ vi, vi-VN, vi_VN…). */
 const isViet = (v: SpeechSynthesisVoice) => /^vi([-_]|$)/i.test(v.lang);
-/** Giọng tự nhiên / cao cấp (Edge "Natural", Apple "Enhanced", "Premium") đọc hay hơn giọng cơ bản. */
+// Ưu tiên giọng tự nhiên / cao cấp (Edge "Natural", Apple "Enhanced", "Premium") vì đọc hay hơn giọng cơ bản.
 const rank = (v: SpeechSynthesisVoice) => (/natural|neural|premium|enhanced|online/i.test(v.name) ? 1 : 0);
 
 let bestVoice: SpeechSynthesisVoice | null = null;
 let voicesRead = false;
 
-/** Chọn giọng tiếng Việt tốt nhất của máy; giữ nguyên tham chiếu khi không đổi để useSyncExternalStore không vẽ lại. */
+// Giữ nguyên tham chiếu khi không đổi để useSyncExternalStore không vẽ lại.
 function readVoices() {
   voicesRead = true;
   const best = speechSynthesis.getVoices().filter(isViet).sort((a, b) => rank(b) - rank(a))[0] ?? null;
@@ -39,7 +38,6 @@ function vietVoice() {
   return bestVoice;
 }
 
-/** Tên ngắn để hiện: "Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)" → "HoaiMy". */
 const voiceLabel = (v: SpeechSynthesisVoice) =>
   v.name
     .split(/\s+[-(]/)[0]
@@ -55,7 +53,7 @@ function readVoicePref(): boolean | null {
   }
 }
 
-/** Đọc bằng đúng giọng tiếng Việt đã chọn — không để trình duyệt tự lấy giọng của ngôn ngữ khác. `flush`: bỏ mọi câu đang đọc. */
+// Đặt giọng tường minh để trình duyệt không tự lấy giọng của ngôn ngữ khác.
 function say(voice: SpeechSynthesisVoice, text: string, flush = false) {
   if (flush) speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -65,11 +63,8 @@ function say(voice: SpeechSynthesisVoice, text: string, flush = false) {
   speechSynthesis.speak(u);
 }
 
-/**
- * Đọc số bằng giọng tiếng Việt của máy — bắt buộc tiếng Việt: máy không có giọng Việt thì không đọc (giao diện
- * hướng dẫn cài). Mặc định chỉ máy chủ phòng (người kêu số) đọc, để cả nhà ngồi chung một chỗ không bị mười chiếc
- * điện thoại đọc cùng lúc; ai chơi từ xa thì tự bật.
- */
+// Bắt buộc giọng tiếng Việt: máy không có thì không đọc. Mặc định chỉ máy chủ phòng (người kêu số) đọc, để cả nhà ngồi
+// chung một chỗ không bị mười chiếc điện thoại đọc cùng lúc.
 export function useVoice(session: LotoRoom, isHost: boolean) {
   const voice = useSyncExternalStore(subscribeVoices, vietVoice, () => null);
   const [pref, setPref] = useState(readVoicePref);
@@ -96,7 +91,6 @@ export function useVoice(session: LotoRoom, isHost: boolean) {
     if (next) say(voice, "Bật đọc số", true);
     else speechSynthesis.cancel();
   };
-  /** Đọc một câu ngay trong thao tác của người dùng (vd. bấm Bắt đầu) nếu đang bật đọc số. */
   const announce = (text: string) => {
     if (on && voice) say(voice, text, true);
   };
@@ -105,7 +99,6 @@ export function useVoice(session: LotoRoom, isHost: boolean) {
 
 const CONFETTI = ["🧧", "🎉", "🎊", "✨", "🌸", "🏮", "💰"];
 
-/** Pháo giấy khi có người kinh — chỉ khi đang xem trực tiếp, tải lại trang không bắn lại. */
 export function useConfetti(session: LotoRoom) {
   const [bits, setBits] = useState<Bit[]>([]);
   useEffect(
@@ -121,7 +114,6 @@ export function useConfetti(session: LotoRoom) {
   return bits;
 }
 
-/** Phần tử còn nằm trong khung nhìn không (trừ thanh đầu trang dính 64px). */
 export function useInView(ref: React.RefObject<Element | null>) {
   const [inView, setInView] = useState(true);
   useEffect(() => {

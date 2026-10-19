@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { COLS, inCheck, legalMoves, notate, parseBoard, reach, replay, startBoard, type Move } from "./xiangqi.ts";
 
-/** Ô theo (cột, hàng); hàng 0 ở phía Đen (trên cùng), hàng 9 ở phía Đỏ. */
 const at = (c: number, r: number) => r * COLS + c;
 const mv = (c: number, r: number, c2: number, r2: number): Move => [at(c, r), at(c2, r2)];
 const sorted = (xs: number[]) => [...xs].sort((a, b) => a - b);
@@ -43,11 +42,11 @@ test("hai tướng không được đối mặt", () => {
 
 test("ván từ thế khai cuộc: ăn quân, ghi biên bản, chuyển lượt", () => {
   const s = replay([
-    mv(7, 7, 4, 7), // P2-5
-    mv(1, 0, 2, 2), // M2.3 (Đen)
-    mv(7, 9, 6, 7), // M2.3
+    mv(7, 7, 4, 7),
+    mv(1, 0, 2, 2),
+    mv(7, 9, 6, 7),
     mv(0, 3, 0, 4),
-    mv(8, 9, 7, 9), // X1-2
+    mv(8, 9, 7, 9),
     mv(0, 4, 0, 5),
     mv(7, 9, 7, 2), // Xe ăn Pháo Đen
     mv(0, 5, 0, 6), // Tốt Đen ăn Tốt Đỏ

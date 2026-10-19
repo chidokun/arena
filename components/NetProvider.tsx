@@ -81,10 +81,8 @@ export function useLobbyView(): LobbyView {
   );
 }
 
-/**
- * Số người online, null khi chưa nối được ai. Trả về số (không phải cả `LobbyView`) để component chỉ vẽ lại khi con số
- * đổi — view của sảnh đổi theo nhịp tim của từng người online, tức nhiều lần mỗi giây khi đông người.
- */
+// Trả về số (không phải cả `LobbyView`) để component chỉ vẽ lại khi con số đổi — view của sảnh đổi theo nhịp tim của
+// từng người online, tức nhiều lần mỗi giây khi đông người.
 export function useLobbyOnline(): number | null {
   const { lobby } = useNet();
   return useSyncExternalStore(
@@ -97,7 +95,6 @@ export function useLobbyOnline(): number | null {
   );
 }
 
-/** Tin chat công cộng (kênh sảnh). */
 export function usePublicChat(): ChatMsg[] {
   const { lobby } = useNet();
   return useSyncExternalStore(
@@ -107,7 +104,6 @@ export function usePublicChat(): ChatMsg[] {
   );
 }
 
-/** Báo cho sảnh biết mình đang ở đâu (trang game nào, phòng nào) để đếm người chơi. */
 export function useWhere(where: Where) {
   const { lobby } = useNet();
   const { game, room } = where;

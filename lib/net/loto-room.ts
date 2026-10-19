@@ -1,11 +1,4 @@
-/**
- * Phòng lô tô. Chủ phòng là người kêu số: máy chủ phòng tự rút ngẫu nhiên 1–90 theo nhịp đã chọn và nối vào
- * nhật ký `g:<ván>`. Mọi máy tự dựng lại ván từ nhật ký và các tờ đã chia (`meta.dealt`) nên tự đánh dấu, tự biết
- * ai đợi (4/5 số một hàng — rao "Hò!", "Hẹn!" hoặc "Đợi!") và ai kinh (đủ 5 số — "Kinh!", nhiều người cùng lúc là
- * "Kinh trùng!"). Chọn tờ là một ý định như vào ghế: người chơi phát các tờ muốn giữ, chủ phòng ghi nhận theo thứ tự
- * nên không có hai người giành được cùng một tờ. Chọn xong phải bấm sẵn sàng (cũng là ý định); chủ phòng chỉ bắt đầu
- * được khi mọi người giữ tờ đã sẵn sàng. Phòng không giới hạn người vào xem; hết tờ thì không vào chơi được.
- */
+// Chọn tờ là một ý định như vào ghế: chủ phòng ghi nhận theo thứ tự nên không có hai người giành được cùng một tờ.
 import {
   grantSheets,
   isSheetId,
@@ -27,50 +20,37 @@ import {
 import type { RoomAd } from "./lobby";
 import { RoomSession, START_COUNTDOWN_MS, type Member, type Meta, type Result, type SeatView } from "./room";
 
-/** Số đầu tiên của ván được kêu ngay khi hết nhịp đếm ngược 3‑2‑1 lúc mở ván (vừa đủ để mọi người nhìn lại tờ). */
+// Kêu số đầu tiên ngay khi hết nhịp đếm ngược mở ván — vừa đủ để mọi người nhìn lại tờ.
 export const FIRST_CALL_MS = START_COUNTDOWN_MS;
 
 export type LotoView = {
   opts: LotoOptions;
   sheets: Sheet[];
-  /** Chủ của từng tờ theo id; null nếu tờ còn trống. */
   owner: (string | null)[];
-  /** Các tờ mình đang giữ (chủ phòng đã ghi nhận). */
   mine: number[];
-  /** Ý định của mình đang chờ chủ phòng ghi nhận (tờ muốn giữ, có sẵn sàng không); null nếu không có gì đang chờ. */
   pending: { pick: number[]; ready: boolean } | null;
-  /** Những người đã sẵn sàng cho ván tới (chủ phòng đã ghi nhận). */
   ready: string[];
-  /** Ván gần nhất; 0 khi chưa chơi ván nào. */
   round: number;
-  /** Các tờ đã chia cho ván gần nhất. */
   dealt: Record<string, number[]>;
   state: LotoState;
-  /** Trong ván: mỗi người đang đợi bao nhiêu hàng (4/5 số). */
   waiting: Record<string, number>;
-  /** Hồ sơ những người đang giữ tờ, được chia tờ hoặc vừa kinh (kể cả khi đã mất kết nối). */
   people: Record<string, SeatView>;
   paused: boolean;
   result?: Result;
 };
 
-/** Lần kêu số mới thấy được khi đang ở trong phòng (không tính các số đã kêu trước lúc vào). */
 export type LotoCall = {
   round: number;
   n: number;
   count: number;
-  /** Tên những người vừa có hàng 4/5 số nhờ lần kêu này. */
   waiting: string[];
-  /** Tên những người kinh — từ hai người trở lên là kinh trùng. */
   kinh: string[];
 };
 
 export class LotoRoom extends RoomSession<LotoView> {
   readonly game = "loto";
   private deck: { seed: number; sheets: Sheet[] } | null = null;
-  /** Chủ phòng: giờ máy mình lúc thấy lần kêu gần nhất — để giữ nhịp kêu. */
   private clock = { round: -1, count: -1, paused: false, at: 0 };
-  /** Đã rao tới lần kêu thứ mấy của ván nào. */
   private heard = { round: -1, count: 0, paused: false };
   private timer: ReturnType<typeof setTimeout> | null = null;
   private callFns = new Set<(c: LotoCall) => void>();
@@ -86,8 +66,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     return replay(Array.isArray(log) ? log : [], m.dealt ?? {}, this.sheets(m));
   }
 
-  // ---------- luật ----------
-
   protected applyIntent(m: Meta, p: Member) {
     const claims = (m.claims ??= {});
     const ready = new Set(m.ready);
@@ -97,14 +75,12 @@ export class LotoRoom extends RoomSession<LotoView> {
       if (next.length) {
         claims[p.uid] = next;
         if (!m.players.includes(p.uid)) m.players.push(p.uid);
-        // Chỉ sẵn sàng được khi đang giữ tờ.
         if (p.ready) ready.add(p.uid);
       } else delete claims[p.uid];
     } else if (p.want === "watch") delete claims[p.uid];
     m.ready = [...ready];
   }
 
-  /** Người chơi là người có tờ: rời ghế, bị kick hay rớt mạng thì trả tờ; hết tờ thì thôi ngồi ghế. */
   protected tidy(m: Meta) {
     const claims = (m.claims ??= {});
     for (const uid of Object.keys(claims)) if (!m.players.includes(uid)) delete claims[uid];
@@ -118,7 +94,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     if (!players.length || notReady(players, m.host, m.ready ?? []).length) return false;
     m.lineup = players;
     m.dealt = Object.fromEntries(players.map((uid) => [uid, [...claims[uid]]]));
-    // Mỗi ván phải bấm sẵn sàng lại.
     m.ready = [];
     m.paused = false;
     return true;
@@ -127,11 +102,9 @@ export class LotoRoom extends RoomSession<LotoView> {
   protected outcome(m: Meta): Result | undefined {
     const s = this.play(m);
     if (s.winners.length) return { round: m.round, winner: s.winners.length === 1 ? s.winners[0] : null, winners: s.winners, reason: "kinh" };
-    // Không còn tờ nào trong ván (bị kick hết) hoặc đã kêu đủ 90 số thì dừng.
     if (!Object.keys(m.dealt ?? {}).length || s.draws.length >= MAX_NUMBER) return { round: m.round, winner: null, winners: [], reason: "stop" };
   }
 
-  /** Chủ phòng kêu số: đủ nhịp thì rút một số chưa kêu, nối vào nhật ký. */
   protected hostPlay(m: Meta) {
     const now = Date.now();
     const s = this.play(m);
@@ -148,7 +121,7 @@ export class LotoRoom extends RoomSession<LotoView> {
     if (n != null) this.gossip.set(`g:${m.round}`, { draws: [...s.draws, n] });
   }
 
-  /** Hẹn giờ đúng lúc kêu số kế tiếp (vòng lặp chung chỉ chạy mỗi giây). */
+  // Vòng lặp chung chỉ chạy mỗi giây nên hẹn giờ riêng cho đúng lúc kêu số kế tiếp.
   private wakeAt(ms: number) {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -163,7 +136,6 @@ export class LotoRoom extends RoomSession<LotoView> {
   }
 
   protected onKick(m: Meta, uid: string) {
-    // Tờ của người bị kick không còn được tính trong ván đang chơi.
     if (m.status === "playing" && m.dealt) delete m.dealt[uid];
   }
 
@@ -171,7 +143,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     return { sheets: Object.values(m.claims ?? {}).flat().length };
   }
 
-  /** Rao thay người chơi: "Hò! / Hẹn! / Đợi!" khi vừa có hàng 4/5 số, "Kinh!" khi đủ hàng — máy nào cũng rao như nhau. */
   protected watch(m: Meta) {
     if (!m.round) return;
     const s = this.play(m);
@@ -249,9 +220,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     return `Ván ${r.round} dừng — không ai kinh`;
   }
 
-  // ---------- hành động ----------
-
-  /** Mỗi lần có số mới được kêu (để đọc số, tung pháo hoa khi kinh). */
   onCall(fn: (c: LotoCall) => void) {
     this.callFns.add(fn);
     return () => {
@@ -259,7 +227,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     };
   }
 
-  /** Chọn các tờ muốn giữ (tối đa 2; rỗng là trả hết tờ, ngồi xem). Đổi tờ thì phải sẵn sàng lại. Chỉ đổi được ngoài ván. */
   pick(ids: number[]) {
     const m = this.meta();
     if (!m || m.status === "playing") return;
@@ -267,7 +234,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     this.intend(next.length ? "play" : "watch", next);
   }
 
-  /** Báo sẵn sàng (hoặc huỷ) với các tờ đang giữ. */
   setReady(on: boolean) {
     const m = this.meta();
     const mine = m?.claims?.[this.me];
@@ -275,7 +241,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     this.intend("play", mine, on);
   }
 
-  /** Chủ phòng tạm dừng / tiếp tục kêu số. */
   pause(on: boolean) {
     this.hostEdit((m) => {
       if (m.status !== "playing" || !!m.paused === on) return false;
@@ -283,7 +248,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     });
   }
 
-  /** Chủ phòng đổi nhịp kêu số. */
   setPace(ms: number) {
     if (!PACES.includes(ms)) return;
     this.hostEdit((m) => {
@@ -292,7 +256,6 @@ export class LotoRoom extends RoomSession<LotoView> {
     });
   }
 
-  /** Chủ phòng dừng ván giữa chừng, không tính ai kinh. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

@@ -1,10 +1,4 @@
-/**
- * Phòng Dò Mìn cổ điển: không giới hạn ghế, một người cũng chơi được, không theo lượt. Bắt đầu ván, chủ phòng chốt đội
- * hình và `meta.ms` (seed, cỡ bàn, số mìn, giờ lộ bàn) — mọi máy tự sinh cùng một bàn từ seed. Người chơi chỉ nối ô mình
- * mở vào `m:<ván>:<uid>`; máy chủ phòng xét các ô mới theo thứ tự mình thấy (`judge`) rồi ghi bàn chung `g:<ván>` — ai
- * mở ô nào, điểm, ai đạp mìn bị loại, người thắng đều suy ra tất định từ bàn chung. Người chơi mất kết nối quá lâu (hoặc
- * bị mời ra) bị loại như đạp mìn, để người còn lại không phải chờ. Cờ cắm là việc riêng của từng máy, không gửi đi.
- */
+// Người chơi mất kết nối quá lâu (hoặc bị mời ra) bị loại như đạp mìn, để người còn lại không phải chờ.
 import {
   chordCells,
   COUNTDOWN_MS,
@@ -26,13 +20,11 @@ import {
 } from "../games/minesweeper";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
-/** Cả đội hình mất kết nối chừng này thì dừng ván. */
 const ABANDON_MS = 60000;
-/** Một người chơi mất kết nối chừng này thì bị loại (đủ lâu để tải lại trang không bị loại oan). */
+// Đủ lâu để tải lại trang không bị loại oan.
 const QUIT_MS = 30000;
 
 const flagKey = (id: string) => `arena:ms-flags:${id}`;
-/** Bàn của một ván xác định bởi seed, cỡ, số mìn. */
 const layoutKey = (ms: MsRound) => `${ms.seed}:${ms.size}:${ms.mines}`;
 
 export type MsMatch = {
@@ -41,35 +33,26 @@ export type MsMatch = {
   mines: number;
   layout: Layout;
   lineup: SeatView[];
-  /** Thứ tự của mình trong đội hình; -1 nếu chỉ xem. */
   me: number;
-  /** Bàn chung chủ phòng đã ghi nhận — điểm, người bị loại, người thắng lấy từ đây. */
   state: MsState;
-  /** Bàn mình thấy: bàn chung cộng các ô mình vừa mở đang chờ chủ phòng ghi nhận. */
   view: MsState;
-  /** Các ô mình cắm cờ (chỉ ô còn ẩn). */
   flags: number[];
-  /** Giờ máy mình lúc lộ bàn (hết đếm ngược). */
   opensAt: number;
-  /** Thời gian (ms) chủ phòng đo khi ván xong. */
   time?: number;
   result?: Result;
 };
 
 export type MsView = {
-  /** Luật cho ván tới. */
   opts: MsOptions;
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa chơi ván nào. */
   match?: MsMatch;
 };
 
 export class MinesweeperRoom extends RoomSession<MsView> {
   readonly game = "minesweeper";
   private lay: { key: string; layout: Layout } | null = null;
-  /** Trạng thái dựng gần nhất — nhật ký chỉ dài thêm nên dựng tiếp từ đây thay vì từ đầu. */
+  // Nhật ký chỉ dài thêm nên dựng tiếp từ trạng thái gần nhất thay vì từ đầu.
   private cache: { round: number; key: string; tail: string; state: MsState } | null = null;
   private opened = { round: -1, at: 0 };
-  /** Đã báo tới người bị loại thứ mấy của ván nào. */
   private told = { round: -1, out: 0 };
   private flags = { round: -1, cells: new Set<number>() };
 
@@ -100,10 +83,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     return state;
   }
 
-  /**
-   * Giờ máy mình lúc lộ bàn: lần đầu thấy ván thì đếm ngược phần còn lại theo giờ chủ phòng, tối đa một nhịp đếm ngược;
-   * vào giữa ván (tải lại trang) thì chơi ngay.
-   */
   private opensAt(m: Meta, ms: MsRound) {
     if (this.opened.round !== m.round) {
       const now = Date.now();
@@ -112,7 +91,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     return this.opened.at;
   }
 
-  /** Cờ của mình trong ván `round` — giữ qua lần tải lại trang. */
   private flagsOf(round: number) {
     if (this.flags.round !== round) {
       let cells: number[] = [];
@@ -124,8 +102,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     }
     return this.flags.cells;
   }
-
-  // ---------- luật ----------
 
   protected begin(m: Meta) {
     const lineup = m.players.filter((u) => this.isOnline(u));
@@ -141,15 +117,10 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     if (!s.over) return;
     if (!s.cleared) return { round: m.round, winner: null, winners: [], reason: "boom" };
     const winners = s.winners.map((k) => m.lineup[k]);
-    // Nhiều người cùng trụ tới cuối thì thắng nhờ điểm; một người thì thắng vì tự mở hết bàn.
     const reason = s.alive.filter(Boolean).length > 1 ? "points" : "solve";
     return { round: m.round, winner: winners.length === 1 ? winners[0] : null, winners, reason };
   }
 
-  /**
-   * Chủ phòng phân xử các ô mới, loại người rời ván (mất kết nối quá lâu, bị mời ra, gian lận) và ghi giờ xong. Cả đội
-   * hình bỏ đi thì dừng ván.
-   */
   protected hostPlay(m: Meta) {
     const ms = m.ms!;
     const lay = this.layoutOf(ms);
@@ -172,7 +143,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     }
   }
 
-  /** Mọi máy: báo vào khung chat khi có người bị loại, và khi chỉ còn một người trụ lại. */
   protected watch(m: Meta) {
     if (!m.ms || m.status !== "playing") return;
     const s = this.stateOf(m, m.ms);
@@ -238,9 +208,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     return `${name(w[0])} nhiều điểm nhất — thắng ván ${r.round}!`;
   }
 
-  // ---------- hành động ----------
-
-  /** Ván đang chơi, mình là người chơi còn trụ và bàn đã lộ. */
   private playable() {
     const m = this.meta();
     const g = this.store.get().game?.match;
@@ -253,10 +220,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     this.react();
   }
 
-  /**
-   * Bấm vào ô: ô ẩn (không cắm cờ) thì mở, ô số đã mở thì mở nhanh các ô quanh nó nếu đã cắm đủ cờ. Trả về "boom" nếu
-   * vừa đạp mìn, "safe" nếu mở được, null nếu không có gì xảy ra.
-   */
   reveal(c: number): "safe" | "boom" | null {
     const p = this.playable();
     if (!p) return null;
@@ -269,7 +232,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     return cells.some((x) => lay.mine[x]) ? "boom" : "safe";
   }
 
-  /** Cắm / gỡ cờ ở một ô ẩn (chỉ máy mình thấy). */
   toggleFlag(c: number) {
     const p = this.playable();
     if (!p || p.g.view.by[c] !== HIDDEN || p.g.view.boom[c] >= 0) return;
@@ -284,7 +246,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     this.react();
   }
 
-  /** Chủ phòng đổi cỡ bàn / số mìn cho ván tới; đổi cỡ thì số mìn về mức cổ điển của cỡ đó nếu không chỉ định. */
   setOptions(next: Partial<MsOptions>) {
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
@@ -295,7 +256,6 @@ export class MinesweeperRoom extends RoomSession<MsView> {
     });
   }
 
-  /** Chủ phòng dừng ván giữa chừng: không tính ai thắng. */
   stop() {
     this.hostEdit((m) => {
       if (m.status !== "playing") return false;

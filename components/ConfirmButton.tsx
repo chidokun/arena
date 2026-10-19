@@ -5,10 +5,7 @@ import { useEffect, useRef, useState } from "react";
 /** Lần bấm thứ hai phải cách lần đầu ít nhất bấy nhiêu — nháy đúp (hoặc chạm hai lần do rung tay) không tính là xác nhận. */
 const SETTLE_MS = 400;
 
-/**
- * Nút cần bấm hai lần cho hành động khó hoàn tác (kick, xin thua) — thay cho confirm() chặn luồng.
- * Bấm lần đầu nút đổi sang lời xác nhận; bấm lần nữa (sau một nhịp, trong vòng vài giây) mới thực hiện.
- */
+// Bấm hai lần thay cho confirm() vì confirm() chặn luồng.
 export function ConfirmButton({
   onConfirm,
   children,

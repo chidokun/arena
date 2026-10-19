@@ -11,7 +11,6 @@ const R = 17.5;
 
 export type Script = "han" | "viet";
 
-/** Mặt quân cờ: chữ Hán (帥, 車…) hoặc tên tiếng Việt. Dùng chung cho bàn cờ, quân bị ăn, cảnh mở ván. */
 export function PieceFace({ v, script, r = R }: { v: number; script: Script; r?: number }) {
   const red = v > 0;
   const p = PIECES[Math.abs(v)];
@@ -28,7 +27,6 @@ export function PieceFace({ v, script, r = R }: { v: number; script: Script; r?:
   );
 }
 
-/** Quân cờ rời (ngoài bàn): quân bị ăn, cảnh mở ván. */
 export function PieceIcon({ v, script, size = 26, className = "" }: { v: number; script: Script; size?: number; className?: string }) {
   return (
     <svg viewBox="-20 -20 40 40" width={size} height={size} className={`xq-icon ${className}`} aria-hidden="true">
@@ -37,7 +35,6 @@ export function PieceIcon({ v, script, size = 26, className = "" }: { v: number;
   );
 }
 
-/** Điểm đánh dấu vị trí Pháo, Tốt lúc khai cuộc. */
 function Marker({ c, r }: { c: number; r: number }) {
   const x = M + c * C;
   const y = M + r * C;
@@ -62,7 +59,7 @@ const MARKERS: [number, number][] = [
   ]),
 ];
 
-/** Lưới bàn cờ (đối xứng nên không cần lật theo bên cầm quân). Dùng chung Cờ Tướng / Nhập vai. */
+// Lưới đối xứng nên không cần lật theo bên cầm quân.
 export const XiangqiGrid = memo(function XiangqiGrid({ script }: { script: Script }) {
   const x = (c: number) => M + c * C;
   const y = (r: number) => M + r * C;
@@ -97,7 +94,6 @@ export const XiangqiGrid = memo(function XiangqiGrid({ script }: { script: Scrip
       <text className={`xq-river ${script === "han" ? "is-han" : ""}`} x={x(6)} y={mid} dy="0.35em">
         {script === "han" ? "漢 界" : "Hán Giới"}
       </text>
-      {/* Số cột: phía trên theo bên ở trên, phía dưới theo bên ở dưới (đều đếm từ phải sang trái của người đó). */}
       {Array.from({ length: COLS }, (_, c) => (
         <g key={`n${c}`} className="xq-file">
           <text x={x(c)} y={11}>
@@ -112,10 +108,6 @@ export const XiangqiGrid = memo(function XiangqiGrid({ script }: { script: Scrip
   );
 });
 
-/**
- * Bàn cờ tướng SVG. Bấm quân mình để chọn (hiện các nước đi được), bấm điểm đích để đi. Quân trượt tới chỗ mới nhờ giữ
- * khoá theo mã quân. Bên Đen thì bàn lật lại để quân mình luôn ở dưới.
- */
 export function XiangqiBoard({
   state,
   canPlay,
@@ -132,7 +124,6 @@ export function XiangqiBoard({
   onMove: (from: number, to: number) => void;
 }) {
   const [picked, setPicked] = useState<{ at: number; count: number } | null>(null);
-  // Lựa chọn chỉ còn hiệu lực trong nước hiện tại.
   const sel = canPlay && picked && picked.count === state.count && sideOf(state.board[picked.at]) === mySide ? picked.at : -1;
   const targets = sel >= 0 ? state.legal.filter(([f]) => f === sel).map(([, t]) => t) : [];
   const movable = new Set(canPlay ? state.legal.map(([f]) => f) : []);

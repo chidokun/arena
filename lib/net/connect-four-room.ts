@@ -1,8 +1,3 @@
-/**
- * Phòng thả cờ 4: hai ghế, hai người chơi lần lượt nối số cột vào nhật ký `g:<ván>`; ai cũng tự dựng lại ván
- * bằng `replay` nên không cần ai "phán" thắng thua. Người đi trước (quân Đỏ) đổi mỗi ván.
- * Người chơi mất kết nối quá lâu giữa ván bị xử thua.
- */
 import { replay, type C4State, type Move } from "../games/connect-four";
 import { RoomSession, type Meta, type Result, type SeatView } from "./room";
 
@@ -11,7 +6,6 @@ const FORFEIT_MS = 30000;
 export type C4Match = {
   round: number;
   state: C4State;
-  /** lineup[0] cầm quân Đỏ đi trước, lineup[1] cầm quân Vàng. */
   lineup: SeatView[];
   myMark: 0 | 1 | 2;
   myTurn: boolean;
@@ -19,9 +13,7 @@ export type C4Match = {
 };
 
 export type C4View = {
-  /** Ván hiện tại hoặc vừa xong; undefined khi chưa đấu ván nào. */
   match?: C4Match;
-  /** Số ván thắng của từng người, cộng dồn trong phòng. */
   wins: Record<string, number>;
   draws: number;
 };
@@ -49,12 +41,11 @@ export class ConnectFourRoom extends RoomSession<C4View> {
 
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
-    // Luân phiên người đi trước giữa các ván.
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
     return true;
   }
 
-  /** Chủ phòng cộng kết quả ván vừa xong vào bảng thắng (mọi đường kết thúc ván đều đi qua đây). */
+  // Cộng bảng thắng ở đây vì mọi đường kết thúc ván đều đi qua `tidy`.
   protected tidy(m: Meta) {
     if (m.status !== "ended" || !m.result || m.result.round <= (m.scored ?? 0)) return;
     m.scored = m.result.round;
@@ -66,7 +57,6 @@ export class ConnectFourRoom extends RoomSession<C4View> {
     return this.gameOf(m).result;
   }
 
-  /** Người chơi rớt mạng quá lâu giữa ván thì xử thua. */
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
     if (!gone) return;
