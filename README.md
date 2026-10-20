@@ -22,10 +22,15 @@ Mã phòng nằm ở query string vì site tĩnh không sinh trước được t
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, cờ vua, thả cờ 4, bắn tàu, vẽ đoán, cò chẹp, dò mìn chiến thuật, nối thú kawaii, trúc xanh, dò mìn cổ điển, cờ lật, cờ chó (node --test)
+npm test        # unit test gossip + lưới sảnh + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, cờ vua, thả cờ 4, bắn tàu, vẽ đoán, cò chẹp, dò mìn chiến thuật, nối thú kawaii, trúc xanh, dò mìn cổ điển, cờ lật, cờ chó (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```
+
+**Lưới kết nối.** Trong phòng mọi máy nối trực tiếp với nhau. Ở sảnh mỗi máy chỉ nối 5–8 máy (`lib/net/mesh.ts`), tin
+tức đi tiếp qua gossip. Việc này cần Trystero cho ứng dụng từ chối bắt tay (`admit`) và cắt một peer (`dropPeer`), nên
+Trystero được ghim đúng phiên bản và vá bằng patch-package (`patches/`, chạy lại sau mỗi `npm install`). Nâng Trystero thì
+phải sửa lại hai chỗ đó trong `node_modules/@trystero-p2p/core` rồi chạy `npx patch-package @trystero-p2p/core`.
 
 **Chống gian lận.** Người chơi mở công cụ nhà phát triển (DevTools) giữa ván bị xử thua ngay và cả phòng nhận thông
 báo (`lib/devtools.ts`, `z:<ván>:<uid>` trong `lib/net/room.ts`). Chỉ bật ở bản build; muốn thử khi `npm run dev` thì đặt

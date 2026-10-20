@@ -1,0 +1,44 @@
+diff --git a/node_modules/@trystero-p2p/core/dist/room.mjs b/node_modules/@trystero-p2p/core/dist/room.mjs
+index 7f1b29b..acf79f7 100644
+--- a/node_modules/@trystero-p2p/core/dist/room.mjs
++++ b/node_modules/@trystero-p2p/core/dist/room.mjs
+@@ -200,6 +200,7 @@ var room_default = (onPeer, onPeerLeave, onSelfLeave, { onPeerHandshake, onHands
+ 			return Date.now() - start;
+ 		},
+ 		isPassive: () => isPassive,
++		dropPeer: (id) => kickPeer(id, void 0, mkErr("peer dropped")),
+ 		getPeers: () => fromEntries(entries(activePeerMap).map(([id, peer]) => [id, peer.connection])),
+ 		addStream: (stream, options = {}) => mediaManager.addStream(stream, options, streamMetaAction.send),
+ 		removeStream: (stream, options = {}) => {
+diff --git a/node_modules/@trystero-p2p/core/dist/signal-handler.mjs b/node_modules/@trystero-p2p/core/dist/signal-handler.mjs
+index 9b51f90..d62d95e 100644
+--- a/node_modules/@trystero-p2p/core/dist/signal-handler.mjs
++++ b/node_modules/@trystero-p2p/core/dist/signal-handler.mjs
+@@ -476,6 +476,7 @@ const createSignalHandler = (ctx) => (relayId) => async (topic, msg, signalPeer)
+ 		}
+ 	}
+ 	if (ctx.reusePeer(peerId)) return;
++	if (!answer && !candidate && typeof ctx.config.admit === "function" && !(state && (state.connectedPeer || state.answeringPeer || state.offerPeer || state.offerAnswered || state.offerRelays.some(Boolean))) && !ctx.config.admit(peerId)) return;
+ 	if (Boolean(peerId && !offer && !answer && !candidate)) {
+ 		const announcePeerState = getState(ctx.peerStates, peerId);
+ 		const shouldLeadOffer = selfId < peerId;
+diff --git a/node_modules/@trystero-p2p/core/dist/types.d.mts b/node_modules/@trystero-p2p/core/dist/types.d.mts
+index aecd2e8..4a45bb5 100644
+--- a/node_modules/@trystero-p2p/core/dist/types.d.mts
++++ b/node_modules/@trystero-p2p/core/dist/types.d.mts
+@@ -49,6 +49,7 @@ export type BaseRoomConfig = {
+   rtcConfig?: RTCConfiguration;
+   rtcPolyfill?: typeof RTCPeerConnection;
+   turnConfig?: TurnServerConfig[];
++  admit?: (peerId: string) => boolean;
+   _test_only_mdnsHostFallbackToLoopback?: boolean;
+   _test_only_sharedPeerIdleMs?: number;
+ };
+@@ -154,6 +155,7 @@ export type Room = {
+   ping: (id: string) => Promise<number>;
+   leave: () => Promise<void>;
+   isPassive: () => boolean;
++  dropPeer: (peerId: string) => void;
+   getPeers: () => Record<string, RTCPeerConnection>;
+   addStream: (stream: MediaStream, options?: AddMediaOptions) => Promise<void>[];
+   removeStream: (stream: MediaStream, options?: RemoveMediaOptions) => void;

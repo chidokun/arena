@@ -4,11 +4,13 @@ import { Gossip, Liveness } from "./gossip";
 import { CHAT_PERSIST, CHAT_RATE, CHAT_RATE_WINDOW_MS, CHAT_REPLAY, insertMsg, isFresh, RateLimit, readPublicMsg, TEXT_MAX, toPublicWire } from "./chat";
 import type { ChatMsg } from "./room";
 import { ViewStore } from "./view-store";
+import { LOBBY_MESH, type MeshLimit } from "./mesh";
 import { openChannel, Redialer, type Channel } from "./wire";
 
 export type Where = { game?: string; room?: string };
 
-export type LobbyUser = Profile & Where & { uid: string; peer: string; hb: number; left?: boolean };
+// `nb`: peer id của các máy đang nối trực tiếp ở sảnh, để máy khác biết ai còn thiếu kết nối, cạnh nào cắt được (mesh.ts).
+export type LobbyUser = Profile & Where & { uid: string; peer: string; hb: number; nb?: string[]; left?: boolean };
 
 export type RoomAd = {
   id: string;
@@ -39,14 +41,17 @@ export type Invite = {
 export type LobbyView = {
   connected: boolean;
   peers: number;
+  // Giới hạn kết nối trực tiếp ở sảnh (null: không giới hạn).
+  limit: MeshLimit | null;
   unreachable: number;
   users: LobbyUser[];
   rooms: RoomAd[];
 };
 
 const HEARTBEAT_MS = 3000;
-const USER_TIMEOUT_MS = 12000;
-const AD_TIMEOUT_MS = 15000;
+// Sảnh chỉ nối vài máy nên nhịp tim đi qua nhiều peer trung gian, tới nơi không đều; hạn rộng để khỏi chập chờn.
+const USER_TIMEOUT_MS = 20000;
+const AD_TIMEOUT_MS = 25000;
 const PRUNE_AFTER_MS = 60000;
 const CHAT_KEY = "arena:public-chat";
 
@@ -58,6 +63,7 @@ export class Lobby {
   readonly gossip: Gossip;
   private users = new Liveness(USER_TIMEOUT_MS);
   private ads = new Liveness(AD_TIMEOUT_MS);
+  private neighbors = new Map<string, string[]>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private inviteFns = new Set<(i: Invite) => void>();
   private redialer: Redialer;
@@ -69,7 +75,7 @@ export class Lobby {
   readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
 
   static async open(uid: string, profile: Profile) {
-    const channel = await openChannel("lobby");
+    const channel = await openChannel("lobby", LOBBY_MESH);
     return new Lobby(uid, profile, channel);
   }
 
@@ -83,6 +89,7 @@ export class Lobby {
       accept: (e) => !e.k.startsWith("u:") || e.k === `u:${e.w}`,
     });
     this.store = new ViewStore(() => this.compute());
+    channel.useNeighbors((peer) => this.neighbors.get(peer));
     // Ở sảnh không biết trước có ai khác không, nên cứ thử lại thưa dần (15s → 60s) khi đang một mình.
     this.redialer = new Redialer(channel, () => true, 15000, 60000);
     this.gossip.onChange((keys) => {
@@ -120,6 +127,7 @@ export class Lobby {
       setInterval(() => this.beat(false), HEARTBEAT_MS),
       setInterval(() => {
         this.redialer.check();
+        this.channel.trim();
         this.store.invalidate();
       }, 2000),
       setInterval(() => {
@@ -135,6 +143,9 @@ export class Lobby {
     if (k.startsWith("u:")) {
       const u = e.v as LobbyUser;
       this.users.observe(k.slice(2), u.hb, !!u.left);
+      const nb = Array.isArray(u.nb) && !u.left ? u.nb.filter((p): p is string => typeof p === "string").slice(0, 32) : null;
+      if (nb) this.neighbors.set(u.peer, nb);
+      else this.neighbors.delete(u.peer);
     } else if (k.startsWith("r:")) {
       const a = e.v as RoomAd;
       this.ads.observe(k.slice(2), a.hb, !!a.closed);
@@ -142,13 +153,14 @@ export class Lobby {
   }
 
   private beat(eager: boolean) {
-    const me: LobbyUser = { uid: this.uid, peer: this.channel.selfId, hb: Date.now(), ...this.profile, ...this.where };
+    const me: LobbyUser = { uid: this.uid, peer: this.channel.selfId, hb: Date.now(), nb: this.channel.peers(), ...this.profile, ...this.where };
     this.gossip.set(`u:${this.uid}`, me, eager);
   }
 
   private prune() {
     for (const e of this.gossip.scan<LobbyUser>("u:")) {
       if (this.users.silentFor(e.k.slice(2)) > PRUNE_AFTER_MS && e.w !== this.uid) {
+        this.neighbors.delete(e.v.peer);
         this.gossip.prune(e.k);
         this.users.forget(e.k.slice(2));
       }
@@ -172,7 +184,7 @@ export class Lobby {
       .filter((a) => !a.closed && this.ads.alive(a.id))
       .sort((a, b) => Number(a.status === "playing") - Number(b.status === "playing") || b.members - a.members);
     const peers = this.channel.peers().length;
-    return { connected: peers > 0, peers, unreachable: this.channel.unreachable(), users, rooms };
+    return { connected: peers > 0, peers, limit: this.channel.limit, unreachable: this.channel.unreachable(), users, rooms };
   }
 
   private pushChat(msg: ChatMsg) {

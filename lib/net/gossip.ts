@@ -20,7 +20,8 @@ type DeltaMsg = { e: Entry[]; h: number };
 type RumorMsg = Rumor & { h: number; d?: 1 };
 
 const MAX_HOPS = 3;
-const RUMOR_HOPS = 6;
+// Sảnh chỉ nối tối đa vài máy mỗi người (mesh.ts) nên đường đi dài hơn lưới đầy đủ; 8 bước đủ cho cỡ nghìn người.
+const RUMOR_HOPS = 8;
 const SEEN_LIMIT = 2000;
 
 export function isNewer(a: { c: number; w: string }, b?: { c: number; w: string }) {
