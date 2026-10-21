@@ -589,6 +589,19 @@
     }
   }
 
+  /* Màn hình dọc thấp (điện thoại nhỏ): thẻ người chơi trên / dưới bàn nằm ngang (avatar cạnh tên) để bàn còn chỗ.
+     SeatCard xếp dọc bằng class tiện ích (layer utilities luôn thắng layer này) nên cần !important. */
+  @media (orientation: portrait) and (max-height: 760px) {
+    .stage-flank > .card {
+      flex-direction: row !important;
+      gap: 12px !important;
+      text-align: left !important;
+    }
+    .stage-flank .seat-captured {
+      justify-content: flex-start !important;
+    }
+  }
+
   @container stage (min-aspect-ratio: 2 / 1) {
     .stage-body.has-both {
       grid-template: minmax(0, 1fr) / minmax(0, 1fr) auto minmax(0, 1fr);

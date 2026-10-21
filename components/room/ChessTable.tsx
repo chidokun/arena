@@ -4,13 +4,14 @@ import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { emptyState, KING, material, PIECES, type ChessState, type End, type Side } from "@/lib/games/chess";
 import type { Result, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import type { ChessMatch, ChessRoom, ChessView } from "@/lib/net/chess-room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { ChessBoard, ChessPieceIcon } from "./ChessBoard";
 import { Cine, DrawCine, Duel, Eyebrow, Fighter, Party, Stamp, Tip, useEndScene, useMoment, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -136,6 +137,46 @@ const ResultPart = memo(function ResultPart({ session }: { session: ChessRoom })
   return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
 });
 
+// Lúc trình chiếu mỗi bên một thẻ người chơi xếp dọc, ghi luôn số ván thắng và quân đã ăn (không có hàng tỉ số ở giữa).
+const FlankPart = memo(function FlankPart({ session, k }: { session: ChessRoom; k: 0 | 1 }) {
+  const view = useChessView(session);
+  const m = view.meta!;
+  const { match: g, wins } = view.game!;
+  const showGame = showOf(view);
+  const state = showGame ? g!.state : null;
+  const side = (k + 1) as Side;
+  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  const seat = slots[k];
+  const winsOf = (i: number) => (slots[i]?.uid ? (wins[slots[i]!.uid] ?? 0) : 0);
+  const lead = state ? material(state.board) * (k ? -1 : 1) : 0;
+  return (
+    <SeatCard
+      seat={seat}
+      mark={showGame ? side : undefined}
+      badge={showGame ? <SeatPiece v={side === 1 ? KING : -KING} /> : undefined}
+      tone={showGame ? SIDE_TONE[side] : undefined}
+      active={m.status === "playing" && !g?.result && state?.turn === side}
+      isHost={seat?.uid === m.host}
+      me={view.me}
+      align={k ? "right" : "left"}
+      stacked
+      footer={
+        seat ? (
+          <>
+            <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? SIDE_TONE[side] : undefined} />
+            {state && <Captured pieces={state.captured.filter((v) => (k ? v > 0 : v < 0))} lead={lead} align="center" />}
+          </>
+        ) : undefined
+      }
+    />
+  );
+});
+
+const ControlsPart = memo(function ControlsPart({ session }: { session: ChessRoom }) {
+  const view = useChessView(session);
+  return <Buttons view={view} session={session} />;
+});
+
 const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
   const view = useChessView(session);
   const m = view.meta!;
@@ -149,12 +190,18 @@ const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
   const inLineup = !!g && g.mySide > 0;
   const flip = showGame && g!.mySide === 2;
   const onMove = useCallback((from: number, to: number, promo?: number) => session.move(from, to, promo), [session]);
+  const staged = useStaged();
 
   return (
     <>
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_210px]">
-        <div className="relative">
-          <div ref={boardRef} className="card mx-auto max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
+        <StageArea
+          className="relative"
+          fit="w-[min(100cqw,100cqh)]"
+          flanks={[<FlankPart key={0} session={session} k={0} />, <FlankPart key={1} session={session} k={1} />]}
+          tools={<ControlsPart session={session} />}
+        >
+          <div ref={boardRef} className={`card overflow-hidden p-1.5 sm:p-2.5 ${staged ? "" : "mx-auto max-w-[600px]"}`}>
             <ChessBoard
               key={`${g?.round ?? 0}:${flip}`}
               state={state}
@@ -171,7 +218,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: ChessRoom }) {
             </div>
           )}
           {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-        </div>
+        </StageArea>
         <MoveList state={state} />
       </div>
       {!seated && !inLineup && <SpectatorNote />}
@@ -244,10 +291,13 @@ function EndScene({ match: g, me, onClose }: { match: ChessMatch; me: string; on
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <ChessPieceIcon v={side === 1 ? KING : -KING} size={40} />, plainBadge: true }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-function Captured({ pieces, lead, align = "left" }: { pieces: number[]; lead: number; align?: "left" | "right" }) {
+function Captured({ pieces, lead, align = "left" }: { pieces: number[]; lead: number; align?: "left" | "right" | "center" }) {
   const order = [...pieces].sort((a, b) => PIECES[Math.abs(b)].value - PIECES[Math.abs(a)].value || Math.abs(b) - Math.abs(a));
   return (
-    <div className={`flex min-h-[26px] min-w-0 flex-1 flex-wrap items-center gap-0 ${align === "right" ? "flex-row-reverse" : ""}`} aria-label={`Đã ăn ${pieces.length} quân`}>
+    <div
+      className={`flex min-h-[26px] min-w-0 flex-1 flex-wrap items-center gap-0 ${align === "right" ? "flex-row-reverse" : align === "center" ? "seat-captured mt-2 justify-center" : ""}`}
+      aria-label={`Đã ăn ${pieces.length} quân`}
+    >
       {order.map((v, i) => (
         <ChessPieceIcon key={i} v={v} size={24} className="-mx-[3px]" />
       ))}
@@ -320,16 +370,32 @@ function ActionBar({ view, session }: { view: View; session: ChessRoom }) {
     }
     return (
       <StatusBar tone={tone} message={message}>
-        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
-          🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
-        </button>
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: ChessRoom }) {
+  const g = view.game?.match;
+  if (view.meta!.status === "playing" && g && !g.result) {
+    if (!g.mySide) return null;
+    const theyOffer = g.offers.includes((3 - g.mySide) as Side);
+    const iOffer = g.offers.includes(g.mySide);
+    return (
+      <>
+        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
+          🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
+        </button>
+        <ResignButton onConfirm={() => session.resign()} />
+      </>
+    );
+  }
+  return <SeatButtons view={view} session={session} />;
 }

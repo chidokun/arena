@@ -4,12 +4,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emptyState, type End, type Side, type XqState } from "@/lib/games/xiangqi";
 import type { Result, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import type { XiangqiRoom, XqMatch, XqView } from "@/lib/net/xiangqi-room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { Cine, DrawCine, Duel, Eyebrow, Fighter, Party, Stamp, Tip, useEndScene, useMoment, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 import { PieceIcon, XiangqiBoard, type Script } from "./XiangqiBoard";
@@ -30,6 +31,9 @@ const CONFETTI = ["🎉", "🏆", "✨", "🎊", "🧧", "⭐"];
 
 const INTRO_MS = 4200;
 const CHECK_MS = 1500;
+// Bàn 9×10 (392×432) cộng 24px viền khung (p-2.5 + viền 2px): lúc trình chiếu bàn rộng tối đa sao cho cả khung vừa chiều cao.
+const BOARD_W = "(100cqh - 24px) * 0.907 + 24px";
+const BOARD_FIT = "w-[min(100cqw,(100cqh_-_24px)*0.907_+_24px)]";
 
 function reasonOf(r: Result, end: End | null) {
   switch (r.reason) {
@@ -168,6 +172,45 @@ const ResultPart = memo(function ResultPart({ session }: { session: XiangqiRoom 
   return ended && g?.result ? <DuelResult round={g.round} summary={summary(g, me)} me={me} /> : null;
 });
 
+// Lúc trình chiếu mỗi bên một thẻ người chơi xếp dọc, ghi luôn số ván thắng và quân đã ăn (không có hàng tỉ số ở giữa).
+const FlankPart = memo(function FlankPart({ session, script, k }: { session: XiangqiRoom; script: Script; k: 0 | 1 }) {
+  const view = useXqView(session);
+  const m = view.meta!;
+  const { match: g, wins } = view.game!;
+  const showGame = showOf(view);
+  const state = showGame ? g!.state : null;
+  const side = (k + 1) as Side;
+  const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  const seat = slots[k];
+  const winsOf = (i: number) => (slots[i]?.uid ? (wins[slots[i]!.uid] ?? 0) : 0);
+  return (
+    <SeatCard
+      seat={seat}
+      mark={showGame ? side : undefined}
+      badge={showGame ? SIDE_NAME[side] : undefined}
+      tone={showGame ? SIDE_TONE[side] : undefined}
+      active={m.status === "playing" && !g?.result && (state?.turn ?? 1) === side}
+      isHost={seat?.uid === m.host}
+      me={view.me}
+      align={k ? "right" : "left"}
+      stacked
+      footer={
+        seat ? (
+          <>
+            <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? SIDE_TONE[side] : undefined} />
+            {state && <Captured pieces={state.captured.filter((v) => (k ? v > 0 : v < 0))} script={script} align="center" />}
+          </>
+        ) : undefined
+      }
+    />
+  );
+});
+
+const ControlsPart = memo(function ControlsPart({ session }: { session: XiangqiRoom }) {
+  const view = useXqView(session);
+  return <Buttons view={view} session={session} />;
+});
+
 const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiRoom; script: Script }) {
   const view = useXqView(session);
   const m = view.meta!;
@@ -181,12 +224,19 @@ const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiR
   const inLineup = !!g && g.mySide > 0;
   const flip = showGame && g!.mySide === 2;
   const onMove = useCallback((from: number, to: number) => session.move(from, to), [session]);
+  const staged = useStaged();
 
   return (
     <>
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_210px]">
-        <div className="relative">
-          <div ref={boardRef} className="card mx-auto max-w-[600px] overflow-hidden p-1.5 sm:p-2.5">
+        <StageArea
+          className="relative"
+          fit={BOARD_FIT}
+          center={BOARD_W}
+          flanks={[<FlankPart key={0} session={session} script={script} k={0} />, <FlankPart key={1} session={session} script={script} k={1} />]}
+          tools={<ControlsPart session={session} />}
+        >
+          <div ref={boardRef} className={`card overflow-hidden ${staged ? "p-2.5" : "mx-auto max-w-[600px] p-1.5 sm:p-2.5"}`}>
             <XiangqiBoard
               key={`${g?.round ?? 0}:${flip}`}
               state={state}
@@ -204,7 +254,7 @@ const PlayPart = memo(function PlayPart({ session, script }: { session: XiangqiR
             </div>
           )}
           {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-        </div>
+        </StageArea>
         <MoveList state={state} />
       </div>
       {!seated && !inLineup && <SpectatorNote />}
@@ -275,10 +325,13 @@ function EndScene({ match: g, me, script, onClose }: { match: XqMatch; me: strin
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <PieceIcon v={side === 1 ? 1 : -1} script={script} size={40} />, plainBadge: true }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-function Captured({ pieces, script, align = "left" }: { pieces: number[]; script: Script; align?: "left" | "right" }) {
+function Captured({ pieces, script, align = "left" }: { pieces: number[]; script: Script; align?: "left" | "right" | "center" }) {
   const order = [...pieces].sort((a, b) => Math.abs(b) - Math.abs(a) || 0);
   return (
-    <div className={`flex min-h-[26px] min-w-0 flex-1 flex-wrap gap-0.5 ${align === "right" ? "justify-end" : ""}`} aria-label={`Đã ăn ${pieces.length} quân`}>
+    <div
+      className={`flex min-h-[26px] min-w-0 flex-1 flex-wrap gap-0.5 ${align === "right" ? "justify-end" : align === "center" ? "seat-captured mt-2 justify-center" : ""}`}
+      aria-label={`Đã ăn ${pieces.length} quân`}
+    >
       {order.map((v, i) => (
         <PieceIcon key={i} v={v} script={script} size={24} />
       ))}
@@ -350,16 +403,32 @@ function ActionBar({ view, session }: { view: View; session: XiangqiRoom }) {
     }
     return (
       <StatusBar tone={tone} message={message}>
-        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
-          🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
-        </button>
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: XiangqiRoom }) {
+  const g = view.game?.match;
+  if (view.meta!.status === "playing" && g && !g.result) {
+    if (!g.mySide) return null;
+    const theyOffer = g.offers.includes((3 - g.mySide) as Side);
+    const iOffer = g.offers.includes(g.mySide);
+    return (
+      <>
+        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
+          🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
+        </button>
+        <ResignButton onConfirm={() => session.resign()} />
+      </>
+    );
+  }
+  return <SeatButtons view={view} session={session} />;
 }

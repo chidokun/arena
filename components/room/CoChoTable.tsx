@@ -4,13 +4,14 @@ import { memo, useMemo, useRef } from "react";
 import { emptyState, REPEAT_DRAW, SETUP_NAME, SETUPS } from "@/lib/games/co-cho";
 import type { CoChoMatch, CoChoRoom, CoChoView } from "@/lib/net/co-cho-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CD_NAME, CD_TONE, Cap, CoChoBoard, SLIDE_MS } from "./CoChoBoard";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -53,7 +54,9 @@ const CoChoBody = memo(function CoChoBody({ session }: { session: CoChoRoom }) {
   const inLineup = !!g && g.myMark > 0;
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
-  const seatCard = (k: 0 | 1) => {
+  const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
+  // Lúc trình chiếu (`stacked`) không có ô tỉ số ở giữa, nên mỗi thẻ tự ghi số ván thắng của mình.
+  const seatCard = (k: 0 | 1, stacked?: boolean) => {
     const v = (k + 1) as 1 | 2;
     return (
       <SeatCard
@@ -65,6 +68,8 @@ const CoChoBody = memo(function CoChoBody({ session }: { session: CoChoRoom }) {
         isHost={slots[k]?.uid === m.host}
         me={view.me}
         align={k === 1 ? "right" : "left"}
+        stacked={stacked}
+        footer={stacked && slots[k] ? <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? CD_TONE[v] : undefined} /> : undefined}
       />
     );
   };
@@ -87,13 +92,18 @@ const CoChoBody = memo(function CoChoBody({ session }: { session: CoChoRoom }) {
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div className="relative mx-auto mt-4 max-w-[460px]">
+      <StageArea
+        className="relative mx-auto mt-4 max-w-[460px]"
+        fit="w-[min(100cqw,100cqh)]"
+        flanks={[seatCard(0, true), seatCard(1, true)]}
+        tools={<Buttons view={view} session={session} />}
+      >
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CoChoBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onMove={(from) => session.move(from)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-      </div>
+      </StageArea>
       {!seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
@@ -152,7 +162,6 @@ function EndScene({ match: g, me, onClose }: { match: CoChoMatch; me: string; on
 function ActionBar({ view, session }: { view: View; session: CoChoRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
-  const setup = view.game!.setup;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");
 
   if (m.status === "playing" && g) {
@@ -188,12 +197,24 @@ function ActionBar({ view, session }: { view: View; session: CoChoRoom }) {
           )
         }
       >
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
+      <Buttons view={view} session={session} />
+    </StatusBar>
+  );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: CoChoRoom }) {
+  const g = view.game?.match;
+  const setup = view.game!.setup;
+  if (view.meta!.status === "playing" && g) return g.myMark ? <ResignButton onConfirm={() => session.resign()} /> : null;
+  return (
+    <>
       {view.isHost && (
         <div className="flex gap-1" role="group" aria-label="Cách xếp quân cho ván tới">
           {SETUPS.map((s) => (
@@ -204,6 +225,6 @@ function ActionBar({ view, session }: { view: View; session: CoChoRoom }) {
         </div>
       )}
       <SeatButtons view={view} session={session} />
-    </StatusBar>
+    </>
   );
 }
