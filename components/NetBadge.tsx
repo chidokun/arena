@@ -15,8 +15,6 @@ export function NetBadge() {
   const { lobby } = useNet();
   const view = useLobbyView();
   const online = view.users.length;
-  // Sảnh chỉ cần vài kết nối: đã đủ mức mềm thì máy không nối được cũng không ảnh hưởng gì, khỏi báo.
-  const starved = !view.limit || view.peers < view.limit.soft;
   return (
     <span className="group relative inline-flex">
       <span
@@ -37,12 +35,6 @@ export function NetBadge() {
             <span className="hidden sm:inline">{lobby ? "Đang tìm người chơi…" : "Đang khởi động…"}</span>
             <span className="sm:hidden">{lobby ? "Đang tìm…" : "Khởi động…"}</span>
           </>
-        )}
-        {view.unreachable > 0 && starved && (
-          <span className="text-ink-3">
-            · {view.unreachable}
-            <span className="hidden sm:inline"> máy bị</span> chặn
-          </span>
         )}
       </span>
       {/* Chỉ hiện khi rê chuột (biến thể hover của Tailwind đã bỏ qua máy cảm ứng) và màn hình đủ rộng. */}
