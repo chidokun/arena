@@ -4,13 +4,14 @@ import { memo, useMemo, useRef } from "react";
 import { emptyState, SIZES } from "@/lib/games/dots-boxes";
 import type { DotsBoxesRoom, DotsMatch, DotsView } from "@/lib/net/dots-boxes-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { boardMaxWidth, DB_NAME, DB_TONE, DotsBoxesBoard } from "./DotsBoxesBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -52,10 +53,13 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
   const playing = m.status === "playing";
   const seated = view.mySeat >= 0;
   const inLineup = !!g && g.myMark > 0;
+  const staged = useStaged();
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   const marks = { 1: slots[0]?.member?.avatar, 2: slots[1]?.member?.avatar };
-  const seatCard = (k: 0 | 1) => {
+  const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
+  // Lúc trình chiếu (`stacked`) không có ô tỉ số ở giữa, nên mỗi thẻ tự ghi số ván thắng của mình.
+  const seatCard = (k: 0 | 1, stacked?: boolean) => {
     const v = (k + 1) as 1 | 2;
     return (
       <SeatCard
@@ -67,6 +71,8 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
         isHost={slots[k]?.uid === m.host}
         me={view.me}
         align={k === 1 ? "right" : "left"}
+        stacked={stacked}
+        footer={stacked && slots[k] ? <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? DB_TONE[v] : undefined} /> : undefined}
       />
     );
   };
@@ -88,13 +94,21 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div className="relative mx-auto mt-4" style={{ maxWidth: boardMaxWidth(state.size) }}>
-        <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
-          <DotsBoxesBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} marks={marks} onDraw={(line) => session.draw(line)} />
+      {/* Lúc trình chiếu bỏ giới hạn bề ngang (vốn để chấm, nét ở bàn nhỏ không to quá cỡ): bàn lấp ô giữa cho người xem ở xa. */}
+      <StageArea
+        className="mt-4"
+        fit="w-[min(100cqw,100cqh)]"
+        flanks={[seatCard(0, true), seatCard(1, true)]}
+        tools={<Buttons view={view} session={session} />}
+      >
+        <div className="relative mx-auto" style={staged ? undefined : { maxWidth: boardMaxWidth(state.size) }}>
+          <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
+            <DotsBoxesBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} marks={marks} onDraw={(line) => session.draw(line)} />
+          </div>
+          <Flyers flyers={flyers} />
+          {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
         </div>
-        <Flyers flyers={flyers} />
-        {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-      </div>
+      </StageArea>
       {!seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
@@ -150,7 +164,6 @@ function EndScene({ match: g, me, onClose }: { match: DotsMatch; me: string; onC
 function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
   const m = view.meta!;
   const g = view.game?.match;
-  const size = view.game!.size;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");
 
   if (m.status === "playing" && g) {
@@ -185,12 +198,24 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
           )
         }
       >
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
+      <Buttons view={view} session={session} />
+    </StatusBar>
+  );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: DotsBoxesRoom }) {
+  const g = view.game?.match;
+  const size = view.game!.size;
+  if (view.meta!.status === "playing" && g) return g.myMark ? <ResignButton onConfirm={() => session.resign()} /> : null;
+  return (
+    <>
       {view.isHost && (
         <div className="flex gap-1" role="group" aria-label="Cỡ bàn cho ván tới">
           {SIZES.map((s) => (
@@ -201,6 +226,6 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
         </div>
       )}
       <SeatButtons view={view} session={session} />
-    </StatusBar>
+    </>
   );
 }

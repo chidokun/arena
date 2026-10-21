@@ -3057,8 +3057,42 @@
       white-space: nowrap;
     }
   }
-  /* Màn hình dọc: đồng hồ ghép vào đầu bảng điểm, người chơi xếp một hàng cuộn ngang. */
+  /* Nối Thú trên màn hình ngang không quá rộng mà đủ cao (JS chọn, class `kw-stack`): bảng điểm lên trên, hàng nút xuống
+     dưới như màn hình dọc để bàn chữ nhật rộng hơn. */
+  .stage-body.has-flanks:has(.kw-stack) {
+    grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
+    gap: 12px;
+  }
+  .stage-body.has-flanks:has(.kw-stack) .stage-cell {
+    width: 100%;
+  }
+  .stage-body:has(.kw-stack) > .stage-flank {
+    justify-self: center;
+    width: min(100%, 960px);
+  }
+  .stage-body:has(.kw-stack) .sd-flank {
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .stage-body:has(.kw-stack) .sd-score-list {
+    display: flex;
+    gap: 16px;
+    margin-inline: -4px;
+    padding: 0 4px 4px;
+    overflow: auto hidden;
+  }
+  .stage-body:has(.kw-stack) .sd-score-list > li {
+    flex: none;
+    width: 150px;
+  }
+  /* Màn hình dọc: đồng hồ ghép vào đầu bảng điểm, người chơi xếp một hàng cuộn ngang. Bàn Nối Thú chữ nhật (đã xoay
+     dọc) nên ô giữa lấy hết phần còn lại thay vì vuông theo bề ngang. */
   @media (orientation: portrait) {
+    .stage-body.has-flanks:has(.kw-board) {
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
     .sd-clock {
       display: none;
     }

@@ -4,13 +4,14 @@ import { memo, useMemo, useRef } from "react";
 import { emptyState } from "@/lib/games/reversi";
 import type { ReversiMatch, ReversiRoom, ReversiView } from "@/lib/net/reversi-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { FACE, ReversiBoard, RV_NAME, RV_TONE, settleMs } from "./ReversiBoard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -53,7 +54,9 @@ const ReversiBody = memo(function ReversiBody({ session }: { session: ReversiRoo
   const inLineup = !!g && g.myMark > 0;
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
-  const seatCard = (k: 0 | 1) => {
+  const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
+  // Lúc trình chiếu (`stacked`) không có ô tỉ số ở giữa, nên mỗi thẻ tự ghi số ván thắng của mình.
+  const seatCard = (k: 0 | 1, stacked?: boolean) => {
     const v = (k + 1) as 1 | 2;
     return (
       <SeatCard
@@ -65,6 +68,8 @@ const ReversiBody = memo(function ReversiBody({ session }: { session: ReversiRoo
         isHost={slots[k]?.uid === m.host}
         me={view.me}
         align={k === 1 ? "right" : "left"}
+        stacked={stacked}
+        footer={stacked && slots[k] ? <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? RV_TONE[v] : undefined} /> : undefined}
       />
     );
   };
@@ -84,13 +89,18 @@ const ReversiBody = memo(function ReversiBody({ session }: { session: ReversiRoo
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div className="relative mx-auto mt-4 max-w-[560px]">
+      <StageArea
+        className="relative mx-auto mt-4 max-w-[560px]"
+        fit="w-[min(100cqw,100cqh)]"
+        flanks={[seatCard(0, true), seatCard(1, true)]}
+        tools={<Buttons view={view} session={session} />}
+      >
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <ReversiBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlace={(cell) => session.place(cell)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-      </div>
+      </StageArea>
       {!seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
@@ -178,13 +188,20 @@ function ActionBar({ view, session }: { view: View; session: ReversiRoom }) {
           )
         }
       >
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: ReversiRoom }) {
+  const g = view.game?.match;
+  if (view.meta!.status === "playing" && g) return g.myMark ? <ResignButton onConfirm={() => session.resign()} /> : null;
+  return <SeatButtons view={view} session={session} />;
 }

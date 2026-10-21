@@ -4,13 +4,14 @@ import { memo, useMemo, useRef } from "react";
 import { emptyState } from "@/lib/games/connect-four";
 import type { C4Match, ConnectFourRoom, C4View } from "@/lib/net/connect-four-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
-import { Score } from "./CaroTable";
+import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { C4_NAME, C4_TONE, ConnectFourBoard } from "./ConnectFourBoard";
 import { PeoplePanel, SeatCard } from "./People";
 import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -54,6 +55,25 @@ const ConnectFourBody = memo(function ConnectFourBody({ session }: { session: Co
   const inLineup = !!g && g.myMark > 0;
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
+  const winsOf = (k: number) => (slots[k]?.uid ? (wins[slots[k]!.uid] ?? 0) : 0);
+  // Lúc trình chiếu (`stacked`) không có ô tỉ số ở giữa, nên mỗi thẻ tự ghi số ván thắng của mình.
+  const seatCard = (k: 0 | 1, stacked?: boolean) => {
+    const v = (k + 1) as 1 | 2;
+    return (
+      <SeatCard
+        seat={slots[k]}
+        mark={showGame ? v : undefined}
+        badge={showGame ? "●" : undefined}
+        tone={showGame ? C4_TONE[v] : undefined}
+        active={playing && state.turn === v}
+        isHost={slots[k]?.uid === m.host}
+        me={view.me}
+        align={k === 1 ? "right" : "left"}
+        stacked={stacked}
+        footer={stacked && slots[k] ? <Wins n={winsOf(k)} color={winsOf(k) > winsOf(1 - k) ? C4_TONE[v] : undefined} /> : undefined}
+      />
+    );
+  };
 
   return (
     <>
@@ -62,38 +82,26 @@ const ConnectFourBody = memo(function ConnectFourBody({ session }: { session: Co
       </RoomHeader>
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
-        <SeatCard
-          seat={slots[0]}
-          mark={showGame ? 1 : undefined}
-          badge={showGame ? "●" : undefined}
-          tone={showGame ? C4_TONE[1] : undefined}
-          active={playing && state.turn === 1}
-          isHost={slots[0]?.uid === m.host}
-          me={view.me}
-        />
+        {seatCard(0)}
         <Score left={slots[0]?.uid} right={slots[1]?.uid} wins={wins} draws={draws} played={m.scored ?? 0} />
-        <SeatCard
-          seat={slots[1]}
-          mark={showGame ? 2 : undefined}
-          badge={showGame ? "●" : undefined}
-          tone={showGame ? C4_TONE[2] : undefined}
-          active={playing && state.turn === 2}
-          isHost={slots[1]?.uid === m.host}
-          me={view.me}
-          align="right"
-        />
+        {seatCard(1)}
       </div>
 
       <ActionBar view={view} session={session} />
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
-      <div className="relative mx-auto mt-4 max-w-[560px]">
+      <StageArea
+        className="relative mx-auto mt-4 max-w-[560px]"
+        fit="w-[min(100cqw,100cqh)]"
+        flanks={[seatCard(0, true), seatCard(1, true)]}
+        tools={<Buttons view={view} session={session} />}
+      >
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <ConnectFourBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onDrop={(col) => session.drop(col)} />
         </div>
         <Flyers flyers={flyers} />
         {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
-      </div>
+      </StageArea>
       {!seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
@@ -174,13 +182,20 @@ function ActionBar({ view, session }: { view: View; session: ConnectFourRoom }) 
           )
         }
       >
-        <ResignButton onConfirm={() => session.resign()} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
   return (
     <StatusBar message={seatMessage(view)}>
-      <SeatButtons view={view} session={session} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: ConnectFourRoom }) {
+  const g = view.game?.match;
+  if (view.meta!.status === "playing" && g) return g.myMark ? <ResignButton onConfirm={() => session.resign()} /> : null;
+  return <SeatButtons view={view} session={session} />;
 }

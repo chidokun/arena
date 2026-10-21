@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { clock, COUNTDOWN_MS, HINT_COST, HINT_LOCK_MS, kindsOf, MODE_KEYS, MODES, PAIR_POINTS, SIZE_KEYS, SIZES, TILES, type Point } from "@/lib/games/kawaii";
 import type { KawaiiRoom, KwMatch, KwView } from "@/lib/net/kawaii-room";
 import type { RoomView } from "@/lib/net/room";
@@ -14,7 +15,9 @@ import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
+import { Roster } from "./SudokuTable";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<KwView>, "chat">;
@@ -60,18 +63,49 @@ function useReached(at: number | undefined) {
 }
 
 const NARROW = "(max-width: 639px)";
-const subscribeNarrow = (f: () => void) => {
-  const q = matchMedia(NARROW);
+const PORTRAIT = "(orientation: portrait)";
+const subscribeTo = (query: string) => (f: () => void) => {
+  const q = matchMedia(query);
   q.addEventListener("change", f);
   return () => q.removeEventListener("change", f);
 };
-// Màn hẹp thì xoay bàn dọc cho ô to hơn.
-const useNarrow = () =>
-  useSyncExternalStore(
-    subscribeNarrow,
-    () => matchMedia(NARROW).matches,
-    () => false,
-  );
+const subscribeNarrow = subscribeTo(NARROW);
+const subscribePortrait = subscribeTo(PORTRAIT);
+const useNarrow = () => useSyncExternalStore(subscribeNarrow, () => matchMedia(NARROW).matches, () => false);
+const usePortrait = () => useSyncExternalStore(subscribePortrait, () => matchMedia(PORTRAIT).matches, () => false);
+
+const subscribeResize = (f: () => void) => {
+  addEventListener("resize", f);
+  return () => removeEventListener("resize", f);
+};
+const viewportOf = () => `${innerWidth}x${innerHeight}`;
+
+// Các số khớp với `.stage` (globals.css): lề 16px hai bên, 60px trên + 32px dưới, mạn bên clamp(150px, 22%, 280px).
+// STACK_CHROME ước lượng bảng điểm (một hàng) + hàng nút + khoảng cách khi xếp trên / dưới bàn.
+const STACK_CHROME = 190;
+
+// Lúc trình chiếu trên màn hình ngang, bàn chữ nhật kẹp giữa hai mạn bên bị bó bề ngang. Chọn cách xếp cho bàn to hơn:
+// màn hình không quá rộng mà đủ cao thì bảng điểm lên trên, hàng nút xuống dưới (class `kw-stack`, globals.css).
+function useStacked(staged: boolean, ratio: number) {
+  const size = useSyncExternalStore(subscribeResize, viewportOf, () => "0x0");
+  if (!staged) return false;
+  const [vw, vh] = size.split("x").map(Number);
+  if (vw <= vh) return false;
+  const w = vw - 32;
+  const h = vh - 92;
+  const flank = Math.min(280, Math.max(150, 0.22 * w));
+  const side = Math.min(w - 2 * (flank + 16), h * ratio);
+  const stack = Math.min(w, (h - STACK_CHROME) * ratio);
+  return stack > side;
+}
+
+// Bàn ngang mà khung dọc thì xoay bàn cho ô to hơn: màn hẹp, hoặc lúc trình chiếu thì theo hướng màn hình.
+function useTurned(w: number, h: number) {
+  const staged = useStaged();
+  const narrow = useNarrow();
+  const portrait = usePortrait();
+  return w > h && (staged ? portrait : narrow);
+}
 
 const isLive = (view: View) => view.meta!.status === "playing" && view.game?.match?.round === view.meta!.round;
 
@@ -116,6 +150,15 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
   const [pick, setPick] = useState({ round: 0, k: -1 });
   const watched = g ? watchedOf(g, pick.round === g.round ? pick.k : -1) : -1;
   const onPick = g ? (k: number) => setPick({ round: g.round, k }) : undefined;
+  // Lúc trình chiếu bàn lấp ô giữa theo đúng tỉ lệ (kể cả vành ngoài); bảng điểm sang một bên, hàng nút sang bên kia
+  // (màn hình dọc: trên / dưới). Hàng nút nằm trong <Play> (dùng chung ô đang chọn, gợi ý…) nên đưa sang qua portal.
+  const staged = useStaged();
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const shape = SIZES[g ? g.size : opts.size];
+  const turned = useTurned(shape.w, shape.h);
+  const [cols, rows] = turned ? [shape.h, shape.w] : [shape.w, shape.h];
+  const ratio = (cols + 2) / (rows + 2);
+  const stacked = useStacked(staged, ratio);
 
   return (
     <>
@@ -133,11 +176,27 @@ const KawaiiBody = memo(function KawaiiBody({ session }: { session: KawaiiRoom }
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
-      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        {g ? <Play key={g.round} view={view} session={session} match={g} watched={watched} /> : <EmptyBoard view={view} />}
-        {g && <Scoreboard view={view} match={g} watched={watched} onPick={onPick} />}
-        <Flyers flyers={flyers} />
-      </div>
+      <StageArea
+        fit="w-[min(100cqw,var(--stage-center))]"
+        center={`100cqh * ${ratio}`}
+        flanks={[
+          <div key="a" className="sd-flank">
+            {g ? <Scoreboard view={view} match={g} watched={watched} onPick={onPick} staged /> : <Roster view={view} />}
+          </div>,
+          <div key="b" ref={setSlot} className="sd-flank" />,
+        ]}
+        tools={<Buttons view={view} session={session} />}
+      >
+        <div ref={areaRef} className={staged ? `relative ${stacked ? "kw-stack" : ""}` : "relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]"}>
+          {g ? (
+            <Play key={g.round} view={view} session={session} match={g} watched={watched} turned={turned} slot={slot} />
+          ) : (
+            <EmptyBoard view={view} turned={turned} slot={slot} />
+          )}
+          {g && !staged && <Scoreboard view={view} match={g} watched={watched} onPick={onPick} />}
+          <Flyers flyers={flyers} />
+        </div>
+      </StageArea>
 
       {g && <Cinema match={g} count={count} win={end.shown} onClose={end.close} />}
       <Party bits={end.party} />
@@ -254,11 +313,10 @@ function ActionBar({ view, session }: { view: View; session: KawaiiRoom }) {
       );
     return (
       <StatusBar tone={tone} message={message}>
-        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
-  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return (
     <StatusBar
       message={seatMessage(view, {
@@ -267,9 +325,17 @@ function ActionBar({ view, session }: { view: View; session: KawaiiRoom }) {
         join: "Bấm “Vào chơi” để cùng nối thú — không giới hạn người chơi.",
       })}
     >
-      <SeatButtons view={view} session={session} blocked={blocked} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: KawaiiRoom }) {
+  const m = view.meta!;
+  if (isLive(view) && view.game!.match) return view.isHost ? <StopButton onConfirm={() => session.stop()} /> : null;
+  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
+  return <SeatButtons view={view} session={session} blocked={blocked} />;
 }
 
 function Rules({ view, session }: { view: View; session: KawaiiRoom }) {
@@ -417,11 +483,16 @@ function useCueSounds(g: KwMatch | undefined, count: number, win: boolean) {
   }, [win]);
 }
 
-function EmptyBoard({ view }: { view: View }) {
+function EmptyBoard({ view, turned, slot }: { view: View; turned: boolean; slot: HTMLElement | null }) {
   const m = view.meta!;
   const { w, h } = SIZES[view.game!.opts.size];
-  const narrow = useNarrow();
-  const [cols, rows] = narrow ? [h, w] : [w, h];
+  const staged = useStaged();
+  const [cols, rows] = turned ? [h, w] : [w, h];
+  const toggles = (
+    <div className={`flex flex-wrap items-center gap-2 ${staged ? "" : "mt-3"}`}>
+      <AudioToggles />
+    </div>
+  );
   return (
     <div className="relative">
       <Frame cols={cols} rows={rows}>
@@ -434,9 +505,7 @@ function EmptyBoard({ view }: { view: View }) {
           {!m.players.length ? "Đang chờ người vào ghế…" : view.isHost ? "Bấm “Bắt đầu” để xếp bàn!" : "Đang chờ chủ phòng xếp bàn…"}
         </p>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <AudioToggles />
-      </div>
+      {staged ? slot && createPortal(toggles, slot) : toggles}
     </div>
   );
 }
@@ -500,7 +569,7 @@ function useFx(g: KwMatch, active: boolean, watched: number) {
   return { fx, add };
 }
 
-function Play({ view, session, match: g, watched }: { view: View; session: KawaiiRoom; match: KwMatch; watched: number }) {
+function Play({ view, session, match: g, watched, turned: turn, slot }: { view: View; session: KawaiiRoom; match: KwMatch; watched: number; turned: boolean; slot: HTMLElement | null }) {
   const live = isLive(view);
   const race = g.mode === "race";
   const spying = watched >= 0;
@@ -512,8 +581,7 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
   const locked = !!g.lockedUntil && !unlocked;
   const canPlay = live && player && !counting && !locked && !g.state.over;
   const { w, h } = g.state;
-  const narrow = useNarrow();
-  const turn = narrow && w > h;
+  const staged = useStaged();
   const [cols, rows] = turn ? [h, w] : [w, h];
   const place = (x: number, y: number) => (turn ? [y, x] : [x, y]);
 
@@ -614,16 +682,49 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
       );
     }
 
+  const maxWidth = staged ? undefined : `${(cols + 2) * 58}px`;
+  const spy = spying && (
+    <p className={`flex items-center gap-1.5 text-[13px] font-bold text-ink-2 ${staged ? "" : "mb-2"}`}>
+      <span className="sd-swatch" style={{ background: colorOf(watched) }} aria-hidden="true" />
+      👀 Đang xem bàn của {nameIn(view, g.lineup[watched].uid)}
+      {rankOf(g, watched) ? " · đã dọn xong" : ""}
+    </p>
+  );
+
+  const controls = (
+    <div className="mx-auto flex w-full flex-wrap items-center gap-2" style={{ maxWidth }}>
+      {player && live && (
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={askHint}
+          disabled={!canPlay || !!hinted}
+          title={race ? `Chỉ một cặp nối được — bị khoá tay ${HINT_LOCK_MS / 1000} giây` : `Chỉ một cặp nối được — bị trừ ${HINT_COST} điểm`}
+        >
+          💡 <span className="sd-tool-label">Gợi ý ({race ? `khoá ${HINT_LOCK_MS / 1000}s` : `−${HINT_COST}`})</span>
+        </button>
+      )}
+      <button
+        type="button"
+        className={`btn btn-sm ${tinted ? "btn-sun" : ""}`}
+        onClick={() => setTinted(!tinted)}
+        aria-pressed={tinted}
+        title="Tô nền mỗi ô theo loại thú — chỉ áp dụng trên máy bạn"
+      >
+        🎨 <span className="sd-tool-label">Màu nền ô: {tinted ? "hiện" : "ẩn"}</span>
+      </button>
+      <AudioToggles />
+      <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
+        Còn {left}/{w * h} ô{shuffles ? ` · đã xáo ${shuffles} lần` : ""}
+        {player && live && !counting ? locked ? <> · <LockLeft until={g.lockedUntil} /></> : sel < 0 ? " · chọn ô thứ nhất" : " · chọn ô cùng hình" : ""}
+      </span>
+    </div>
+  );
+
   return (
     <div className="grid gap-3">
-      <div className="relative mx-auto w-full" style={{ maxWidth: `${(cols + 2) * 58}px` }}>
-        {spying && (
-          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-ink-2">
-            <span className="sd-swatch" style={{ background: colorOf(watched) }} aria-hidden="true" />
-            👀 Đang xem bàn của {nameIn(view, g.lineup[watched].uid)}
-            {rankOf(g, watched) ? " · đã dọn xong" : ""}
-          </p>
-        )}
+      <div className="relative mx-auto w-full" style={{ maxWidth }}>
+        {!staged && spy}
         <Frame cols={cols} rows={rows} label={spying ? `Bàn nối thú của ${nameIn(view, g.lineup[watched].uid)}` : `Bàn nối thú ${w}×${h}`} plain={!tinted}>
           {cells}
         </Frame>
@@ -641,33 +742,16 @@ function Play({ view, session, match: g, watched }: { view: View; session: Kawai
         </svg>
         {counting && <div className="sd-hush" aria-hidden="true" />}
       </div>
-      <div className="mx-auto flex w-full flex-wrap items-center gap-2" style={{ maxWidth: `${(cols + 2) * 58}px` }}>
-        {player && live && (
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={askHint}
-            disabled={!canPlay || !!hinted}
-            title={race ? `Chỉ một cặp nối được — bị khoá tay ${HINT_LOCK_MS / 1000} giây` : `Chỉ một cặp nối được — bị trừ ${HINT_COST} điểm`}
-          >
-            💡 Gợi ý ({race ? `khoá ${HINT_LOCK_MS / 1000}s` : `−${HINT_COST}`})
-          </button>
-        )}
-        <button
-          type="button"
-          className={`btn btn-sm ${tinted ? "btn-sun" : ""}`}
-          onClick={() => setTinted(!tinted)}
-          aria-pressed={tinted}
-          title="Tô nền mỗi ô theo loại thú — chỉ áp dụng trên máy bạn"
-        >
-          🎨 Màu nền ô: {tinted ? "hiện" : "ẩn"}
-        </button>
-        <AudioToggles />
-        <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
-          Còn {left}/{w * h} ô{shuffles ? ` · đã xáo ${shuffles} lần` : ""}
-          {player && live && !counting ? locked ? <> · <LockLeft until={g.lockedUntil} /></> : sel < 0 ? " · chọn ô thứ nhất" : " · chọn ô cùng hình" : ""}
-        </span>
-      </div>
+      {staged
+        ? slot &&
+          createPortal(
+            <>
+              {spy}
+              {controls}
+            </>,
+            slot,
+          )
+        : controls}
     </div>
   );
 }
@@ -689,7 +773,8 @@ function Elapsed({ from, live }: { from: number; live: boolean }) {
   );
 }
 
-function Scoreboard({ view, match: g, watched, onPick }: { view: View; match: KwMatch; watched: number; onPick?: (k: number) => void }) {
+// `staged`: bản ở mạn bên lúc trình chiếu — mạn bên tự cuộn khi đông người; màn hình dọc xếp một hàng cuộn ngang.
+function Scoreboard({ view, match: g, watched, onPick, staged }: { view: View; match: KwMatch; watched: number; onPick?: (k: number) => void; staged?: boolean }) {
   const s = g.state;
   const race = g.mode === "race";
   const total = (s.w * s.h) / 2;
@@ -700,7 +785,7 @@ function Scoreboard({ view, match: g, watched, onPick }: { view: View; match: Kw
   const winners = new Set(race ? s.winners.map((k) => g.lineup[k].uid) : (g.result?.winners ?? []));
   const canPick = race && watched >= 0 && !!onPick;
   return (
-    <section className="card p-4" aria-labelledby="kw-score-h">
+    <section className={`card ${staged ? "sd-score" : "p-4"}`} aria-labelledby="kw-score-h">
       <div className="flex items-baseline justify-between gap-2">
         <h2 id="kw-score-h" className="font-display text-lg font-extrabold">
           {race ? "⚡ Tiến độ" : "🏅 Bảng điểm"}
@@ -712,7 +797,7 @@ function Scoreboard({ view, match: g, watched, onPick }: { view: View; match: Kw
           ? `${g.lineup.length} người chơi · mỗi người ${total} cặp${canPick ? " · bấm để xem bàn" : ""}`
           : `${g.lineup.length} người chơi · mỗi cặp +${PAIR_POINTS}, gợi ý −${HINT_COST}`}
       </p>
-      <ol className="mt-3 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto pr-1">
+      <ol className={staged ? "sd-score-list mt-3" : "mt-3 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto pr-1"}>
         {order.map((k, rank) => {
           const seat = g.lineup[k];
           const p = seat.member;
@@ -723,8 +808,8 @@ function Scoreboard({ view, match: g, watched, onPick }: { view: View; match: Kw
           const pickable = canPick && k !== g.me;
           const body = (
             <>
-              <span className="w-5 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
-              <span className="relative shrink-0">
+              <span className="sd-rank w-5 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
+              <span className="sd-face relative shrink-0">
                 {p ? <Avatar p={p} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
                 {winners.has(seat.uid) && (
                   <span className="absolute -right-2 -bottom-1 text-base" aria-label="Thắng">

@@ -352,11 +352,12 @@ function ChatBox({
           onClick={toggle}
           aria-expanded={false}
           aria-controls={bodyId}
-          className={`btn btn-pen fixed right-4 bottom-4 ${z} h-14 rounded-full px-5 text-base shadow-[0_5px_0_var(--edge)]`}
+          className={`btn btn-pen fixed right-4 bottom-4 ${z} h-14 rounded-full text-base shadow-[0_5px_0_var(--edge)] ${staged ? "w-14 px-0" : "px-5"}`}
         >
+          {/* Lúc trình chiếu chỉ còn nút tròn biểu tượng để không lấn lên bàn và hàng nút ở góc dưới. */}
           <span aria-hidden="true">💬</span>
-          <span className="hidden sm:inline">{title}</span>
-          <span className="sr-only sm:hidden">Mở {title.toLowerCase()}</span>
+          <span className={staged ? "hidden" : "hidden sm:inline"}>{title}</span>
+          <span className={staged ? "sr-only" : "sr-only sm:hidden"}>Mở {title.toLowerCase()}</span>
           {totalUnread > 0 && (
             <span className="absolute -top-2 -right-1 min-w-6 rounded-full border-2 border-edge bg-coral px-1.5 py-0.5 text-xs font-bold text-white">
               {totalUnread > 99 ? "99+" : totalUnread}

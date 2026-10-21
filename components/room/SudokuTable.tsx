@@ -730,8 +730,8 @@ function Clock({ view }: { view: View }) {
   );
 }
 
-// Chưa có ván nào: mạn bên lúc trình chiếu hiện người đã vào ghế.
-function Roster({ view }: { view: View }) {
+// Chưa có ván nào: mạn bên lúc trình chiếu hiện người đã vào ghế (Nối Thú dùng chung).
+export function Roster({ view }: { view: Pick<View, "seats" | "me" | "meta"> }) {
   const seated = view.seats.filter((s) => !!s?.uid);
   return (
     <section className="card p-4" aria-labelledby="sd-roster-h">

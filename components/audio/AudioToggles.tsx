@@ -13,7 +13,7 @@ export function AudioToggles() {
         aria-pressed={a.music}
         title="Nhạc nền — chỉ áp dụng trên máy bạn"
       >
-        {a.music ? "🎵" : "🔇"} Nhạc: {a.music ? "bật" : "tắt"}
+        {a.music ? "🎵" : "🔇"} <span className="sd-tool-label">Nhạc: {a.music ? "bật" : "tắt"}</span>
       </button>
       <button
         type="button"
@@ -22,7 +22,7 @@ export function AudioToggles() {
         aria-pressed={a.sound}
         title="Tiếng khi thao tác trong game — chỉ áp dụng trên máy bạn"
       >
-        {a.sound ? "🔊" : "🔈"} Tiếng: {a.sound ? "bật" : "tắt"}
+        {a.sound ? "🔊" : "🔈"} <span className="sd-tool-label">Tiếng: {a.sound ? "bật" : "tắt"}</span>
       </button>
     </>
   );
