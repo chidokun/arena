@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createContext, memo, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CELLS, clock, colOf, COUNTDOWN_MS, LEVEL_KEYS, LEVELS, LOCK_MS, MODE_KEYS, MODES, rowOf, sees } from "@/lib/games/sudoku";
 import type { RoomState, RoomView } from "@/lib/net/room";
 import type { SudokuMatch, SudokuRoom, SudokuView } from "@/lib/net/sudoku-room";
@@ -10,6 +11,7 @@ import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -67,8 +69,6 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
   const live = useSdLive(session);
   const shown = useGame(session, (v) => (live && v?.match ? { level: v.match.level, mode: v.match.mode } : { level: v!.opts.level, mode: v!.opts.mode }), shallowEqual);
   const round = useGame(session, (v) => v?.match?.round ?? 0);
-  const areaRef = useRef<HTMLDivElement>(null);
-  const flyers = useFlyers(session, areaRef);
 
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
@@ -84,15 +84,43 @@ export function SudokuTable({ id, slug, session }: { id: string; slug: string; s
       <ActionPart session={session} />
       {!live && <RulesPart session={session} />}
       <ResultPart session={session} />
-
-      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
-        {round ? <PlayPart key={round} session={session} /> : <EmptyPart session={session} />}
-        {round > 0 && <ScorePart session={session} />}
-        <Flyers flyers={flyers} />
-      </div>
-
+      <BoardPart session={session} round={round} />
       <CinemaPart session={session} />
     </RoomLayout>
+  );
+}
+
+// Lúc trình chiếu bàn lấp ô giữa; bảng điểm sang một bên, đồng hồ cùng bàn phím số sang bên kia (màn hình dọc: trên /
+// dưới). Bàn phím nằm trong <Play> (dùng chung ô đang chọn, ghi chú…) nên được đưa sang mạn bên qua portal vào `slot`.
+const PadSlotCtx = createContext<HTMLElement | null>(null);
+
+function BoardPart({ session, round }: { session: SudokuRoom; round: number }) {
+  const staged = useStaged();
+  const areaRef = useRef<HTMLDivElement>(null);
+  const flyers = useFlyers(session, areaRef);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  return (
+    <StageArea
+      fit="w-[min(100cqw,100cqh)]"
+      flanks={[
+        <div key="a" className="sd-flank">
+          <RosterPart session={session} />
+        </div>,
+        <div key="b" className="sd-flank">
+          <ClockPart session={session} />
+          <div ref={setSlot} className="grid grid-cols-1 gap-3" />
+        </div>,
+      ]}
+      tools={<ControlsPart session={session} />}
+    >
+      <PadSlotCtx value={slot}>
+        <div ref={areaRef} className={staged ? "relative" : "relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_240px]"}>
+          {round ? <PlayPart key={round} session={session} /> : <EmptyPart session={session} />}
+          {round > 0 && !staged && <ScorePart session={session} />}
+          <Flyers flyers={flyers} />
+        </div>
+      </PadSlotCtx>
+    </StageArea>
   );
 }
 
@@ -135,6 +163,22 @@ const ScorePart = memo(function ScorePart({ session }: { session: SudokuRoom }) 
   const view = useSdView(session);
   const g = view.game!.match;
   return g ? <Scoreboard view={view} match={g} /> : null;
+});
+
+const RosterPart = memo(function RosterPart({ session }: { session: SudokuRoom }) {
+  const view = useSdView(session);
+  const g = view.game!.match;
+  return g ? <Scoreboard view={view} match={g} staged /> : <Roster view={view} />;
+});
+
+const ClockPart = memo(function ClockPart({ session }: { session: SudokuRoom }) {
+  const view = useSdView(session);
+  return <Clock view={view} />;
+});
+
+const ControlsPart = memo(function ControlsPart({ session }: { session: SudokuRoom }) {
+  const view = useSdView(session);
+  return <Buttons view={view} session={session} />;
 });
 
 const CinemaPart = memo(function CinemaPart({ session }: { session: SudokuRoom }) {
@@ -202,7 +246,6 @@ function Cinema({ match: g, count, win, onClose }: { match: SudokuMatch; count: 
 }
 
 function ActionBar({ view, session }: { view: View; session: SudokuRoom }) {
-  const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
   const opened = useReached(g?.opensAt);
@@ -249,15 +292,22 @@ function ActionBar({ view, session }: { view: View; session: SudokuRoom }) {
   if (live && g)
     return (
       <StatusBar tone={tone} message={message}>
-        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
-  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return (
     <StatusBar message={seatMessage(view, { enough: true, startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng.", join: "Bấm “Vào chơi” để giải đề cùng mọi người." })}>
-      <SeatButtons view={view} session={session} blocked={blocked} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: SudokuRoom }) {
+  const m = view.meta!;
+  if (isLive(view) && view.game!.match) return view.isHost ? <StopButton onConfirm={() => session.stop()} /> : null;
+  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
+  return <SeatButtons view={view} session={session} blocked={blocked} />;
 }
 
 function Rules({ view, session }: { view: View; session: SudokuRoom }) {
@@ -478,6 +528,8 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
   const canPlay = live && player && !counting && !locked && !g.state.over;
   const ended = !live;
   const bursts = useBursts(g, live && !counting);
+  const staged = useStaged();
+  const slot = useContext(PadSlotCtx);
 
   const value = (i: number) => g.cells[i] || (g.pending.includes(i) ? g.puzzle.solution[i] : 0);
   const board = Array.from({ length: CELLS }, (_, i) => value(i));
@@ -577,17 +629,8 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
     );
   }
 
-  return (
-    <div className="grid gap-3">
-      <div className="relative mx-auto w-full max-w-[560px]">
-        <div className="sd-board" role="grid" aria-label={`Đề Sudoku ${LEVELS[g.level].name.toLowerCase()}`}>
-          {cells}
-        </div>
-        <Bursts bursts={bursts} />
-        {counting && (
-          <div className="sd-hush" aria-hidden="true" />
-        )}
-      </div>
+  const controls = (
+    <>
       {player && live && (
         <div className="sd-pad" role="group" aria-label="Bàn phím số">
           {DIGITS.map((d) => (
@@ -609,10 +652,10 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
         {player && live && (
           <>
             <button type="button" className={`btn btn-sm ${noting ? "btn-sun" : ""}`} onClick={() => setNoting((x) => !x)} aria-pressed={noting} title="Phím N">
-              ✏️ Ghi chú: {noting ? "bật" : "tắt"}
+              ✏️ <span className="sd-tool-label">Ghi chú: {noting ? "bật" : "tắt"}</span>
             </button>
             <button type="button" className="btn btn-sm" onClick={erase} disabled={!open(sel) || !notes[sel]} title="Phím Backspace">
-              🧽 Xoá ghi chú
+              🧽 <span className="sd-tool-label">Xoá ghi chú</span>
             </button>
           </>
         )}
@@ -623,14 +666,29 @@ function Play({ view, session, match: g }: { view: View; session: SudokuRoom; ma
           aria-pressed={tinted}
           title={g.mode === "race" ? "Tô ô đã có người giải bằng màu người giải nhanh nhất" : "Tô mỗi ô bằng màu người giữ ô"}
         >
-          🎨 Màu người chơi: {tinted ? "hiện" : "ẩn"}
+          🎨 <span className="sd-tool-label">Màu người chơi: {tinted ? "hiện" : "ẩn"}</span>
         </button>
         {player && live && (
-          <span className="ml-auto text-[12.5px] font-semibold text-ink-3">
+          <span className={`ml-auto text-[12.5px] font-semibold text-ink-3 ${locked ? "" : "sd-tool-hint"}`}>
             {locked ? <LockLeft until={g.lockedUntil} /> : sel < 0 ? "Chọn một ô rồi bấm số" : "Phím 1–9 · mũi tên · N"}
           </span>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div className="grid gap-3">
+      <div className={staged ? "relative" : "relative mx-auto w-full max-w-[560px]"}>
+        <div className="sd-board" role="grid" aria-label={`Đề Sudoku ${LEVELS[g.level].name.toLowerCase()}`}>
+          {cells}
+        </div>
+        <Bursts bursts={bursts} />
+        {counting && (
+          <div className="sd-hush" aria-hidden="true" />
+        )}
+      </div>
+      {staged ? slot && createPortal(controls, slot) : controls}
     </div>
   );
 }
@@ -641,41 +699,98 @@ function LockLeft({ until }: { until: number }) {
   return <>{now ? `🔒 Khoá tay ${Math.max(0, Math.ceil((until - now) / 1000))}s` : "🔒 Khoá tay"}</>;
 }
 
-function Scoreboard({ view, match: g }: { view: View; match: SudokuMatch }) {
+// Đồng hồ ván chạy riêng ở bảng điểm (lúc trình chiếu: ở thẻ đồng hồ) để không kéo cả bàn vẽ lại theo nhịp.
+function useElapsed(view: View, g: SudokuMatch | undefined) {
   const live = isLive(view);
-  // Đồng hồ ván chạy riêng ở bảng điểm.
-  const now = useNow(live);
+  const now = useNow(live && !!g);
+  if (!g) return undefined;
+  return live ? (now && now > g.opensAt ? now - g.opensAt : 0) : g.time;
+}
+
+function Clock({ view }: { view: View }) {
+  const g = view.game!.match;
+  const elapsed = useElapsed(view, g);
+  const { level, mode } = g ?? view.game!.opts;
+  return (
+    <section className="card sd-clock" aria-label="Đồng hồ ván">
+      <p className="text-[12px] font-bold tracking-wide text-ink-3 uppercase">⏱ Thời gian</p>
+      <p className="sd-clock-time font-display leading-none font-extrabold tabular-nums">{elapsed != null ? clock(elapsed) : "--:--"}</p>
+      <p className="text-[13px] font-semibold text-ink-2">
+        {!g ? "Chờ ra đề…" : g.mode === "race" ? `Mỗi người ${g.puzzle.empties} ô trống` : `Còn ${g.state.open}/${g.puzzle.empties} ô trống`}
+      </p>
+      <p className="sd-clock-tags">
+        <span className="chip text-ink-2">
+          {LEVELS[level].emoji} {LEVELS[level].name}
+        </span>
+        <span className="chip text-ink-2">
+          {MODES[mode].emoji} {MODES[mode].name}
+        </span>
+      </p>
+    </section>
+  );
+}
+
+// Chưa có ván nào: mạn bên lúc trình chiếu hiện người đã vào ghế.
+function Roster({ view }: { view: View }) {
+  const seated = view.seats.filter((s) => !!s?.uid);
+  return (
+    <section className="card p-4" aria-labelledby="sd-roster-h">
+      <h2 id="sd-roster-h" className="font-display text-lg font-extrabold">
+        👥 Người chơi
+      </h2>
+      <p className="text-[12.5px] font-semibold text-ink-3">{seated.length ? `${seated.length} người đã vào ghế` : "Chưa ai vào ghế"}</p>
+      {seated.length > 0 && (
+        <ol className="sd-score-list mt-3">
+          {seated.map((seat, k) => (
+            <li key={seat.uid} className="flex min-w-0 items-center gap-2.5">
+              {seat.member ? <Avatar p={seat.member} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
+              <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-bold">
+                <span className="sd-swatch" style={{ background: colorOf(k) }} aria-hidden="true" />
+                <span className="min-w-0 truncate">{seat.uid === view.me ? "Bạn" : (seat.member?.name ?? "Ai đó")}</span>
+                {seat.uid === view.meta!.host && <span title="Chủ phòng" aria-label="Chủ phòng">👑</span>}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// `staged`: bản ở mạn bên lúc trình chiếu — màn hình ngang đủ cao để đồng hồ cho thẻ riêng; màn hình dọc xếp người chơi
+// thành một hàng cuộn ngang cho bàn còn chỗ.
+function Scoreboard({ view, match: g, staged }: { view: View; match: SudokuMatch; staged?: boolean }) {
+  const elapsed = useElapsed(view, g);
   const s = g.state;
   const race = g.mode === "race";
-  const elapsed = live ? (now && now > g.opensAt ? now - g.opensAt : 0) : g.time;
   const done = (k: number) => rankOf(g, k) || Infinity;
   const order = g.lineup
     .map((_, k) => k)
     .sort((a, b) => (race ? done(a) - done(b) : 0) || s.score[b] - s.score[a] || s.wrong[a] - s.wrong[b] || a - b);
   const winners = new Set(race ? s.winners.map((k) => g.lineup[k].uid) : (g.result?.winners ?? []));
   return (
-    <section className="card p-4" aria-labelledby="sd-score-h">
-      <div className="flex items-baseline justify-between gap-2">
+    <section className={`card ${staged ? "sd-score" : "p-4"}`} aria-labelledby="sd-score-h">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
         <h2 id="sd-score-h" className="font-display text-lg font-extrabold">
           {race ? "⚡ Tiến độ" : "🏅 Bảng điểm"}
         </h2>
         {elapsed != null && (
-          <span className="font-display text-lg font-extrabold tabular-nums" title="Thời gian giải">
+          <span className={`font-display text-lg font-extrabold tabular-nums ${staged ? "sd-score-clock" : ""}`} title="Thời gian giải">
             ⏱ {clock(elapsed)}
           </span>
         )}
       </div>
-      <p className="text-[12.5px] font-semibold text-ink-3">
+      <p className={`text-[12.5px] font-semibold text-ink-3 ${staged ? "sd-score-clock" : ""}`}>
         {race ? `Mỗi người ${g.puzzle.empties} ô trống` : `Còn ${s.open}/${g.puzzle.empties} ô trống`}
       </p>
-      <ol className="mt-3 grid grid-cols-1 gap-3">
+      <ol className={staged ? "sd-score-list mt-3" : "mt-3 grid grid-cols-1 gap-3"}>
         {order.map((k, rank) => {
           const seat = g.lineup[k];
           const p = seat.member;
           return (
             <li key={seat.uid} className="flex min-w-0 items-center gap-2.5">
-              <span className="w-4 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
-              <span className="relative shrink-0">
+              <span className="sd-rank w-4 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
+              <span className="sd-face relative shrink-0">
                 {p ? <Avatar p={p} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
                 {winners.has(seat.uid) && (
                   <span className="absolute -right-2 -bottom-1 text-base" aria-label="Thắng">

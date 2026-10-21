@@ -221,14 +221,10 @@
     transform: translateY(3px);
     box-shadow: 0 0 0 var(--edge);
   }
+  /* Nút tắt chỉ mờ và bỏ bóng, không lún xuống, để luôn thẳng hàng với nút / ô nhập bên cạnh. */
   .btn:disabled {
     opacity: 0.5;
     box-shadow: none;
-    transform: translateY(3px);
-  }
-  /* Hàng ô nhập + nút: nút tắt không lún xuống, để mép trên/dưới thẳng hàng với ô nhập. */
-  .field-row > .btn:disabled {
-    transform: none;
   }
   .btn[data-armed] {
     outline: 3px dashed var(--coral);
@@ -470,8 +466,7 @@
   }
   .stage-tools .btn,
   .stage-tools .btn:hover:not(:disabled),
-  .stage-tools .btn:active:not(:disabled),
-  .stage-tools .btn:disabled {
+  .stage-tools .btn:active:not(:disabled) {
     box-shadow: none;
     transform: none;
   }
@@ -2943,6 +2938,128 @@
     display: block;
     height: 100%;
     transition: width 300ms ease;
+  }
+
+  /* Trình chiếu: bàn lấp ô giữa; mạn bên (màn hình ngang) cao bằng bàn, nhiều người chơi thì tự cuộn. Lề trong để bóng
+     đổ của thẻ không bị cắt khi cuộn. */
+  .stage .sd-board,
+  .stage .sd-pad {
+    max-width: none;
+  }
+  .stage-flank:has(> .sd-flank) {
+    align-self: stretch;
+    min-height: 0;
+  }
+  .sd-flank {
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+  }
+  .sd-clock {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+  .sd-clock-time {
+    font-size: 40px;
+  }
+  .sd-clock-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .sd-score {
+    container-type: inline-size;
+    padding: 16px;
+  }
+  .sd-score-list {
+    display: grid;
+    gap: 12px;
+  }
+  /* Mạn bên hẹp: bỏ số thứ hạng (bảng đã xếp theo hạng) và avatar (đã có ô màu) để tên còn chỗ. */
+  @container (max-width: 200px) {
+    .sd-score .sd-rank,
+    .sd-score .sd-face {
+      display: none;
+    }
+  }
+  @media (orientation: landscape) {
+    .sd-flank {
+      max-height: calc(100% + 10px);
+      margin: -2px -4px -8px;
+      padding: 2px 4px 8px;
+      overflow: hidden auto;
+    }
+    .stage .sd-pad {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  /* Ngang và đủ cao: đồng hồ có thẻ riêng ở mạn phải, bảng điểm khỏi hiện lại. */
+  @media (orientation: landscape) and (min-height: 561px) {
+    .sd-score-clock {
+      display: none;
+    }
+  }
+  /* Ngang mà thấp (điện thoại xoay ngang): đồng hồ về đầu bảng điểm để mạn phải vừa bàn phím số mà không phải cuộn,
+     cũng không lấn xuống nút trò chuyện nổi ở góc dưới. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .sd-clock {
+      display: none;
+    }
+  }
+  /* Rất thấp (điện thoại nhỏ xoay ngang): canh mạn bên lên đỉnh, bàn phím thấp thêm để hàng nút ở dưới không nằm dưới
+     nút trò chuyện. */
+  @media (orientation: landscape) and (max-height: 420px) {
+    .sd-flank {
+      justify-content: flex-start;
+    }
+    .stage .sd-key.sd-key {
+      min-height: 40px;
+    }
+  }
+  /* Màn hình thấp (cả điện thoại dọc cỡ nhỏ): bàn phím thấp lại, nút chỉ còn biểu tượng để bàn còn chỗ. */
+  @media (orientation: landscape) and (max-height: 560px), (orientation: portrait) and (max-height: 760px) {
+    .stage .sd-tool-hint {
+      display: none;
+    }
+    .sd-score {
+      padding: 12px;
+    }
+    .stage .sd-key {
+      min-height: 46px;
+      font-size: 19px;
+    }
+    .stage .sd-tool-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+  /* Màn hình dọc: đồng hồ ghép vào đầu bảng điểm, người chơi xếp một hàng cuộn ngang. */
+  @media (orientation: portrait) {
+    .sd-clock {
+      display: none;
+    }
+    .sd-score-list {
+      display: flex;
+      gap: 16px;
+      margin-inline: -4px;
+      padding: 0 4px 4px;
+      overflow: auto hidden;
+    }
+    .sd-score-list > li {
+      flex: none;
+      width: 150px;
+    }
   }
 
   /* Vành ngoài một ô để đường nối đi vòng viền bàn. */
