@@ -46,6 +46,8 @@ export type LobbyView = {
   // Giới hạn kết nối trực tiếp ở sảnh (null: không giới hạn).
   limit: MeshLimit | null;
   unreachable: number;
+  // Ping trung bình (ms) tới các peer nối trực tiếp; null khi chưa đo được.
+  ping: number | null;
   users: LobbyUser[];
   rooms: RoomAd[];
 };
@@ -58,6 +60,7 @@ const PRUNE_AFTER_MS = 60000;
 const CHAT_KEY = "arena:public-chat";
 // Relay vừa mở thì peer thường cần vài giây mới bắt tay xong; chưa coi là "một mình" ngay để khỏi nháy "1 người online".
 const ALONE_AFTER_MS = 8000;
+const PING_MS = 5000;
 
 export class Lobby {
   readonly uid: string;
@@ -123,6 +126,7 @@ export class Lobby {
           .map((m) => ({ id: m.id, t: "chat", p: toPublicWire(m, now) })),
         peer,
       );
+      this.measurePing();
       this.store.invalidate();
     });
     channel.onPeerLeave(() => this.store.invalidate());
@@ -135,6 +139,7 @@ export class Lobby {
         this.channel.trim();
         this.store.invalidate();
       }, 2000),
+      setInterval(() => this.measurePing(), PING_MS),
       setInterval(() => {
         this.prune();
         this.chatRate.sweep();
@@ -155,6 +160,10 @@ export class Lobby {
       const a = e.v as RoomAd;
       this.ads.observe(k.slice(2), a.hb, !!a.closed);
     }
+  }
+
+  private measurePing() {
+    void this.channel.measure().then(() => this.store.invalidate());
   }
 
   private beat(eager: boolean) {
@@ -193,7 +202,7 @@ export class Lobby {
     if (!this.channel.signaling()) this.signalingSince = 0;
     else if (!this.signalingSince) this.signalingSince = now;
     const alone = peers === 0 && this.signalingSince > 0 && now - this.signalingSince >= ALONE_AFTER_MS;
-    return { connected: peers > 0, alone, peers, limit: this.channel.limit, unreachable: this.channel.unreachable(), users, rooms };
+    return { connected: peers > 0, alone, peers, limit: this.channel.limit, unreachable: this.channel.unreachable(), ping: this.channel.latency(), users, rooms };
   }
 
   private pushChat(msg: ChatMsg) {

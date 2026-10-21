@@ -8,6 +8,8 @@ const KINDS: WireKind[] = ["dig", "dlt", "req", "rum"];
 const LEAVE_DELAY_MS = 1500;
 // Trystero thử lại khi vào lại room nên chỉ tính "không nối được" trong một khoảng.
 const UNREACHABLE_TTL_MS = 90000;
+// Peer không trả pong trong hạn này thì bỏ số đo cũ, khỏi kéo trung bình theo một kết nối đã treo.
+const PING_TIMEOUT_MS = 5000;
 /**
  * Relay Nostr cố định thay cho danh sách mặc định của Trystero (nhiều relay trong đó đã chết hoặc chặn event
  * ephemeral). Ưu tiên relay lớn, lâu đời; tất cả đã thử nhận/phát event kiểu Trystero. Mọi máy phải dùng cùng
@@ -38,6 +40,8 @@ class Hub {
   leaves = new Set<PeerFn>();
   peers = new Set<string>();
   unreachable = new Map<string, number>();
+  rtt = new Map<string, number>();
+  private pinging = false;
   senders = new Map<WireKind, Send>();
   room!: TrysteroRoom;
   private rejoining: Promise<void> | null = null;
@@ -70,6 +74,7 @@ class Hub {
     };
     room.onPeerLeave = (peer) => {
       if (this.room !== room || !this.peers.delete(peer)) return;
+      this.rtt.delete(peer);
       this.mesh?.left(peer);
       for (const fn of this.leaves) fn(peer);
     };
@@ -98,9 +103,37 @@ class Hub {
     return this.unreachable.size;
   }
 
+  async measure() {
+    if (this.pinging) return;
+    this.pinging = true;
+    const room = this.room;
+    await Promise.all(
+      [...this.peers].map(async (peer) => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const ms = await Promise.race([
+          room.ping(peer),
+          new Promise<null>((r) => (timer = setTimeout(() => r(null), PING_TIMEOUT_MS))),
+        ]).catch(() => null);
+        clearTimeout(timer);
+        if (this.room !== room || !this.peers.has(peer)) return;
+        if (ms == null) this.rtt.delete(peer);
+        else this.rtt.set(peer, ms);
+      }),
+    );
+    this.pinging = false;
+  }
+
+  latency() {
+    if (this.rtt.size === 0) return null;
+    let sum = 0;
+    for (const ms of this.rtt.values()) sum += ms;
+    return Math.round(sum / this.rtt.size);
+  }
+
   rejoin() {
     this.rejoining ??= (async () => {
       const old = this.room;
+      this.rtt.clear();
       for (const p of [...this.peers]) {
         this.peers.delete(p);
         for (const fn of this.leaves) fn(p);
@@ -136,6 +169,9 @@ export type Channel = Wire & {
   trim(): void;
   onPeerLeave(fn: PeerFn): void;
   unreachable(): number;
+  // Đo lại thời gian khứ hồi tới các peer đang nối trực tiếp; `latency` trả trung bình lần đo gần nhất (ms).
+  measure(): Promise<void>;
+  latency(): number | null;
   // Có ít nhất một relay Nostr đang mở, tức mạng vẫn ổn dù có thể chưa nối được peer nào.
   signaling(): boolean;
   rejoin(): Promise<void>;
@@ -203,6 +239,8 @@ export async function openChannel(name: string, limit?: MeshLimit): Promise<Chan
     },
     peers: () => [...h.peers],
     unreachable: () => h.unreachableCount(),
+    measure: () => (released ? Promise.resolve() : h.measure()),
+    latency: () => h.latency(),
     signaling: () => Object.values(getRelaySockets() as Record<string, WebSocket>).some((s) => s.readyState === WebSocket.OPEN),
     send: (kind, data, to) => {
       if (!released) h.send(kind, data, to);

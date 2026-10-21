@@ -15,7 +15,7 @@ type Net = {
 
 const NetContext = createContext<Net | null>(null);
 
-const EMPTY_VIEW: LobbyView = { connected: false, alone: false, peers: 0, limit: null, unreachable: 0, users: [], rooms: [] };
+const EMPTY_VIEW: LobbyView = { connected: false, alone: false, peers: 0, limit: null, unreachable: 0, ping: null, users: [], rooms: [] };
 const EMPTY_CHAT: ChatMsg[] = [];
 const noop = () => () => {};
 
