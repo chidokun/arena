@@ -12,8 +12,8 @@ import { HUE } from "./hue";
 export function LiveStats() {
   useWhere({});
   const view = useLobbyView();
-  // Chưa nối được ai thì sảnh chưa có dữ liệu thật — hiện vòng quay thay vì số 0 / "–" gây hiểu nhầm.
-  const ready = view.connected;
+  // Còn đang tìm thì sảnh chưa có dữ liệu thật — hiện vòng quay thay vì số 0 / "–" gây hiểu nhầm.
+  const ready = view.connected || view.alone;
   return (
     <div className="flex flex-wrap gap-3">
       <Stat value={ready ? view.users.length : null} label="đang online" tone="var(--lime)" />
@@ -52,7 +52,7 @@ export function GameGrid() {
             <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {list.map((g) => (
                 <li key={g.slug}>
-                  <GameCard game={g} counts={view.connected ? countFor(view, g.slug) : null} />
+                  <GameCard game={g} counts={view.connected || view.alone ? countFor(view, g.slug) : null} />
                 </li>
               ))}
             </ul>

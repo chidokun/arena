@@ -136,13 +136,15 @@ export type Channel = Wire & {
   trim(): void;
   onPeerLeave(fn: PeerFn): void;
   unreachable(): number;
+  // Có ít nhất một relay Nostr đang mở, tức mạng vẫn ổn dù có thể chưa nối được peer nào.
+  signaling(): boolean;
   rejoin(): Promise<void>;
   release(): void;
 };
 
 export async function openChannel(name: string, limit?: MeshLimit): Promise<Channel> {
   const mod = await import("trystero");
-  const { joinRoom, selfId } = mod;
+  const { joinRoom, selfId, getRelaySockets } = mod;
   if (process.env.NODE_ENV !== "production") (window as unknown as { __trystero: typeof mod }).__trystero = mod;
   await turnServers();
   const relayOnly = forceRelay();
@@ -201,6 +203,7 @@ export async function openChannel(name: string, limit?: MeshLimit): Promise<Chan
     },
     peers: () => [...h.peers],
     unreachable: () => h.unreachableCount(),
+    signaling: () => Object.values(getRelaySockets() as Record<string, WebSocket>).some((s) => s.readyState === WebSocket.OPEN),
     send: (kind, data, to) => {
       if (!released) h.send(kind, data, to);
     },

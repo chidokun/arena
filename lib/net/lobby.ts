@@ -40,6 +40,8 @@ export type Invite = {
 
 export type LobbyView = {
   connected: boolean;
+  // Mạng ổn (relay đã mở) và đã tìm đủ lâu mà chưa có peer nào — đang online một mình, không phải đang tìm.
+  alone: boolean;
   peers: number;
   // Giới hạn kết nối trực tiếp ở sảnh (null: không giới hạn).
   limit: MeshLimit | null;
@@ -54,6 +56,8 @@ const USER_TIMEOUT_MS = 20000;
 const AD_TIMEOUT_MS = 25000;
 const PRUNE_AFTER_MS = 60000;
 const CHAT_KEY = "arena:public-chat";
+// Relay vừa mở thì peer thường cần vài giây mới bắt tay xong; chưa coi là "một mình" ngay để khỏi nháy "1 người online".
+const ALONE_AFTER_MS = 8000;
 
 export class Lobby {
   readonly uid: string;
@@ -72,6 +76,7 @@ export class Lobby {
   private chatFns = new Set<(m: ChatMsg) => void>();
   private chatRate = new RateLimit(CHAT_RATE, CHAT_RATE_WINDOW_MS);
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private signalingSince = 0;
   readonly chatStore = new ViewStore<ChatMsg[]>(() => this.chat);
 
   static async open(uid: string, profile: Profile) {
@@ -184,7 +189,11 @@ export class Lobby {
       .filter((a) => !a.closed && this.ads.alive(a.id))
       .sort((a, b) => Number(a.status === "playing") - Number(b.status === "playing") || b.members - a.members);
     const peers = this.channel.peers().length;
-    return { connected: peers > 0, peers, limit: this.channel.limit, unreachable: this.channel.unreachable(), users, rooms };
+    const now = Date.now();
+    if (!this.channel.signaling()) this.signalingSince = 0;
+    else if (!this.signalingSince) this.signalingSince = now;
+    const alone = peers === 0 && this.signalingSince > 0 && now - this.signalingSince >= ALONE_AFTER_MS;
+    return { connected: peers > 0, alone, peers, limit: this.channel.limit, unreachable: this.channel.unreachable(), users, rooms };
   }
 
   private pushChat(msg: ChatMsg) {

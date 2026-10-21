@@ -19,10 +19,10 @@ export function NetBadge() {
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full border-2 border-edge bg-surface px-2.5 py-1 text-[13px] font-bold whitespace-nowrap sm:gap-2 sm:px-3"
-      title={(view.connected ? linked : "Chưa nối được với ai — vẫn có thể tạo phòng") + blocked}
+      title={(view.connected ? linked : view.alone ? "Mạng ổn nhưng chưa có ai khác online — vẫn có thể tạo phòng" : "Chưa nối được với ai — vẫn có thể tạo phòng") + blocked}
       aria-live="polite"
     >
-      {view.connected ? (
+      {view.connected || view.alone ? (
         <>
           <span className="live-dot" aria-hidden="true" />
           <span>

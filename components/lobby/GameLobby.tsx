@@ -101,8 +101,8 @@ export function GameLobby({ slug }: { slug: string }) {
   const view = useLobbyView();
   const rooms = view.rooms.filter((r) => r.game === slug);
   const here = view.users.filter((u) => u.game === slug);
-  // Chưa nối được ai thì danh sách phòng / người chưa phải dữ liệu thật — ẩn số đếm, hiện trạng thái đang tìm.
-  const ready = view.connected;
+  // Còn đang tìm thì danh sách phòng / người chưa phải dữ liệu thật — ẩn số đếm, hiện trạng thái đang tìm.
+  const ready = view.connected || view.alone;
   const [creating, setCreating] = useState(false);
   const hue = HUE[game.hue];
 
