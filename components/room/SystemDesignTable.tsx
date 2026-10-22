@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, memo, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   autoDesign,
   BUDGET_MAX,
@@ -39,12 +39,14 @@ import {
   TIMES,
   USERS,
   USERS_ID,
+  USERS_POS,
   type Design,
   type DesignTime,
   type Flow,
   type FlowKind,
   type Incident,
   type Kind,
+  type LevelLoad,
   type Problem,
   type SimResult,
   type Sink,
@@ -60,7 +62,7 @@ import { PeoplePanel } from "./People";
 import { ResultCard, StoppedCard } from "./ResultCard";
 import { RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { SxCanvas, type Heat, type Sel } from "./SxCanvas";
+import { SxCanvas, type Balloon, type Blast, type Fx, type Heat, type Sel } from "./SxCanvas";
 import { shallowEqual, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<SxView>, "chat">;
@@ -1267,6 +1269,11 @@ function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p
             <span className="sx-race">
               <span className={`sx-race-bar ${dead ? "is-dead" : shown >= p.target ? "is-met" : ""}`} style={{ width: `${(shown / scale) * 100}%` }} />
               <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
+              {dead && (shownAt !== undefined || run > 0) && at - s.fail!.level < 4 && (
+                <span className="sx-race-boom" style={{ left: `${(shown / scale) * 100}%` }} aria-hidden="true">
+                  💥
+                </span>
+              )}
               <span className="sx-race-tag tabular-nums">
                 {r.status === "out" ? "🚪 Bị loại" : !s?.valid ? "⛔ Không hợp lệ" : dead ? `${fmt(shown)} TPS · 💥 gục ở ${fmt(s.fail!.tps)}` : `${fmt(shown)} TPS${ended ? " ✓" : ""}`}
               </span>
@@ -1288,10 +1295,52 @@ const RunPart = memo(function RunPart({ session }: { session: SystemDesignRoom }
 
 // Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, gục thì báo nguyên nhân.
 // Mặc định xem thiết kế của mình (người xem thì của người đứng đầu); bấm thanh tải của ai để xem sơ đồ người đó.
+const centerOf = (d: Design, id: number) => {
+  const b = id === USERS_ID ? USERS_POS : d.nodes.find((n) => n.id === id);
+  return b ? { x: b.x + NODE.w / 2, y: b.y + NODE.h / 2 } : null;
+};
+
+type Puff = Omit<Balloon, "key" | "delay">;
+
+// Bóng sự cố của một mức tải trên sơ đồ đang xem: đối tượng bị nhắm (sập, đứt) và các component chịu sự cố chung.
+function incidentBalloons(p: Problem, d: Design, lv: LevelLoad, labels: Map<number, string>): Puff[] {
+  const out: Puff[] = [];
+  const add = (id: number, text: string, alert = false) => {
+    const c = centerOf(d, id);
+    if (c) out.push({ ...c, text, alert });
+  };
+  const on = (ks: Kind[]) => d.nodes.filter((n) => ks.includes(n.k));
+  const inc = new Set(p.incidents);
+  for (const id of lv.down) {
+    const k = d.nodes.find((n) => n.id === id)?.k;
+    add(id, `${INCIDENTS[k === "app" ? "app-down" : k === "external" ? "ext-down" : "worker-down"].emoji} ${labels.get(id)} ngừng hoạt động`, true);
+  }
+  if (lv.cut) {
+    const a = centerOf(d, lv.cut[0]);
+    const b = centerOf(d, lv.cut[1]);
+    if (a && b) out.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, text: `✂️ Đứt ${labels.get(lv.cut[0])} → ${labels.get(lv.cut[1])}`, alert: true });
+  }
+  if (inc.has("db-slow")) for (const n of on(["db"])) add(n.id, `🐢 ${labels.get(n.id)} −40% TPS`);
+  if (inc.has("cache-flush")) for (const n of on(["cache"])) add(n.id, `🧹 ${labels.get(n.id)} bị xoá sạch`);
+  if (inc.has("cache-drop")) for (const n of on(["cache", "cdn"])) add(n.id, `📉 ${labels.get(n.id)} hit −30%`);
+  if (inc.has("skew")) for (const n of on(["lb", "gateway"])) if (d.edges.filter(([a]) => a === n.id).length > 1) add(n.id, `↗️ ${labels.get(n.id)} lệch nhánh`);
+  if (inc.has("write-surge")) add(USERS_ID, "📝 Tỷ lệ ghi tăng ×2");
+  return out.slice(0, 6);
+}
+
+const BLAST_MS = 1700;
+const BALLOON_MS = 2400;
+// Sự cố xảy ra ở mọi mức tải; nhắc lại bằng bóng mỗi chừng này (hoặc ngay khi đối tượng bị nhắm đổi).
+const BALLOON_EVERY_MS = 2400;
+
+// Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, sự cố hiện bóng bay lên, gục
+// thì nổ rồi mới báo nguyên nhân. Mặc định xem thiết kế của mình (người xem thì của người đứng đầu); bấm thanh tải của ai để
+// xem sơ đồ người đó.
 function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
   const pb = useContext(PlaybackCtx);
   const p = g.problem;
   const step = levelStep(p);
+  const { tick } = playbackOf(final);
   const people = final.rows.filter((r) => final.designs[r.uid]);
   const [pick, setPick] = useState(() => (final.designs[view.me] ? view.me : (people[0]?.uid ?? "")));
   const row = final.rows.find((r) => r.uid === pick);
@@ -1303,6 +1352,62 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
   const heat = sim?.valid && lv > 0 ? heatOf(sim, lv) : undefined;
   const labels = useMemo(() => (design ? nodeLabels(design) : new Map<number, string>()), [design]);
   const hit = heat && (heat.down?.length || heat.cut) ? [...(heat.down ?? []).map((id) => `${labels.get(id)} sập`), ...(heat.cut ? [`đứt ${labels.get(heat.cut[0])} → ${labels.get(heat.cut[1])}`] : [])] : [];
+
+  // Hiệu ứng gắn với thiết kế phát ra nó (khoá bắt đầu bằng `<uid>|`): đổi sang xem người khác thì không lẫn sang.
+  const [fx, setFx] = useState<{ balloons: Balloon[]; blasts: Blast[] }>({ balloons: [], blasts: [] });
+  const [blasted, setBlasted] = useState<string[]>([]);
+  const puffed = useRef({ pick: "", level: -99, sig: "" });
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms));
+
+  const onLevel = useEffectEvent((level: number) => {
+    if (pb.phase !== "run" || !design || !sim?.valid || !level) return;
+    const failAt = sim.fail?.level;
+    if (failAt && level >= failAt) {
+      // Vừa gục (hoặc vừa chuyển sang xem đúng lúc gục): nổ ở component quá tải, mất đường thì chỉ báo bóng.
+      if (level - failAt > 1 || blasted.includes(pick)) return;
+      setBlasted((b) => [...b, pick]);
+      const at = sim.fail!.node !== undefined ? centerOf(design, sim.fail!.node) : null;
+      if (!at) return;
+      if (sim.fail!.why === "path") {
+        const made: Balloon = { ...at, key: `${pick}|lost`, text: "🚫 Mất đường xử lý", delay: 0, alert: true };
+        setFx((f) => ({ ...f, balloons: [...f.balloons, made] }));
+        later(() => setFx((f) => ({ ...f, balloons: f.balloons.filter((x) => x !== made) })), BALLOON_MS);
+        return;
+      }
+      const boom: Blast = { ...at, key: `${pick}|blast` };
+      setFx((f) => ({ ...f, blasts: [...f.blasts, boom] }));
+      later(() => setFx((f) => ({ ...f, blasts: f.blasts.filter((x) => x !== boom) })), BLAST_MS);
+      return;
+    }
+    if (!p.incidents.length) return;
+    const items = incidentBalloons(p, design, sim.levels[level - 1], labels);
+    const sig = items.map((x) => x.text).join("|");
+    const last = puffed.current;
+    if (!items.length || (last.pick === pick && last.sig === sig && (level - last.level) * tick < BALLOON_EVERY_MS)) return;
+    puffed.current = { pick, level, sig };
+    const made = items.map((x, k): Balloon => ({ ...x, key: `${pick}|${level}|${k}`, delay: k * 140 }));
+    setFx((f) => ({ ...f, balloons: [...f.balloons, ...made].slice(-14) }));
+    later(() => setFx((f) => ({ ...f, balloons: f.balloons.filter((x) => !made.includes(x)) })), BALLOON_MS + made.length * 140);
+  });
+  // Mức tải đổi là một nhịp của đồng hồ phát lại (hệ ngoài): hiệu ứng sinh theo nhịp đó, gỡ theo hẹn giờ.
+  useEffect(() => {
+    const t = setTimeout(() => onLevel(pb.level), 0);
+    return () => clearTimeout(t);
+  }, [pb.level, pick]);
+
+  const mine = (k: { key: string }) => k.key.startsWith(`${pick}|`);
+  const blasts = fx.blasts.filter(mine);
+  // Vừa gục ở mức này mà hiệu ứng chưa kịp sinh (sinh sau một nhịp): coi như đang nổ, để lời báo gục và khói âm ỉ không
+  // hiện trước vụ nổ.
+  const pending = dead && !blasted.includes(pick) && pb.level - sim!.fail!.level <= 1;
+  const late = pending || blasted.includes(pick);
+  const shown: Fx = {
+    balloons: fx.balloons.filter(mine),
+    blasts,
+    smolder: dead && !pending && !blasts.length && sim?.fail?.why !== "path" ? sim?.fail?.node : undefined,
+  };
   return (
     <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Load test đang chạy">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1330,10 +1435,10 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
           </p>
           <div className="sx-run">
             <div className="sx-canvas-wrap">
-              <SxCanvas design={design} heat={heat} live={!!heat && !dead} label={`Load test trên sơ đồ của ${nameIn(view, pick)}`} />
+              <SxCanvas design={design} heat={heat} live={!!heat && !dead} fx={shown} label={`Load test trên sơ đồ của ${nameIn(view, pick)}`} />
             </div>
             {(dead || !sim?.valid) && (
-              <div className="sx-run-veil">
+              <div className={`sx-run-veil ${late ? "is-late" : ""}`}>
                 {sim?.valid ? (
                   <p key="dead">
                     <b className="font-display text-xl">💥 Gục ở {fmt(sim.fail!.tps)} TPS</b>
@@ -1442,15 +1547,19 @@ function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; fin
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Kết quả của chính mình, kèm dưới cảnh công bố (khi mình không nằm trong số người thắng).
+// Dưới cảnh người thắng: hạng của mình nếu cũng vượt quality gate.
 function selfNote(rows: readonly Standing[], me: string) {
   const r = rows.find((x) => x.uid === me);
-  if (!r || r.rank === 1) return undefined;
-  if (r.status === "out") return "Bạn bị loại khỏi ván này.";
-  if (r.status === "invalid") return "Thiết kế của bạn không hợp lệ nên không được chạy tải.";
-  if (r.status === "pass") return `Bạn hạng ${r.rank}: ${fmt(r.tps)} TPS · chi phí ${fmt(r.cost)}.`;
-  const why = [!r.traffic && "chưa đạt traffic", !r.budget && "vượt budget"].filter(Boolean).join(", ");
-  return `Bạn: ${fmt(r.tps)} TPS · chi phí ${fmt(r.cost)} — ${why}.`;
+  return r?.status === "pass" && r.rank > 1 ? `Bạn cũng vượt quality gate — hạng ${r.rank}: ${fmt(r.tps)} TPS · chi phí ${fmt(r.cost)}.` : undefined;
+}
+
+// Vì sao thiết kế của mình chưa vượt quality gate (cảnh "Bạn chưa vượt qua được").
+function missWhy(r: Standing, p: Problem): { emoji: string; text: string } {
+  if (r.status === "out") return { emoji: "🚪", text: "Bạn bị loại khỏi ván này." };
+  if (r.status === "invalid") return { emoji: "⛔", text: "Thiết kế không hợp lệ nên không được chạy tải." };
+  const over = r.budget ? "" : ` · chi phí ${fmt(r.cost)} vượt budget ${fmt(p.budget)}`;
+  if (!r.traffic) return { emoji: "💥", text: `Hệ thống gục ở ${fmt(r.sim?.fail?.tps ?? r.tps)} TPS — cần ${fmt(p.target)} TPS${over}.` };
+  return { emoji: "💸", text: `Đạt ${fmt(r.tps)} TPS nhưng chi phí ${fmt(r.cost)} vượt budget ${fmt(p.budget)}.` };
 }
 
 const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesignRoom }) {
@@ -1461,8 +1570,11 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const final = g?.final;
   const winners = final ? final.rows.filter((r) => r.rank === 1) : [];
-  // Chỉ công bố khi máy này vừa phát lại xong (hoặc bấm bỏ qua); vào phòng / tải lại trang lúc ván đã xong thì thôi.
-  const end = useEndScene(final && pb.fresh && pb.phase === "done" ? g!.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI, cheer: winners.length > 0 });
+  const mine = final?.rows.find((r) => r.uid === me);
+  const missed = !!mine && mine.status !== "pass";
+  // Chỉ công bố khi máy này vừa phát lại xong — sau cả vụ nổ cuối cùng (hoặc bấm bỏ qua); vào phòng / tải lại trang lúc ván đã
+  // xong thì thôi.
+  const end = useEndScene(final && pb.fresh && pb.phase === "done" ? g!.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI, cheer: winners.length > 0 && !missed });
   if (!g) return null;
   if (count > 0)
     return (
@@ -1479,14 +1591,25 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
       />
     );
   if (!end.shown || !final) return <Party bits={end.party} />;
-  const note = selfNote(final.rows, me);
-  if (!winners.length)
-    return (
-      <LoseCine emoji="🤷" title="Không ai vượt quality gate" sub={`Cần ≥ ${fmt(g.problem.target)} TPS với chi phí ≤ ${fmt(g.problem.budget)}`} note={note} onClose={end.close} />
-    );
   const top = winners[0];
   const iWon = winners.some((r) => r.uid === me);
   const names = winners.map((r) => (r.uid === me ? "Bạn" : (g.lineup.find((s) => s.seat.uid === r.uid)?.seat.member?.name ?? "Ai đó"))).join(", ");
+  if (mine && missed) {
+    const why = missWhy(mine, g.problem);
+    return (
+      <LoseCine
+        p={g.lineup.find((s) => s.seat.uid === me)?.seat.member}
+        emoji={why.emoji}
+        title="Bạn chưa vượt qua được!"
+        sub={why.text}
+        note={top ? `🏆 ${names} ${winners.length > 1 ? "đồng hạng nhất" : "thắng"} với ${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)}` : "Ván này không ai vượt quality gate."}
+        onClose={end.close}
+      />
+    );
+  }
+  if (!winners.length)
+    return <LoseCine emoji="🤷" title="Không ai vượt quality gate" sub={`Cần ≥ ${fmt(g.problem.target)} TPS với chi phí ≤ ${fmt(g.problem.budget)}`} onClose={end.close} />;
+  const note = selfNote(final.rows, me);
   return (
     <>
       <WinCine

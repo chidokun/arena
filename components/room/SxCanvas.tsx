@@ -15,6 +15,54 @@ type Edit = {
   onSel: (s: Sel) => void;
 };
 
+// Hiệu ứng lúc phát lại load test (toạ độ sơ đồ): bóng báo sự cố bay lên, vụ nổ ở component quá tải, khói âm ỉ trên
+// component đã gục.
+export type Balloon = { key: string; x: number; y: number; text: string; delay: number; alert?: boolean };
+export type Blast = { key: string; x: number; y: number };
+export type Fx = { balloons: Balloon[]; blasts: Blast[]; smolder?: number };
+
+// Cố định (không random lúc vẽ) để vụ nổ trông như nhau mỗi lần.
+const DEBRIS = Array.from({ length: 12 }, (_, i) => {
+  const a = (i / 12) * Math.PI * 2 + (i % 3) * 0.21;
+  const d = 46 + ((i * 37) % 5) * 9;
+  return { dx: Math.round(Math.cos(a) * d), dy: Math.round(Math.sin(a) * d - 10), rot: ((i * 97) % 360) - 180, size: 5 + (i % 3) * 2 };
+});
+const SMOKE = [
+  { x: -14, dx: -26, dy: -70, r: 13, delay: 180 },
+  { x: 10, dx: 22, dy: -82, r: 15, delay: 260 },
+  { x: 0, dx: -6, dy: -96, r: 17, delay: 380 },
+  { x: -22, dx: -40, dy: -54, r: 11, delay: 480 },
+  { x: 20, dx: 38, dy: -60, r: 12, delay: 560 },
+  { x: 4, dx: 8, dy: -110, r: 14, delay: 700 },
+];
+
+function BlastFx({ x, y }: { x: number; y: number }) {
+  return (
+    <g className="sx-blast" transform={`translate(${x} ${y})`} pointerEvents="none">
+      {SMOKE.map((s, i) => (
+        <circle key={`s${i}`} cx={s.x} r={s.r} className="sx-blast-smoke" style={{ ["--dx" as string]: `${s.dx}px`, ["--dy" as string]: `${s.dy}px`, animationDelay: `${s.delay}ms` }} />
+      ))}
+      <circle r="20" className="sx-blast-flash" />
+      <circle r="24" className="sx-blast-ring" />
+      {DEBRIS.map((d, i) => (
+        <rect
+          key={`d${i}`}
+          x={-d.size / 2}
+          y={-d.size / 2}
+          width={d.size}
+          height={d.size}
+          rx="1.5"
+          className={`sx-blast-bit ${i % 2 ? "is-hot" : ""}`}
+          style={{ ["--dx" as string]: `${d.dx}px`, ["--dy" as string]: `${d.dy}px`, ["--rot" as string]: `${d.rot}deg` }}
+        />
+      ))}
+      <text className="sx-blast-emoji" textAnchor="middle" dy="0.35em">
+        💥
+      </text>
+    </g>
+  );
+}
+
 type Box = { id: number; k: NodeKind; x: number; y: number };
 
 type Wire = { from: number; x: number; y: number; tap: boolean; sx: number; sy: number };
@@ -38,7 +86,7 @@ const pace = (flow: number, input: number) => Math.round((1.3 - 0.95 * Math.min(
 const tone = (u: number) => (u > 1 + 1e-9 ? "is-over" : u >= 0.85 ? "is-hot" : u >= 0.6 ? "is-warm" : u > 0 ? "is-cool" : "is-idle");
 
 // `live`: đang phát lại load test — traffic chạy trên đường nối, component căng tải rung lên.
-export function SxCanvas({ design, edit, heat, live, marks, label }: { design: Design; edit?: Edit; heat?: Heat; live?: boolean; marks?: number[]; label: string }) {
+export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { design: Design; edit?: Edit; heat?: Heat; live?: boolean; fx?: Fx; marks?: number[]; label: string }) {
   const svg = useRef<SVGSVGElement>(null);
   const labels = useMemo(() => nodeLabels(design), [design]);
   const boxes = useMemo<Box[]>(() => [{ id: USERS_ID, k: "users", ...USERS_POS }, ...design.nodes], [design.nodes]);
@@ -268,6 +316,24 @@ export function SxCanvas({ design, edit, heat, live, marks, label }: { design: D
           </g>
         );
       })}
+
+      {fx?.smolder !== undefined && byId.get(fx.smolder) && (
+        <g className="sx-smolder" transform={`translate(${byId.get(fx.smolder)!.x + NODE.w / 2} ${byId.get(fx.smolder)!.y + 6})`} pointerEvents="none">
+          {[0, 1, 2].map((i) => (
+            <circle key={i} cx={(i - 1) * 12} r={7 + i * 2} style={{ animationDelay: `${i * 520}ms` }} />
+          ))}
+        </g>
+      )}
+      {fx?.blasts.map((b) => <BlastFx key={b.key} x={b.x} y={b.y} />)}
+      {fx?.balloons.map((b) => (
+        <foreignObject key={b.key} x={b.x - 110} y={b.y - 84} width="220" height="84" className="sx-balloon-box" pointerEvents="none">
+          <div className="sx-balloon-lane">
+            <span className={`sx-balloon ${b.alert ? "is-alert" : ""}`} style={{ animationDelay: `${b.delay}ms` }}>
+              {b.text}
+            </span>
+          </div>
+        </foreignObject>
+      ))}
     </svg>
   );
 }

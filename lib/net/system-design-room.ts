@@ -29,8 +29,9 @@ export type SxFinal = { designs: Record<string, Design>; rows: Standing[] };
 
 // Mọi người chốt xong thì cả phòng xem load test chạy lại trên sơ đồ trước khi lộ kết quả: đếm ngược `intro`, mỗi mức tải
 // `tick`, dừng ở mức cuối `hold` rồi mới công bố. Tốc độ theo số mức của thiết kế trụ lâu nhất để ván nào cũng chạy ~8 giây.
+// `hold` đủ dài cho vụ nổ của thiết kế gục cuối cùng diễn xong rồi mới hiện cảnh kết quả.
 export const PLAY_INTRO_MS = 3000;
-const PLAY_HOLD_MS = 900;
+const PLAY_HOLD_MS = 2000;
 
 export function playbackOf(final: SxFinal) {
   const levels = Math.max(1, ...final.rows.map((r) => r.sim?.levels.length ?? 0));

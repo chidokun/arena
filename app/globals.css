@@ -3293,8 +3293,96 @@
   .sx-canvas.is-live .sx-node.is-fail .sx-node-box {
     animation: sx-alarm 900ms ease-in-out infinite alternate;
   }
+  /* Bóng báo sự cố bay lên trên component bị nhắm. */
+  .sx-balloon-box {
+    overflow: visible;
+  }
+  .sx-balloon-lane {
+    display: flex;
+    height: 100%;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .sx-balloon {
+    display: inline-block;
+    max-width: 210px;
+    padding: 4px 10px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sun-soft);
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 800;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 3px 0 var(--edge);
+    opacity: 0;
+    animation: sx-balloon 2100ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  .sx-balloon.is-alert {
+    background: var(--coral);
+    color: #fff;
+  }
+  /* Vụ nổ ở component quá tải: chớp sáng, sóng xung kích, mảnh vỡ văng ra, khói bốc lên. */
+  .sx-blast > * {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .sx-blast-flash {
+    fill: #ffd84d;
+    stroke: #ff8a3d;
+    stroke-width: 4;
+    animation: sx-blast-flash 560ms ease-out both;
+  }
+  .sx-blast-ring {
+    fill: none;
+    stroke: var(--coral);
+    stroke-width: 4;
+    animation: sx-blast-ring 700ms ease-out both;
+  }
+  .sx-blast-bit {
+    fill: var(--edge);
+    animation: sx-blast-bit 760ms cubic-bezier(0.15, 0.7, 0.4, 1) both;
+  }
+  .sx-blast-bit.is-hot {
+    fill: #ff8a3d;
+  }
+  .sx-blast-smoke {
+    fill: color-mix(in srgb, var(--ink-2) 55%, var(--paper));
+    opacity: 0;
+    animation: sx-blast-smoke 1500ms ease-out both;
+  }
+  .sx-blast-emoji {
+    font-size: 46px;
+    animation: sx-blast-emoji 900ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  }
+  /* Component đã gục vẫn bốc khói âm ỉ. */
+  .sx-smolder circle {
+    fill: color-mix(in srgb, var(--ink-2) 50%, var(--paper));
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: sx-smolder 1560ms ease-out infinite;
+  }
+  .sx-race-boom {
+    position: absolute;
+    top: 50%;
+    font-size: 20px;
+    line-height: 1;
+    pointer-events: none;
+    animation: sx-race-boom 900ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  }
   .sx-run {
     position: relative;
+  }
+  /* Thiết kế vừa nổ thì đợi vụ nổ xong mới phủ lời báo gục. */
+  .sx-run-veil.is-late {
+    animation: sx-fade-in 300ms ease-out 1.5s both;
+  }
+  .sx-run-veil.is-late > p {
+    animation-delay: 1.5s;
   }
   .sx-run-veil {
     position: absolute;
@@ -5069,6 +5157,129 @@
   from {
     opacity: 0;
     transform: scale(0.85);
+  }
+}
+@keyframes sx-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sx-balloon {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.7);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0) scale(1.06);
+  }
+  24% {
+    transform: translateY(-6px) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.96);
+  }
+}
+@keyframes sx-blast-flash {
+  0% {
+    opacity: 1;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+@keyframes sx-blast-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(4.2);
+  }
+}
+@keyframes sx-blast-bit {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+  }
+}
+@keyframes sx-blast-smoke {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  18% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(2.6);
+  }
+}
+@keyframes sx-blast-emoji {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+@keyframes sx-smolder {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-46px) scale(1.9);
+  }
+}
+@keyframes sx-race-boom {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 @keyframes count-pop {
