@@ -510,9 +510,10 @@ function ChatBox({
                         title={s.label}
                         aria-label={`Gửi sticker ${s.label}`}
                         onClick={() => send({ sticker: s.id })}
-                        className="grid aspect-square place-items-center rounded-lg p-0.5 transition-transform hover:-translate-y-0.5 hover:bg-surface active:translate-y-0.5"
+                        className="group grid aspect-square place-items-center rounded-lg p-0.5 hover:bg-surface"
                       >
-                        <StickerArt id={s.id} size={52} />
+                        {/* Chỉ ảnh nhún, nút đứng yên: dịch cả nút trong khung cuộn làm hàng sát mép tràn ra, bấm hụt. */}
+                        <StickerArt id={s.id} size={52} className="transition-transform group-hover:-translate-y-0.5 group-active:translate-y-0.5" />
                       </button>
                     ))}
                   </div>

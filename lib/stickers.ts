@@ -11,13 +11,18 @@ const KAIXIN = [
   { id: "kx-bo-ruh", label: "Bờ rù" },
   { id: "kx-buh", label: "Bủh" },
   { id: "kx-cay-nho", label: "Cay nhờ" },
+  { id: "kx-chi-biet-uoc", label: "Chỉ biết ước" },
   { id: "kx-dak", label: "Đảk" },
   { id: "kx-dang-cap", label: "Đẳng cấp" },
   { id: "kx-dang-suy-ngam", label: "Đáng suy ngẫm" },
+  { id: "kx-hay", label: "Hay" },
   { id: "kx-het-cuu", label: "Hết cứu" },
   { id: "kx-lmao-bun-bun", label: "Lờ mao bủn bủn" },
+  { id: "kx-lmao-su-de", label: "Lmao sư đệ" },
   { id: "kx-lmao-su-huynh", label: "Lmao sư huynh" },
+  { id: "kx-lmao-su-ty", label: "Lmao sư tỷ" },
   { id: "kx-no-hop", label: "Nô hốp" },
+  { id: "kx-that-vong", label: "Thất vọng" },
   { id: "kx-vua", label: "Vua" },
 ] as const;
 
