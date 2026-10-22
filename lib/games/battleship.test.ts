@@ -8,6 +8,7 @@ import {
   FLEET_CELLS,
   fleetGrid,
   honest,
+  normOptions,
   parseFleet,
   randomFleet,
   replay,
@@ -163,4 +164,39 @@ test("toạ độ hải đồ", () => {
   assert.equal(coord(0), "A1");
   assert.equal(coord(at(2, 6)), "C7");
   assert.equal(coord(99), "J10");
+});
+
+test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời gian thì không giới hạn", () => {
+  assert.deepEqual(normOptions({ chain: false, turn: 30 }), { chain: false, turn: 30 });
+  assert.deepEqual(normOptions({ chain: "có", turn: 20 }), { chain: true, turn: 0 });
+  assert.equal(normOptions({ chain: true }).turn, 0);
+  assert.equal(normOptions({ turn: 15 }).turn, 15);
+  assert.equal(normOptions({ turn: 45 }).turn, 45);
+  assert.equal(normOptions(undefined).turn, 0);
+});
+
+test("hết giờ thì mất lượt: chuyển bên bắn, phát bắn trễ của người mất lượt bị bỏ", () => {
+  const chain = { chain: true };
+  // Hết giờ trước phát đầu: bên 1 bắn trước.
+  let s = replay([], chain, [0]);
+  assert.equal(s.turn, 1);
+  assert.equal(s.passed, 0);
+  // Bên 0 trúng (vẫn giữ lượt) rồi hết giờ: sang bên 1; bên 1 cũng hết giờ: về lại bên 0.
+  const hit = answerShot(ROWS, [], at(0, 0));
+  s = replay([{ ...hit, p: 0 }], chain, [1]);
+  assert.equal(s.turn, 1);
+  s = replay([{ ...hit, p: 0 }], chain, [1, 1]);
+  assert.equal(s.turn, 0);
+  assert.equal(s.passed, 1);
+  // Có phát bắn mới thì không còn là diễn biến mới nhất.
+  s = replay([{ ...hit, p: 0 }, { c: at(5, 5), r: 0, p: 1 }], chain, [1]);
+  assert.equal(s.passed, -1);
+  assert.equal(s.turn, 0);
+  // Bên 0 bắn trễ ngay lúc chủ phòng chuyển lượt: phát đó không tính, cũng không thành câu trả lời.
+  s = replay([{ c: at(3, 3), p: 0 }], chain, [0]);
+  assert.equal(s.pending, -1);
+  assert.equal(s.shots.length, 0);
+  assert.equal(s.turn, 1);
+  s = replay([{ c: at(3, 3), r: 0, p: 0 }], chain, [0]);
+  assert.equal(s.shots.length, 0);
 });

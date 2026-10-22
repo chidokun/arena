@@ -615,12 +615,13 @@ export const RULES: Record<string, GameRules> = {
           "Hai bên thay phiên chọn một ô (vd. C7) trên hải đồ đối phương để bắn.",
           "Kết quả được báo ngay: trượt 💧, trúng 💥, hoặc chìm tàu — khi chìm thì lộ luôn vị trí con tàu đó.",
           "Nếu chủ phòng bật “Trúng bắn tiếp”: bắn trúng được bắn thêm phát nữa; tắt thì mỗi phát lại đổi lượt.",
+          "Chủ phòng chọn thời gian tối đa cho mỗi phát bắn (15, 30, 45 giây hoặc không giới hạn) lúc tạo phòng. Luật bắn và thời gian đều đổi được trước mỗi ván. Hết giờ mà chưa bắn thì mất lượt, đối phương được bắn.",
         ],
       },
       {
         emoji: "🏆",
         title: "Thắng thua",
-        items: ["Ai đánh chìm toàn bộ 5 tàu của đối phương trước thì thắng."],
+        items: ["Ai đánh chìm toàn bộ 5 tàu của đối phương trước thì thắng.", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
       },
       {
         emoji: "🔒",

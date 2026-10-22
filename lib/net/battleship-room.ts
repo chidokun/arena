@@ -12,11 +12,15 @@ import {
   type BsOptions,
   type Fleet,
   type Shot,
+  type BsState,
   type Sunk,
 } from "../games/battleship";
-import { RoomSession, type Meta, type Result, type SeatView } from "./room";
+import { RoomSession, START_COUNTDOWN_MS, type Meta, type Result, type SeatView } from "./room";
 
 const FORFEIT_MS = 30000;
+// Chủ phòng chờ thêm chút sau hạn chót mới chuyển lượt: người đang bắn thấy kết quả phát trước muộn hơn (độ trễ mạng),
+// nên đồng hồ trên máy họ về 0 sau máy chủ phòng.
+const GRACE_MS = 1000;
 
 const secretKey = (id: string) => `arena:bs:${id}`;
 const draftKey = (id: string) => `arena:bs:${id}:draft`;
@@ -44,13 +48,20 @@ export type BsMatch = {
   turn: 0 | 1;
   pending: number;
   last?: Shot & { by: 0 | 1; n: number };
+  /** Bên vừa mất lượt vì hết giờ, nếu đó là diễn biến mới nhất; -1 là không. */
+  passed: -1 | 0 | 1;
   myTurn: boolean;
+  /** Luật của ván này (`opts.turn` là giây tối đa mỗi phát bắn, 0 là không giới hạn) và hạn chót phát hiện tại theo giờ
+   * máy mình — 0 khi chưa giao chiến hoặc đang chờ bên bị bắn báo kết quả. */
+  opts: BsOptions;
+  deadline: number;
   placing: boolean;
   lost: boolean;
   result?: Result;
 };
 
 export type BsView = {
+  /** Luật cho ván tới — chủ phòng đổi được giữa các ván. */
   opts: BsOptions;
   match?: BsMatch;
   wins: Record<string, number>;
@@ -64,7 +75,9 @@ export class BattleshipRoom extends RoomSession<BsView> {
   // Băm SHA-256 là bất đồng bộ nên lúc đang tính thì giữ lời hứa.
   private checks = new Map<string, boolean | Promise<void>>();
   // Để rao "bắn chìm" chỉ với diễn biến mới.
-  private seen = { round: -1, n: 0 };
+  private seen = { round: -1, n: 0, passes: 0 };
+  // Mỗi máy tự bấm giờ từ lúc thấy phát bắn cuối được báo kết quả, nên không phụ thuộc đồng hồ các máy có khớp nhau hay không.
+  private idle = { key: "", since: 0 };
 
   private logOf(m: Meta): Shot[] {
     const list = this.gossip.get<{ shots?: unknown }>(`g:${m.round}`)?.shots;
@@ -88,9 +101,28 @@ export class BattleshipRoom extends RoomSession<BsView> {
     return this.mine?.round === round ? this.mine : null;
   }
 
+  private passesOf(m: Meta) {
+    return m.bsPass ?? [];
+  }
+
+  private rulesOf(m: Meta) {
+    return m.bs ?? normOptions(m.opts);
+  }
+
+  // Phát đầu tính cả lúc đếm ngược khai hoả; đang chờ bên bị bắn báo kết quả thì người bắn đã đi xong nên không bấm giờ.
+  private deadlineOf(m: Meta, g: { ready: boolean; state: { shots: unknown[]; pending: number } }) {
+    const limit = this.rulesOf(m).turn;
+    if (!limit || !g.ready || g.state.pending >= 0) return 0;
+    const n = g.state.shots.length;
+    const passes = this.passesOf(m).length;
+    const key = `${m.round}:${n}:${passes}`;
+    if (this.idle.key !== key) this.idle = { key, since: Date.now() };
+    return this.idle.since + (n || passes ? 0 : START_COUNTDOWN_MS) + limit * 1000;
+  }
+
   private gameOf(m: Meta) {
     const ready = m.lineup.length === 2 && m.lineup.every((u) => isCommit(this.recordOf(m, u)?.commit));
-    const state = replay(ready ? this.logOf(m) : [], normOptions(m.opts));
+    const state = replay(ready ? this.logOf(m) : [], this.rulesOf(m), ready ? this.passesOf(m) : []);
     let result: Result | undefined;
     if (state.winner >= 0) result = { round: m.round, winner: m.lineup[state.winner], loser: m.lineup[1 - state.winner], reason: "sunk" };
     else {
@@ -104,6 +136,8 @@ export class BattleshipRoom extends RoomSession<BsView> {
   protected begin(m: Meta) {
     if (m.players.length !== m.seats || m.players.some((u) => !this.isOnline(u))) return false;
     m.lineup = m.round % 2 === 1 ? [...m.players] : [...m.players].reverse();
+    m.bs = normOptions(m.opts);
+    m.bsPass = [];
     return true;
   }
 
@@ -121,9 +155,16 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   protected hostPlay(m: Meta) {
     const gone = m.lineup.find((u) => u !== this.me && this.silentFor(u) >= FORFEIT_MS);
-    if (!gone) return;
-    m.status = "ended";
-    m.result = { round: m.round, winner: m.lineup.find((u) => u !== gone) ?? null, loser: gone, reason: "leave" };
+    if (gone) {
+      m.status = "ended";
+      m.result = { round: m.round, winner: m.lineup.find((u) => u !== gone) ?? null, loser: gone, reason: "leave" };
+      return;
+    }
+    // Hết giờ thì mất lượt chứ không thua: ghi lại để mọi máy dựng lại cùng thứ tự lượt.
+    const g = this.gameOf(m);
+    const deadline = this.deadlineOf(m, g);
+    if (!deadline || Date.now() < deadline + GRACE_MS || g.result) return;
+    m.bsPass = [...this.passesOf(m), g.state.shots.length];
   }
 
   protected onKick(m: Meta, uid: string, reason: "kick" | "cheat" = "kick") {
@@ -136,7 +177,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
   protected watch(m: Meta) {
     if (m.round <= 0 || m.lineup.length !== 2) return;
     const g = this.gameOf(m);
-    this.announce(m, g.state.shots);
+    this.announce(m, g.state);
     const side = m.lineup.indexOf(this.me) as -1 | 0 | 1;
     const secret = this.secret(m.round);
     if (side === -1 || !secret) return;
@@ -152,16 +193,21 @@ export class BattleshipRoom extends RoomSession<BsView> {
     else if (g.ready && g.state.pending >= 0 && g.state.turn !== side) {
       const n = g.state.shots.length;
       const prior = shotsAt(g.state, side).map((x) => x.c);
-      this.gossip.set(`g:${m.round}`, { shots: [...this.logOf(m).slice(0, n - 1), answerShot(secret.fleet, prior, g.state.pending)] });
+      // Giữ `p` để câu trả lời cho phát bắn trễ (người bắn đã mất lượt) cũng bị bỏ như chính phát đó.
+      const answer = { ...answerShot(secret.fleet, prior, g.state.pending), p: g.state.turn };
+      this.gossip.set(`g:${m.round}`, { shots: [...this.logOf(m).slice(0, n - 1), answer] });
     }
   }
 
-  private announce(m: Meta, shots: readonly (Shot & { by: 0 | 1 })[]) {
-    const answered = shots.filter((x) => x.r !== undefined);
-    if (this.seen.round === m.round)
+  private announce(m: Meta, state: BsState) {
+    const answered = state.shots.filter((x) => x.r !== undefined);
+    const passes = this.passesOf(m).length;
+    if (this.seen.round === m.round) {
       for (const x of answered.slice(this.seen.n))
         if (x.r === 2) this.system(`💥 ${this.nameOf(m.lineup[x.by])} bắn chìm ${FLEET[x.k!].name} của ${this.nameOf(m.lineup[1 - x.by])}!`);
-    this.seen = { round: m.round, n: answered.length };
+      if (passes > this.seen.passes && state.passed >= 0) this.system(`⏱ ${this.nameOf(m.lineup[state.passed])} hết giờ — mất lượt bắn.`);
+    }
+    this.seen = { round: m.round, n: answered.length, passes };
   }
 
   private check(m: Meta, uid: string, rec: FleetRecord, answered: Shot[]): boolean | undefined {
@@ -226,7 +272,10 @@ export class BattleshipRoom extends RoomSession<BsView> {
         turn: g.state.turn,
         pending: g.state.pending,
         last,
+        passed: g.state.passed,
         myTurn: playing && g.ready && me >= 0 && g.state.turn === me && g.state.pending < 0,
+        opts: this.rulesOf(m),
+        deadline: playing ? this.deadlineOf(m, g) : 0,
         placing: playing && me !== -1 && !sides[me].ready,
         lost: playing && me !== -1 && sides[me].ready && !secret,
         result: g.result,
@@ -288,12 +337,23 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   fire(c: number) {
     const m = this.meta();
-    if (!m || !this.store.get().game?.match?.myTurn) return;
+    const cur = this.store.get().game?.match;
+    if (!m || !cur?.myTurn || (cur.deadline && Date.now() >= cur.deadline)) return;
     const g = this.gameOf(m);
-    const next = [...this.logOf(m).slice(0, g.state.shots.length), { c }];
-    if (replay(next, normOptions(m.opts)).pending !== c) return;
+    const next = [...this.logOf(m).slice(0, g.state.shots.length), { c, p: g.state.turn }];
+    if (replay(next, this.rulesOf(m), this.passesOf(m)).pending !== c) return;
     this.gossip.set(`g:${m.round}`, { shots: next });
     this.react();
+  }
+
+  setOptions(next: Partial<BsOptions>) {
+    this.hostEdit((m) => {
+      if (m.status === "playing") return false;
+      const cur = normOptions(m.opts);
+      const opts = normOptions({ ...cur, ...next });
+      if (opts.chain === cur.chain && opts.turn === cur.turn) return false;
+      m.opts = { ...m.opts, ...opts };
+    });
   }
 
   resign() {

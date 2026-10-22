@@ -18,18 +18,29 @@ export const FLEET_CELLS = FLEET.reduce((n, s) => n + s.len, 0);
 export type Ship = { at: number; v: boolean };
 export type Fleet = Ship[];
 
+// Giây tối đa cho mỗi phát bắn; 0 là không giới hạn.
+export const TURN_LIMITS = [15, 30, 45, 0] as const;
+export type TurnLimit = (typeof TURN_LIMITS)[number];
+export const turnLabel = (t: number) => (!t ? "Không giới hạn" : t < 60 ? `${t} giây` : `${t / 60} phút`);
+
 export type BsOptions = {
   chain: boolean;
+  turn: TurnLimit;
 };
 
-export const DEFAULT_OPTIONS: BsOptions = { chain: true };
+export const DEFAULT_OPTIONS: BsOptions = { chain: true, turn: 0 };
 
+// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn.
 export function normOptions(raw: unknown): BsOptions {
   const o = (raw ?? {}) as Partial<BsOptions>;
-  return { chain: typeof o.chain === "boolean" ? o.chain : DEFAULT_OPTIONS.chain };
+  return {
+    chain: typeof o.chain === "boolean" ? o.chain : DEFAULT_OPTIONS.chain,
+    turn: TURN_LIMITS.find((t) => t === o.turn) ?? DEFAULT_OPTIONS.turn,
+  };
 }
 
-export type Shot = { c: number; r?: 0 | 1 | 2; k?: number; at?: number; v?: boolean };
+// `p` là bên bắn: phát bắn tới muộn sau khi người bắn đã mất lượt vì hết giờ thì không khớp lượt nữa và bị bỏ.
+export type Shot = { c: number; r?: 0 | 1 | 2; k?: number; at?: number; v?: boolean; p?: 0 | 1 };
 
 export type Sunk = { k: number; ship: Ship };
 
@@ -40,6 +51,8 @@ export type BsState = {
   turn: 0 | 1;
   pending: number;
   winner: -1 | 0 | 1;
+  /** Bên vừa mất lượt vì hết giờ, nếu đó là diễn biến mới nhất; -1 là không. */
+  passed: -1 | 0 | 1;
 };
 
 const inRange = (c: unknown): c is number => Number.isInteger(c) && (c as number) >= 0 && (c as number) < CELLS;
@@ -105,7 +118,8 @@ export function answerShot(fleet: readonly Ship[], prior: readonly number[], c: 
   return { c, r: 2, k, at: fleet[k].at, v: fleet[k].v };
 }
 
-export function replay(log: readonly Shot[], opts: BsOptions): BsState {
+// `passes[j]` là số phát bắn đã có lúc một người mất lượt vì hết giờ (tăng dần, lặp lại được khi mất lượt liên tiếp).
+export function replay(log: readonly Shot[], opts: Pick<BsOptions, "chain">, passes: readonly number[] = []): BsState {
   const s: BsState = {
     shots: [],
     marks: [new Int8Array(CELLS).fill(-1), new Int8Array(CELLS).fill(-1)],
@@ -113,15 +127,23 @@ export function replay(log: readonly Shot[], opts: BsOptions): BsState {
     turn: 0,
     pending: -1,
     winner: -1,
+    passed: -1,
   };
-  for (let i = 0; i < log.length && s.winner < 0; i++) {
+  let j = 0;
+  for (let i = 0; i <= log.length && s.winner < 0; i++) {
+    for (; j < passes.length && passes[j] === i; j++) {
+      s.passed = s.turn;
+      s.turn = (1 - s.turn) as 0 | 1;
+    }
+    if (i === log.length) break;
     const shot = log[i];
     const foe = (1 - s.turn) as 0 | 1;
     const marks = s.marks[foe];
-    if (!shot || !inRange(shot.c) || marks[shot.c] >= 0) break;
+    if (!shot || !inRange(shot.c) || marks[shot.c] >= 0 || (shot.p !== undefined && shot.p !== s.turn)) break;
     if (shot.r === undefined) {
       if (i !== log.length - 1) break;
       s.pending = shot.c;
+      s.passed = -1;
       s.shots.push({ c: shot.c, by: s.turn });
       break;
     }
@@ -136,6 +158,7 @@ export function replay(log: readonly Shot[], opts: BsOptions): BsState {
       s.sunk[foe].push({ k, ship });
       s.shots.push({ c: shot.c, r: 2, k, at: ship.at, v: ship.v, by: s.turn });
     } else s.shots.push({ c: shot.c, r: shot.r, by: s.turn });
+    s.passed = -1;
     marks[shot.c] = shot.r ? 1 : 0;
     if (s.sunk[foe].length === FLEET.length) s.winner = s.turn;
     else if (!shot.r || !opts.chain) s.turn = foe;

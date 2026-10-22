@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { coord, FLEET, fleetGrid, randomFleet, shipCells, SIZE, type Fleet, type Ship } from "@/lib/games/battleship";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { coord, FLEET, fleetGrid, normOptions, randomFleet, shipCells, SIZE, TURN_LIMITS, turnLabel, type Fleet, type Ship } from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
 import type { RoomState, RoomView } from "@/lib/net/room";
 import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
@@ -13,6 +13,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
+import { shortTurn, TIME_BAR_H, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<BsView>, "chat">;
@@ -30,25 +31,28 @@ const CHEERS = ["🎉", "🏆", "✨", "🎊", "⚓", "💥"];
 const SUNK_PAUSE_MS = 2200;
 // Các số px là phần chữ dưới mỗi hải đồ (dòng phát bắn cuối, tiêu đề, danh sách tàu). Màn hình dọc không đủ chỗ cho
 // hai hải đồ nên mỗi cái rộng hết bề ngang, chồng lên nhau và cuộn dọc.
+// Ván có bấm giờ thì thanh thời gian chiếm thêm TIME_BAR_H phía trên nên hai hải đồ (đặt cạnh nhau) hẹp đi gấp đôi chừng đó.
 const WATERS_FIT = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_290px)]";
+const WATERS_FIT_TIMED = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_330px)]";
 const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
 // Ước lượng thôi — hải đồ vẫn tự co cho vừa.
-const WATERS_CENTER = "200cqh + 260px";
+const watersCenter = (timed: boolean) => `200cqh + ${260 - (timed ? 2 * TIME_BAR_H : 0)}px`;
 const EDITOR_CENTER = "100cqh + 134px";
 
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
-  const rules = useGame(session, (v) => ({ setup: v?.match?.phase === "setup", chain: !!v?.opts.chain }), shallowEqual);
+  const setup = useGame(session, (v) => v?.match?.phase === "setup");
 
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
-      <RoomHeader name={head.name} status={head.status} round={head.round} playing={rules.setup ? "đang bày tàu" : "đang giao chiến"}>
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing={setup ? "đang bày tàu" : "đang giao chiến"}>
         <span className="chip text-ink-2">
           ▦ {SIZE}×{SIZE} · {FLEET.length} tàu
         </span>
-        <span className="chip" style={{ color: rules.chain ? "var(--sun)" : "var(--ink-3)" }}>
-          {rules.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
+        <span className="chip" style={{ color: head.chain ? "var(--sun)" : "var(--ink-3)" }}>
+          {head.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
         </span>
+        {head.turn > 0 && <span className="chip text-ink-2">⏱ {shortTurn(head.turn)}/lượt</span>}
       </RoomHeader>
 
       <div className="mb-4">
@@ -56,13 +60,19 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
       </div>
 
       <ActionPart session={session} />
+      <Settings session={session} />
       <ResultPart session={session} />
       <PlayPart session={session} />
     </RoomLayout>
   );
 }
 
-const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+// Bàn còn đang hiện ván đã chơi thì ghi luật của ván đó; luật ván tới nằm ở khung cài đặt bên dưới.
+const headOf = (r: RoomState) => {
+  const m = r.meta!;
+  const opts = m.status !== "waiting" && m.bs ? m.bs : normOptions(m.opts);
+  return { name: m.name, status: m.status, round: m.round, chain: opts.chain, turn: opts.turn };
+};
 
 const SeatRowPart = memo(function SeatRowPart({ session }: { session: BattleshipRoom }) {
   const view = useBsView(session);
@@ -132,19 +142,20 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const seated = view.mySeat >= 0;
   const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
+  const timed = live && g.phase === "battle" && g.opts.turn > 0;
   return (
     <>
       <StageArea
         className="mt-4"
-        fit={g?.placing ? EDITOR_FIT : WATERS_FIT}
+        fit={g?.placing ? EDITOR_FIT : timed ? WATERS_FIT_TIMED : WATERS_FIT}
         head={<SeatRowPart session={session} />}
         flanks={[<FlankPart key={0} session={session} i={0} />, <FlankPart key={1} session={session} i={1} />]}
-        center={g?.placing ? EDITOR_CENTER : WATERS_CENTER}
+        center={g?.placing ? EDITOR_CENTER : watersCenter(timed)}
         tools={<ControlsPart session={session} />}
         scroll
       >
         <div ref={boardRef} className="relative landscape:h-full">
-          {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} />}
+          {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} timed={timed} />}
           <Flyers flyers={flyers} />
         </div>
       </StageArea>
@@ -230,12 +241,16 @@ function SeatSlot({ i, seat, g, view, busy }: { i: 0 | 1; seat?: BsSide["seat"];
 const nameOf = (view: View, uid?: string | null) =>
   uid ? (view.members.find((p) => p.uid === uid)?.name ?? view.game?.match?.sides.find((s) => s.seat.uid === uid)?.seat.member?.name ?? "Ai đó") : "";
 
-function actionsOf(view: View, session: BattleshipRoom): { tone?: string; message: React.ReactNode; buttons?: React.ReactNode } {
+function actionsOf(
+  view: View,
+  session: BattleshipRoom,
+): { tone?: string; message: ReactNode; buttons?: ReactNode; clock?: { deadline: number; limit: number } } {
   const m = view.meta!;
-  const { opts, match: g } = view.game!;
+  const g = view.game!.match;
   const name = (uid?: string | null) => nameOf(view, uid);
 
   if (m.status === "playing" && g && !g.result) {
+    const clock = g.opts.turn && g.phase === "battle" ? { deadline: g.deadline, limit: g.opts.turn } : undefined;
     if (g.me < 0)
       return {
         message:
@@ -246,10 +261,11 @@ function actionsOf(view: View, session: BattleshipRoom): { tone?: string; messag
               👀 Đang xem — lượt bắn của <b>{name(g.sides[g.turn].seat.uid)}</b>
             </>
           ),
+        clock,
       };
     const foe = g.sides[1 - g.me];
     let tone: string = TONE.idle;
-    let message: React.ReactNode;
+    let message: ReactNode;
     if (g.lost) {
       tone = TONE.alert;
       message = <>⚠️ Máy này không còn sơ đồ hạm đội của bạn nên không tự báo kết quả phát bắn được — bạn có thể xin thua.</>;
@@ -265,23 +281,44 @@ function actionsOf(view: View, session: BattleshipRoom): { tone?: string; messag
       );
     else if (g.myTurn) {
       tone = TONE.turn;
-      message = <>🎯 Đến lượt bạn — chọn một ô trên hải đồ đối phương để khai hoả{opts.chain ? " (trúng được bắn tiếp)" : ""}</>;
+      message = (
+        <>
+          🎯 Đến lượt bạn — chọn một ô trên hải đồ đối phương để khai hoả{clock ? " trước khi hết giờ (hết giờ là mất lượt)" : ""}
+          {g.opts.chain ? " (trúng được bắn tiếp)" : ""}
+        </>
+      );
     } else message = g.turn === g.me ? <>📡 Đang chờ đối thủ báo kết quả…</> : <>⏳ Đối thủ đang ngắm bắn…</>;
-    return { tone, message, buttons: <ResignButton onConfirm={() => session.resign()} /> };
+    return { tone, message, buttons: <ResignButton onConfirm={() => session.resign()} />, clock };
   }
   return { message: seatMessage(view), buttons: <SeatButtons view={view} session={session} /> };
 }
 
+// Đồng hồ ẩn với trình đọc màn hình để thanh trạng thái (vùng `aria-live`) không đọc lại mỗi giây.
 function ActionBar({ view, session }: { view: View; session: BattleshipRoom }) {
-  const { tone, message, buttons } = actionsOf(view, session);
+  const { tone, message, buttons, clock } = actionsOf(view, session);
   return (
     <StatusBar tone={tone} message={message}>
+      {clock && <Clock {...clock} />}
       {buttons}
     </StatusBar>
   );
 }
 
-function Waters({ view, session, locked }: { view: View; session: BattleshipRoom; locked: boolean }) {
+// Đang chờ bên bị bắn báo kết quả thì không có hạn chót: giữ đồng hồ đầy. Hạn chót phát đầu tính cả lúc đếm ngược khai
+// hoả nên kẹp lại để đồng hồ đầy trong lúc đó.
+function Clock({ deadline, limit }: { deadline: number; limit: number }) {
+  const left = useTimeLeft(deadline);
+  return <TurnClock left={deadline ? Math.min(limit * 1000, left) : limit * 1000} />;
+}
+
+// Tách riêng để đồng hồ chạy chỉ vẽ lại thanh này, không kéo cả hai hải đồ vẽ lại theo.
+function TurnBar({ match: g }: { match: BsMatch }) {
+  const total = g.opts.turn * 1000;
+  const left = useTimeLeft(g.deadline);
+  return <TimeBar left={g.deadline ? Math.min(total, left) : total} total={total} tone={BS_TONE[g.turn]} />;
+}
+
+function Waters({ view, session, locked, timed }: { view: View; session: BattleshipRoom; locked: boolean; timed: boolean }) {
   const g = view.game!.match;
   const m = view.meta!;
   // Lúc trình chiếu xếp theo hướng màn hình (ngang: cạnh nhau, dọc: chồng lên), khớp với WATERS_FIT.
@@ -305,6 +342,7 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
   return (
     <div className={staged ? "landscape:flex landscape:h-full landscape:flex-col" : undefined}>
       {g.phase === "battle" && <LastShot g={g} view={view} />}
+      {timed && <TurnBar match={g} />}
       <div className={`grid gap-4 ${cols} ${staged ? "landscape:min-h-0 landscape:flex-1 landscape:grid-rows-[minmax(0,1fr)]" : ""}`}>
         {order.map((i) => (
           <Side key={i} i={i} g={g} view={view} session={session} locked={locked} fit={staged} />
@@ -315,6 +353,14 @@ function Waters({ view, session, locked }: { view: View; session: BattleshipRoom
 }
 
 function LastShot({ g, view }: { g: BsMatch; view: View }) {
+  const out = g.passed;
+  if (out !== -1)
+    return (
+      <p key={`pass:${g.last?.n ?? -1}`} className="pop-in mb-3 text-center text-[15px] font-semibold" aria-live="polite">
+        ⏱ <b style={{ color: BS_TONE[out] }}>{nameOf(view, g.sides[out].seat.uid)}</b> hết giờ — mất lượt, tới lượt{" "}
+        <b style={{ color: BS_TONE[g.turn] }}>{nameOf(view, g.sides[g.turn].seat.uid)}</b>
+      </p>
+    );
   const x = g.last;
   if (!x) return <p className="mb-3 text-center text-sm font-semibold text-ink-3">💣 Chưa ai khai hoả — {nameOf(view, g.sides[0].seat.uid)} bắn trước.</p>;
   const what = x.r === 0 ? "💦 Trượt" : x.r === 1 ? "💥 Trúng!" : `🔥 Chìm ${FLEET[x.k!].name}!`;
@@ -608,5 +654,35 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
         </p>
       </aside>
     </div>
+  );
+}
+
+function Settings({ session }: { session: BattleshipRoom }) {
+  const { host, playing } = useRoomState(session, (r) => ({ host: r.isHost, playing: r.meta!.status === "playing" }), shallowEqual);
+  const opts = useGame(session, (v) => v?.opts);
+  if (playing || !opts) return null;
+  const row = (label: string, items: ReactNode) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-[86px] text-[13px] font-bold text-ink-3">{label}</span>
+      <div className="flex flex-1 flex-wrap gap-2">{items}</div>
+    </div>
+  );
+  const pick = (key: string | number, on: boolean, label: ReactNode, set: () => void, aria?: string) => (
+    <button key={key} type="button" className={`btn btn-sm ${on ? "btn-coral" : ""}`} aria-pressed={on} aria-label={aria} disabled={!host && !on} onClick={host ? set : undefined}>
+      {label}
+    </button>
+  );
+  return (
+    <section className="card mt-4 grid gap-3 p-4" aria-label="Luật ván tới">
+      {row(
+        "Luật bắn",
+        [true, false].map((b) => pick(String(b), b === opts.chain, b ? "🎯 Trúng bắn tiếp" : "Mỗi phát một lượt", () => session.setOptions({ chain: b }))),
+      )}
+      {row(
+        "Mỗi lượt",
+        TURN_LIMITS.map((t) => pick(t, t === opts.turn, `⏱ ${t ? turnLabel(t) : "Vô hạn"}`, () => session.setOptions({ turn: t }), turnLabel(t))),
+      )}
+      {!host && <p className="text-[13.5px] text-ink-2">Chủ phòng chọn luật bắn và thời gian mỗi lượt cho ván tới.</p>}
+    </section>
   );
 }

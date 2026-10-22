@@ -1,5 +1,6 @@
 // Người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định theo thứ tự rồi ghi nhận (`ack`).
 // Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người cuối cùng thấy cùng một `meta`.
+import type { BsOptions } from "../games/battleship";
 import type { CaroOptions } from "../games/caro";
 import type { CcPublic } from "../games/co-chep";
 import type { DwPublic } from "../games/draw-guess";
@@ -60,6 +61,9 @@ export type Meta = {
   dbSize?: number;
   dbTurn?: number;
   cr?: CaroOptions;
+  bs?: BsOptions;
+  // Số phát bắn đã có mỗi lần một người bắn tàu mất lượt vì hết giờ — chỉ chủ phòng ghi nên nằm ở đây chứ không trong nhật ký.
+  bsPass?: number[];
   cdSetup?: string;
   cc?: CcPublic;
   mc?: McPublic;

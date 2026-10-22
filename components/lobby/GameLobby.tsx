@@ -11,7 +11,14 @@ import {
   type Size as CaroSize,
   type TurnLimit as CaroTurn,
 } from "@/lib/games/caro";
-import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
+import {
+  DEFAULT_OPTIONS as BS_DEFAULTS,
+  FLEET as BS_FLEET,
+  normOptions as bsOptions,
+  SIZE as BS_SIZE,
+  TURN_LIMITS as BS_TURNS,
+  type TurnLimit as BsTurn,
+} from "@/lib/games/battleship";
 import { DEFAULT_OPTIONS as CD_DEFAULTS, normOptions as cdOptions, SETUP_NAME as CD_SETUP_NAME, SETUPS as CD_SETUPS, type Setup as CdSetup } from "@/lib/games/co-cho";
 import {
   DEFAULT_OPTIONS as DB_DEFAULTS,
@@ -500,7 +507,7 @@ function OAnQuanChips({ room }: { room: RoomAd }) {
 }
 
 function BattleshipChips({ room }: { room: RoomAd }) {
-  const { chain } = bsOptions(room.opts);
+  const { chain, turn } = bsOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
@@ -513,6 +520,7 @@ function BattleshipChips({ room }: { room: RoomAd }) {
         ▦ {BS_SIZE}×{BS_SIZE} · {BS_FLEET.length} tàu
       </span>
       {chain && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🎯 Trúng bắn tiếp</span>}
+      {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}
     </>
   );
 }
@@ -743,6 +751,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
   const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
   const [chain, setChain] = useState(BS_DEFAULTS.chain);
+  const [bsTurn, setBsTurn] = useState<BsTurn>(BS_DEFAULTS.turn);
   const [rounds, setRounds] = useState(DW_DEFAULTS.rounds);
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
@@ -809,7 +818,7 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
-        else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
+        else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain, turn: bsTurn } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize, turn: dotsTurn } });
         else if (coChep) stashCreate(id, { name: clean, cap, seats: game.seats.max, opts: {} });
@@ -1002,10 +1011,24 @@ function CreateForm({ slug }: { slug: string }) {
               <Choice on={!chain} onClick={() => setChain(false)} title="Mỗi phát một lượt" text="Trúng hay trượt cũng đổi lượt — luật cổ điển." />
             </div>
           </fieldset>
-          <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
-            🚢 Hai người chơi, mỗi người bí mật bày {BS_FLEET.length} tàu ({BS_FLEET.map((s) => s.len).join("–")} ô) trên hải đồ {BS_SIZE}×{BS_SIZE}, rồi thay phiên gọi toạ độ để bắn.
-            Ai đánh chìm hết hạm đội đối phương trước thì thắng. Sơ đồ được niêm phong bằng mã băm và công bố khi hết ván để đối chiếu.
-          </p>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian mỗi lượt</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {BS_TURNS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setBsTurn(t)}
+                  aria-pressed={bsTurn === t}
+                  aria-label={dbTurnLabel(t)}
+                  className={`btn !px-2 ${bsTurn === t ? "btn-sun" : ""}`}
+                >
+                  {t ? dbTurnLabel(t) : "Vô hạn"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">Hết thời gian sẽ mất lượt.</p>
+          </fieldset>
         </>
       ) : draw ? (
         <>
