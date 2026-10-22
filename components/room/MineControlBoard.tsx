@@ -18,6 +18,8 @@ export const MineControlBoard = memo(function MineControlBoard({
   valid,
   reveal,
   last,
+  staged,
+  gridRef,
   onCell,
 }: {
   state: McState;
@@ -27,6 +29,8 @@ export const MineControlBoard = memo(function MineControlBoard({
   valid: ((c: number) => boolean) | null;
   reveal: boolean;
   last: number;
+  staged?: boolean;
+  gridRef?: React.Ref<HTMLDivElement>;
   onCell: (c: number) => void;
 }) {
   const [hover, setHover] = useState(-1);
@@ -93,9 +97,14 @@ export const MineControlBoard = memo(function MineControlBoard({
     );
   }
 
+  // Lúc trình chiếu bàn đã vừa ô giữa: bỏ cỡ ô tối thiểu và thanh cuộn ngang.
   return (
-    <div className="overflow-x-auto">
-      <div className="mc-grid" style={{ gridTemplateColumns: `repeat(${s.w}, minmax(0, 1fr))`, minWidth: s.w * MIN_CELL, "--mc-w": s.w, "--mc-tone": tone } as React.CSSProperties}>
+    <div className={staged ? undefined : "overflow-x-auto"}>
+      <div
+        ref={gridRef}
+        className="mc-grid"
+        style={{ gridTemplateColumns: `repeat(${s.w}, minmax(0, 1fr))`, ...(staged ? {} : { minWidth: s.w * MIN_CELL }), "--mc-w": s.w, "--mc-tone": tone } as React.CSSProperties}
+      >
         {cells}
       </div>
     </div>

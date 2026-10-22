@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { clock, COUNTDOWN_MS, density, HIDDEN, SIZES, START, type Layout, type MsState } from "@/lib/games/minesweeper";
 import type { MinesweeperRoom, MsMatch, MsView } from "@/lib/net/minesweeper-room";
 import type { RoomView } from "@/lib/net/room";
@@ -8,9 +9,11 @@ import { Avatar } from "../Avatar";
 import { MineCount } from "../MineCount";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { MineBlasts } from "./MineBlast";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -93,6 +96,12 @@ const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: Mi
   const end = useEndScene(winKey(g), { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const size = live && g ? g.size : opts.size;
   const mines = live && g ? g.mines : opts.mines;
+  // Lúc trình chiếu bàn lấp ô giữa theo đúng tỉ lệ (kể cả 16px viền + lề trong); bảng điểm sang một bên, đồng hồ / số mìn
+  // / nút Mở–Cờ sang bên kia (màn hình dọc: trên / dưới). Phần đó nằm trong <Play> (dùng chung chế độ bấm) nên đưa sang
+  // mạn bên qua portal vào `slot`.
+  const staged = useStaged();
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const shape = SIZES[g ? g.size : opts.size];
 
   return (
     <>
@@ -110,11 +119,23 @@ const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: Mi
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
-      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        {g ? <Play key={g.round} view={view} session={session} match={g} /> : <EmptyBoard view={view} />}
-        {g && <Scoreboard view={view} match={g} />}
-        <Flyers flyers={flyers} />
-      </div>
+      <StageArea
+        fit="w-[min(100cqw,var(--stage-center))]"
+        center={`(100cqh - 16px) * ${shape.w / shape.h} + 16px`}
+        flanks={[
+          <div key="a" className="sd-flank">
+            {g ? <Scoreboard view={view} match={g} staged /> : <Roster view={view} />}
+          </div>,
+          <div key="b" ref={setSlot} className="sd-flank" />,
+        ]}
+        tools={<Buttons view={view} session={session} />}
+      >
+        <div ref={areaRef} className={staged ? "relative" : "relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]"}>
+          {g ? <Play key={g.round} view={view} session={session} match={g} slot={slot} /> : <EmptyBoard view={view} />}
+          {g && !staged && <Scoreboard view={view} match={g} />}
+          <Flyers flyers={flyers} />
+        </div>
+      </StageArea>
 
       {g && <Cinema match={g} count={count} win={end.shown} onClose={end.close} />}
       <Party bits={end.party} />
@@ -194,11 +215,10 @@ function ActionBar({ view, session }: { view: View; session: MinesweeperRoom }) 
       );
     return (
       <StatusBar tone={tone} message={message}>
-        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
-  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return (
     <StatusBar
       message={seatMessage(view, {
@@ -207,9 +227,17 @@ function ActionBar({ view, session }: { view: View; session: MinesweeperRoom }) 
         join: "Bấm “Vào chơi” để cùng dò mìn — không giới hạn người chơi.",
       })}
     >
-      <SeatButtons view={view} session={session} blocked={blocked} />
+      <Buttons view={view} session={session} />
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: MinesweeperRoom }) {
+  const m = view.meta!;
+  if (isLive(view) && view.game!.match) return view.isHost ? <StopButton onConfirm={() => session.stop()} /> : null;
+  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
+  return <SeatButtons view={view} session={session} blocked={blocked} />;
 }
 
 function Rules({ view, session }: { view: View; session: MinesweeperRoom }) {
@@ -302,9 +330,10 @@ function ResultCard({ view, match: g }: { view: View; match: MsMatch }) {
 function EmptyBoard({ view }: { view: View }) {
   const m = view.meta!;
   const { w, h } = SIZES[view.game!.opts.size];
+  const staged = useStaged();
   return (
     <div className="relative min-w-0">
-      <Grid w={w} label="Bàn dò mìn chưa xếp">
+      <Grid w={w} label="Bàn dò mìn chưa xếp" staged={staged}>
         {Array.from({ length: w * h }, (_, i) => (
           <span key={i} className="ms-cell is-hidden" />
         ))}
@@ -318,15 +347,30 @@ function EmptyBoard({ view }: { view: View }) {
   );
 }
 
-function Grid({ w, label, shake, scrollRef, children }: { w: number; label: string; shake?: number; scrollRef?: React.Ref<HTMLDivElement>; children: React.ReactNode }) {
+// Lúc trình chiếu bàn đã vừa ô giữa: bỏ cỡ ô tối thiểu / tối đa và thanh cuộn ngang.
+function Grid({
+  w,
+  label,
+  staged,
+  scrollRef,
+  gridRef,
+  children,
+}: {
+  w: number;
+  label: string;
+  staged: boolean;
+  scrollRef?: React.Ref<HTMLDivElement>;
+  gridRef?: React.Ref<HTMLDivElement>;
+  children: React.ReactNode;
+}) {
   return (
-    <div ref={scrollRef} className="overflow-x-auto pb-1">
+    <div ref={scrollRef} className={staged ? undefined : "overflow-x-auto pb-1"}>
       <div
-        key={shake}
-        className={`ms-grid${shake ? " is-shake" : ""}`}
+        ref={gridRef}
+        className="ms-grid"
         role="grid"
         aria-label={label}
-        style={{ gridTemplateColumns: `repeat(${w}, minmax(0, 1fr))`, minWidth: w * MIN_CELL, maxWidth: w * MAX_CELL, "--ms-w": w } as React.CSSProperties}
+        style={{ gridTemplateColumns: `repeat(${w}, minmax(0, 1fr))`, ...(staged ? {} : { minWidth: w * MIN_CELL, maxWidth: w * MAX_CELL }), "--ms-w": w } as React.CSSProperties}
       >
         {children}
       </div>
@@ -334,7 +378,7 @@ function Grid({ w, label, shake, scrollRef, children }: { w: number; label: stri
   );
 }
 
-function Play({ view, session, match: g }: { view: View; session: MinesweeperRoom; match: MsMatch }) {
+function Play({ view, session, match: g, slot }: { view: View; session: MinesweeperRoom; match: MsMatch; slot: HTMLElement | null }) {
   const live = isLive(view);
   const player = g.me >= 0;
   // Bàn chỉ cần biết đã lộ chưa — vẽ lại một lần lúc lộ bàn; đồng hồ ván chạy riêng trong <Elapsed>.
@@ -343,38 +387,51 @@ function Play({ view, session, match: g }: { view: View; session: MinesweeperRoo
   const s = g.view;
   const canPlay = live && player && !counting && !s.over && s.alive[g.me];
   const [flagMode, setFlagMode] = useState(false);
-  const [shake, setShake] = useState(0);
-  const booms = s.boom.filter((b) => b >= 0).length;
-  const left = g.mines - booms - g.flags.length;
+  const staged = useStaged();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const quakeRef = useRef<HTMLDivElement>(null);
+  const booms = useMemo(() => s.boom.flatMap((b, c) => (b >= 0 ? [c] : [])), [s.boom]);
+  const left = g.mines - booms.length - g.flags.length;
+  const big = useCallback((c: number) => s.boom[c] === g.me, [s.boom, g.me]);
 
   // Hàm ổn định để lưới (memo) không vẽ lại mỗi nhịp đồng hồ.
   const open = useCallback((c: number) => {
-    if (session.reveal(c) === "boom") setShake(Date.now());
+    if (session.reveal(c) === "boom") navigator.vibrate?.([90, 50, 140]);
   }, [session]);
   const flag = useCallback((c: number) => session.toggleFlag(c), [session]);
 
+  const out = player && live && !counting && !s.over && !s.alive[g.me];
+  const bar = (
+    <div
+      className={staged ? "card ms-info" : "mx-auto flex w-full flex-wrap items-center gap-2"}
+      style={staged ? undefined : { maxWidth: g.layout.w * MAX_CELL }}
+      aria-label={staged ? "Thông tin ván" : undefined}
+    >
+      <span className="chip tabular-nums" title="Số mìn trừ số cờ bạn đã cắm và mìn đã nổ">
+        💣 {left}
+      </span>
+      <Elapsed time={g.time} since={live && !counting ? g.opensAt : undefined} />
+      <span className="chip tabular-nums text-ink-2" title="Ô an toàn còn chưa mở">
+        ⬜ còn {s.left} ô
+      </span>
+      {canPlay && (
+        <div className={`flex gap-1 ${staged ? "" : "ml-auto"}`} role="group" aria-label="Chế độ bấm">
+          <button type="button" className={`btn btn-sm ${!flagMode ? "btn-pen" : ""}`} aria-pressed={!flagMode} onClick={() => setFlagMode(false)}>
+            ⛏️ Mở
+          </button>
+          <button type="button" className={`btn btn-sm ${flagMode ? "btn-coral" : ""}`} aria-pressed={flagMode} onClick={() => setFlagMode(true)}>
+            🚩 Cờ
+          </button>
+        </div>
+      )}
+      {staged && out && <p className="ms-info-note">{s.fate[g.me] === "left" ? "🚪 Bạn đã bị loại vì mất kết nối" : "💥 Bạn đã đạp mìn — bị loại"}</p>}
+    </div>
+  );
+
   return (
     <div className="grid min-w-0 gap-3">
-      <div className="mx-auto flex w-full flex-wrap items-center gap-2" style={{ maxWidth: g.layout.w * MAX_CELL }}>
-        <span className="chip tabular-nums" title="Số mìn trừ số cờ bạn đã cắm và mìn đã nổ">
-          💣 {left}
-        </span>
-        <Elapsed time={g.time} since={live && !counting ? g.opensAt : undefined} />
-        <span className="chip tabular-nums text-ink-2" title="Ô an toàn còn chưa mở">
-          ⬜ còn {s.left} ô
-        </span>
-        {canPlay && (
-          <div className="ml-auto flex gap-1" role="group" aria-label="Chế độ bấm">
-            <button type="button" className={`btn btn-sm ${!flagMode ? "btn-pen" : ""}`} aria-pressed={!flagMode} onClick={() => setFlagMode(false)}>
-              ⛏️ Mở
-            </button>
-            <button type="button" className={`btn btn-sm ${flagMode ? "btn-coral" : ""}`} aria-pressed={flagMode} onClick={() => setFlagMode(true)}>
-              🚩 Cờ
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="relative mx-auto w-full min-w-0" style={{ maxWidth: g.layout.w * MAX_CELL }}>
+      {staged ? slot && createPortal(bar, slot) : bar}
+      <div ref={quakeRef} className={staged ? "relative" : "relative mx-auto w-full min-w-0"} style={staged ? undefined : { maxWidth: g.layout.w * MAX_CELL }}>
         <Board
           state={s}
           layout={g.layout}
@@ -383,10 +440,12 @@ function Play({ view, session, match: g }: { view: View; session: MinesweeperRoo
           reveal={!live || s.over}
           canPlay={canPlay}
           flagMode={flagMode}
-          shake={shake}
+          staged={staged}
+          gridRef={gridRef}
           onOpen={open}
           onFlag={flag}
         />
+        <MineBlasts booms={booms} grid={gridRef} quake={quakeRef} big={big} />
         {counting && <div className="sd-hush" aria-hidden="true" />}
       </div>
     </div>
@@ -412,7 +471,8 @@ const Board = memo(function Board({
   reveal,
   canPlay,
   flagMode,
-  shake,
+  staged,
+  gridRef,
   onOpen,
   onFlag,
 }: {
@@ -423,7 +483,8 @@ const Board = memo(function Board({
   reveal: boolean;
   canPlay: boolean;
   flagMode: boolean;
-  shake: number;
+  staged: boolean;
+  gridRef: React.Ref<HTMLDivElement>;
   onOpen: (c: number) => void;
   onFlag: (c: number) => void;
 }) {
@@ -521,34 +582,62 @@ const Board = memo(function Board({
     );
   }
   return (
-    <Grid w={lay.w} label={`Bàn dò mìn ${lay.w}×${lay.h}`} shake={shake} scrollRef={scroller}>
+    <Grid w={lay.w} label={`Bàn dò mìn ${lay.w}×${lay.h}`} staged={staged} scrollRef={scroller} gridRef={gridRef}>
       {cells}
     </Grid>
   );
 });
 
-function Scoreboard({ view, match: g }: { view: View; match: MsMatch }) {
+// Chưa có ván nào: mạn bên lúc trình chiếu hiện người đã vào ghế.
+function Roster({ view }: { view: View }) {
+  const seated = view.seats.filter((s) => !!s?.uid);
+  return (
+    <section className="card p-4" aria-labelledby="ms-roster-h">
+      <h2 id="ms-roster-h" className="font-display text-lg font-extrabold">
+        👥 Người chơi
+      </h2>
+      <p className="text-[12.5px] font-semibold text-ink-3">{seated.length ? `${seated.length} người đã vào ghế` : "Chưa ai vào ghế"}</p>
+      {seated.length > 0 && (
+        <ol className="sd-score-list mt-3">
+          {seated.map((seat, k) => (
+            <li key={seat.uid} className="flex min-w-0 items-center gap-2.5">
+              {seat.member ? <Avatar p={seat.member} size={34} className={seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
+              <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-bold">
+                <span className="sd-swatch" style={{ background: colorOf(k) }} aria-hidden="true" />
+                <span className="min-w-0 truncate">{seat.uid === view.me ? "Bạn" : (seat.member?.name ?? "Ai đó")}</span>
+                {seat.uid === view.meta!.host && <span title="Chủ phòng" aria-label="Chủ phòng">👑</span>}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// `staged`: bản ở mạn bên lúc trình chiếu — mạn bên tự cuộn khi đông người; màn hình dọc xếp một hàng cuộn ngang.
+function Scoreboard({ view, match: g, staged }: { view: View; match: MsMatch; staged?: boolean }) {
   const s = g.state;
   const order = ranking(g);
   const winners = new Set(g.result?.winners ?? []);
   const alive = aliveOf(s).length;
   return (
-    <section className="card p-4" aria-labelledby="ms-score-h">
+    <section className={`card ${staged ? "sd-score" : "p-4"}`} aria-labelledby="ms-score-h">
       <h2 id="ms-score-h" className="font-display text-lg font-extrabold">
         🏅 Bảng điểm
       </h2>
       <p className="text-[12.5px] font-semibold text-ink-3">
         {g.lineup.length > 1 ? `${alive}/${g.lineup.length} người còn trụ · ` : ""}mỗi ô an toàn +1
       </p>
-      <ol className="mt-3 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto pr-1">
+      <ol className={staged ? "sd-score-list mt-3" : "mt-3 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto pr-1"}>
         {order.map((k, rank) => {
           const seat = g.lineup[k];
           const p = seat.member;
           const out = !s.alive[k];
           return (
             <li key={seat.uid} className={`flex min-w-0 items-center gap-2.5 ${out ? "opacity-60" : ""}`}>
-              <span className="w-5 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
-              <span className="relative shrink-0">
+              <span className="sd-rank w-5 shrink-0 text-center text-[13px] font-extrabold text-ink-3">{rank + 1}</span>
+              <span className="sd-face relative shrink-0">
                 {p ? <Avatar p={p} size={34} className={seat.online && !out ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[34px] w-[34px] bg-sunken" />}
                 {(winners.has(seat.uid) || out) && (
                   <span className="absolute -right-2 -bottom-1 text-base" aria-label={out ? "Bị loại" : "Thắng"}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   canFort,
   canGrab,
@@ -30,10 +30,12 @@ import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, DrawCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { MineBlasts } from "./MineBlast";
 import { MC_TONE_NAMES, MC_TONES, MineControlBoard, type McTool } from "./MineControlBoard";
 import { PeoplePanel } from "./People";
 import { ResultCard, Standings } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { ResignButton, SeatButtons, seatMessage, startBlocker, StatusBar, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -106,12 +108,17 @@ const HeadChips = memo(function HeadChips({ session }: { session: MineControlRoo
 
 const PlayersPart = memo(function PlayersPart({ session }: { session: MineControlRoom }) {
   const view = useMcView(session);
+  return <PlayerCards view={view} />;
+});
+
+// `staged`: bản ở mạn bên lúc trình chiếu — màn hình ngang xếp dọc, màn hình dọc hai cột phía trên bàn.
+function PlayerCards({ view, staged }: { view: View; staged?: boolean }) {
   const { m, g, live, showGame, s } = useBoard(view);
   const wins = view.game!.wins;
   const players = showGame ? g!.lineup : view.seats;
   const cards = showGame ? players.length : m.seats;
   return (
-    <ul className={`mb-4 grid grid-cols-2 gap-2 ${cards === 3 ? "lg:grid-cols-3" : cards === 4 ? "lg:grid-cols-4" : ""}`}>
+    <ul className={staged ? "grid w-full grid-cols-2 gap-2 landscape:grid-cols-1" : `mb-4 grid grid-cols-2 gap-2 ${cards === 3 ? "lg:grid-cols-3" : cards === 4 ? "lg:grid-cols-4" : ""}`}>
       {Array.from({ length: cards }, (_, k) => (
         <PlayerCard
           key={k}
@@ -126,7 +133,10 @@ const PlayersPart = memo(function PlayersPart({ session }: { session: MineContro
       ))}
     </ul>
   );
-});
+}
+
+// Viền thẻ bàn (2px × 2) + lề trong lúc trình chiếu (12px × 2) − khe giữa hai ô (3px): bàn lấp ô giữa đúng tỉ lệ.
+const BOARD_CHROME = 25;
 
 const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom }) {
   const view = useMcView(session);
@@ -164,21 +174,64 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
     else session.grab(c);
   };
 
+  const gridRef = useRef<HTMLDivElement>(null);
+  const booms = useMemo(() => {
+    const out: number[] = [];
+    for (let c = 0; c < s.open.length; c++) if (s.open[c] === 2) out.push(c);
+    return out;
+  }, [s]);
+  // Khiên đỡ được thì nổ nhỏ, bàn chỉ rung nhẹ.
+  const big = useCallback((c: number) => !s.events.some((e) => e.t === "boom" && e.c === c && e.shield), [s]);
+
+  // Lúc trình chiếu bàn lấp ô giữa; người chơi sang một bên, lượt / công cụ / diễn biến sang bên kia (màn hình dọc: trên /
+  // dưới).
+  const staged = useStaged();
+  const toolbar = live && me >= 0 && !s.players[me].out && <Toolbar state={s} me={me} myTurn={myTurn} tool={tool} setTool={setTool} session={session} staged={staged} />;
+
   return (
     <>
       <ActionBar view={view} session={session} counting={count > 0} />
-      {live && me >= 0 && !s.players[me].out && <Toolbar state={s} me={me} myTurn={myTurn} tool={tool} setTool={setTool} session={session} />}
+      {!staged && toolbar}
       {m.status === "ended" && g?.result && <Result match={g} me={view.me} />}
 
-      <div className="relative mx-auto mt-4" style={{ maxWidth: s.w * 48 + 24 }}>
-        <div ref={boardRef} className="card p-2 sm:p-3" style={{ background: "var(--board)" }}>
-          <MineControlBoard state={s} avatars={avatars} tool={myTurn ? tool : null} me={me} valid={valid} reveal={!!g?.result && showGame} last={showGame ? last : -1} onCell={act} />
+      <StageArea
+        className="mt-4"
+        fit="w-[min(100cqw,var(--stage-center))]"
+        center={`(100cqh - ${BOARD_CHROME}px) * ${s.w / s.h} + ${BOARD_CHROME}px`}
+        flanks={[
+          <div key="a" className="sd-flank">
+            <PlayerCards view={view} staged />
+          </div>,
+          <div key="b" className="sd-flank">
+            <TurnNote view={view} counting={count > 0} />
+            {toolbar}
+            {showGame && <LastAction match={g!} me={view.me} staged />}
+          </div>,
+        ]}
+        tools={<Buttons view={view} session={session} />}
+      >
+        <div className="relative mx-auto" style={staged ? undefined : { maxWidth: s.w * 48 + 24 }}>
+          <div ref={boardRef} className={`card relative ${staged ? "p-3" : "p-2 sm:p-3"}`} style={{ background: "var(--board)" }}>
+            <MineControlBoard
+              state={s}
+              avatars={avatars}
+              tool={myTurn ? tool : null}
+              me={me}
+              valid={valid}
+              reveal={!!g?.result && showGame}
+              last={showGame ? last : -1}
+              staged={staged}
+              gridRef={gridRef}
+              onCell={act}
+            />
+            <MineBlasts booms={booms} grid={gridRef} quake={boardRef} big={big} />
+          </div>
+          <Flyers flyers={flyers} />
+          {!showGame && m.status === "waiting" && (
+            <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} enough={m.players.length >= MIN_PLAYERS} waiting={`Đang chờ ít nhất ${MIN_PLAYERS} người vào ghế…`} />
+          )}
         </div>
-        <Flyers flyers={flyers} />
-        {!showGame && m.status === "waiting" && (
-          <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} enough={m.players.length >= MIN_PLAYERS} waiting={`Đang chờ ít nhất ${MIN_PLAYERS} người vào ghế…`} />
-        )}
-      </div>
+      </StageArea>
       {showGame && <LastAction match={g!} me={view.me} />}
       {view.mySeat < 0 && me < 0 && <SpectatorNote />}
 
@@ -248,11 +301,27 @@ function PlayerCard({ k, seat, p, active, wins, isHost, me }: { k: number; seat?
   );
 }
 
-function Toolbar({ state: s, me, myTurn, tool, setTool, session }: { state: McState; me: number; myTurn: boolean; tool: McTool; setTool: (t: McTool) => void; session: MineControlRoom }) {
+function Toolbar({
+  state: s,
+  me,
+  myTurn,
+  tool,
+  setTool,
+  session,
+  staged,
+}: {
+  state: McState;
+  me: number;
+  myTurn: boolean;
+  tool: McTool;
+  setTool: (t: McTool) => void;
+  session: MineControlRoom;
+  staged?: boolean;
+}) {
   const p = s.players[me];
   const cur = TOOLS.find((t) => t.tool === tool)!;
   return (
-    <div className="card mt-3 px-3 py-2.5">
+    <div className={`card px-3 py-2.5 ${staged ? "" : "mt-3"}`}>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Chọn hành động">
         {TOOLS.map((t) => {
           const ok = myTurn && (t.tool === "open" || hasTarget(s, me, t.tool));
@@ -309,14 +378,14 @@ function useTurnLeft(since: number | undefined, on: boolean) {
   return since ? Math.max(0, Math.ceil((since + TURN_MS - now) / 1000)) : 0;
 }
 
+const waitMessage = (view: View) => seatMessage(view, { enough: view.meta!.players.length >= MIN_PLAYERS, join: <>Bấm “Vào chơi” để giành ghế (2–{view.meta!.seats} người).</> });
+
 function ActionBar({ view, session, counting }: { view: View; session: MineControlRoom; counting: boolean }) {
   const m = view.meta!;
   const g = view.game?.match;
   const opts = view.game!.opts;
-  const s = g?.state;
   const playing = m.status === "playing";
   const left = useTurnLeft(g?.since, playing && !g?.result);
-  const name = (k: number) => (g?.lineup[k]?.uid === view.me ? "bạn" : (g?.lineup[k]?.member?.name ?? "Ai đó"));
 
   if (!playing) {
     const n = Math.max(MIN_PLAYERS, m.players.length);
@@ -326,7 +395,7 @@ function ActionBar({ view, session, counting }: { view: View; session: MineContr
         stack
         message={
           <>
-            {seatMessage(view, { enough: m.players.length >= MIN_PLAYERS, join: <>Bấm “Vào chơi” để giành ghế (2–{m.seats} người).</> })}
+            {waitMessage(view)}
             {lowered && <span className="mt-0.5 block text-[13px] font-medium text-ink-3">Bản đồ nhỏ với {n} người: ván tới chỉ rải {minesFor(opts, n)} mìn.</span>}
           </>
         }
@@ -349,11 +418,40 @@ function ActionBar({ view, session, counting }: { view: View; session: MineContr
             </div>
           </>
         )}
-        <SeatButtons view={view} session={session} blocked={startBlocker(view, { min: MIN_PLAYERS })} />
+        <Buttons view={view} session={session} />
       </StatusBar>
     );
   }
 
+  const { tone, message } = playStatus(view, counting, left);
+  return (
+    <StatusBar stack tone={tone} message={message}>
+      <Buttons view={view} session={session} />
+    </StatusBar>
+  );
+}
+
+// Lúc trình chiếu: lượt đang tới ai (hay lời mời vào ghế) ở mạn bên, thay cho thanh trạng thái bị che.
+function TurnNote({ view, counting }: { view: View; counting: boolean }) {
+  const g = view.game?.match;
+  const playing = view.meta!.status === "playing";
+  const left = useTurnLeft(g?.since, playing && !g?.result);
+  if (!playing) return <StatusBar message={waitMessage(view)} />;
+  const { tone, message } = playStatus(view, counting, left);
+  return <StatusBar tone={tone} message={message} />;
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: MineControlRoom }) {
+  const g = view.game?.match;
+  if (view.meta!.status !== "playing") return <SeatButtons view={view} session={session} blocked={startBlocker(view, { min: MIN_PLAYERS })} />;
+  return g && g.me >= 0 && !g.state.players[g.me]?.out ? <ResignButton label="Bỏ cuộc" onConfirm={() => session.resign()} /> : null;
+}
+
+function playStatus(view: View, counting: boolean, left: number): { tone: string; message: React.ReactNode } {
+  const g = view.game?.match;
+  const s = g?.state;
+  const name = (k: number) => (g?.lineup[k]?.uid === view.me ? "bạn" : (g?.lineup[k]?.member?.name ?? "Ai đó"));
   let message: React.ReactNode;
   let tone: string = TONE.idle;
   const clock = left > 0 && left <= 15 ? <span className="ml-1 tabular-nums text-coral">⏱ {left}s</span> : null;
@@ -380,13 +478,7 @@ function ActionBar({ view, session, counting }: { view: View; session: MineContr
         {clock}
       </>
     );
-
-  const inLineup = !!g && g.me >= 0 && !s?.players[g.me]?.out;
-  return (
-    <StatusBar stack tone={tone} message={message}>
-      {inLineup && <ResignButton label="Bỏ cuộc" onConfirm={() => session.resign()} />}
-    </StatusBar>
-  );
+  return { tone, message };
 }
 
 function describe(e: McEvent, name: (k: number) => string): string {
@@ -411,12 +503,12 @@ function describe(e: McEvent, name: (k: number) => string): string {
   }
 }
 
-function LastAction({ match: g, me }: { match: McMatch; me: string }) {
+function LastAction({ match: g, me, staged }: { match: McMatch; me: string; staged?: boolean }) {
   const name = (k: number) => (g.lineup[k]?.uid === me ? "Bạn" : (g.lineup[k]?.member?.name ?? "Ai đó"));
   const recent = g.state.events.slice(-3).reverse();
   if (!recent.length) return null;
   return (
-    <ul className="mx-auto mt-3 grid max-w-xl gap-0.5 text-center text-[13.5px]" aria-live="polite">
+    <ul className={staged ? "card grid gap-1 px-3 py-2.5 text-[13px]" : "mx-auto mt-3 grid max-w-xl gap-0.5 text-center text-[13.5px]"} aria-live={staged ? undefined : "polite"}>
       {recent.map((e, i) => (
         <li key={g.state.events.length - i} className={i ? "text-ink-3" : "font-semibold text-ink-2"}>
           {describe(e, name)}

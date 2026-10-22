@@ -1410,9 +1410,6 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-  .ms-grid.is-shake {
-    animation: shake 380ms ease-in-out;
-  }
   .ms-cell {
     position: relative;
     display: grid;
@@ -1496,10 +1493,100 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .ms-cell,
-    .ms-cell.is-boom,
-    .ms-grid.is-shake {
+    .ms-cell.is-boom {
       animation: none;
       transition: none;
+    }
+  }
+
+  /* Dò Mìn lúc trình chiếu: đồng hồ, số mìn, nút Mở / Cờ thành thẻ ở mạn bên. Màn hình dọc: bàn chữ nhật nên ô giữa
+     lấy hết phần còn lại thay vì vuông theo bề ngang. */
+  .ms-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+  }
+  .ms-info .chip {
+    font-size: 15px;
+  }
+  .ms-info-note {
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--coral);
+  }
+  @media (orientation: portrait) {
+    .stage-body.has-flanks:has(.ms-grid),
+    .stage-body.has-flanks:has(.mc-grid) {
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+  }
+
+  /* Đạp mìn (Dò Mìn, Dò Mìn Chiến Thuật — MineBlast.tsx): dùng lại keyframes nổ của Bắn Tàu. Khung nổ tràn ra ngoài bàn
+     để khói bốc cao; tâm nổ nằm ở 50% bề ngang, 68.75% bề cao khung (viewBox -80 -110 160 160). */
+  .mb-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .mb-blast {
+    position: absolute;
+    overflow: visible;
+    transform: translate(-50%, -68.75%);
+  }
+  .mb-glare {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: radial-gradient(
+      circle at var(--x) var(--y),
+      color-mix(in srgb, var(--sun) 80%, transparent),
+      color-mix(in srgb, var(--coral) 40%, transparent) 22%,
+      transparent 60%
+    );
+    animation: mb-glare 650ms ease-out both;
+  }
+  .mb-blast .mb-flash {
+    animation: bs-flash 420ms ease-out both;
+  }
+  .mb-blast .mb-ring {
+    animation: bs-splash 900ms ease-out both;
+  }
+  .mb-blast .mb-ring.is-late {
+    animation-delay: 140ms;
+  }
+  .mb-blast .mb-core {
+    animation: bs-chain 700ms ease-out both;
+  }
+  .mb-blast .mb-spark {
+    animation: bs-spark 650ms cubic-bezier(0.1, 0.7, 0.3, 1) both;
+  }
+  .mb-blast .mb-bit {
+    animation: bs-confetti 1300ms both;
+  }
+  .mb-blast .mb-puff {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bs-puff 1700ms ease-out both;
+  }
+  .mb-quake {
+    animation: bs-quake 450ms ease-out;
+  }
+  .mb-quake-lg {
+    animation: bs-quake-lg 800ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mb-layer {
+      display: none;
+    }
+    .mb-quake,
+    .mb-quake-lg {
+      animation: none;
     }
   }
 
@@ -5016,6 +5103,14 @@
   }
   75% {
     transform: translate(2px, -1px);
+  }
+}
+@keyframes mb-glare {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 @keyframes bs-chain {
