@@ -2,7 +2,6 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  CLASSIC,
   coord,
   FLEET,
   fleetGrid,
@@ -12,7 +11,6 @@ import {
   MIN_SHIPS,
   normOptions,
   randomFleet,
-  randomKinds,
   rotated,
   shapeOf,
   shipCells,
@@ -642,21 +640,11 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
             type="button"
             className="btn btn-sm"
             onClick={() => {
-              setSlots(slotsOf(randomFleet(picked.length ? picked : CLASSIC)));
+              setSlots(slotsOf(randomFleet()));
               setHeld(null);
             }}
           >
             🎲 Bày ngẫu nhiên
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => {
-              setSlots(slotsOf(randomFleet(randomKinds())));
-              setHeld(null);
-            }}
-          >
-            🎰 Hạm đội ngẫu nhiên
           </button>
           <button
             type="button"

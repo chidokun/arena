@@ -138,8 +138,10 @@ export function parseFleet(raw: unknown): Fleet | null {
 
 const touches = (a: number, b: number) => Math.abs((a % SIZE) - (b % SIZE)) <= 1 && Math.abs(Math.floor(a / SIZE) - Math.floor(b / SIZE)) <= 1;
 
-// Các tàu không chạm nhau: luật không cấm, chỉ cho đẹp và khó đoán hơn.
-export function randomFleet(kinds: readonly number[] = CLASSIC, rand: () => number = Math.random): Fleet {
+// Các tàu không chạm nhau: luật không cấm, chỉ cho đẹp và khó đoán hơn. Không nói loại tàu thì chọn ngẫu nhiên cả loại
+// lẫn số lượng.
+export function randomFleet(kinds?: readonly number[], rand: () => number = Math.random): Fleet {
+  kinds ??= randomKinds(rand);
   for (;;) {
     const fleet: Fleet = [];
     const used: number[] = [];
@@ -159,14 +161,14 @@ export function randomFleet(kinds: readonly number[] = CLASSIC, rand: () => numb
   }
 }
 
-/** Chọn ngẫu nhiên từ 3 tới 5 loại tàu khác nhau. */
+/** Chọn ngẫu nhiên từ MIN_SHIPS tới MAX_SHIPS loại tàu khác nhau. */
 export function randomKinds(rand: () => number = Math.random): number[] {
   const pool = FLEET.map((_, k) => k);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, 3 + Math.floor(rand() * 3)).sort((a, b) => a - b);
+  return pool.slice(0, MIN_SHIPS + Math.floor(rand() * (MAX_SHIPS - MIN_SHIPS + 1))).sort((a, b) => a - b);
 }
 
 export function answerShot(fleet: readonly Ship[], prior: readonly number[], c: number): Shot {

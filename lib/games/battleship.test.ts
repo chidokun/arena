@@ -103,12 +103,23 @@ test("loại tàu công bố", () => {
   assert.equal(parseKinds([11]), null);
   assert.equal(parseKinds("0,1"), null);
   assert.deepEqual(kindsOf([{ k: 9, at: 0, o: 0 }, { k: 2, at: 50, o: 0 }]), [2, 9]);
-  for (let i = 0; i < 100; i++) assert.ok(parseKinds(randomKinds()));
+  // Bày ngẫu nhiên không nói loại tàu thì chọn ngẫu nhiên cả loại lẫn số lượng (1–5), không phải 5 tàu thẳng mặc định.
+  const counts = new Set<number>();
+  const kinds = new Set<number>();
+  for (let i = 0; i < 300; i++) {
+    const k = kindsOf(randomFleet());
+    assert.ok(parseKinds(k));
+    assert.ok(parseKinds(randomKinds()));
+    counts.add(k.length);
+    k.forEach((x) => kinds.add(x));
+  }
+  assert.deepEqual([...counts].sort(), [1, 2, 3, 4, 5]);
+  assert.equal(kinds.size, FLEET.length);
 });
 
 test("bày ngẫu nhiên luôn hợp lệ và các tàu không chạm nhau", () => {
   for (let i = 0; i < 200; i++) {
-    const fleet = i % 2 ? randomFleet() : randomFleet(i % 4 ? [5, 6, 8, 9, 10] : randomKinds());
+    const fleet = i % 2 ? randomFleet(CLASSIC) : randomFleet(i % 4 ? [5, 6, 8, 9, 10] : undefined);
     const grid = fleetGrid(fleet);
     assert.ok(grid);
     if (i % 2) assert.deepEqual(kindsOf(fleet), [...CLASSIC]);
