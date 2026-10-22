@@ -452,12 +452,32 @@ function SimRules({ p }: { p: Problem }) {
   );
 }
 
-const MatchProblemPart = memo(function MatchProblemPart({ session }: { session: SystemDesignRoom }) {
+// `compact`: màn thiết kế — đề thu gọn thành một dòng tóm tắt để nhường chỗ cho sơ đồ, bấm vào mới mở đầy đủ.
+const MatchProblemPart = memo(function MatchProblemPart({ session, compact }: { session: SystemDesignRoom; compact?: boolean }) {
   const p = useGame(session, (v) => v?.match?.problem);
   if (!p) return null;
   return (
-    <details className="card mt-4 p-4 sm:p-5" open>
-      <summary className="cursor-pointer font-display text-lg font-extrabold">📋 Đề bài: {p.title}</summary>
+    <details className={`card mt-4 ${compact ? "px-4 py-2.5 sm:px-5" : "p-4 sm:p-5"}`} open={!compact}>
+      <summary className="cursor-pointer">
+        <span className="font-display text-lg font-extrabold">📋 Đề bài: {p.title}</span>
+        {compact && (
+          <span className="mt-1.5 flex flex-wrap gap-1.5 text-[12.5px] font-bold">
+            <span className="rounded-lg bg-lime-soft px-2 py-0.5">🎯 {fmt(p.target)} TPS</span>
+            <span className="rounded-lg bg-sun-soft px-2 py-0.5">💰 {fmt(p.budget)}</span>
+            {p.flows.map((f, i) => (
+              <span key={i} className="rounded-lg bg-sunken px-2 py-0.5">
+                {FLOWS[f.kind].emoji} {f.name} {f.pct}%
+              </span>
+            ))}
+            {p.incidents.length > 0 && (
+              <span className="rounded-lg bg-coral-soft px-2 py-0.5" title={p.incidents.map((k) => INCIDENTS[k].name).join(", ")}>
+                ⚡ {p.incidents.length} sự cố
+              </span>
+            )}
+            <span className="px-1 py-0.5 font-semibold text-ink-3">· bấm để xem đầy đủ</span>
+          </span>
+        )}
+      </summary>
       <div className="mt-3">
         <ProblemCard p={p} title="Đề ván này" />
       </div>
@@ -827,7 +847,7 @@ const DesignPart = memo(function DesignPart({ session }: { session: SystemDesign
   if (!g) return null;
   return (
     <>
-      <MatchProblemPart session={session} />
+      <MatchProblemPart session={session} compact />
       <Designer session={session} p={g.p} opensAt={g.opensAt} />
       <CatalogPart session={session} />
     </>
