@@ -3389,6 +3389,56 @@
   .sx-run {
     position: relative;
   }
+  /* Trình chiếu lúc chạy tải: sơ đồ lấp phần lớn màn hình, cột bên là bộ đếm TPS, mục tiêu và thanh tải của mọi người.
+     `cqh` tính theo ô giữa của `.stage`. Màn hình dọc thì giữ bố cục thường (cuộn). */
+  @container (min-aspect-ratio: 5 / 4) {
+    .sx-live.is-staged {
+      grid-template-columns: minmax(0, 1fr) clamp(240px, 27cqw, 360px);
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      height: calc(100cqh - 8px);
+      margin-top: 0;
+    }
+    .sx-live.is-staged > .sx-live-head,
+    .sx-live.is-staged > .sx-live-meter,
+    .sx-live.is-staged > .sx-live-goal,
+    .sx-live.is-staged > .sx-live-race {
+      grid-column: 2;
+    }
+    .sx-live.is-staged > .sx-live-head {
+      grid-row: 1;
+    }
+    .sx-live.is-staged > .sx-live-meter {
+      grid-row: 2;
+    }
+    .sx-live.is-staged > .sx-live-goal {
+      grid-row: 3;
+    }
+    .sx-live.is-staged > .sx-live-race {
+      grid-row: 4;
+      min-height: 0;
+      overflow: auto;
+    }
+    .sx-live.is-staged > .sx-live-race > div {
+      margin-top: 0;
+    }
+    .sx-live.is-staged > .sx-live-label {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .sx-live.is-staged > .sx-live-board {
+      grid-column: 1;
+      grid-row: 2 / -1;
+      min-height: 0;
+    }
+    .sx-live.is-staged .sx-live-board > .sx-canvas-wrap {
+      height: 100%;
+      overflow: hidden;
+    }
+    .sx-live.is-staged .sx-live-board .sx-canvas {
+      height: 100%;
+      min-width: 0;
+    }
+  }
   /* Thiết kế vừa nổ thì đợi vụ nổ xong mới phủ lời báo gục. */
   .sx-run-veil.is-late {
     animation: sx-fade-in 300ms ease-out 1.5s both;

@@ -62,6 +62,7 @@ import { PeoplePanel } from "./People";
 import { ResultCard, StoppedCard } from "./ResultCard";
 import { RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
+import { StageArea, useStaged } from "./stage";
 import { SxCanvas, type Balloon, type Blast, type Fx, type Heat, type Sel } from "./SxCanvas";
 import { shallowEqual, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -151,7 +152,11 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
       </RoomHeader>
       <ActionPart session={session} />
       <PlaybackHost session={session}>
-        <BodyPart session={session} />
+        {/* Trình chiếu: thanh trạng thái (kèm nút xác nhận đọc đề / bắt đầu…) lên đầu, phần thân cuộn được; lúc chạy tải thì
+            bàn chạy tải tự xếp vừa một màn hình. */}
+        <StageArea scroll fit="w-full max-w-[1240px]" head={<ActionPart session={session} />}>
+          <BodyPart session={session} />
+        </StageArea>
         <CinemaPart session={session} />
       </PlaybackHost>
     </RoomLayout>
@@ -754,8 +759,10 @@ function Check({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =>
 }
 
 const CatalogPart = memo(function CatalogPart({ session }: { session: SystemDesignRoom }) {
+  const staged = useStaged();
   const live = useSxLive(session);
   const kinds = useGame(session, (v) => (live && v?.match ? v.match.problem.kinds : v!.problem.kinds));
+  if (staged) return null;
   return (
     <details className="card mt-4 p-4 sm:p-5">
       <summary className="cursor-pointer font-display text-lg font-extrabold">🧰 Bảng thông số component</summary>
@@ -1295,7 +1302,24 @@ function Results({ view, match: g, final }: { view: View; match: SxMatch; final:
 
 // Thanh tải của từng người theo mức tải. `at` có thì chạy theo đồng hồ phát lại (bàn chạy tải); không có thì là bản tĩnh ở
 // màn kết quả, bấm "Chạy lại" để phát lại cả quá trình: mở màn, chạy tải, cảnh kết thúc.
-function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p: Problem; final: SxFinal; at?: number; pick?: string; onPick?: (uid: string) => void }) {
+// `stack`: cột hẹp (trình chiếu) — tên nằm trên thanh tải.
+function LoadRace({
+  view,
+  p,
+  final,
+  at: shownAt,
+  pick,
+  onPick,
+  stack,
+}: {
+  view: View;
+  p: Problem;
+  final: SxFinal;
+  at?: number;
+  pick?: string;
+  onPick?: (uid: string) => void;
+  stack?: boolean;
+}) {
   const { levels } = playbackOf(final);
   const { replay } = useContext(PlaybackCtx);
   const at = shownAt ?? levels;
@@ -1326,7 +1350,7 @@ function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p
           <button
             key={r.uid}
             type="button"
-            className={`grid grid-cols-[minmax(0,7.5rem)_1fr] items-center gap-2.5 rounded-xl text-left sm:grid-cols-[minmax(0,10rem)_1fr] ${picked ? "bg-pen-soft" : ""}`}
+            className={`grid items-center rounded-xl text-left ${stack ? "grid-cols-1 gap-1" : "grid-cols-[minmax(0,7.5rem)_1fr] gap-2.5 sm:grid-cols-[minmax(0,10rem)_1fr]"} ${picked ? "bg-pen-soft" : ""}`}
             disabled={!onPick || !final.designs[r.uid]}
             onClick={() => onPick?.(r.uid)}
             aria-pressed={onPick ? picked : undefined}
@@ -1408,6 +1432,7 @@ const BALLOON_EVERY_MS = 2400;
 // xem sơ đồ người đó.
 function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
   const pb = useContext(PlaybackCtx);
+  const staged = useStaged();
   const p = g.problem;
   const step = levelStep(p);
   const { tick } = playbackOf(final);
@@ -1480,8 +1505,8 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
     smolder: dead && !pending && !blasts.length && sim?.fail?.why !== "path" ? sim?.fail?.node : undefined,
   };
   return (
-    <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Load test đang chạy">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className={`sx-live card mt-4 grid gap-3 p-4 sm:p-5 ${staged ? "is-staged" : ""}`} aria-label="Load test đang chạy">
+      <div className="sx-live-head flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">📈 Load test đang chạy · mức {pb.level}</p>
           <p className="sx-ticker" aria-live="off">
@@ -1492,19 +1517,19 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
           ⏭ Xem kết quả luôn
         </button>
       </div>
-      <div className="sx-meter" aria-hidden="true">
+      <div className="sx-live-meter sx-meter" aria-hidden="true">
         <span style={{ width: `${Math.min(100, (tps / p.target) * 100)}%` }} />
       </div>
-      <p className="text-[13px] font-semibold text-ink-2">
+      <p className="sx-live-goal text-[13px] font-semibold text-ink-2">
         🎯 Mục tiêu {fmt(p.target)} TPS{tps >= p.target ? " — đã vượt mục tiêu, tiếp tục tăng tải tới khi gục…" : pb.level ? ` — còn ${fmt(p.target - tps)} TPS` : ""}
       </p>
       {design && (
         <>
-          <p className="text-[13.5px] font-bold">
+          <p className="sx-live-label text-[13.5px] font-bold">
             🔍 Sơ đồ của {nameIn(view, pick)}
             {hit.length > 0 && !dead && <span className="ml-2 font-semibold text-coral">⚡ Sự cố: {hit.join(", ")}</span>}
           </p>
-          <div className="sx-run">
+          <div className="sx-live-board sx-run">
             <div className="sx-canvas-wrap">
               <SxCanvas design={design} heat={heat} live={!!heat && !dead} fx={shown} label={`Load test trên sơ đồ của ${nameIn(view, pick)}`} />
             </div>
@@ -1526,7 +1551,9 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
           </div>
         </>
       )}
-      <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} />
+      <div className="sx-live-race">
+        <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} stack={staged} />
+      </div>
     </section>
   );
 }
