@@ -12,6 +12,30 @@ export const boardMaxWidth = (size: number) => Math.min(560, Math.round((size * 
 export const DB_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 export const DB_NAME = { 1: "Đỏ", 2: "Xanh" } as const;
 
+const PAPER = ["var(--coral)", "var(--sun)", "var(--lime)", "var(--sky)", "var(--grape)", "var(--pen)"];
+
+// Ngẫu nhiên theo chỉ số (không dùng Math.random) để hiệu ứng giống nhau ở mọi lần vẽ.
+const rnd = (i: number) => {
+  const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+const vars = (v: Record<string, string>) => v as React.CSSProperties;
+
+// Pháo giấy bung tứ phía từ tâm ô vừa chiếm, hơi lệch lên trên rồi rơi xuống.
+const CONFETTI = Array.from({ length: 18 }, (_, i) => {
+  const a = -Math.PI / 2 + ((i + rnd(i + 3)) / 18 - 0.5) * 2 * Math.PI * 0.9;
+  const v = 34 + rnd(i + 57) * 44;
+  return {
+    dx: (Math.cos(a) * v).toFixed(1),
+    dy: (Math.sin(a) * v - 14).toFixed(1),
+    r: Math.round((rnd(i + 91) - 0.5) * 1080),
+    w: 3 + rnd(i + 7) * 2.5,
+    h: 6 + rnd(i + 13) * 4,
+    fill: PAPER[i % PAPER.length],
+    t: 160 + Math.round(rnd(i + 21) * 160),
+  };
+});
+
 function ends(size: number, i: number) {
   const { horizontal, r, c } = lineAt(size, i);
   const x1 = P + c * C;
@@ -39,6 +63,7 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
   const fresh = new Set(state.fresh);
 
   const boxes = [];
+  const party = [];
   for (let b = 0; b < n * n; b++) {
     const v = state.boxes[b] as 0 | 1 | 2;
     if (!v) continue;
@@ -52,6 +77,25 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
         </text>
       </g>,
     );
+    if (fresh.has(b))
+      party.push(
+        <g key={b} transform={`translate(${x + C / 2} ${y + C / 2})`}>
+          <circle className="db-fx db-flash" r={C / 2} fill="none" stroke={DB_TONE[v]} strokeWidth={3} />
+          {CONFETTI.map((p, i) => (
+            <rect
+              key={i}
+              className="db-fx db-confetti"
+              style={vars({ "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--r": `${p.r}deg`, animationDelay: `${p.t}ms` })}
+              x={-p.w / 2}
+              y={-p.h / 2}
+              width={p.w}
+              height={p.h}
+              rx={1}
+              fill={p.fill}
+            />
+          ))}
+        </g>,
+      );
   }
 
   const slots = [];
@@ -61,6 +105,9 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
     const v = state.lines[i] as 0 | 1 | 2;
     if (v) {
       const last = i === state.last;
+      // Cạnh vừa kẻ dày hơn và có quầng sáng cùng màu để ai cũng thấy nước vừa đi.
+      if (last)
+        drawn.push(<line key="halo" className="db-halo" x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} stroke={DB_TONE[v]} strokeWidth={20} strokeLinecap="round" />);
       drawn.push(
         <line
           key={i}
@@ -70,7 +117,7 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
           x2={e.x2}
           y2={e.y2}
           stroke={DB_TONE[v]}
-          strokeWidth={last ? 8 : 7}
+          strokeWidth={last ? 11 : 6}
           strokeLinecap="round"
         />,
       );
@@ -116,6 +163,7 @@ export const DotsBoxesBoard = memo(function DotsBoxesBoard({
       {slots}
       {drawn}
       <g className="db-dots">{dots}</g>
+      <g className="db-party">{party}</g>
     </svg>
   );
 });
