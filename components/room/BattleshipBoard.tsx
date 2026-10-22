@@ -84,7 +84,8 @@ function linksOf(cells: [number, number][]) {
 }
 
 // Tàu hình đặc biệt: các khoang vuông nối bằng cổ. Vẽ ba lớp (viền, nền biển, màu thân) để màu thân trong suốt không
-// chồng lên nhau ở chỗ nối; vì thế viền không đứt nét được như tàu thẳng.
+// chồng lên nhau ở chỗ nối; vì thế viền không đứt nét được như tàu thẳng. Viền lấn 1,25px ra ngoài và 1,25px vào trong
+// khoang, dày 2,5px như nét viền tàu thẳng.
 function BlockHull({ ship, tone, fresh }: ShipDraw) {
   const shape = shapeOf(ship.k, ship.o);
   if (!shape) return null;
@@ -106,11 +107,11 @@ function BlockHull({ ship, tone, fresh }: ShipDraw) {
     <g opacity={h.opacity} pointerEvents="none">
       <g className={fresh ? "bs-sink" : undefined}>
         {layer(1.25, h.stroke)}
-        {h.fill !== "transparent" && layer(0, SEA)}
-        {layer(0, h.fill === "transparent" ? SEA : h.fill)}
+        {h.fill !== "transparent" && layer(-1.25, SEA)}
+        {layer(-1.25, h.fill === "transparent" ? SEA : h.fill)}
         {(tone === "steel" || tone === "sunk") &&
           shape.cells.map(([x, y], i) => <circle key={i} cx={x0 + x * C} cy={y0 + y * C} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />)}
-        {tone === "sunk" && layer(0, FLOOD, fresh ? "bs-flood" : undefined, 0.6)}
+        {tone === "sunk" && layer(-1.25, FLOOD, fresh ? "bs-flood" : undefined, 0.6)}
       </g>
     </g>
   );

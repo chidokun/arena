@@ -53,10 +53,10 @@ const SUNK_PAUSE_MS = 2200;
 // Ván có bấm giờ thì thanh thời gian chiếm thêm TIME_BAR_H phía trên nên hai hải đồ (đặt cạnh nhau) hẹp đi gấp đôi chừng đó.
 const WATERS_FIT = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_290px)]";
 const WATERS_FIT_TIMED = "w-full landscape:h-full landscape:w-[min(100cqw,200cqh_-_330px)]";
-const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_134px)]";
+const EDITOR_FIT = "w-full landscape:w-[min(100cqw,100cqh_+_164px)]";
 // Ước lượng thôi — hải đồ vẫn tự co cho vừa.
 const watersCenter = (timed: boolean) => `200cqh + ${260 - (timed ? 2 * TIME_BAR_H : 0)}px`;
-const EDITOR_CENTER = "100cqh + 134px";
+const EDITOR_CENTER = "100cqh + 164px";
 
 export function BattleshipTable({ id, slug, session }: { id: string; slug: string; session: BattleshipRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
@@ -612,7 +612,7 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
   if (held && preview) draws.push({ ship: preview, tone: ok ? "ok" : "bad" });
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_250px]">
+    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
       <section className="card min-w-0 p-2 sm:p-3" aria-label="Bày hạm đội">
         <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 pb-2">
           <h2 className="flex-1 font-display text-[17px] font-extrabold whitespace-nowrap">🛠️ Bày hạm đội của bạn</h2>
@@ -685,13 +685,13 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
             {picked.length}/{MAX_SHIPS}
           </span>
         </div>
-        <ul className="grid gap-1">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-1">
           {FLEET.map((s, k) => {
             const on = slots[k] !== undefined;
             const isHeld = held?.k === k;
             const locked = !on && full;
             return (
-              <li key={k} className={`flex items-center gap-1.5 ${locked ? "opacity-50" : ""}`}>
+              <li key={k} className={`flex min-w-0 items-center gap-1.5 ${locked ? "opacity-50" : ""}`}>
                 <button
                   type="button"
                   role="checkbox"
@@ -699,7 +699,7 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
                   aria-label={`Chọn ${s.name}`}
                   disabled={locked}
                   onClick={() => toggle(k)}
-                  className={`grid h-6 w-6 flex-none place-items-center rounded-md border-2 text-[13px] font-extrabold ${on ? "border-lime bg-lime text-ink" : "border-rule"}`}
+                  className={`grid h-5 w-5 flex-none place-items-center rounded-md border-2 text-[12px] font-extrabold ${on ? "border-lime bg-lime text-ink" : "border-rule"}`}
                 >
                   {on ? "✓" : ""}
                 </button>
@@ -710,9 +710,9 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
                   disabled={locked}
                   className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl border-2 px-2 py-1.5 text-left transition-colors ${isHeld ? "border-pen bg-pen-soft" : "border-rule hover:border-ink-3"}`}
                 >
-                  <ShapeIcon k={k} size={7} color={isHeld ? "var(--pen)" : on ? "var(--ink-2)" : "var(--ink-3)"} />
+                  <ShapeIcon k={k} size={6} color={isHeld ? "var(--pen)" : on ? "var(--ink-2)" : "var(--ink-3)"} />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{s.name}</span>
-                  <span className="text-[11.5px] font-bold whitespace-nowrap text-ink-3">{isHeld ? "đang cầm" : !on ? `${s.cells.length} ô` : slots[k] ? "✓" : "chưa đặt"}</span>
+                  <span className="flex-none text-[11.5px] font-bold whitespace-nowrap text-ink-3">{isHeld ? "✋ cầm" : !on ? `${s.cells.length} ô` : slots[k] ? "✓" : "chưa đặt"}</span>
                 </button>
               </li>
             );
