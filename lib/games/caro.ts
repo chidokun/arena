@@ -1,7 +1,25 @@
+export const SIZES = [15, 19] as const;
+export type Size = (typeof SIZES)[number];
+
+// Giây tối đa cho mỗi lượt; 0 là không giới hạn.
+export const TURN_LIMITS = [30, 60, 0] as const;
+export type TurnLimit = (typeof TURN_LIMITS)[number];
+export const turnLabel = (t: number) => (!t ? "Không giới hạn" : t < 60 ? `${t} giây` : `${t / 60} phút`);
+
 export type CaroOptions = {
-  size: number;
+  size: Size;
   blockTwoEnds: boolean;
+  turn: TurnLimit;
 };
+export const DEFAULT_OPTIONS: CaroOptions = { size: 15, blockTwoEnds: true, turn: 0 };
+
+// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn.
+export function normOptions(o: Record<string, unknown> | undefined): CaroOptions {
+  const size = SIZES.find((s) => s === o?.size) ?? DEFAULT_OPTIONS.size;
+  const blockTwoEnds = typeof o?.blockTwoEnds === "boolean" ? o.blockTwoEnds : DEFAULT_OPTIONS.blockTwoEnds;
+  const turn = TURN_LIMITS.find((t) => t === o?.turn) ?? DEFAULT_OPTIONS.turn;
+  return { size, blockTwoEnds, turn };
+}
 
 export type Move = [x: number, y: number];
 
@@ -62,7 +80,7 @@ export function winningLine(board: Uint8Array, size: number, x: number, y: numbe
 }
 
 // Tất định: mọi peer có cùng nhật ký sẽ ra cùng kết quả, nên không cần ai "phán" thắng thua.
-export function replay(moves: readonly Move[], opts: CaroOptions): CaroState {
+export function replay(moves: readonly Move[], opts: Pick<CaroOptions, "size" | "blockTwoEnds">): CaroState {
   const s = emptyState(opts.size);
   for (const m of moves) {
     if (s.winner || s.draw) break;

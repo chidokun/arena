@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { replay, type Move } from "./caro.ts";
+import { normOptions, replay, type Move } from "./caro.ts";
 
-const opts = { size: 15, blockTwoEnds: false };
+const opts = { size: 15, blockTwoEnds: false } as const;
 
 function interleave(xs: Move[], os: Move[]): Move[] {
   const out: Move[] = [];
@@ -48,4 +48,10 @@ test("chặn một đầu và mép bàn vẫn thắng", () => {
 test("nước đè ô đã có quân bị dừng", () => {
   const s = replay([[0, 0], [0, 0], [1, 1]], opts);
   assert.equal(s.count, 1);
+});
+
+test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời gian thì không giới hạn", () => {
+  assert.deepEqual(normOptions({ size: 19, blockTwoEnds: false, turn: 30 }), { size: 19, blockTwoEnds: false, turn: 30 });
+  assert.deepEqual(normOptions({ size: 17, turn: 45 }), { size: 15, blockTwoEnds: true, turn: 0 });
+  assert.equal(normOptions({ size: 15, blockTwoEnds: true }).turn, 0);
 });

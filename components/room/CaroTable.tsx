@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, type ReactNode } from "react";
-import { emptyState, type CaroOptions } from "@/lib/games/caro";
+import { emptyState, normOptions, SIZES, TURN_LIMITS, turnLabel } from "@/lib/games/caro";
 import type { CaroMatch, CaroRoom, CaroView } from "@/lib/net/caro-room";
 import type { RoomState, SeatView } from "@/lib/net/room";
 import { CaroBoard, MarkIcon } from "./CaroBoard";
@@ -12,11 +12,13 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
+import { shortTurn, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "❌", "⭕"];
 /** Thắng bằng chuỗi 5 thì chờ một nhịp cho mọi người kịp thấy đường thắng trên bàn rồi mới diễn. */
 const LINE_PAUSE_MS = 1100;
+const MARK_TONE = { 1: "var(--coral)", 2: "var(--sky)" } as const;
 
 // Mỗi phần đăng ký đúng store mình cần để đổi gì thì chỉ phần đọc store đó vẽ lại.
 export function CaroTable({ id, slug, session }: { id: string; slug: string; session: CaroRoom }) {
@@ -30,25 +32,29 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
         <span className="chip" style={{ color: head.block ? "var(--sun)" : "var(--ink-3)" }}>
           {head.block ? "🚧 Chặn 2 đầu" : "Không chặn 2 đầu"}
         </span>
+        {head.turn > 0 && <span className="chip text-ink-2">⏱ {shortTurn(head.turn)}/lượt</span>}
       </RoomHeader>
 
       <DuelBar session={session} />
       <ActionBar session={session} />
+      <Settings session={session} />
       <Result session={session} />
       <Play session={session} />
     </RoomLayout>
   );
 }
 
+// Bàn còn đang hiện ván đã chơi thì ghi luật của ván đó; luật ván tới nằm ở khung cài đặt bên dưới.
 const headOf = (r: RoomState) => {
   const m = r.meta!;
-  const opts = m.opts as CaroOptions;
+  const opts = m.status !== "waiting" && m.cr ? m.cr : normOptions(m.opts);
   return {
     name: m.name,
     status: m.status,
     round: m.round,
     size: opts.size,
-    block: !!opts.blockTwoEnds,
+    block: opts.blockTwoEnds,
+    turn: opts.turn,
   };
 };
 
@@ -146,6 +152,8 @@ function Play({ session }: { session: CaroRoom }) {
   return (
     <>
       <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
+        {/* Hiện suốt ván có bấm giờ (lúc đếm ngược mở màn thì đầy) để bàn không bị đẩy xuống khi đồng hồ bắt đầu chạy. */}
+        {live && g!.opts.turn > 0 && <TurnBar match={g!} />}
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={onPlay} />
         </div>
@@ -159,6 +167,13 @@ function Play({ session }: { session: CaroRoom }) {
       <Party bits={end.party} />
     </>
   );
+}
+
+// Tách riêng để đồng hồ chạy chỉ vẽ lại thanh này, không kéo cả bàn cờ vẽ lại theo. Hạn chót nước đầu tính cả lúc đếm
+// ngược mở màn nên kẹp lại để thanh đầy trong lúc đó.
+function TurnBar({ match: g }: { match: CaroMatch }) {
+  const total = g.opts.turn * 1000;
+  return <TimeBar left={Math.min(total, useTimeLeft(g.deadline))} total={total} tone={MARK_TONE[g.state.turn]} />;
 }
 
 const fighter = (seat: SeatView | undefined, mark: 1 | 2, me: string, side: "left" | "right") => (
@@ -272,6 +287,7 @@ function useActions(session: CaroRoom): {
   tone?: string;
   message: ReactNode;
   buttons?: ReactNode;
+  clock?: { deadline: number; limit: number };
 } {
   const room = useRoomState(session);
   const people = usePeople(session);
@@ -281,6 +297,7 @@ function useActions(session: CaroRoom): {
   const name = (uid?: string | null) => (uid ? (people.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");
 
   if (m.status === "playing" && g) {
+    const clock = g.opts.turn ? { deadline: g.deadline, limit: g.opts.turn } : undefined;
     if (!g.myMark)
       return {
         message: (
@@ -288,17 +305,21 @@ function useActions(session: CaroRoom): {
             👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b>
           </>
         ),
+        clock,
       };
+    const mine = <b>{g.myMark === 1 ? "X" : "O"}</b>;
     return {
       tone: g.myTurn ? TONE.turn : TONE.idle,
       message: g.myTurn ? (
         <>
-          🎯 Đến lượt bạn — đánh <b>{g.myMark === 1 ? "X" : "O"}</b>
+          🎯 Đến lượt bạn — đánh {mine}
+          {clock && " trước khi hết giờ"}
         </>
       ) : (
         <>⏳ Chờ đối thủ đi…</>
       ),
       buttons: <ResignButton onConfirm={() => session.resign()} />,
+      clock,
     };
   }
   return {
@@ -307,15 +328,55 @@ function useActions(session: CaroRoom): {
   };
 }
 
+// Đồng hồ ẩn với trình đọc màn hình để thanh trạng thái (vùng `aria-live`) không đọc lại mỗi giây.
 function ActionBar({ session }: { session: CaroRoom }) {
-  const { tone, message, buttons } = useActions(session);
+  const { tone, message, buttons, clock } = useActions(session);
   return (
     <StatusBar tone={tone} message={message}>
+      {clock && clock.deadline > 0 && <Clock {...clock} />}
       {buttons}
     </StatusBar>
   );
 }
 
+function Clock({ deadline, limit }: { deadline: number; limit: number }) {
+  return <TurnClock left={Math.min(limit * 1000, useTimeLeft(deadline))} />;
+}
+
 function Controls({ session }: { session: CaroRoom }) {
   return useActions(session).buttons;
+}
+
+function Settings({ session }: { session: CaroRoom }) {
+  const { host, playing } = useRoomState(session, (r) => ({ host: r.isHost, playing: r.meta!.status === "playing" }), shallowEqual);
+  const opts = useGame(session, (v) => v?.opts);
+  if (playing || !opts) return null;
+  const row = (label: string, items: ReactNode) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-[86px] text-[13px] font-bold text-ink-3">{label}</span>
+      <div className="flex flex-1 flex-wrap gap-2">{items}</div>
+    </div>
+  );
+  const pick = (key: string | number, on: boolean, label: ReactNode, set: () => void, aria?: string) => (
+    <button key={key} type="button" className={`btn btn-sm ${on ? "btn-coral" : ""}`} aria-pressed={on} aria-label={aria} disabled={!host && !on} onClick={host ? set : undefined}>
+      {label}
+    </button>
+  );
+  return (
+    <section className="card mt-4 grid gap-3 p-4" aria-label="Luật ván tới">
+      {row(
+        "Cỡ bàn",
+        SIZES.map((s) => pick(s, s === opts.size, `${s}×${s}`, () => session.setOptions({ size: s }))),
+      )}
+      {row(
+        "Chặn 2 đầu",
+        [true, false].map((b) => pick(String(b), b === opts.blockTwoEnds, b ? "🚧 Bật" : "Tắt", () => session.setOptions({ blockTwoEnds: b }))),
+      )}
+      {row(
+        "Mỗi lượt",
+        TURN_LIMITS.map((t) => pick(t, t === opts.turn, `⏱ ${t ? turnLabel(t) : "Vô hạn"}`, () => session.setOptions({ turn: t }), turnLabel(t))),
+      )}
+      {!host && <p className="text-[13.5px] text-ink-2">Chủ phòng chọn cỡ bàn, luật chặn hai đầu và thời gian mỗi lượt cho ván tới.</p>}
+    </section>
+  );
 }

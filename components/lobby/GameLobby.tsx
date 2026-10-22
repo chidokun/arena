@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  DEFAULT_OPTIONS as CARO_DEFAULTS,
+  normOptions as caroOptions,
+  SIZES as CARO_SIZES,
+  TURN_LIMITS as CARO_TURNS,
+  type Size as CaroSize,
+  type TurnLimit as CaroTurn,
+} from "@/lib/games/caro";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { DEFAULT_OPTIONS as CD_DEFAULTS, normOptions as cdOptions, SETUP_NAME as CD_SETUP_NAME, SETUPS as CD_SETUPS, type Setup as CdSetup } from "@/lib/games/co-cho";
 import {
@@ -365,7 +373,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
 }
 
 function CaroChips({ room }: { room: RoomAd }) {
-  const size = Number(room.opts?.size) || 15;
+  const { size, blockTwoEnds, turn } = caroOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
@@ -377,7 +385,8 @@ function CaroChips({ room }: { room: RoomAd }) {
       <span className="rounded-lg bg-sunken px-2.5 py-1">
         ▦ {size}×{size}
       </span>
-      {Boolean(room.opts?.blockTwoEnds) && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
+      {blockTwoEnds && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
+      {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}
     </>
   );
 }
@@ -724,8 +733,9 @@ function CreateForm({ slug }: { slug: string }) {
   const { profile } = useNet();
   const [name, setName] = useState(`Phòng của ${profile?.name ?? "tôi"}`);
   const [cap, setCap] = useState(game.capacity.default);
-  const [size, setSize] = useState(15);
-  const [blockTwoEnds, setBlock] = useState(true);
+  const [size, setSize] = useState<CaroSize>(CARO_DEFAULTS.size);
+  const [blockTwoEnds, setBlock] = useState(CARO_DEFAULTS.blockTwoEnds);
+  const [caroTurn, setCaroTurn] = useState<CaroTurn>(CARO_DEFAULTS.turn);
   const [pace, setPace] = useState(DEFAULT_PACE);
   const [talk, setTalk] = useState(DEFAULT_OPTIONS.talk);
   const [hostPlays, setHostPlays] = useState(UC_DEFAULTS.hostPlays);
@@ -806,7 +816,7 @@ function CreateForm({ slug }: { slug: string }) {
         else if (mc) stashCreate(id, { name: clean, cap, seats: MC_MAX, opts: { map: mcMap, mines: mcMines } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
         else if (xiangqiRole) stashCreate(id, { name: clean, cap: 0, seats: XQ_MAX, opts: { claimMs } });
-        else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds } });
+        else stashCreate(id, { name: clean, cap, seats, opts: { size, blockTwoEnds, turn: caroTurn } });
         router.push(roomHref(slug, id));
       }}
     >
@@ -1252,7 +1262,7 @@ function CreateForm({ slug }: { slug: string }) {
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
             <div className="grid grid-cols-2 gap-2">
-              {[15, 19].map((s) => (
+              {CARO_SIZES.map((s) => (
                 <button key={s} type="button" onClick={() => setSize(s)} aria-pressed={size === s} className={`btn ${size === s ? "btn-sun" : ""}`}>
                   {s}×{s}
                 </button>
@@ -1265,6 +1275,27 @@ function CreateForm({ slug }: { slug: string }) {
               <Choice on={blockTwoEnds} onClick={() => setBlock(true)} title="Bật — chặn 2 đầu không thắng" text="Dãy 5 quân bị quân đối phương chặn ở cả hai đầu thì không được tính thắng." />
               <Choice on={!blockTwoEnds} onClick={() => setBlock(false)} title="Tắt — cứ 5 quân là thắng" text="Chỉ cần 5 quân liên tiếp, bị chặn hay không đều thắng." />
             </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian mỗi lượt</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {CARO_TURNS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setCaroTurn(t)}
+                  aria-pressed={caroTurn === t}
+                  aria-label={dbTurnLabel(t)}
+                  className={`btn !px-2 ${caroTurn === t ? "btn-sun" : ""}`}
+                >
+                  {t ? dbTurnLabel(t) : "Vô hạn"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {caroTurn ? `Hết ${dbTurnLabel(caroTurn).toLowerCase()} mà chưa đánh thì bị xử thua ván đó.` : "Nghĩ bao lâu cũng được."} Cỡ bàn, luật và thời gian
+              đều đổi được trong phòng trước mỗi ván.
+            </p>
           </fieldset>
         </>
       )}

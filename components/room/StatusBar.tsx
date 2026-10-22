@@ -122,4 +122,5 @@ export function forfeitWhy(r: Result): string | undefined {
   if (r.reason === "leave") return "Đối thủ rời trận";
   if (r.reason === "kick") return "Đối thủ bị mời ra";
   if (r.reason === "cheat") return "Đối thủ gian lận";
+  if (r.reason === "timeout") return "Đối thủ hết giờ";
 }

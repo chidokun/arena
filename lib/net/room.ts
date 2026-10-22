@@ -1,5 +1,6 @@
 // Người dùng chỉ phát ý định; chủ phòng là người duy nhất ghi `meta`, xử lý ý định theo thứ tự rồi ghi nhận (`ack`).
 // Vì chỉ có một người ghi nên không có xung đột ghế; gossip đảm bảo mọi người cuối cùng thấy cùng một `meta`.
+import type { CaroOptions } from "../games/caro";
 import type { CcPublic } from "../games/co-chep";
 import type { DwPublic } from "../games/draw-guess";
 import type { KwRound } from "../games/kawaii";
@@ -29,7 +30,7 @@ export type Result = {
   winner: string | null;
   loser?: string;
   winners?: string[];
-  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked" | "cheat";
+  reason: "line" | "draw" | "resign" | "leave" | "kick" | "kinh" | "stop" | "team" | "solve" | "mate" | "agree" | "sunk" | "points" | "survive" | "guess" | "boom" | "blocked" | "cheat" | "timeout";
   team?: Side | UcTeam;
 };
 
@@ -58,6 +59,7 @@ export type Meta = {
   // Chốt lúc bắt đầu để chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong.
   dbSize?: number;
   dbTurn?: number;
+  cr?: CaroOptions;
   cdSetup?: string;
   cc?: CcPublic;
   mc?: McPublic;

@@ -247,6 +247,7 @@ export const RULES: Record<string, GameRules> = {
         items: [
           "Hai người ngồi vào 2 ghế, chủ phòng bấm Bắt đầu. Những người còn lại trong phòng được vào xem.",
           "X đi trước, O đi sau, mỗi lượt đặt một quân vào một ô trống bất kỳ. Quân đã đặt không di chuyển được.",
+          "Chủ phòng chọn cỡ bàn 15×15 hoặc 19×19 và thời gian tối đa mỗi lượt (30 giây, 1 phút hoặc không giới hạn) lúc tạo phòng, đổi được trước mỗi ván. Hết giờ mà chưa đánh thì bị xử thua.",
           "Người đi trước đổi luân phiên sau mỗi ván cho công bằng.",
         ],
       },
@@ -254,14 +255,14 @@ export const RULES: Record<string, GameRules> = {
         emoji: "🚧",
         title: "Luật chặn hai đầu (tuỳ chọn)",
         items: [
-          "Chủ phòng chọn có áp dụng luật này lúc tạo phòng.",
+          "Chủ phòng chọn có áp dụng luật này lúc tạo phòng, đổi được trước mỗi ván.",
           "Khi bật: chuỗi 5 quân trở lên mà bị quân đối phương chặn ở cả hai đầu thì không tính thắng. Mép bàn không tính là bị chặn.",
         ],
       },
       {
         emoji: "🏆",
         title: "Thắng thua",
-        items: ["Ai xếp được chuỗi thắng trước thì thắng ván.", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
+        items: ["Ai xếp được chuỗi thắng trước thì thắng ván.", "Hết giờ một lượt, xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
       },
     ],
   },

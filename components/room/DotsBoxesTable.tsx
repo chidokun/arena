@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef } from "react";
 import { emptyState, SIZES, TURN_LIMITS, turnLabel } from "@/lib/games/dots-boxes";
 import type { DotsBoxesRoom, DotsMatch, DotsView } from "@/lib/net/dots-boxes-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
@@ -13,6 +13,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
+import { shortTurn, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<DotsView>, "chat">;
@@ -27,26 +28,6 @@ function useDotsView(session: DotsBoxesRoom): View {
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🟥", "🟦"];
 /** Ô cuối vừa khép thì chờ một nhịp cho nét kịp vẽ và ô kịp bật lên rồi mới diễn. */
 const CLAIM_PAUSE_MS = 900;
-/** Còn chừng này giây thì đồng hồ chuyển đỏ và nhấp nháy. */
-const HURRY_S = 5;
-
-const shortTurn = (t: number) => (!t ? "∞" : t < 60 ? `${t}s` : `${t / 60}p`);
-
-/** Mili-giây còn lại tới `deadline` (0 là không giới hạn), cập nhật vài lần mỗi giây. */
-function useTimeLeft(deadline: number) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!deadline) return;
-    const tick = () => setNow(Date.now());
-    const first = setTimeout(tick, 0);
-    const t = setInterval(tick, 200);
-    return () => {
-      clearTimeout(first);
-      clearInterval(t);
-    };
-  }, [deadline]);
-  return deadline ? Math.max(0, deadline - now) : 0;
-}
 
 // Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
 // không làm danh sách người / khung chat vẽ lại.
@@ -147,29 +128,6 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
     </>
   );
 });
-
-function TimeBar({ left, total, tone }: { left: number; total: number; tone: string }) {
-  const hurry = left <= HURRY_S * 1000;
-  return (
-    <div className="tx-timer mb-3" aria-hidden="true">
-      <span style={{ width: `${Math.min(100, (left / total) * 100)}%`, background: hurry ? "var(--coral)" : tone }} />
-    </div>
-  );
-}
-
-function TurnClock({ left }: { left: number }) {
-  const s = Math.ceil(left / 1000);
-  const hurry = s <= HURRY_S;
-  return (
-    <span
-      className={`inline-flex min-w-[4.5rem] items-center justify-center gap-1 rounded-full border-2 border-[#050312] px-3 py-1 text-[15px] font-extrabold tabular-nums ${hurry ? "db-hurry" : ""}`}
-      style={{ background: hurry ? "var(--coral)" : "var(--surface)", color: hurry ? "#fff" : undefined }}
-      aria-hidden="true"
-    >
-      ⏱ {s}s
-    </span>
-  );
-}
 
 const Swatch = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-md border-2 border-[#050312]" style={{ background: DB_TONE[v] }} />;
 
