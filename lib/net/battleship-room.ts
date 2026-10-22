@@ -4,16 +4,18 @@ import {
   FLEET,
   fleetGrid,
   honest,
+  kindsOf,
   newSalt,
   normOptions,
   parseFleet,
+  parseKinds,
   replay,
   shotsAt,
   type BsOptions,
   type Fleet,
   type Shot,
   type BsState,
-  type Sunk,
+  type Ship,
 } from "../games/battleship";
 import { RoomSession, START_COUNTDOWN_MS, type Meta, type Result, type SeatView } from "./room";
 
@@ -26,7 +28,7 @@ const secretKey = (id: string) => `arena:bs:${id}`;
 const draftKey = (id: string) => `arena:bs:${id}:draft`;
 
 type Secret = { round: number; fleet: Fleet; salt: string; commit: string };
-type FleetRecord = { commit?: unknown; fleet?: unknown; salt?: unknown };
+type FleetRecord = { commit?: unknown; kinds?: unknown; fleet?: unknown; salt?: unknown };
 
 const isCommit = (c: unknown): c is string => typeof c === "string" && /^[0-9a-f]{64}$/.test(c);
 
@@ -34,8 +36,10 @@ export type BsSide = {
   seat: SeatView;
   ready: boolean;
   commit?: string;
+  /** Các loại tàu bên này đã chọn — chỉ biết khi đã chốt hạm đội. */
+  kinds: number[];
   marks: Int8Array;
-  sunk: Sunk[];
+  sunk: Ship[];
   fleet?: Fleet;
   honest?: boolean;
 };
@@ -88,6 +92,12 @@ export class BattleshipRoom extends RoomSession<BsView> {
     return this.gossip.get<FleetRecord>(`f:${m.round}:${uid}`);
   }
 
+  // Đã chốt hạm đội: có cam kết kèm danh sách loại tàu hợp lệ.
+  private kindsIn(m: Meta, uid: string) {
+    const rec = this.recordOf(m, uid);
+    return isCommit(rec?.commit) ? parseKinds(rec.kinds) : null;
+  }
+
   private secret(round: number): Secret | null {
     if (this.mine === undefined) {
       this.mine = null;
@@ -121,8 +131,9 @@ export class BattleshipRoom extends RoomSession<BsView> {
   }
 
   private gameOf(m: Meta) {
-    const ready = m.lineup.length === 2 && m.lineup.every((u) => isCommit(this.recordOf(m, u)?.commit));
-    const state = replay(ready ? this.logOf(m) : [], this.rulesOf(m), ready ? this.passesOf(m) : []);
+    const kinds = m.lineup.map((u) => this.kindsIn(m, u));
+    const ready = m.lineup.length === 2 && kinds.every(Boolean);
+    const state = ready ? replay(this.logOf(m), this.rulesOf(m), this.passesOf(m), kinds as [number[], number[]]) : replay([], this.rulesOf(m));
     let result: Result | undefined;
     if (state.winner >= 0) result = { round: m.round, winner: m.lineup[state.winner], loser: m.lineup[1 - state.winner], reason: "sunk" };
     else {
@@ -184,12 +195,12 @@ export class BattleshipRoom extends RoomSession<BsView> {
     const key = `f:${m.round}:${this.me}`;
     const rec = this.recordOf(m, this.me);
     if (g.result) {
-      if (rec?.fleet === undefined) this.gossip.set(key, { commit: secret.commit, fleet: secret.fleet, salt: secret.salt });
+      if (rec?.fleet === undefined) this.gossip.set(key, { commit: secret.commit, kinds: kindsOf(secret.fleet), fleet: secret.fleet, salt: secret.salt });
       return;
     }
     if (m.status !== "playing") return;
     // Cam kết chưa kịp lan đi thì máy đã tải lại trang (snapshot ghi trễ): công bố lại.
-    if (!isCommit(rec?.commit)) this.gossip.set(key, { commit: secret.commit });
+    if (!this.kindsIn(m, this.me)) this.gossip.set(key, { commit: secret.commit, kinds: kindsOf(secret.fleet) });
     else if (g.ready && g.state.pending >= 0 && g.state.turn !== side) {
       const n = g.state.shots.length;
       const prior = shotsAt(g.state, side).map((x) => x.c);
@@ -212,7 +223,8 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   private check(m: Meta, uid: string, rec: FleetRecord, answered: Shot[]): boolean | undefined {
     const fleet = parseFleet(rec.fleet);
-    if (!fleet || typeof rec.salt !== "string" || !isCommit(rec.commit)) return false;
+    const kinds = parseKinds(rec.kinds);
+    if (!fleet || !kinds || kindsOf(fleet).join() !== kinds.join() || typeof rec.salt !== "string" || !isCommit(rec.commit)) return false;
     const key = JSON.stringify([m.round, uid, rec, answered.length]);
     const known = this.checks.get(key);
     if (typeof known === "boolean") return known;
@@ -245,10 +257,12 @@ export class BattleshipRoom extends RoomSession<BsView> {
     const sides = ([0, 1] as const).map((i): BsSide => {
       const uid = m.lineup[i];
       const rec = this.recordOf(m, uid);
+      const kinds = this.kindsIn(m, uid);
       const side: BsSide = {
         seat: seatOf(uid),
-        ready: isCommit(rec?.commit),
-        commit: isCommit(rec?.commit) ? rec.commit : undefined,
+        ready: !!kinds,
+        commit: kinds ? (rec!.commit as string) : undefined,
+        kinds: kinds ?? [],
         marks: g.state.marks[i],
         sunk: g.state.sunk[i],
       };
@@ -328,7 +342,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
       try {
         sessionStorage.setItem(secretKey(this.id), JSON.stringify(this.mine));
       } catch {}
-      this.gossip.set(`f:${m.round}:${this.me}`, { commit });
+      this.gossip.set(`f:${m.round}:${this.me}`, { commit, kinds: kindsOf(fleet) });
       this.react();
     } finally {
       this.committing = false;

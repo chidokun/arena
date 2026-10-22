@@ -604,8 +604,11 @@ export const RULES: Record<string, GameRules> = {
         emoji: "🚢",
         title: "Bày hạm đội",
         items: [
-          "Mỗi người bí mật đặt 5 tàu trên hải đồ 10×10: Tàu sân bay (5 ô), Thiết giáp hạm (4), Tuần dương hạm (3), Tàu ngầm (3), Khu trục hạm (2).",
-          "Tàu nằm ngang hoặc dọc, không chồng lên nhau, không tràn ra ngoài hải đồ. Có thể bấm bày ngẫu nhiên cho nhanh.",
+          "Có 11 loại tàu, mỗi người tự chọn từ 1 tới 5 loại (mỗi loại một chiếc) rồi bí mật đặt trên hải đồ 10×10. Hai bên không cần chọn giống nhau.",
+          "Tàu thẳng: Tàu sân bay (5 ô), Thiết giáp hạm (4), Tuần dương hạm (3), Tàu ngầm (3), Khu trục hạm (2).",
+          "Tàu hình đặc biệt: Pháo đài nổi (dấu cộng, 5 ô), Tàu đổ bộ (chữ L, 4), Tàu tàng hình (3 ô nằm chéo), Tàu hộ tống (chữ T, 4), Tàu quét mìn (chữ Z, 4), Tàu hai thân (hai thân 2 ô cách nhau một cột).",
+          "Tàu xoay được 4 hướng, tàu chữ L và chữ Z lật được; không chồng lên nhau, không tràn ra ngoài hải đồ. Có thể bấm bày ngẫu nhiên cho nhanh.",
+          "Khi bấm Sẵn sàng, đối thủ được biết bạn chọn những loại tàu nào (để biết phải đánh chìm bao nhiêu tàu), nhưng không biết vị trí.",
         ],
       },
       {
@@ -621,7 +624,7 @@ export const RULES: Record<string, GameRules> = {
       {
         emoji: "🏆",
         title: "Thắng thua",
-        items: ["Ai đánh chìm toàn bộ 5 tàu của đối phương trước thì thắng.", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
+        items: ["Ai đánh chìm toàn bộ hạm đội đối phương trước thì thắng (hạm đội ít tàu thì khó tìm hơn nhưng bị tìm ra là chìm hết nhanh hơn).", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
       },
       {
         emoji: "🔒",

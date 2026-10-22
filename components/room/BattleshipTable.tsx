@@ -1,10 +1,29 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { coord, FLEET, fleetGrid, normOptions, randomFleet, shipCells, SIZE, TURN_LIMITS, turnLabel, type Fleet, type Ship } from "@/lib/games/battleship";
+import {
+  CLASSIC,
+  coord,
+  FLEET,
+  fleetGrid,
+  flippable,
+  flipped,
+  MAX_SHIPS,
+  MIN_SHIPS,
+  normOptions,
+  randomFleet,
+  randomKinds,
+  rotated,
+  shapeOf,
+  shipCells,
+  SIZE,
+  TURN_LIMITS,
+  turnLabel,
+  type Ship,
+} from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
 import type { RoomState, RoomView } from "@/lib/net/room";
-import { BS_TONE, damage, fleetDraws, SeaBoard, type ShipDraw } from "./BattleshipBoard";
+import { BS_TONE, damage, fleetDraws, SeaBoard, ShapeIcon, type ShipDraw } from "./BattleshipBoard";
 import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
@@ -47,7 +66,7 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
       <RoomHeader name={head.name} status={head.status} round={head.round} playing={setup ? "đang bày tàu" : "đang giao chiến"}>
         <span className="chip text-ink-2">
-          ▦ {SIZE}×{SIZE} · {FLEET.length} tàu
+          ▦ {SIZE}×{SIZE} · {MIN_SHIPS}–{MAX_SHIPS} tàu tự chọn
         </span>
         <span className="chip" style={{ color: head.chain ? "var(--sun)" : "var(--ink-3)" }}>
           {head.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
@@ -199,10 +218,11 @@ function summary(g: BsMatch, me: string): DuelSummary {
   if (!r.winner) return { winner: null, title: "Hoà!", sub: `Ván ${g.round} hoà` };
   const k = g.sides.findIndex((s) => s.seat.uid === r.winner);
   const shots = g.sides[1 - k]?.marks.filter((v) => v >= 0).length ?? 0;
+  const ships = g.sides[1 - k]?.kinds.length ?? 0;
   return {
     winner: r.winner,
     title: r.winner === me ? "Bạn chiến thắng!" : `${g.sides[k]?.seat.member?.name ?? "Ai đó"} chiến thắng!`,
-    sub: forfeitWhy(r) ?? `Đánh chìm toàn bộ ${FLEET.length} tàu sau ${shots} phát bắn`,
+    sub: forfeitWhy(r) ?? `Đánh chìm toàn bộ ${ships} tàu sau ${shots} phát bắn`,
     note: r.loser === me ? `${r.reason === "sunk" ? "Hạm đội của bạn đã chìm" : "Bạn thua ván này"} — ván sau phục thù nhé!` : undefined,
   };
 }
@@ -384,7 +404,8 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
   const targeted = !setup && !ended && view.meta!.status === "playing" && g.turn !== i;
   const last = g.last && g.last.by !== i ? g.last : undefined;
   const ships = fleetDraws(side.sunk, side.fleet, mine ? "steel" : "reveal", last?.r === 2 ? last.k : -1);
-  const alive = FLEET.length - side.sunk.length;
+  const total = side.kinds.length;
+  const alive = total - side.sunk.length;
   const fog = setup && !(mine && side.ready);
   const fire = foeOfMine && g.myTurn && !locked;
 
@@ -404,7 +425,7 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
         )}
         {!setup && (
           <span className="text-[12.5px] font-bold text-ink-3">
-            {alive}/{FLEET.length} tàu
+            {alive}/{total} tàu
           </span>
         )}
       </header>
@@ -413,7 +434,7 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
           <div className={fit ? "bs-fit-board" : undefined}>
             <div className="relative">
               <SeaBoard
-                label={`${title} — còn ${alive}/${FLEET.length} tàu${fire ? ". Đến lượt bạn: chọn ô để bắn (mũi tên + Enter)." : ""}`}
+                label={`${title} — còn ${alive}/${total} tàu${fire ? ". Đến lượt bạn: chọn ô để bắn (mũi tên + Enter)." : ""}`}
                 ships={ships}
                 marks={side.marks}
                 last={last?.c ?? -1}
@@ -442,21 +463,21 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
 
 function FleetList({ side }: { side: BsSide }) {
   const hits = side.fleet ? damage(side.fleet, side.marks) : null;
+  if (!side.kinds.length) return null;
   return (
     <ul className="mt-2 flex flex-wrap gap-1.5 px-1" aria-label="Hạm đội">
-      {FLEET.map((s, k) => {
+      {side.kinds.map((k) => {
+        const s = FLEET[k];
+        const len = s.cells.length;
         const sunk = side.sunk.some((x) => x.k === k);
+        const n = sunk ? len : (hits?.[k] ?? 0);
         return (
           <li
             key={k}
             className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-bold ${sunk ? "bg-coral-soft text-ink-3 line-through" : "bg-sunken text-ink-2"}`}
-            aria-label={`${s.name} (${s.len} ô)${sunk ? " — đã chìm" : hits?.[k] ? ` — trúng ${hits[k]} ô` : ""}`}
+            aria-label={`${s.name} (${len} ô)${sunk ? " — đã chìm" : n ? ` — trúng ${n} ô` : ""}`}
           >
-            <span className="flex gap-0.5" aria-hidden="true">
-              {Array.from({ length: s.len }, (_, j) => (
-                <span key={j} className="h-2 w-2 rounded-[3px]" style={{ background: sunk || (hits && j < hits[k]) ? "var(--coral)" : "var(--ink-3)" }} />
-              ))}
-            </span>
+            <ShapeIcon k={k} size={6} hits={n} />
             <span aria-hidden="true">{s.name}</span>
           </li>
         );
@@ -482,39 +503,49 @@ function Honesty({ side }: { side: BsSide }) {
   return <p className="mt-2 px-1 text-[12.5px] font-semibold text-ink-3">⏳ Đang chờ công bố hạm đội để đối chiếu…</p>;
 }
 
-type Held = { k: number; v: boolean; off: number; from: Ship | null };
+type Held = { k: number; o: number; i: number; from: Ship | null };
+// Theo loại tàu: `undefined` là không chọn, `null` là đã chọn nhưng chưa đặt.
+type Slots = (Ship | null | undefined)[];
 
 const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
 
-function anchorOf(k: number, v: boolean, off: number, c: number): Ship {
-  const len = FLEET[k].len;
-  const x = clamp((c % SIZE) - (v ? 0 : off), 0, SIZE - (v ? 1 : len));
-  const y = clamp(Math.floor(c / SIZE) - (v ? off : 0), 0, SIZE - (v ? len : 1));
-  return { at: y * SIZE + x, v };
+const slotsOf = (fleet: readonly Ship[]): Slots => FLEET.map((_, k) => fleet.find((s) => s.k === k));
+
+// `i` là phần tàu đang cầm (thứ tự ô trong hình), giữ nguyên khi xoay / lật để tàu xoay quanh chỗ đang cầm.
+function anchorOf(k: number, o: number, i: number, c: number): Ship {
+  const shape = shapeOf(k, o)!;
+  const [dx, dy] = shape.cells[clamp(i, 0, shape.cells.length - 1)];
+  const x = clamp((c % SIZE) - dx, 0, SIZE - shape.w);
+  const y = clamp(Math.floor(c / SIZE) - dy, 0, SIZE - shape.h);
+  return { k, at: y * SIZE + x, o };
 }
 
-function fits(fleet: (Ship | null)[], k: number, ship: Ship) {
-  const cells = shipCells(k, ship);
+function fits(slots: Slots, ship: Ship) {
+  const cells = shipCells(ship);
   if (!cells) return false;
-  const taken = new Set(fleet.flatMap((s, j) => (s && j !== k ? shipCells(j, s)! : [])));
+  const taken = new Set(slots.flatMap((s) => (s && s.k !== ship.k ? shipCells(s)! : [])));
   return cells.every((c) => !taken.has(c));
 }
 
 function FleetEditor({ round, session, foe }: { round: number; session: BattleshipRoom; foe: BsSide }) {
-  const [fleet, setFleet] = useState<(Ship | null)[]>(() => session.draft(round) ?? randomFleet());
+  const [slots, setSlots] = useState<Slots>(() => slotsOf(session.draft(round) ?? randomFleet()));
   const [held, setHeld] = useState<Held | null>(null);
   const [hover, setHover] = useState(-1);
   const [sending, setSending] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
-  const done = !held && fleet.every(Boolean) && !!fleetGrid(fleet as Fleet);
+  const picked = slots.flatMap((s, k) => (s !== undefined ? [k] : []));
+  const fleet = slots.filter((s): s is Ship => !!s);
+  const full = picked.length >= MAX_SHIPS;
+  const done = !held && picked.length >= MIN_SHIPS && fleet.length === picked.length && !!fleetGrid(fleet);
 
   useEffect(() => {
-    if (fleet.every(Boolean)) session.saveDraft(round, fleet as Fleet);
-  }, [fleet, round, session]);
+    const ships = slots.filter((s): s is Ship => !!s);
+    if (ships.length && slots.every((s) => s !== null)) session.saveDraft(round, ships);
+  }, [slots, round, session]);
 
-  const shipAt = (c: number) => fleet.findIndex((s, k) => !!s && shipCells(k, s)!.includes(c));
-  const preview = held && hover >= 0 ? anchorOf(held.k, held.v, held.off, hover) : null;
-  const ok = !!preview && fits(fleet, held!.k, preview);
+  const shipAt = (c: number) => slots.findIndex((s) => !!s && shipCells(s)!.includes(c));
+  const preview = held && hover >= 0 ? anchorOf(held.k, held.o, held.i, hover) : null;
+  const ok = !!preview && fits(slots, preview);
 
   const shake = () => {
     const el = boardRef.current;
@@ -524,46 +555,61 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
     el.classList.add("shake");
   };
 
-  const lift = (k: number, off: number) => {
-    let f = fleet;
+  // Cầm loại tàu chưa chọn là chọn luôn nó.
+  const lift = (k: number, i: number) => {
+    if (slots[k] === undefined && full) return shake();
+    let f = slots;
     if (held?.from) f = f.map((s, j) => (j === held.k ? held.from : s));
-    setHeld({ k, v: f[k]?.v ?? false, off, from: f[k] });
-    setFleet(f.map((s, j) => (j === k ? null : s)));
+    setHeld({ k, o: f[k]?.o ?? 0, i, from: f[k] ?? null });
+    setSlots(f.map((s, j) => (j === k ? null : s)));
   };
 
   const cancel = () => {
     if (!held) return;
-    if (held.from) setFleet((f) => f.map((s, j) => (j === held.k ? held.from : s)));
+    if (held.from) setSlots((f) => f.map((s, j) => (j === held.k ? held.from : s)));
     setHeld(null);
+  };
+
+  const toggle = (k: number) => {
+    if (slots[k] === undefined) return lift(k, 0);
+    let f = slots;
+    if (held?.from && held.k !== k) f = f.map((s, j) => (j === held.k ? held.from : s));
+    if (held) setHeld(null);
+    setSlots(f.map((s, j) => (j === k ? undefined : s)));
   };
 
   const tap = (c: number) => {
     if (!held) {
       const k = shipAt(c);
-      if (k >= 0) lift(k, shipCells(k, fleet[k]!)!.indexOf(c));
+      if (k >= 0) lift(k, shipCells(slots[k]!)!.indexOf(c));
       return;
     }
-    const ship = anchorOf(held.k, held.v, held.off, c);
-    if (!fits(fleet, held.k, ship)) return shake();
-    const next = fleet.map((s, j) => (j === held.k ? ship : s));
-    setFleet(next);
-    const k = next.findIndex((s) => !s);
-    setHeld(k >= 0 ? { k, v: false, off: 0, from: null } : null);
+    const ship = anchorOf(held.k, held.o, held.i, c);
+    if (!fits(slots, ship)) return shake();
+    const next = slots.map((s, j) => (j === held.k ? ship : s));
+    setSlots(next);
+    const k = next.findIndex((s) => s === null);
+    setHeld(k >= 0 ? { k, o: 0, i: 0, from: null } : null);
   };
 
-  const rotate = () => {
-    if (held) return setHeld({ ...held, v: !held.v });
+  const reorient = (turn: (o: number) => number) => {
+    if (held) return setHeld({ ...held, o: turn(held.o) });
     const k = hover >= 0 ? shipAt(hover) : -1;
     if (k < 0) return;
-    const s = fleet[k]!;
-    const ship = anchorOf(k, !s.v, shipCells(k, s)!.indexOf(hover), hover);
-    if (fits(fleet, k, ship)) setFleet(fleet.map((x, j) => (j === k ? ship : x)));
+    const s = slots[k]!;
+    const ship = anchorOf(k, turn(s.o), shipCells(s)!.indexOf(hover), hover);
+    if (fits(slots, ship)) setSlots(slots.map((x, j) => (j === k ? ship : x)));
     else shake();
   };
+  const rotate = () => reorient(rotated);
+  const flip = () => {
+    const k = held ? held.k : hover >= 0 ? shipAt(hover) : -1;
+    if (k >= 0 && flippable(k)) reorient(flipped);
+  };
 
-  const draws: ShipDraw[] = fleet.flatMap((s, k) => (s ? [{ k, ship: s, tone: "steel" as const }] : []));
-  if (held?.from && !preview) draws.push({ k: held.k, ship: held.from, tone: "lift" });
-  if (held && preview) draws.push({ k: held.k, ship: preview, tone: ok ? "ok" : "bad" });
+  const draws: ShipDraw[] = fleet.map((ship) => ({ ship, tone: "steel" as const }));
+  if (held?.from && !preview) draws.push({ ship: held.from, tone: "lift" });
+  if (held && preview) draws.push({ ship: preview, tone: ok ? "ok" : "bad" });
 
   return (
     <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_250px]">
@@ -571,16 +617,17 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
         <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 pb-2">
           <h2 className="flex-1 font-display text-[17px] font-extrabold whitespace-nowrap">🛠️ Bày hạm đội của bạn</h2>
           <span className="text-[12.5px] font-bold text-ink-3">
-            {foe.ready ? "✅ Đối thủ đã sẵn sàng" : "Đối thủ đang bày tàu…"}
+            {foe.ready ? `✅ Đối thủ đã sẵn sàng · ${foe.kinds.length} tàu` : "Đối thủ đang bày tàu…"}
           </span>
         </header>
         <div ref={boardRef}>
           <SeaBoard
-            label="Hải đồ của bạn — mũi tên di chuyển, Enter nhấc / đặt tàu, R xoay, Esc huỷ"
+            label="Hải đồ của bạn — mũi tên di chuyển, Enter nhấc / đặt tàu, R xoay, F lật, Esc huỷ"
             ships={draws}
             onCell={tap}
             onHover={setHover}
             onRotate={rotate}
+            onFlip={flip}
             onCancel={cancel}
           />
         </div>
@@ -588,51 +635,84 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
           <button type="button" className="btn btn-sm" onClick={rotate} disabled={!held}>
             ↻ Xoay
           </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => {
-              setFleet(randomFleet());
-              setHeld(null);
-            }}
-          >
-            🎲 Ngẫu nhiên
+          <button type="button" className="btn btn-sm" onClick={flip} disabled={!held || !flippable(held.k)}>
+            ⇋ Lật
           </button>
           <button
             type="button"
             className="btn btn-sm"
             onClick={() => {
-              setFleet(FLEET.map(() => null));
-              setHeld({ k: 0, v: false, off: 0, from: null });
+              setSlots(slotsOf(randomFleet(picked.length ? picked : CLASSIC)));
+              setHeld(null);
+            }}
+          >
+            🎲 Bày ngẫu nhiên
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              setSlots(slotsOf(randomFleet(randomKinds())));
+              setHeld(null);
+            }}
+          >
+            🎰 Hạm đội ngẫu nhiên
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={!picked.length}
+            onClick={() => {
+              setSlots(slots.map((s) => (s === undefined ? undefined : null)));
+              setHeld({ k: picked[0], o: 0, i: 0, from: null });
             }}
           >
             🧹 Bày lại từ đầu
           </button>
         </div>
         <p className="mt-2 px-1 text-[12.5px] text-ink-3">
-          Bấm vào tàu để nhấc lên, bấm ô khác để đặt. Xoay bằng nút <b>↻ Xoay</b>, phím <b>R</b> hoặc chuột phải. Các tàu không được chồng lên nhau.
+          Bấm vào tàu để nhấc lên, bấm ô khác để đặt. Xoay bằng nút <b>↻ Xoay</b>, phím <b>R</b> hoặc chuột phải; tàu chữ L, chữ Z lật được bằng <b>⇋ Lật</b> hoặc phím <b>F</b>.
+          Các tàu không được chồng lên nhau.
         </p>
       </section>
 
       <aside className="card flex h-max flex-col gap-3 p-3">
-        <ul className="grid gap-1.5">
+        <div className="flex items-baseline justify-between px-0.5">
+          <h3 className="font-display text-[15px] font-extrabold">
+            Chọn {MIN_SHIPS}–{MAX_SHIPS} tàu
+          </h3>
+          <span className={`text-[12.5px] font-bold ${full ? "text-coral" : "text-ink-3"}`}>
+            {picked.length}/{MAX_SHIPS}
+          </span>
+        </div>
+        <ul className="grid gap-1">
           {FLEET.map((s, k) => {
+            const on = slots[k] !== undefined;
             const isHeld = held?.k === k;
+            const locked = !on && full;
             return (
-              <li key={k}>
+              <li key={k} className={`flex items-center gap-1.5 ${locked ? "opacity-50" : ""}`}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  aria-label={`Chọn ${s.name}`}
+                  disabled={locked}
+                  onClick={() => toggle(k)}
+                  className={`grid h-6 w-6 flex-none place-items-center rounded-md border-2 text-[13px] font-extrabold ${on ? "border-lime bg-lime text-ink" : "border-rule"}`}
+                >
+                  {on ? "✓" : ""}
+                </button>
                 <button
                   type="button"
                   onClick={() => (isHeld ? cancel() : lift(k, 0))}
                   aria-pressed={isHeld}
-                  className={`flex w-full items-center gap-2 rounded-xl border-2 px-2.5 py-2 text-left transition-colors ${isHeld ? "border-pen bg-pen-soft" : "border-rule hover:border-ink-3"}`}
+                  disabled={locked}
+                  className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl border-2 px-2 py-1.5 text-left transition-colors ${isHeld ? "border-pen bg-pen-soft" : "border-rule hover:border-ink-3"}`}
                 >
-                  <span className="flex gap-0.5" aria-hidden="true">
-                    {Array.from({ length: s.len }, (_, j) => (
-                      <span key={j} className="h-2.5 w-2.5 rounded-[3px]" style={{ background: isHeld ? "var(--pen)" : "var(--ink-3)" }} />
-                    ))}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">{s.name}</span>
-                  <span className="text-[12px] font-bold text-ink-3">{isHeld ? "đang cầm" : fleet[k] ? "✓" : "chưa đặt"}</span>
+                  <ShapeIcon k={k} size={7} color={isHeld ? "var(--pen)" : on ? "var(--ink-2)" : "var(--ink-3)"} />
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{s.name}</span>
+                  <span className="text-[11.5px] font-bold whitespace-nowrap text-ink-3">{isHeld ? "đang cầm" : !on ? `${s.cells.length} ô` : slots[k] ? "✓" : "chưa đặt"}</span>
                 </button>
               </li>
             );
@@ -644,13 +724,20 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
           disabled={!done || sending}
           onClick={() => {
             setSending(true);
-            session.lockFleet(fleet as Fleet).finally(() => setSending(false));
+            session.lockFleet(fleet).finally(() => setSending(false));
           }}
         >
           ✅ Sẵn sàng
         </button>
         <p className="text-[12px] text-ink-3">
-          Bấm Sẵn sàng là chốt: máy bạn giữ sơ đồ và chỉ gửi đi <b>mã niêm phong</b> (SHA-256). Hết ván sơ đồ được công bố để mọi người đối chiếu.
+          {picked.length < MIN_SHIPS ? (
+            <>Chọn ít nhất {MIN_SHIPS} tàu để bày.</>
+          ) : (
+            <>
+              Đối thủ chỉ biết bạn chọn những tàu nào, không biết vị trí. Bấm Sẵn sàng là chốt: máy bạn giữ sơ đồ và chỉ gửi đi <b>mã niêm phong</b> (SHA-256). Hết ván sơ đồ
+              được công bố để mọi người đối chiếu.
+            </>
+          )}
         </p>
       </aside>
     </div>

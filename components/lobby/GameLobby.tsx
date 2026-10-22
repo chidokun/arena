@@ -13,7 +13,8 @@ import {
 } from "@/lib/games/caro";
 import {
   DEFAULT_OPTIONS as BS_DEFAULTS,
-  FLEET as BS_FLEET,
+  MAX_SHIPS as BS_MAX_SHIPS,
+  MIN_SHIPS as BS_MIN_SHIPS,
   normOptions as bsOptions,
   SIZE as BS_SIZE,
   TURN_LIMITS as BS_TURNS,
@@ -517,7 +518,7 @@ function BattleshipChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-lime-soft px-2.5 py-1">
-        ▦ {BS_SIZE}×{BS_SIZE} · {BS_FLEET.length} tàu
+        ▦ {BS_SIZE}×{BS_SIZE} · {BS_MIN_SHIPS}–{BS_MAX_SHIPS} tàu tự chọn
       </span>
       {chain && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🎯 Trúng bắn tiếp</span>}
       {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}

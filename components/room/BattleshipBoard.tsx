@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CELLS, colName, coord, FLEET, shipCells, SIZE, type Ship } from "@/lib/games/battleship";
+import { CELLS, colName, coord, FLEET, orients, shapeOf, shipCells, SIZE, type Ship } from "@/lib/games/battleship";
 
 const C = 40;
 const M = 26;
@@ -28,7 +28,7 @@ const rnd = (i: number) => {
 const vars = (v: Record<string, string>) => v as React.CSSProperties;
 
 export type ShipTone = "steel" | "sunk" | "reveal" | "ok" | "bad" | "lift";
-export type ShipDraw = { k: number; ship: Ship; tone: ShipTone; fresh?: boolean };
+export type ShipDraw = { ship: Ship; tone: ShipTone; fresh?: boolean };
 
 const HULL: Record<ShipTone, { fill: string; stroke: string; dash?: string; opacity?: number }> = {
   steel: { fill: STEEL, stroke: "var(--edge)" },
@@ -46,14 +46,18 @@ function hullPath(len: number) {
   return `M${r} 0H${l - b * 0.9}C${l - b * 0.3} 0 ${l} ${b * 0.3} ${l} ${r}C${l} ${b * 0.7} ${l - b * 0.3} ${b} ${l - b * 0.9} ${b}H${r}A${r} ${r} 0 0 1 ${r} 0Z`;
 }
 
-function ShipShape({ k, ship, tone, fresh }: ShipDraw) {
-  const len = FLEET[k].len;
+// Tàu thẳng: mũi tàu quay theo hướng (lật tàu thẳng cũng như quay nửa vòng).
+function LineHull({ ship, tone, fresh }: ShipDraw) {
+  const len = FLEET[ship.k].cells.length;
+  const l = len * C - 8;
   const b = C - 8;
   const x = left(ship.at) + 4;
   const y = top(ship.at) + 4;
+  const turn = ((ship.o % 4) + (ship.o >= 4 ? 2 : 0)) % 4;
+  const place = [`translate(${x} ${y})`, `translate(${x + b} ${y}) rotate(90)`, `translate(${x + l} ${y + b}) rotate(180)`, `translate(${x} ${y + l}) rotate(270)`][turn];
   const h = HULL[tone];
   return (
-    <g opacity={h.opacity} transform={ship.v ? `translate(${x + b} ${y}) rotate(90)` : `translate(${x} ${y})`} pointerEvents="none">
+    <g opacity={h.opacity} transform={place} pointerEvents="none">
       <g className={fresh ? "bs-sink" : undefined}>
         <path d={hullPath(len)} fill={h.fill} stroke={h.stroke} strokeWidth={2.5} strokeDasharray={h.dash} />
         {(tone === "steel" || tone === "sunk") &&
@@ -61,6 +65,69 @@ function ShipShape({ k, ship, tone, fresh }: ShipDraw) {
         {tone === "sunk" && <path className={fresh ? "bs-flood" : undefined} d={hullPath(len)} fill={FLOOD} opacity={0.6} />}
       </g>
     </g>
+  );
+}
+
+const POD = C - 8;
+const NECK = 18;
+
+// Khoang nối với khoang kề cạnh; khoang không kề cạnh ai (tàu chéo) thì nối chéo.
+function linksOf(cells: [number, number][]) {
+  const has = (x: number, y: number) => cells.some((c) => c[0] === x && c[1] === y);
+  const out: [number, number, number, number][] = [];
+  for (const [x, y] of cells) {
+    const lone = ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => has(x + dx, y + dy));
+    const next = lone ? [[1, 1], [-1, 1]] : [[1, 0], [0, 1]];
+    for (const [dx, dy] of next) if (has(x + dx, y + dy)) out.push([x, y, x + dx, y + dy]);
+  }
+  return out;
+}
+
+// Tàu hình đặc biệt: các khoang vuông nối bằng cổ. Vẽ ba lớp (viền, nền biển, màu thân) để màu thân trong suốt không
+// chồng lên nhau ở chỗ nối; vì thế viền không đứt nét được như tàu thẳng.
+function BlockHull({ ship, tone, fresh }: ShipDraw) {
+  const shape = shapeOf(ship.k, ship.o);
+  if (!shape) return null;
+  const x0 = left(ship.at) + C / 2;
+  const y0 = top(ship.at) + C / 2;
+  const links = linksOf(shape.cells);
+  const h = HULL[tone];
+  const layer = (pad: number, fill: string, className?: string, opacity?: number) => (
+    <g className={className} fill={fill} stroke={fill} opacity={opacity}>
+      {links.map(([ax, ay, bx, by], i) => (
+        <line key={i} x1={x0 + ax * C} y1={y0 + ay * C} x2={x0 + bx * C} y2={y0 + by * C} strokeWidth={NECK + pad * 2} />
+      ))}
+      {shape.cells.map(([x, y], i) => (
+        <rect key={i} x={x0 + x * C - POD / 2 - pad} y={y0 + y * C - POD / 2 - pad} width={POD + pad * 2} height={POD + pad * 2} rx={9 + pad} strokeWidth={0} />
+      ))}
+    </g>
+  );
+  return (
+    <g opacity={h.opacity} pointerEvents="none">
+      <g className={fresh ? "bs-sink" : undefined}>
+        {layer(1.25, h.stroke)}
+        {h.fill !== "transparent" && layer(0, SEA)}
+        {layer(0, h.fill === "transparent" ? SEA : h.fill)}
+        {(tone === "steel" || tone === "sunk") &&
+          shape.cells.map(([x, y], i) => <circle key={i} cx={x0 + x * C} cy={y0 + y * C} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />)}
+        {tone === "sunk" && layer(0, FLOOD, fresh ? "bs-flood" : undefined, 0.6)}
+      </g>
+    </g>
+  );
+}
+
+const ShipShape = (d: ShipDraw) => (FLEET[d.ship.k]?.line ? <LineHull {...d} /> : <BlockHull {...d} />);
+
+// Hình nhỏ của loại tàu cho danh sách, quay ngang nếu được; `hits` ô đầu tô đỏ.
+export function ShapeIcon({ k, size = 8, color = "var(--ink-3)", hits = 0 }: { k: number; size?: number; color?: string; hits?: number }) {
+  const o = orients(k).find((o) => shapeOf(k, o)!.w >= shapeOf(k, o)!.h) ?? 0;
+  const shape = shapeOf(k, o)!;
+  return (
+    <span className="grid flex-none gap-0.5" style={{ gridTemplateColumns: `repeat(${shape.w}, ${size}px)`, gridAutoRows: `${size}px` }} aria-hidden="true">
+      {shape.cells.map(([x, y], j) => (
+        <span key={j} className="rounded-[3px]" style={{ gridColumn: x + 1, gridRow: y + 1, background: j < hits ? "var(--coral)" : color }} />
+      ))}
+    </span>
   );
 }
 
@@ -139,14 +206,15 @@ const CONFETTI = Array.from({ length: 28 }, (_, i) => {
   };
 });
 
-function SinkFx({ k, ship }: ShipDraw) {
-  const cells = shipCells(k, ship) ?? [];
-  if (!cells.length) return null;
+function SinkFx({ ship }: ShipDraw) {
+  const cells = shipCells(ship) ?? [];
+  const shape = shapeOf(ship.k, ship.o);
+  if (!cells.length || !shape) return null;
   const len = cells.length;
-  const cx = (left(cells[0]) + left(cells[len - 1])) / 2 + C / 2;
-  const cy = (top(cells[0]) + top(cells[len - 1])) / 2 + C / 2;
-  const rx = ((ship.v ? 1 : len) * C) / 2;
-  const ry = ((ship.v ? len : 1) * C) / 2;
+  const rx = (shape.w * C) / 2;
+  const ry = (shape.h * C) / 2;
+  const cx = left(ship.at) + rx;
+  const cy = top(ship.at) + ry;
   return (
     <g pointerEvents="none">
       {cells.map((c, i) => (
@@ -218,6 +286,7 @@ export function SeaBoard({
   onCell,
   onHover,
   onRotate,
+  onFlip,
   onCancel,
 }: {
   label: string;
@@ -231,6 +300,7 @@ export function SeaBoard({
   onCell?: (c: number) => void;
   onHover?: (c: number) => void;
   onRotate?: () => void;
+  onFlip?: () => void;
   onCancel?: () => void;
 }) {
   const [cursor, setCursor] = useState(-1);
@@ -255,13 +325,16 @@ export function SeaBoard({
     } else if ((e.key === "r" || e.key === "R") && onRotate) {
       e.preventDefault();
       onRotate();
+    } else if ((e.key === "f" || e.key === "F") && onFlip) {
+      e.preventDefault();
+      onFlip();
     } else if (e.key === "Escape" && onCancel) onCancel();
   };
 
   const aiming = active && !!aim && open(cursor);
   const marked: number[] = [];
   if (marks) for (let c = 0; c < CELLS; c++) if (marks[c] >= 0) marked.push(c);
-  const wrecked = new Set(ships.flatMap((s) => (s.tone === "sunk" ? (shipCells(s.k, s.ship) ?? []) : [])));
+  const wrecked = new Set(ships.flatMap((s) => (s.tone === "sunk" ? (shipCells(s.ship) ?? []) : [])));
   const sinking = ships.filter((s) => s.fresh);
 
   const quakeRef = useRef<SVGGElement>(null);
@@ -324,14 +397,14 @@ export function SeaBoard({
         </g>
 
         {ships.map((s) => (
-          <ShipShape key={`${s.k}:${s.tone}`} {...s} />
+          <ShipShape key={`${s.ship.k}:${s.tone}`} {...s} />
         ))}
         {last >= 0 && <rect x={left(last) + 2} y={top(last) + 2} width={C - 4} height={C - 4} rx={7} fill="none" stroke="var(--pen)" strokeWidth={2.5} pointerEvents="none" />}
         {marked.map((c) => (
           <Mark key={c} c={c} hit={marks![c] === 1} fresh={fresh && c === last} burning={!wrecked.has(c)} />
         ))}
         {sinking.map((s) => (
-          <SinkFx key={s.k} {...s} />
+          <SinkFx key={s.ship.k} {...s} />
         ))}
         {pending >= 0 && <Reticle c={pending} tone="var(--sun)" className="bs-pending" />}
         {aiming && cursor !== pending && <Reticle c={cursor} tone={aim} />}
@@ -361,13 +434,14 @@ export function SeaBoard({
   );
 }
 
-export function fleetDraws(sunk: readonly { k: number; ship: Ship }[], fleet: readonly Ship[] | undefined, alive: ShipTone, freshK = -1): ShipDraw[] {
+export function fleetDraws(sunk: readonly Ship[], fleet: readonly Ship[] | undefined, alive: ShipTone, freshK = -1): ShipDraw[] {
   const out: ShipDraw[] = [];
-  if (fleet) fleet.forEach((ship, k) => !sunk.some((s) => s.k === k) && out.push({ k, ship, tone: alive }));
-  for (const s of sunk) out.push({ k: s.k, ship: s.ship, tone: "sunk", fresh: s.k === freshK });
+  if (fleet) for (const ship of fleet) if (!sunk.some((s) => s.k === ship.k)) out.push({ ship, tone: alive });
+  for (const ship of sunk) out.push({ ship, tone: "sunk", fresh: ship.k === freshK });
   return out;
 }
 
-export function damage(fleet: readonly Ship[], marks: Int8Array) {
-  return fleet.map((ship, k) => shipCells(k, ship)!.filter((c) => marks[c] === 1).length);
+/** Số ô đã trúng của từng loại tàu trong hạm đội. */
+export function damage(fleet: readonly Ship[], marks: Int8Array): Record<number, number> {
+  return Object.fromEntries(fleet.map((ship) => [ship.k, shipCells(ship)!.filter((c) => marks[c] === 1).length]));
 }
