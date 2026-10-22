@@ -1267,9 +1267,13 @@ function Results({ view, match: g, final }: { view: View; match: SxMatch; final:
   const iWon = winners.some((r) => r.uid === view.me);
   const names = winners.map((r) => nameIn(view, r.uid)).join(", ");
   const top = winners[0];
+  const { replay } = useContext(PlaybackCtx);
   const [pick, setPick] = useState<string>(() => (final.designs[view.me] ? view.me : (top?.uid ?? rows.find((r) => final.designs[r.uid])?.uid ?? "@ref")));
+  const step = levelStep(p);
+  const scale = Math.max(p.target * 1.25, Math.max(0, ...rows.map((r) => r.tps)) + step * 2);
   return (
     <>
+      {/* Một thẻ duy nhất: kết luận ván, rồi mỗi người một dòng kèm thanh tải đạt được (vạch đen là mục tiêu). */}
       <ResultCard
         round={g.round}
         title={!winners.length ? "🤷 Không ai vượt quality gate" : winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
@@ -1279,55 +1283,63 @@ function Results({ view, match: g, final }: { view: View; match: SxMatch; final:
             : `Cần đạt ít nhất ${fmt(p.target)} TPS với chi phí không quá ${fmt(p.budget)}.`
         }
       >
-        <LoadRace view={view} p={p} final={final} />
-      </ResultCard>
-      <section className="card mt-4 p-4 sm:p-5" aria-label="Bảng xếp hạng">
-        <h2 className="font-display text-xl font-extrabold">🏁 Bảng kết quả</h2>
-        <ol className="mt-3 grid gap-2.5">
-          {rows.map((r) => (
-            <li key={r.uid}>
-              <button type="button" className={`sx-row ${pick === r.uid ? "is-on" : ""}`} onClick={() => final.designs[r.uid] && setPick(r.uid)} disabled={!final.designs[r.uid]}>
-                <span className="sx-row-rank">{r.rank ? (["🥇", "🥈", "🥉"][r.rank - 1] ?? r.rank) : "–"}</span>
-                <span className="grid min-w-0 flex-1 gap-1">
-                  <span className="flex min-w-0 flex-wrap items-center gap-2">
-                    <b className="min-w-0 truncate">{nameIn(view, r.uid)}</b>
-                    <span className={`rounded-lg px-2 py-0.5 text-[12px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
-                    {r.auto && <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[12px] font-bold">⏱ Tự chốt khi hết giờ</span>}
-                  </span>
-                  {r.status !== "out" && (
-                    <span className="flex flex-wrap gap-x-4 gap-y-0.5 text-[13px] tabular-nums">
-                      <span>
-                        📈 <b>{fmt(r.tps)}</b> TPS {r.sim?.valid && <>{r.traffic ? "✓" : "✗"}</>}
-                      </span>
-                      <span>
-                        💰 <b>{fmt(r.cost)}</b> {r.budget ? "✓" : "✗"}
-                      </span>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12.5px] font-semibold text-ink-3">
+            Xếp hạng: TPS cao hơn đứng trên, bằng TPS thì rẻ hơn. Bấm một dòng để xem thiết kế.
+          </p>
+          <button type="button" className="btn btn-sm" onClick={replay}>
+            ↻ Chạy lại load test
+          </button>
+        </div>
+        <ol className="mt-3 grid gap-2.5" aria-label="Bảng xếp hạng">
+          {rows.map((r) => {
+            const s = r.sim;
+            const dead = !!s?.valid && !!s.fail;
+            return (
+              <li key={r.uid}>
+                <button type="button" className={`sx-row ${pick === r.uid ? "is-on" : ""}`} onClick={() => final.designs[r.uid] && setPick(r.uid)} disabled={!final.designs[r.uid]}>
+                  <span className="sx-row-rank">{r.rank ? (["🥇", "🥈", "🥉"][r.rank - 1] ?? r.rank) : "–"}</span>
+                  <span className="grid min-w-0 flex-1 gap-1.5">
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                      <b className="min-w-0 truncate">{nameIn(view, r.uid)}</b>
+                      <span className={`rounded-lg px-2 py-0.5 text-[12px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
+                      {r.auto && <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[12px] font-bold">⏱ Tự chốt khi hết giờ</span>}
+                      {r.status !== "out" && (
+                        <span className="ml-auto text-[13px] tabular-nums">
+                          💰 <b>{fmt(r.cost)}</b> / {fmt(p.budget)} {r.budget ? "✓" : "✗"}
+                        </span>
+                      )}
                     </span>
-                  )}
-                  {stopText(r) && <span className="text-[12.5px] text-ink-2">{stopText(r)}</span>}
-                </span>
-              </button>
-            </li>
-          ))}
+                    {s?.valid && (
+                      <span className="sx-race">
+                        <span className={`sx-race-bar ${dead && !r.traffic ? "is-dead" : r.traffic ? "is-met" : ""}`} style={{ width: `${(r.tps / scale) * 100}%` }} />
+                        <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
+                        <span className="sx-race-tag tabular-nums">
+                          📈 {fmt(r.tps)} TPS {r.traffic ? "✓" : "✗"}
+                          {dead ? ` · 💥 gục ở ${fmt(s.fail!.tps)}` : ""}
+                        </span>
+                      </span>
+                    )}
+                    {stopText(r) && <span className="text-[12.5px] text-ink-2">{stopText(r)}</span>}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ol>
-        <p className="mt-3 text-[12.5px] text-ink-3">
-          Đạt khi TPS tối đa ≥ {fmt(p.target)} và chi phí ≤ {fmt(p.budget)}. Xếp hạng: TPS cao hơn đứng trên, bằng TPS thì rẻ hơn đứng trên. Bấm một dòng để
-          xem thiết kế.
-        </p>
-      </section>
+      </ResultCard>
       <Viewer key={pick} view={view} p={p} final={final} pick={pick} setPick={setPick} />
     </>
   );
 }
 
-// Thanh tải của từng người theo mức tải. `at` có thì chạy theo đồng hồ phát lại (bàn chạy tải); không có thì là bản tĩnh ở
-// màn kết quả, bấm "Chạy lại" để phát lại cả quá trình: mở màn, chạy tải, cảnh kết thúc.
+// Thanh tải của từng người theo mức tải `at` của đồng hồ phát lại (bàn chạy tải).
 // `stack`: cột hẹp (trình chiếu) — tên nằm trên thanh tải.
 function LoadRace({
   view,
   p,
   final,
-  at: shownAt,
+  at,
   pick,
   onPick,
   stack,
@@ -1335,30 +1347,18 @@ function LoadRace({
   view: View;
   p: Problem;
   final: SxFinal;
-  at?: number;
+  at: number;
   pick?: string;
   onPick?: (uid: string) => void;
   stack?: boolean;
 }) {
   const { levels } = playbackOf(final);
-  const { replay } = useContext(PlaybackCtx);
-  const at = shownAt ?? levels;
   const step = levelStep(p);
   const best = Math.max(0, ...final.rows.map((r) => r.tps));
   const scale = Math.max(p.target * 1.25, best + step * 2);
   const done = at >= levels;
   return (
     <div className="mt-4 grid gap-2.5">
-      {shownAt === undefined && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[13.5px] font-bold">
-          <span className="tabular-nums">
-            📈 Load test · mức {Math.min(at, levels)} · {fmt(Math.min(at, levels) * step)} TPS
-          </span>
-          <button type="button" className="btn btn-sm" onClick={replay}>
-            ↻ Chạy lại
-          </button>
-        </div>
-      )}
       {final.rows.map((r) => {
         const s = r.sim;
         const passed = s?.valid ? (s.fail ? s.fail.level - 1 : s.levels.length) : 0;
@@ -1381,7 +1381,7 @@ function LoadRace({
             <span className="sx-race">
               <span className={`sx-race-bar ${dead ? "is-dead" : shown >= p.target ? "is-met" : ""}`} style={{ width: `${(shown / scale) * 100}%` }} />
               <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
-              {dead && shownAt !== undefined && at - s.fail!.level < 4 && (
+              {dead && at - s.fail!.level < 4 && (
                 <span className="sx-race-boom" style={{ left: `${(shown / scale) * 100}%` }} aria-hidden="true">
                   💥
                 </span>

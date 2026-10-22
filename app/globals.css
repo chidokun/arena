@@ -3783,6 +3783,7 @@
     padding: 10px 12px;
     border: 2px solid var(--rule);
     border-radius: 14px;
+    background: var(--surface);
     text-align: left;
   }
   .sx-row:not(:disabled):hover {
