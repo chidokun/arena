@@ -247,7 +247,7 @@ export const RULES: Record<string, GameRules> = {
         items: [
           "Hai người ngồi vào 2 ghế, chủ phòng bấm Bắt đầu. Những người còn lại trong phòng được vào xem.",
           "X đi trước, O đi sau, mỗi lượt đặt một quân vào một ô trống bất kỳ. Quân đã đặt không di chuyển được.",
-          "Chủ phòng chọn cỡ bàn 15×15 hoặc 19×19 và thời gian tối đa mỗi lượt (30 giây, 1 phút hoặc không giới hạn) lúc tạo phòng, đổi được trước mỗi ván. Hết giờ mà chưa đánh thì bị xử thua.",
+          "Chủ phòng chọn cỡ bàn 15×15 hoặc 19×19 và thời gian tối đa mỗi lượt (15, 30, 45 giây, 1 phút hoặc không giới hạn) lúc tạo phòng, đổi được trước mỗi ván. Hết giờ mà chưa đánh thì bị xử thua.",
           "Người đi trước đổi luân phiên sau mỗi ván cho công bằng.",
         ],
       },

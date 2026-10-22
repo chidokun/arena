@@ -52,6 +52,8 @@ test("nước đè ô đã có quân bị dừng", () => {
 
 test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời gian thì không giới hạn", () => {
   assert.deepEqual(normOptions({ size: 19, blockTwoEnds: false, turn: 30 }), { size: 19, blockTwoEnds: false, turn: 30 });
-  assert.deepEqual(normOptions({ size: 17, turn: 45 }), { size: 15, blockTwoEnds: true, turn: 0 });
+  assert.deepEqual(normOptions({ size: 17, turn: 20 }), { size: 15, blockTwoEnds: true, turn: 0 });
   assert.equal(normOptions({ size: 15, blockTwoEnds: true }).turn, 0);
+  assert.equal(normOptions({ turn: 15 }).turn, 15);
+  assert.equal(normOptions({ turn: 45 }).turn, 45);
 });

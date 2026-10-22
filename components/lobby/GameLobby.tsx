@@ -1278,7 +1278,7 @@ function CreateForm({ slug }: { slug: string }) {
           </fieldset>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Thời gian mỗi lượt</legend>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {CARO_TURNS.map((t) => (
                 <button
                   key={t}
