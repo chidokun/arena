@@ -1291,6 +1291,9 @@
   .db .db-confetti {
     animation: db-confetti 1300ms both;
   }
+  .db-hurry {
+    animation: db-hurry 1s ease-in-out infinite;
+  }
 
   .mc-grid {
     display: grid;
@@ -3206,6 +3209,387 @@
     }
   }
 
+  /* Thiết kế hệ thống: sơ đồ SVG co theo bề ngang; màn hẹp thì cuộn ngang để chữ trên component còn đọc được. */
+  .sx-canvas-wrap {
+    overflow-x: auto;
+    border: 2px solid var(--edge);
+    border-radius: 16px;
+    background: var(--board);
+  }
+  .sx-canvas {
+    display: block;
+    width: 100%;
+    min-width: 720px;
+    height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    outline: none;
+  }
+  .sx-canvas:focus-visible {
+    box-shadow: inset 0 0 0 3px var(--pen);
+  }
+  .sx-dot {
+    fill: var(--board-line);
+  }
+  .sx-arrow {
+    fill: var(--ink-3);
+  }
+  .sx-edge-line {
+    fill: none;
+    stroke: var(--ink-3);
+    transition: stroke-width 160ms ease;
+  }
+  .sx-edge.is-repl .sx-edge-line {
+    stroke: var(--grape);
+    stroke-dasharray: 7 5;
+  }
+  .sx-edge.is-sel .sx-edge-line {
+    stroke: var(--pen);
+    stroke-width: 4;
+  }
+  .sx-edge.is-cut .sx-edge-line {
+    stroke: var(--coral);
+    stroke-dasharray: 2 6;
+  }
+  .sx-edge.is-idle .sx-edge-line {
+    opacity: 0.35;
+  }
+  .sx-edge-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 16;
+    cursor: pointer;
+    pointer-events: stroke;
+  }
+  .sx-edge-tag {
+    font-size: 11px;
+    font-weight: 800;
+    fill: var(--ink-2);
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--board);
+    stroke-width: 4px;
+    pointer-events: none;
+  }
+  .sx-wire {
+    fill: none;
+    stroke: var(--pen);
+    stroke-width: 2.5;
+    stroke-dasharray: 6 4;
+  }
+  .sx-node {
+    --sx-tint: var(--surface);
+  }
+  .sx-canvas.is-edit .sx-node {
+    cursor: grab;
+    touch-action: none;
+  }
+  .sx-canvas.is-wiring .sx-node {
+    cursor: pointer;
+  }
+  .sx-node-box {
+    fill: var(--sx-tint);
+    stroke: var(--edge);
+    stroke-width: 2;
+  }
+  .sx-node.is-users {
+    --sx-tint: var(--pen-soft);
+  }
+  .sx-node.k-lb,
+  .sx-node.k-gateway,
+  .sx-node.k-cdn,
+  .sx-kind.k-lb,
+  .sx-kind.k-gateway,
+  .sx-kind.k-cdn,
+  .sx-add.k-lb,
+  .sx-add.k-gateway,
+  .sx-add.k-cdn {
+    --sx-tint: var(--sky-soft);
+  }
+  .sx-node.k-app,
+  .sx-node.k-worker,
+  .sx-kind.k-app,
+  .sx-kind.k-worker,
+  .sx-add.k-app,
+  .sx-add.k-worker {
+    --sx-tint: var(--lime-soft);
+  }
+  .sx-node.k-cache,
+  .sx-node.k-db,
+  .sx-node.k-replica,
+  .sx-kind.k-cache,
+  .sx-kind.k-db,
+  .sx-kind.k-replica,
+  .sx-add.k-cache,
+  .sx-add.k-db,
+  .sx-add.k-replica {
+    --sx-tint: var(--sun-soft);
+  }
+  .sx-node.k-queue,
+  .sx-node.k-storage,
+  .sx-node.k-external,
+  .sx-kind.k-queue,
+  .sx-kind.k-storage,
+  .sx-kind.k-external,
+  .sx-add.k-queue,
+  .sx-add.k-storage,
+  .sx-add.k-external {
+    --sx-tint: var(--grape-soft);
+  }
+  /* Lúc xem kết quả, màu theo mức sử dụng đỉnh thay cho màu theo loại. */
+  .sx-node.is-idle {
+    --sx-tint: var(--sunken);
+  }
+  .sx-node.is-cool {
+    --sx-tint: var(--lime-soft);
+    color: var(--lime);
+  }
+  .sx-node.is-warm {
+    --sx-tint: var(--sun-soft);
+    color: var(--sun);
+  }
+  .sx-node.is-hot {
+    --sx-tint: color-mix(in srgb, var(--coral) 22%, var(--surface));
+    color: var(--coral);
+  }
+  .sx-node.is-over {
+    --sx-tint: color-mix(in srgb, var(--coral) 55%, var(--surface));
+    color: var(--coral);
+  }
+  .sx-node-bar {
+    fill: currentColor;
+  }
+  .sx-node.is-sel .sx-node-box {
+    stroke: var(--pen);
+    stroke-width: 4;
+  }
+  .sx-node.is-target .sx-node-box {
+    stroke: var(--lime);
+    stroke-width: 4;
+    stroke-dasharray: 6 3;
+  }
+  .sx-node.is-dim {
+    opacity: 0.4;
+  }
+  .sx-node.is-mark .sx-node-box {
+    stroke: var(--coral);
+    stroke-width: 3.5;
+    stroke-dasharray: 6 3;
+  }
+  .sx-node.is-fail .sx-node-box {
+    stroke: var(--coral);
+    stroke-width: 5;
+    animation: sx-alarm 900ms ease-in-out infinite alternate;
+  }
+  .sx-node.is-down {
+    opacity: 0.6;
+  }
+  .sx-node.is-down .sx-node-box {
+    stroke-dasharray: 4 4;
+  }
+  .sx-node-emoji {
+    font-size: 17px;
+  }
+  .sx-node-name {
+    font-size: 13px;
+    font-weight: 800;
+    fill: var(--ink);
+  }
+  .sx-node-sub {
+    font-size: 11.5px;
+    font-weight: 700;
+    fill: var(--ink-2);
+  }
+  .sx-node-price {
+    font-size: 11.5px;
+    font-weight: 800;
+    fill: var(--ink-3);
+  }
+  .sx-node-flag {
+    font-size: 14px;
+  }
+  .sx-port {
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .sx-port-hit {
+    fill: transparent;
+  }
+  .sx-port-dot {
+    fill: var(--pen);
+    stroke: var(--edge);
+    stroke-width: 2;
+    transition: r 120ms ease;
+  }
+  .sx-port:hover .sx-port-dot {
+    r: 8.5px;
+  }
+  .sx-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 10px;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--sx-tint);
+    font-size: 13.5px;
+    font-weight: 800;
+    box-shadow: var(--shadow-sm);
+    transition: transform 80ms ease;
+  }
+  .sx-add small {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+  .sx-add:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: none;
+  }
+  .sx-add:disabled {
+    opacity: 0.5;
+    box-shadow: none;
+  }
+  .sx-panel {
+    padding: 12px 14px;
+    border: 2px solid var(--rule);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .sx-variant {
+    display: grid;
+    gap: 1px;
+    padding: 8px 6px;
+    border: 2px solid var(--rule);
+    border-radius: 12px;
+    font-size: 12.5px;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .sx-variant.is-on {
+    border-color: var(--pen);
+    background: var(--pen-soft);
+  }
+  .sx-kind {
+    padding: 10px 12px;
+    border: 2px solid var(--edge);
+    border-radius: 14px;
+    background: var(--sx-tint);
+  }
+  .sx-flow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .sx-flow-pct {
+    flex: none;
+    min-width: 48px;
+    padding: 2px 0;
+    border: 2px solid var(--edge);
+    border-radius: 10px;
+    background: var(--sun-soft);
+    text-align: center;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .sx-cost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--lime-soft);
+    font-size: 14px;
+  }
+  .sx-cost.is-over {
+    background: var(--coral-soft);
+  }
+  .sx-cost-bar {
+    width: 56px;
+    height: 8px;
+    overflow: hidden;
+    border: 1.5px solid var(--edge);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+  .sx-cost-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--lime);
+    transition: width 200ms ease;
+  }
+  .sx-cost.is-over .sx-cost-bar > span {
+    background: var(--coral);
+  }
+  .sx-race {
+    position: relative;
+    height: 26px;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sunken);
+  }
+  .sx-race-bar {
+    display: block;
+    height: 100%;
+    background: var(--sky);
+    transition: width 140ms linear;
+  }
+  .sx-race-bar.is-met {
+    background: var(--lime);
+  }
+  .sx-race-bar.is-dead {
+    background: var(--coral);
+  }
+  .sx-race-goal {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    background: var(--ink);
+  }
+  .sx-race-tag {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--ink);
+    text-shadow:
+      0 0 3px var(--surface),
+      0 0 3px var(--surface);
+  }
+  .sx-row {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 2px solid var(--rule);
+    border-radius: 14px;
+    text-align: left;
+  }
+  .sx-row:not(:disabled):hover {
+    border-color: var(--ink-3);
+  }
+  .sx-row.is-on {
+    border-color: var(--pen);
+    background: var(--pen-soft);
+  }
+  .sx-row-rank {
+    width: 28px;
+    flex: none;
+    text-align: center;
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
   /* Vành ngoài một ô để đường nối đi vòng viền bàn. */
   .kw-board {
     position: relative;
@@ -4602,6 +4986,11 @@
     opacity: 0.45;
   }
 }
+@keyframes sx-alarm {
+  to {
+    stroke-width: 9;
+  }
+}
 @keyframes count-pop {
   0% {
     opacity: 0;
@@ -4880,6 +5269,11 @@
   }
   75% {
     opacity: 0.5;
+  }
+}
+@keyframes db-hurry {
+  50% {
+    transform: scale(1.08);
   }
 }
 @keyframes db-flash {

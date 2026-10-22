@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEFAULT_OPTIONS as BS_DEFAULTS, FLEET as BS_FLEET, normOptions as bsOptions, SIZE as BS_SIZE } from "@/lib/games/battleship";
 import { DEFAULT_OPTIONS as CD_DEFAULTS, normOptions as cdOptions, SETUP_NAME as CD_SETUP_NAME, SETUPS as CD_SETUPS, type Setup as CdSetup } from "@/lib/games/co-cho";
-import { DEFAULT_OPTIONS as DB_DEFAULTS, normOptions as dbOptions, SIZES as DB_SIZES, type Size as DbSize } from "@/lib/games/dots-boxes";
+import {
+  DEFAULT_OPTIONS as DB_DEFAULTS,
+  normOptions as dbOptions,
+  SIZES as DB_SIZES,
+  TURN_LIMITS as DB_TURNS,
+  turnLabel as dbTurnLabel,
+  type Size as DbSize,
+  type TurnLimit as DbTurn,
+} from "@/lib/games/dots-boxes";
 import {
   DEFAULT_OPTIONS as DW_DEFAULTS,
   MAX_PLAYERS as DW_MAX,
@@ -76,6 +84,7 @@ import {
   type Level,
   type Mode,
 } from "@/lib/games/sudoku";
+import { fmt as sxFmt, makeProblem as sxProblem, PRESETS as SX_PRESETS, timeLabel as sxTime, TIMES as SX_TIMES, type DesignTime as SxTime } from "@/lib/games/system-design";
 import {
   DEFAULT_OPTIONS as UC_DEFAULTS,
   MAX_PLAYERS as UC_MAX,
@@ -223,6 +232,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const ms = room.game === "minesweeper";
   const rv = room.game === "reversi";
   const cd = room.game === "co-cho";
+  const sx = room.game === "system-design";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
@@ -264,7 +274,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                             ? "Đang lật cờ"
                                             : cd
                                               ? "Đang chặn chó"
-                                              : "Đang đấu",
+                                              : sx
+                                                ? "Đang thiết kế"
+                                                : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -321,6 +333,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <ReversiChips room={room} />
         ) : cd ? (
           <CoChoChips room={room} />
+        ) : sx ? (
+          <SystemDesignChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -434,7 +448,7 @@ function MineControlChips({ room }: { room: RoomAd }) {
 }
 
 function DotsBoxesChips({ room }: { room: RoomAd }) {
-  const { size } = dbOptions(room.opts);
+  const { size, turn } = dbOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
@@ -446,6 +460,7 @@ function DotsBoxesChips({ room }: { room: RoomAd }) {
       <span className="rounded-lg bg-coral-soft px-2.5 py-1">
         ▦ {size}×{size} ô
       </span>
+      {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}
     </>
   );
 }
@@ -644,6 +659,19 @@ function SudokuChips({ room }: { room: RoomAd }) {
   );
 }
 
+function SystemDesignChips({ room }: { room: RoomAd }) {
+  const { target, budget, time } = room.opts as { target?: number; budget?: number; time?: SxTime };
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      {typeof target === "number" && <span className="rounded-lg bg-sky-soft px-2.5 py-1">🎯 {sxFmt(target)} TPS</span>}
+      {typeof budget === "number" && <span className="rounded-lg bg-sun-soft px-2.5 py-1">💰 {sxFmt(budget)}</span>}
+      {SX_TIMES.includes(time as SxTime) && <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ {sxTime(time as SxTime)}</span>}
+    </>
+  );
+}
+
 function XiangqiRoleChips({ room }: { room: RoomAd }) {
   const opts = xqOptions(room.opts);
   return (
@@ -699,6 +727,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
   const [dotsSize, setDotsSize] = useState<DbSize>(DB_DEFAULTS.size);
+  const [dotsTurn, setDotsTurn] = useState<DbTurn>(DB_DEFAULTS.turn);
   const [mcMap, setMcMap] = useState<McMap>(MC_DEFAULTS.map);
   const [mcMines, setMcMines] = useState<McMines>(MC_DEFAULTS.mines);
   const [kwSize, setKwSize] = useState<KwSize>(KW_DEFAULTS.size);
@@ -708,6 +737,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [msSize, setMsSize] = useState<MsSize>(MS_DEFAULTS.size);
   const [msMines, setMsMines] = useState(MS_DEFAULTS.mines);
   const [cdSetup, setCdSetup] = useState<CdSetup>(CD_DEFAULTS.setup);
+  const [sxPreset, setSxPreset] = useState("");
+  const [sxTimeLimit, setSxTimeLimit] = useState<SxTime>(300);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -727,6 +758,7 @@ function CreateForm({ slug }: { slug: string }) {
   const ms = slug === "minesweeper";
   const rv = slug === "reversi";
   const cd = slug === "co-cho";
+  const sx = slug === "system-design";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -752,11 +784,14 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: txSize, level: txLevel } });
         } else if (ms) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
+        } else if (sx) {
+          const problem = sxProblem(crypto.getRandomValues(new Uint32Array(1))[0], sxPreset || undefined, sxTimeLimit);
+          stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
-        else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize } });
+        else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize, turn: dotsTurn } });
         else if (coChep) stashCreate(id, { name: clean, cap, seats: game.seats.max, opts: {} });
         else if (mc) stashCreate(id, { name: clean, cap, seats: MC_MAX, opts: { map: mcMap, mines: mcMines } });
         else if (draw) stashCreate(id, { name: clean, cap, seats: DW_MAX, opts: { ...DW_DEFAULTS, rounds, time: drawTime } });
@@ -896,6 +931,27 @@ function CreateForm({ slug }: { slug: string }) {
               trước mỗi ván.
             </p>
           </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian mỗi lượt</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {DB_TURNS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDotsTurn(t)}
+                  aria-pressed={dotsTurn === t}
+                  aria-label={dbTurnLabel(t)}
+                  className={`btn !px-2 ${dotsTurn === t ? "btn-sun" : ""}`}
+                >
+                  {t ? dbTurnLabel(t) : "Vô hạn"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {dotsTurn ? `Hết ${dbTurnLabel(dotsTurn).toLowerCase()} mà chưa kẻ thì mất lượt, kể cả lượt được đi tiếp sau khi khép ô.` : "Nghĩ bao lâu cũng được."} Đổi được trong phòng
+              trước mỗi ván.
+            </p>
+          </fieldset>
           <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
             🔲 Hai người chơi lần lượt kẻ một cạnh nối hai chấm kề nhau. Ai kẻ cạnh thứ tư khép kín một ô thì chiếm ô đó và được kẻ tiếp. Hết ô — hoặc một
             bên đã chiếm quá nửa — thì ai nhiều ô hơn thắng. Màu Đỏ đi trước, đổi người đi trước sau mỗi ván.
@@ -1011,6 +1067,37 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
             🐾 Không giới hạn người chơi, một mình cũng chơi được. Nối hai ô cùng hình bằng đường gấp tối đa 2 lần (đi vòng viền được). Cỡ bàn và chế độ đổi được
             trong phòng trước mỗi ván.
+          </p>
+        </>
+      ) : sx ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian thiết kế</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {SX_TIMES.map((t) => (
+                <button key={t} type="button" onClick={() => setSxTimeLimit(t)} aria-pressed={sxTimeLimit === t} className={`btn !px-2 ${sxTimeLimit === t ? "btn-sun" : ""}`}>
+                  {sxTime(t)}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">Không tính thời gian chạy giả lập. Hết giờ thì thiết kế của ai chưa chốt được tự chốt.</p>
+          </fieldset>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-bold">Đề bài</span>
+            <select className="field" value={sxPreset} onChange={(e) => setSxPreset(e.target.value)}>
+              <option value="">🎲 Tự sinh ngẫu nhiên</option>
+              {SX_PRESETS.map((x) => (
+                <option key={x.key} value={x.key}>
+                  {x.title}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[13px] text-ink-3">Traffic mục tiêu, sự cố và budget được sinh kèm; trong phòng bạn soạn lại được toàn bộ đề trước mỗi ván.</span>
+          </label>
+          <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
+            🏗️ Không giới hạn người chơi, một mình cũng chơi được. Cả phòng nhận cùng một đề, mỗi người tự đặt và nối Load Balancer, App Server, Cache,
+            Database, Queue… rồi chốt. Khi tất cả đã chốt, load test giả lập tăng tải tới khi từng hệ thống gục: thiết kế đạt traffic mục tiêu trong budget,
+            chịu được TPS cao nhất (bằng nhau thì rẻ hơn) thắng.
           </p>
         </>
       ) : ms ? (

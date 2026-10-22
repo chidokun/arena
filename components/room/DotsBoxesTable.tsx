@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useMemo, useRef } from "react";
-import { emptyState, SIZES } from "@/lib/games/dots-boxes";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { emptyState, SIZES, TURN_LIMITS, turnLabel } from "@/lib/games/dots-boxes";
 import type { DotsBoxesRoom, DotsMatch, DotsView } from "@/lib/net/dots-boxes-room";
 import type { RoomView, SeatView } from "@/lib/net/room";
 import { Score, Wins } from "./CaroTable";
@@ -27,6 +27,26 @@ function useDotsView(session: DotsBoxesRoom): View {
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "🟥", "🟦"];
 /** Ô cuối vừa khép thì chờ một nhịp cho nét kịp vẽ và ô kịp bật lên rồi mới diễn. */
 const CLAIM_PAUSE_MS = 900;
+/** Còn chừng này giây thì đồng hồ chuyển đỏ và nhấp nháy. */
+const HURRY_S = 5;
+
+const shortTurn = (t: number) => (!t ? "∞" : t < 60 ? `${t}s` : `${t / 60}p`);
+
+/** Mili-giây còn lại tới `deadline` (0 là không giới hạn), cập nhật vài lần mỗi giây. */
+function useTimeLeft(deadline: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!deadline) return;
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const t = setInterval(tick, 200);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
+  }, [deadline]);
+  return deadline ? Math.max(0, deadline - now) : 0;
+}
 
 // Phần bàn chơi bọc `memo` và tự đọc store để nhịp tim, tin chat hay người vào ra không làm bàn vẽ lại, và nước đi
 // không làm danh sách người / khung chat vẽ lại.
@@ -41,7 +61,7 @@ export function DotsBoxesTable({ id, slug, session }: { id: string; slug: string
 const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBoxesRoom }) {
   const view = useDotsView(session);
   const m = view.meta!;
-  const { match: g, wins, draws, size } = view.game!;
+  const { match: g, wins, draws, size, turn } = view.game!;
   const boardRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, boardRef);
   const live = m.status === "playing" && g?.round === m.round && !g.result;
@@ -54,6 +74,8 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
   const seated = view.mySeat >= 0;
   const inLineup = !!g && g.myMark > 0;
   const staged = useStaged();
+  const deadline = live && !count ? g!.deadline : 0;
+  const left = useTimeLeft(deadline);
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   const marks = { 1: slots[0]?.member?.avatar, 2: slots[1]?.member?.avatar };
@@ -83,6 +105,11 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
         <span className="chip text-ink-2">
           ▦ {state.size}×{state.size} ô{!playing && size !== state.size && ` · ván tới ${size}×${size}`}
         </span>
+        {(playing ? !!g?.limit : !!turn) && (
+          <span className="chip text-ink-2">
+            ⏱ {shortTurn(playing ? g!.limit : turn)}/lượt
+          </span>
+        )}
       </RoomHeader>
 
       <div className="mb-4 flex items-stretch gap-2 sm:gap-4">
@@ -91,7 +118,8 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
         {seatCard(1)}
       </div>
 
-      <ActionBar view={view} session={session} />
+      <ActionBar view={view} session={session} left={deadline ? left : -1} />
+      {!playing && <Rules view={view} session={session} />}
       {m.status === "ended" && g?.result && <DuelResult round={g.round} summary={summary(g, view.me)} me={view.me} />}
 
       {/* Lúc trình chiếu bỏ giới hạn bề ngang (vốn để chấm, nét ở bàn nhỏ không to quá cỡ): bàn lấp ô giữa cho người xem ở xa. */}
@@ -102,8 +130,10 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
         tools={<Buttons view={view} session={session} />}
       >
         <div className="relative mx-auto" style={staged ? undefined : { maxWidth: boardMaxWidth(state.size) }}>
+          {/* Hiện suốt ván có bấm giờ (lúc đếm ngược mở màn thì đầy) để bàn không bị đẩy xuống khi đồng hồ bắt đầu chạy. */}
+          {live && g!.limit > 0 && <TimeBar left={deadline ? left : g!.limit * 1000} total={g!.limit * 1000} tone={DB_TONE[state.turn]} />}
           <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
-            <DotsBoxesBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} marks={marks} onDraw={(line) => session.draw(line)} />
+            <DotsBoxesBoard state={state} canPlay={!!g?.myTurn && !count && (!deadline || left > 0)} myMark={g?.myMark ?? 0} marks={marks} onDraw={(line) => session.draw(line)} />
           </div>
           <Flyers flyers={flyers} />
           {!showGame && m.status === "waiting" && <WaitingOverlay isHost={view.isHost} players={m.players.length} seats={m.seats} />}
@@ -117,6 +147,29 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
     </>
   );
 });
+
+function TimeBar({ left, total, tone }: { left: number; total: number; tone: string }) {
+  const hurry = left <= HURRY_S * 1000;
+  return (
+    <div className="tx-timer mb-3" aria-hidden="true">
+      <span style={{ width: `${Math.min(100, (left / total) * 100)}%`, background: hurry ? "var(--coral)" : tone }} />
+    </div>
+  );
+}
+
+function TurnClock({ left }: { left: number }) {
+  const s = Math.ceil(left / 1000);
+  const hurry = s <= HURRY_S;
+  return (
+    <span
+      className={`inline-flex min-w-[4.5rem] items-center justify-center gap-1 rounded-full border-2 border-[#050312] px-3 py-1 text-[15px] font-extrabold tabular-nums ${hurry ? "db-hurry" : ""}`}
+      style={{ background: hurry ? "var(--coral)" : "var(--surface)", color: hurry ? "#fff" : undefined }}
+      aria-hidden="true"
+    >
+      ⏱ {s}s
+    </span>
+  );
+}
 
 const Swatch = ({ v }: { v: 1 | 2 }) => <span className="block h-[22px] w-[22px] rounded-md border-2 border-[#050312]" style={{ background: DB_TONE[v] }} />;
 
@@ -161,7 +214,9 @@ function EndScene({ match: g, me, onClose }: { match: DotsMatch; me: string; onC
   return <WinCine winners={[{ uid: s.winner, p: g.lineup[k]?.member, badge: <Swatch v={(k + 1) as 1 | 2} /> }]} title={s.title} sub={s.sub} note={s.note} onClose={onClose} />;
 }
 
-function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
+// `left` là mili-giây còn lại của lượt, -1 nếu không bấm giờ. Đồng hồ ẩn với trình đọc màn hình để thanh trạng thái
+// (vùng `aria-live`) không đọc lại mỗi giây.
+function ActionBar({ view, session, left }: { view: View; session: DotsBoxesRoom; left: number }) {
   const m = view.meta!;
   const g = view.game?.match;
   const name = (uid?: string | null) => (uid ? (view.members.find((p) => p.uid === uid)?.name ?? g?.lineup.find((s) => s.uid === uid)?.member?.name ?? "Ai đó") : "");
@@ -175,22 +230,29 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
               👀 Đang xem — lượt của <b>{name(g.lineup[g.state.turn - 1]?.uid)}</b> ({DB_NAME[g.state.turn]})
             </>
           }
-        />
+        >
+          {left >= 0 && <TurnClock left={left} />}
+        </StatusBar>
       );
     const bonus = g.state.fresh.length > 0;
+    const passed = g.state.passed;
     const mine = <b style={{ color: DB_TONE[g.myMark] }}>{DB_NAME[g.myMark]}</b>;
     return (
       <StatusBar
         tone={g.myTurn ? TONE.turn : TONE.idle}
         message={
           g.myTurn ? (
-            bonus ? (
+            passed ? (
+              <>⏰ Đối thủ hết giờ, mất lượt — đến lượt bạn kẻ {mine}!</>
+            ) : bonus ? (
               <>
                 🎉 Khép được {g.state.fresh.length} ô — kẻ tiếp một cạnh {mine} nữa!
               </>
             ) : (
               <>🎯 Đến lượt bạn — kẻ một cạnh {mine} nối hai chấm</>
             )
+          ) : passed ? (
+            <>⏰ Bạn hết giờ nên mất lượt — chờ đối thủ kẻ…</>
           ) : bonus ? (
             <>😬 Đối thủ vừa khép ô — đang kẻ tiếp…</>
           ) : (
@@ -198,6 +260,7 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
           )
         }
       >
+        {left >= 0 && <TurnClock left={left} />}
         <Buttons view={view} session={session} />
       </StatusBar>
     );
@@ -212,20 +275,51 @@ function ActionBar({ view, session }: { view: View; session: DotsBoxesRoom }) {
 // Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
 function Buttons({ view, session }: { view: View; session: DotsBoxesRoom }) {
   const g = view.game?.match;
-  const size = view.game!.size;
   if (view.meta!.status === "playing" && g) return g.myMark ? <ResignButton onConfirm={() => session.resign()} /> : null;
+  return <SeatButtons view={view} session={session} />;
+}
+
+function Rules({ view, session }: { view: View; session: DotsBoxesRoom }) {
+  const { size, turn } = view.game!;
+  const host = view.isHost;
   return (
-    <>
-      {view.isHost && (
-        <div className="flex gap-1" role="group" aria-label="Cỡ bàn cho ván tới">
+    <section className="card mt-4 grid gap-3 p-4" aria-label="Luật ván tới">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-[86px] text-[13px] font-bold text-ink-3">Cỡ bàn</span>
+        <div className="flex flex-1 flex-wrap gap-2">
           {SIZES.map((s) => (
-            <button key={s} type="button" className={`btn btn-sm !px-2.5 ${s === size ? "btn-sun" : ""}`} aria-pressed={s === size} onClick={() => session.setSize(s)}>
-              {s}×{s}
+            <button
+              key={s}
+              type="button"
+              className={`btn btn-sm ${s === size ? "btn-coral" : ""}`}
+              aria-pressed={s === size}
+              disabled={!host && s !== size}
+              onClick={host ? () => session.setSize(s) : undefined}
+            >
+              {s}×{s} ô
             </button>
           ))}
         </div>
-      )}
-      <SeatButtons view={view} session={session} />
-    </>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-[86px] text-[13px] font-bold text-ink-3">Mỗi lượt</span>
+        <div className="flex flex-1 flex-wrap gap-2">
+          {TURN_LIMITS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`btn btn-sm ${t === turn ? "btn-coral" : ""}`}
+              aria-pressed={t === turn}
+              aria-label={turnLabel(t)}
+              disabled={!host && t !== turn}
+              onClick={host ? () => session.setTurn(t) : undefined}
+            >
+              ⏱ {t ? turnLabel(t) : "Vô hạn"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {!host && <p className="text-[13.5px] text-ink-2">Chủ phòng chọn cỡ bàn và thời gian mỗi lượt cho ván tới.</p>}
+    </section>
   );
 }

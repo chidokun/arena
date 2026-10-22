@@ -1,0 +1,1346 @@
+"use client";
+
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  autoDesign,
+  BUDGET_MAX,
+  BUDGET_MIN,
+  CANVAS,
+  CATALOG,
+  COUNTDOWN_MS,
+  designCost,
+  FLOW_KINDS,
+  flowIssues,
+  FLOWS,
+  fmt,
+  INCIDENT_KEYS,
+  INCIDENTS,
+  inspect,
+  KINDS,
+  levelStep,
+  linkIssue,
+  makeProblem,
+  MAX_FLOWS,
+  MAX_NODES,
+  NODE,
+  neededKinds,
+  nodeLabels,
+  normProblem,
+  pct,
+  PRESETS,
+  SIM,
+  simulate,
+  SINK_NAMES,
+  SINKS,
+  suggestBudget,
+  TARGET_MAX,
+  TARGET_MIN,
+  timeLabel,
+  TIMES,
+  USERS,
+  USERS_ID,
+  type Design,
+  type DesignTime,
+  type Flow,
+  type FlowKind,
+  type Incident,
+  type Kind,
+  type Problem,
+  type SimResult,
+  type Sink,
+  type Standing,
+} from "@/lib/games/system-design";
+import type { RoomState, RoomView } from "@/lib/net/room";
+import type { SxFinal, SxMatch, SxView, SystemDesignRoom } from "@/lib/net/system-design-room";
+import { Avatar } from "../Avatar";
+import { ConfirmButton } from "../ConfirmButton";
+import { ChatPanel } from "./ChatPanel";
+import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { PeoplePanel } from "./People";
+import { ResultCard, StoppedCard } from "./ResultCard";
+import { RoomHeader, RoomLayout } from "./RoomLayout";
+import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
+import { SxCanvas, type Heat, type Sel } from "./SxCanvas";
+import { shallowEqual, useGame, usePeople, useRoomState } from "./useRoom";
+
+type View = Omit<RoomView<SxView>, "chat">;
+
+const CONFETTI = ["🎉", "🏆", "✨", "🏗️", "📈", "⭐"];
+const WIN_SCENE_MS = 6500;
+
+function useSxView(session: SystemDesignRoom): View {
+  const room = useRoomState(session);
+  const people = usePeople(session);
+  const game = useGame(session);
+  return useMemo(() => ({ ...room, ...people, game }), [room, people, game]);
+}
+
+function useNow(active: boolean, every = 500) {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const t = setInterval(tick, every);
+    return () => clearInterval(t);
+  }, [active, every]);
+  return now;
+}
+
+// Chỉ vẽ lại đúng một lần lúc vượt mốc (lộ đề), không theo nhịp đồng hồ.
+function useReached(at: number | undefined) {
+  const [hit, setHit] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (at === undefined) return;
+    const t = setTimeout(() => setHit(at), Math.max(0, at - Date.now()));
+    return () => clearTimeout(t);
+  }, [at]);
+  return at !== undefined && hit === at;
+}
+
+const isLive = (view: Pick<View, "meta" | "game">) => view.meta!.status === "playing" && view.game?.match?.round === view.meta!.round;
+
+function nameIn(view: Pick<View, "me" | "members" | "game">, uid: string) {
+  if (uid === view.me) return "Bạn";
+  return view.game?.match?.lineup.find((s) => s.seat.uid === uid)?.seat.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
+}
+
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+// Thời lượng chạy lại load test ở màn kết quả; cảnh chiến thắng đợi chạy xong mới hiện.
+function raceTiming(final: SxFinal) {
+  const levels = Math.max(1, ...final.rows.map((r) => r.sim?.levels.length ?? 0));
+  const tick = Math.min(220, Math.max(60, Math.round(6000 / levels)));
+  return { levels, tick, ms: levels * tick };
+}
+
+const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
+
+export function SystemDesignTable({ id, slug, session }: { id: string; slug: string; session: SystemDesignRoom }) {
+  const head = useRoomState(session, headOf, shallowEqual);
+  const live = useSxLive(session);
+  const chips = useGame(
+    session,
+    (v) => {
+      const p = live && v?.match ? v.match.problem : v!.problem;
+      return { target: p.target, budget: p.budget, time: p.time };
+    },
+    shallowEqual,
+  );
+  return (
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
+      <RoomHeader name={head.name} status={head.status} round={head.round} playing="đang thiết kế">
+        <span className="chip text-ink-2">🎯 {fmt(chips.target)} TPS</span>
+        <span className="chip text-ink-2">💰 Budget {fmt(chips.budget)}</span>
+        <span className="chip text-ink-2">⏱ {timeLabel(chips.time)}</span>
+      </RoomHeader>
+      <ActionPart session={session} />
+      <BodyPart session={session} />
+      <CinemaPart session={session} />
+    </RoomLayout>
+  );
+}
+
+function useSxLive(session: SystemDesignRoom) {
+  const room = useRoomState(session, (r) => ({ status: r.meta!.status, round: r.meta!.round }), shallowEqual);
+  const round = useGame(session, (v) => v?.match?.round);
+  return room.status === "playing" && round === room.round;
+}
+
+const ActionPart = memo(function ActionPart({ session }: { session: SystemDesignRoom }) {
+  const view = useSxView(session);
+  return <ActionBar view={view} session={session} />;
+});
+
+function ActionBar({ view, session }: { view: View; session: SystemDesignRoom }) {
+  const g = view.game?.match;
+  const live = isLive(view);
+  const opened = useReached(g?.opensAt);
+  if (live && g) {
+    const done = g.lineup.filter((s) => s.locked || s.out).length;
+    const n = g.lineup.length;
+    let tone: string = TONE.turn;
+    let message: React.ReactNode;
+    if (!opened) {
+      tone = TONE.hot;
+      message = <>⏳ Chuẩn bị… đề lộ sau vài giây!</>;
+    } else if (g.me >= 0 && !g.locked)
+      message = (
+        <>
+          🛠️ Dựng hệ thống của bạn rồi chốt{g.endsAt ? <> — còn <Countdown until={g.endsAt} /></> : ""}. Đã chốt {done}/{n}.
+        </>
+      );
+    else if (g.me >= 0) {
+      tone = TONE.info;
+      message = (
+        <>
+          🔒 Bạn đã chốt thiết kế. Chờ mọi người chốt ({done}/{n})
+          {g.endsAt ? (
+            <>
+              {" "}
+              · còn <Countdown until={g.endsAt} />
+            </>
+          ) : (
+            "…"
+          )}
+        </>
+      );
+    } else {
+      tone = TONE.idle;
+      message = (
+        <>
+          👀 Mọi người đang thiết kế — {done}/{n} đã chốt. Thiết kế chỉ lộ khi có kết quả.
+        </>
+      );
+    }
+    return (
+      <StatusBar tone={tone} message={message}>
+        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+      </StatusBar>
+    );
+  }
+  const m = view.meta!;
+  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
+  return (
+    <StatusBar message={seatMessage(view, { enough: true, startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng.", join: "Bấm “Vào chơi” để cùng thiết kế hệ thống." })}>
+      <SeatButtons view={view} session={session} blocked={blocked} />
+    </StatusBar>
+  );
+}
+
+function Countdown({ until }: { until: number }) {
+  const now = useNow(true, 500);
+  if (!now) return <b>…</b>;
+  const left = until - now;
+  return <b className={`tabular-nums ${left < 30000 ? "text-coral" : ""}`}>{clock(left)}</b>;
+}
+
+type Stage = "idle" | "design" | "locked" | "watch" | "result" | "tally" | "stopped";
+
+const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom }) {
+  const live = useSxLive(session);
+  const stage = useGame(session, (v): Stage => {
+    const g = v?.match;
+    if (!g) return "idle";
+    if (live) return g.me < 0 ? "watch" : g.locked ? "locked" : "design";
+    if (g.result?.reason === "stop") return "stopped";
+    if (g.final) return "result";
+    return g.result ? "tally" : "idle";
+  });
+  const round = useGame(session, (v) => v?.match?.round ?? 0);
+  if (stage === "design") return <DesignPart key={round} session={session} />;
+  if (stage === "locked" || stage === "watch")
+    return (
+      <>
+        <MatchProblemPart session={session} />
+        <ProgressPart session={session} />
+        {stage === "locked" && <MinePart session={session} />}
+        <CatalogPart session={session} />
+      </>
+    );
+  return (
+    <>
+      {stage === "result" && <ResultPart key={round} session={session} />}
+      {stage === "tally" && (
+        <section className="card mt-4 p-5 text-center font-display text-lg font-extrabold">⚙️ Đang tổng hợp các thiết kế đã chốt…</section>
+      )}
+      {stage === "stopped" && <StoppedCard round={round} />}
+      <NextProblemPart session={session} />
+      <CatalogPart session={session} />
+    </>
+  );
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Đề bài.
+
+function flowPath(f: Flow) {
+  const parts = [FLOWS[f.kind].path];
+  if (f.kind === "job" && f.sink) parts.push(`→ ${SINK_NAMES[f.sink]}`);
+  return parts.join(" ");
+}
+
+function flowNeeds(f: Flow) {
+  const out: string[] = [];
+  if (f.gate) out.push("bắt buộc qua API Gateway");
+  if (f.cdn) out.push("bắt buộc qua CDN");
+  if (f.cache) out.push("bắt buộc đọc qua Cache");
+  return out;
+}
+
+function ProblemCard({ p, title = "📋 Đề bài", children }: { p: Problem; title?: string; children?: React.ReactNode }) {
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">{title}</p>
+          <h2 className="font-display text-2xl font-extrabold">{p.title}</h2>
+        </div>
+        {children}
+      </div>
+      {p.desc && <p className="text-[14.5px] whitespace-pre-line text-ink-2">{p.desc}</p>}
+      <div className="flex flex-wrap gap-2 text-[13px] font-bold">
+        <span className="rounded-lg bg-lime-soft px-2.5 py-1">🎯 Traffic mục tiêu {fmt(p.target)} TPS</span>
+        <span className="rounded-lg bg-sun-soft px-2.5 py-1">💰 Budget tối đa {fmt(p.budget)}</span>
+        <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ {timeLabel(p.time)}</span>
+      </div>
+      <div>
+        <p className="mb-2 text-sm font-bold">Luồng nghiệp vụ</p>
+        <ul className="grid gap-2">
+          {p.flows.map((f, i) => (
+            <li key={i} className="sx-flow">
+              <span className="sx-flow-pct">{f.pct}%</span>
+              <span className="min-w-0">
+                <b>
+                  {FLOWS[f.kind].emoji} {f.name}
+                </b>{" "}
+                <span className="text-ink-3">· {FLOWS[f.kind].name}</span>
+                <span className="block text-[13px] text-ink-2">
+                  {flowPath(f)}
+                  {flowNeeds(f).length ? ` · ${flowNeeds(f).join(", ")}` : ""}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p className="mb-2 text-sm font-bold">Component được dùng</p>
+        <div className="flex flex-wrap gap-1.5">
+          {p.kinds.map((k) => (
+            <span key={k} className="rounded-lg bg-sunken px-2 py-0.5 text-[13px] font-semibold">
+              {CATALOG[k].emoji} {CATALOG[k].name}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-2 text-sm font-bold">Sự cố</p>
+        {p.incidents.length ? (
+          <ul className="grid gap-1.5 text-[13.5px]">
+            {p.incidents.map((k) => (
+              <li key={k}>
+                {INCIDENTS[k].emoji} <b>{INCIDENTS[k].name}</b> — <span className="text-ink-2">{INCIDENTS[k].text}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[13.5px] text-ink-2">Không có sự cố.</p>
+        )}
+      </div>
+      <SimRules p={p} />
+    </div>
+  );
+}
+
+function SimRules({ p }: { p: Problem }) {
+  const step = levelStep(p);
+  return (
+    <p className="rounded-xl bg-sunken p-3 text-[13px] text-ink-2">
+      📈 <b>Load test:</b> traffic tăng từ 0, mỗi mức thêm {fmt(step)} TPS (mức {SIM.steps} = traffic mục tiêu) và tiếp tục tăng tới khi hệ thống thất bại. Mỗi
+      mức đánh giá {SIM.window} giây{p.incidents.length ? `, sự cố xảy ra từ giây ${SIM.incFrom} tới giây ${SIM.incTo}` : ""}; sau đó ngừng nhận request và Queue có{" "}
+      {SIM.drain} giây để xử lý hết tác vụ. Một component quá tải là dừng.
+    </p>
+  );
+}
+
+const MatchProblemPart = memo(function MatchProblemPart({ session }: { session: SystemDesignRoom }) {
+  const p = useGame(session, (v) => v?.match?.problem);
+  if (!p) return null;
+  return (
+    <details className="card mt-4 p-4 sm:p-5" open>
+      <summary className="cursor-pointer font-display text-lg font-extrabold">📋 Đề bài: {p.title}</summary>
+      <div className="mt-3">
+        <ProblemCard p={p} title="Đề ván này" />
+      </div>
+    </details>
+  );
+});
+
+const NextProblemPart = memo(function NextProblemPart({ session }: { session: SystemDesignRoom }) {
+  const p = useGame(session, (v) => v!.problem);
+  const host = useRoomState(session, (r) => r.isHost);
+  const round = useRoomState(session, (r) => r.meta!.round);
+  const [editing, setEditing] = useState(false);
+  const label = round ? "📋 Đề ván tới" : "📋 Đề bài";
+  return (
+    <section className="card mt-4 p-4 sm:p-5" aria-label="Đề ván tới">
+      {host && editing ? (
+        <ProblemEditor session={session} problem={p} onDone={() => setEditing(false)} />
+      ) : (
+        <ProblemCard p={p} title={label}>
+          {host ? (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-sm" onClick={() => session.setProblem(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], undefined, p.time))}>
+                🎲 Đề ngẫu nhiên
+              </button>
+              <button type="button" className="btn btn-sm btn-pen" onClick={() => setEditing(true)}>
+                ✏️ Soạn đề
+              </button>
+            </div>
+          ) : (
+            <span className="text-[13px] font-semibold text-ink-3">Chủ phòng soạn đề trước mỗi ván.</span>
+          )}
+        </ProblemCard>
+      )}
+    </section>
+  );
+});
+
+type Draft = { title: string; desc: string; time: DesignTime; target: string; budget: string; kinds: Kind[]; flows: Flow[]; incidents: Incident[] };
+
+const toDraft = (p: Problem): Draft => ({ ...p, target: String(p.target), budget: String(p.budget), flows: p.flows.map((f) => ({ ...f })) });
+
+function draftIssues(d: Draft) {
+  const out = flowIssues(d.flows);
+  const target = Number(d.target);
+  const budget = Number(d.budget);
+  if (!Number.isInteger(target) || target < TARGET_MIN || target > TARGET_MAX || target % 100) out.push(`Traffic mục tiêu là bội số của 100, từ ${fmt(TARGET_MIN)} tới ${fmt(TARGET_MAX)} TPS.`);
+  if (!Number.isInteger(budget) || budget < BUDGET_MIN || budget > BUDGET_MAX) out.push(`Budget là số nguyên từ ${BUDGET_MIN} tới ${fmt(BUDGET_MAX)}.`);
+  if (!d.title.trim()) out.push("Đề cần có tiêu đề.");
+  return out;
+}
+
+const toProblem = (d: Draft) => normProblem({ ...d, target: Number(d.target), budget: Number(d.budget) });
+
+function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom; problem: Problem; onDone: () => void }) {
+  const [draft, setDraft] = useState(() => toDraft(problem));
+  const [hint, setHint] = useState("");
+  const issues = draftIssues(draft);
+  const need = neededKinds(draft.flows);
+  const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
+  const setFlow = (i: number, patch: Partial<Flow>) => set({ flows: draft.flows.map((f, k) => (k === i ? cleanFlow({ ...f, ...patch }) : f)) });
+  const valid = !issues.length;
+  const next = valid ? toProblem(draft) : null;
+  const key = next ? JSON.stringify(next) : "";
+
+  // Đề hợp lệ thì tự lưu (chậm một nhịp để gõ không gửi liên tục).
+  useEffect(() => {
+    if (!next) return;
+    const t = setTimeout(() => session.setProblem(next), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` là dạng chuỗi của `next`
+  }, [key, session]);
+
+  const reroll = (preset?: string) => {
+    setHint("");
+    setDraft(toDraft(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], preset, draft.time)));
+  };
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-2xl font-extrabold">✏️ Soạn đề</h2>
+        <div className="flex flex-wrap gap-2">
+          <select className="field !min-h-[34px] !w-auto !py-0 text-sm" value="" onChange={(e) => e.target.value && reroll(e.target.value)} aria-label="Lấy đề mẫu">
+            <option value="">📚 Đề mẫu…</option>
+            {PRESETS.map((x) => (
+              <option key={x.key} value={x.key}>
+                {x.title}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-sm" onClick={() => reroll()}>
+            🎲 Tự sinh đề
+          </button>
+          <button type="button" className="btn btn-sm btn-pen" onClick={onDone} disabled={!valid}>
+            ✓ Xong
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5 sm:col-span-2">
+          <span className="text-sm font-bold">Tiêu đề</span>
+          <input className="field" value={draft.title} maxLength={60} onChange={(e) => set({ title: e.target.value })} />
+        </label>
+        <label className="grid gap-1.5 sm:col-span-2">
+          <span className="text-sm font-bold">Mô tả (bối cảnh, chức năng, yêu cầu)</span>
+          <textarea className="field min-h-[84px]" value={draft.desc} maxLength={600} onChange={(e) => set({ desc: e.target.value })} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-bold">🎯 Traffic mục tiêu (TPS)</span>
+          <input className="field tabular-nums" type="number" inputMode="numeric" min={TARGET_MIN} max={TARGET_MAX} step={100} value={draft.target} onChange={(e) => set({ target: e.target.value })} />
+        </label>
+        <div className="grid gap-1.5">
+          <span className="text-sm font-bold">💰 Budget tối đa</span>
+          <div className="flex gap-2">
+            <input
+              className="field min-w-0 flex-1 tabular-nums"
+              type="number"
+              inputMode="numeric"
+              min={BUDGET_MIN}
+              max={BUDGET_MAX}
+              value={draft.budget}
+              aria-label="Budget tối đa"
+              onChange={(e) => set({ budget: e.target.value })}
+            />
+            <button
+              type="button"
+              className="btn"
+              disabled={!valid}
+              title="Máy tự dựng một thiết kế đạt mục tiêu rồi cộng thêm 20%"
+              onClick={() => {
+                const b = next && suggestBudget({ ...next, budget: BUDGET_MAX });
+                if (b) {
+                  set({ budget: String(b) });
+                  setHint(`💡 Máy dựng được thiết kế đạt mục tiêu với chi phí khoảng ${fmt(Math.round(b / 1.2))} — budget gợi ý ${fmt(b)}.`);
+                } else setHint("Máy chưa dựng được thiết kế đạt mục tiêu này — thử giảm traffic, bớt sự cố hoặc cho dùng thêm component.");
+              }}
+            >
+              💡 Gợi ý
+            </button>
+          </div>
+        </div>
+        {hint && <p className="text-[13px] font-semibold text-ink-2 sm:col-span-2">{hint}</p>}
+      </div>
+
+      <fieldset>
+        <legend className="mb-2 text-sm font-bold">⏱ Thời gian thiết kế</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {TIMES.map((t) => (
+            <button key={t} type="button" className={`btn !px-2 ${draft.time === t ? "btn-sun" : ""}`} aria-pressed={draft.time === t} onClick={() => set({ time: t })}>
+              {timeLabel(t)}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="grid gap-2">
+        <legend className="mb-2 flex w-full items-center justify-between text-sm font-bold">
+          <span>Luồng nghiệp vụ</span>
+          <span className={`tabular-nums ${draft.flows.reduce((s, f) => s + f.pct, 0) === 100 ? "text-lime" : "text-coral"}`}>
+            Tổng {draft.flows.reduce((s, f) => s + f.pct, 0)}%
+          </span>
+        </legend>
+        {draft.flows.map((f, i) => (
+          <div key={i} className="grid gap-2 rounded-xl border-2 border-rule p-3">
+            <div className="flex flex-wrap gap-2">
+              <select className="field !w-auto" value={f.kind} aria-label="Loại request" onChange={(e) => setFlow(i, { kind: e.target.value as FlowKind })}>
+                {FLOW_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {FLOWS[k].emoji} {FLOWS[k].name}
+                  </option>
+                ))}
+              </select>
+              <input className="field min-w-[140px] flex-1" value={f.name} maxLength={40} placeholder={FLOWS[f.kind].name} aria-label="Tên luồng" onChange={(e) => setFlow(i, { name: e.target.value })} />
+              <label className="flex items-center gap-1.5 font-bold">
+                <input
+                  className="field !w-[84px] tabular-nums"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100}
+                  value={f.pct || ""}
+                  aria-label="Tỷ lệ traffic"
+                  onChange={(e) => setFlow(i, { pct: Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))) })}
+                />
+                %
+              </label>
+              <button type="button" className="btn btn-ghost !px-3" aria-label="Xoá luồng" disabled={draft.flows.length <= 1} onClick={() => set({ flows: draft.flows.filter((_, k) => k !== i) })}>
+                ✕
+              </button>
+            </div>
+            <p className="text-[13px] text-ink-3">
+              Đi qua {FLOWS[f.kind].path} — hoàn thành khi {FLOWS[f.kind].done}.
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13.5px]">
+              {f.kind !== "static" && <Check on={!!f.gate} onChange={(gate) => setFlow(i, { gate })} label="Bắt buộc qua API Gateway" />}
+              {f.kind === "static" && <Check on={!!f.cdn} onChange={(cdn) => setFlow(i, { cdn })} label="Bắt buộc qua CDN" />}
+              {f.kind === "read" && <Check on={!!f.cache} onChange={(cache) => setFlow(i, { cache })} label="Bắt buộc đọc qua Cache" />}
+              {f.kind === "job" && (
+                <label className="flex items-center gap-2">
+                  <span className="font-semibold">Worker xử lý xong khi</span>
+                  <select className="field !min-h-[32px] !w-auto !py-0 text-sm" value={f.sink ?? ""} onChange={(e) => setFlow(i, { sink: (e.target.value || undefined) as Sink | undefined })}>
+                    <option value="">xử lý tại Worker</option>
+                    {SINKS.map((s) => (
+                      <option key={s} value={s}>
+                        đã {s === "db" ? "ghi vào" : s === "storage" ? "lưu vào" : "gọi"} {SINK_NAMES[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn btn-sm justify-self-start"
+          disabled={draft.flows.length >= MAX_FLOWS}
+          onClick={() => set({ flows: [...draft.flows, { kind: "read", name: "", pct: Math.max(0, 100 - draft.flows.reduce((s, f) => s + f.pct, 0)) }] })}
+        >
+          ＋ Thêm luồng
+        </button>
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-2 text-sm font-bold">Component được dùng</legend>
+        <div className="flex flex-wrap gap-2">
+          {KINDS.map((k) => {
+            const locked = need.has(k);
+            const on = locked || draft.kinds.includes(k);
+            return (
+              <button
+                key={k}
+                type="button"
+                className={`btn btn-sm ${on ? "btn-lime" : ""}`}
+                aria-pressed={on}
+                disabled={locked}
+                title={locked ? "Luồng nghiệp vụ cần loại này" : undefined}
+                onClick={() => set({ kinds: on ? draft.kinds.filter((x) => x !== k) : [...draft.kinds, k] })}
+              >
+                {CATALOG[k].emoji} {CATALOG[k].name}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-2 text-sm font-bold">Sự cố</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {INCIDENT_KEYS.map((k) => (
+            <label key={k} className={`flex gap-2.5 rounded-xl border-2 p-2.5 text-[13.5px] ${draft.incidents.includes(k) ? "border-pen bg-pen-soft" : "border-rule"}`}>
+              <input
+                type="checkbox"
+                className="mt-1 accent-[var(--pen)]"
+                checked={draft.incidents.includes(k)}
+                onChange={(e) => set({ incidents: e.target.checked ? [...draft.incidents, k] : draft.incidents.filter((x) => x !== k) })}
+              />
+              <span>
+                <b>
+                  {INCIDENTS[k].emoji} {INCIDENTS[k].name}
+                </b>
+                <span className="block text-ink-2">{INCIDENTS[k].text}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {issues.length > 0 ? (
+        <ul className="grid gap-1 rounded-xl bg-coral-soft p-3 text-[13.5px] font-semibold">
+          {issues.map((x) => (
+            <li key={x}>⚠️ {x}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[13px] font-semibold text-ink-3">✓ Đề hợp lệ — đã tự lưu cho ván tới.</p>
+      )}
+    </div>
+  );
+}
+
+function cleanFlow(f: Flow): Flow {
+  const out: Flow = { kind: f.kind, name: f.name, pct: f.pct };
+  if (f.gate && f.kind !== "static") out.gate = true;
+  if (f.cdn && f.kind === "static") out.cdn = true;
+  if (f.cache && f.kind === "read") out.cache = true;
+  if (f.sink && f.kind === "job") out.sink = f.sink;
+  return out;
+}
+
+function Check({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label className="flex items-center gap-2 font-semibold">
+      <input type="checkbox" className="accent-[var(--pen)]" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+const CatalogPart = memo(function CatalogPart({ session }: { session: SystemDesignRoom }) {
+  const live = useSxLive(session);
+  const kinds = useGame(session, (v) => (live && v?.match ? v.match.problem.kinds : v!.problem.kinds));
+  return (
+    <details className="card mt-4 p-4 sm:p-5">
+      <summary className="cursor-pointer font-display text-lg font-extrabold">🧰 Bảng thông số component</summary>
+      <p className="mt-2 text-[13px] text-ink-2">Thông số cố định, như nhau cho mọi người. Tổng chi phí là tổng giá mọi component đã đặt, kể cả cái không nối hay không nhận traffic.</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {kinds.map((k) => (
+          <KindCard key={k} k={k} />
+        ))}
+      </div>
+    </details>
+  );
+});
+
+function extra(k: Kind, v: number) {
+  const x = CATALOG[k].variants[v];
+  if (x.hit !== undefined) return `hit ${pct(x.hit)}`;
+  if (x.cap !== undefined) return `chứa ${fmt(x.cap)}`;
+  return "";
+}
+
+function KindCard({ k }: { k: Kind }) {
+  const info = CATALOG[k];
+  return (
+    <div className={`sx-kind k-${k}`}>
+      <p className="font-bold">
+        {info.emoji} {info.name} <span className="text-[13px] font-semibold text-ink-3">· {info.role}</span>
+      </p>
+      <table className="mt-1.5 w-full text-[13px] tabular-nums">
+        <tbody>
+          {info.variants.map((x, v) => (
+            <tr key={x.name}>
+              <td className="py-0.5 font-semibold">{x.name}</td>
+              <td className="text-right">{fmt(x.tps)} TPS</td>
+              <td className="text-right text-ink-2">{extra(k, v)}</td>
+              <td className="text-right font-bold">${x.price}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-1.5 text-[12.5px] text-ink-2">{info.rule}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Thiết kế.
+
+const COLUMN: Record<Kind, number> = { lb: 168, gateway: 168, cdn: 168, app: 320, cache: 472, queue: 472, db: 624, worker: 624, replica: 776, storage: 776, external: 776 };
+
+function freeSpot(d: Design, k: Kind) {
+  const taken = (x: number, y: number) => d.nodes.some((n) => Math.abs(n.x - x) < NODE.w + 8 && Math.abs(n.y - y) < NODE.h + 8);
+  const xs = [COLUMN[k], COLUMN[k] + 152, COLUMN[k] - 152, COLUMN[k] + 304, COLUMN[k] - 304].filter((x) => x >= 152 && x <= CANVAS.w - NODE.w);
+  for (const x of xs) for (let y = 24; y <= CANVAS.h - NODE.h; y += 16) if (!taken(x, y)) return { x, y };
+  return { x: COLUMN[k], y: (CANVAS.h - NODE.h) / 2 };
+}
+
+const nextId = (d: Design) => d.nodes.reduce((m, n) => Math.max(m, n.id), 0) + 1;
+
+// Chỉ lấy đề và mốc lộ đề: bản nháp của mình lưu lên mạng cũng làm store đổi, không cần vẽ lại cả sơ đồ theo.
+const DesignPart = memo(function DesignPart({ session }: { session: SystemDesignRoom }) {
+  const g = useGame(session, (v) => (v?.match ? { p: v.match.problem, opensAt: v.match.opensAt } : null), (a, b) => a?.p === b?.p && a?.opensAt === b?.opensAt);
+  if (!g) return null;
+  return (
+    <>
+      <MatchProblemPart session={session} />
+      <Designer session={session} p={g.p} opensAt={g.opensAt} />
+      <CatalogPart session={session} />
+    </>
+  );
+});
+
+function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Problem; opensAt: number }) {
+  const opened = useReached(opensAt);
+  const [design, setDesign] = useState<Design>(() => session.myDesign());
+  const [sel, setSel] = useState<Sel>(null);
+  const [past, setPast] = useState<Design[]>([]);
+  const base = useRef<Design | null>(null);
+  const report = useMemo(() => inspect(p, design), [p, design]);
+  const labels = useMemo(() => nodeLabels(design), [design]);
+
+  const change = (d: Design, commit: boolean) => {
+    if (!commit) base.current ??= design;
+    else {
+      const prev = base.current ?? design;
+      base.current = null;
+      if (prev !== d) setPast((h) => [...h.slice(-49), prev]);
+    }
+    setDesign(d);
+    session.edit(d);
+  };
+
+  const undo = () => {
+    const prev = past[past.length - 1];
+    if (!prev) return;
+    setPast(past.slice(0, -1));
+    setSel(null);
+    setDesign(prev);
+    session.edit(prev);
+  };
+
+  const undoRef = useRef(undo);
+  useEffect(() => {
+    undoRef.current = undo;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoRef.current();
+      }
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, []);
+
+  const add = (k: Kind) => {
+    if (design.nodes.length >= MAX_NODES) return;
+    const id = nextId(design);
+    change({ ...design, nodes: [...design.nodes, { id, k, v: 0, ...freeSpot(design, k) }] }, true);
+    setSel({ node: id });
+  };
+  const remove = () => {
+    if (!sel) return;
+    if ("node" in sel) {
+      if (sel.node === USERS_ID) return;
+      change({ nodes: design.nodes.filter((n) => n.id !== sel.node), edges: design.edges.filter(([a, b]) => a !== sel.node && b !== sel.node) }, true);
+    } else change({ ...design, edges: design.edges.filter(([a, b]) => a !== sel.edge[0] || b !== sel.edge[1]) }, true);
+    setSel(null);
+  };
+  const clone = (id: number) => {
+    const n = design.nodes.find((x) => x.id === id);
+    if (!n || design.nodes.length >= MAX_NODES) return;
+    const copy = { ...n, id: nextId(design), ...freeSpot(design, n.k) };
+    const d: Design = { nodes: [...design.nodes, copy], edges: [...design.edges] };
+    for (const [a, b] of design.edges) {
+      if (b === id && !linkIssue(d, a, copy.id)) d.edges.push([a, copy.id]);
+      if (a === id && !linkIssue(d, copy.id, b)) d.edges.push([copy.id, b]);
+    }
+    change(d, true);
+    setSel({ node: copy.id });
+  };
+
+  const over = report.cost > p.budget;
+  return (
+    <section className="card mt-4 grid gap-4 p-4 sm:p-5" aria-label="Thiết kế của bạn">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="font-display text-xl font-extrabold">🏗️ Thiết kế của bạn</h2>
+        <span className={`sx-cost ${over ? "is-over" : ""}`} title="Tổng chi phí / budget tối đa">
+          💰 <b className="tabular-nums">{fmt(report.cost)}</b> / {fmt(p.budget)}
+          <span className="sx-cost-bar" aria-hidden="true">
+            <span style={{ width: `${Math.min(100, (report.cost / p.budget) * 100)}%` }} />
+          </span>
+        </span>
+        <span className="text-[13px] font-semibold text-ink-3 tabular-nums">
+          {design.nodes.length}/{MAX_NODES} component
+        </span>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button type="button" className="btn btn-sm" onClick={undo} disabled={!past.length} title="Hoàn tác (Ctrl/⌘ + Z)">
+            ↶ Hoàn tác
+          </button>
+          <ConfirmButton
+            className="btn btn-sm btn-ghost"
+            onConfirm={() => {
+              change({ nodes: [], edges: [] }, true);
+              setSel(null);
+            }}
+            confirmLabel="Bấm lần nữa để xoá hết"
+          >
+            🧹 Xoá hết
+          </ConfirmButton>
+          <ConfirmButton
+            className="btn btn-sm btn-pen"
+            onConfirm={() => {
+              session.edit(design);
+              session.lock();
+            }}
+            confirmLabel={report.ok ? "Bấm lần nữa để chốt — không sửa được nữa" : "Thiết kế chưa hợp lệ — vẫn chốt?"}
+          >
+            🔒 Chốt thiết kế
+          </ConfirmButton>
+        </div>
+      </div>
+
+      {/* Màn hẹp: một hàng cuộn ngang để sơ đồ không bị đẩy xuống quá xa. */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pt-0.5 pb-1.5 sm:flex-wrap sm:overflow-visible" role="toolbar" aria-label="Thêm component">
+        {p.kinds.map((k) => (
+          <button key={k} type="button" className={`sx-add flex-none k-${k}`} disabled={!opened || design.nodes.length >= MAX_NODES} onClick={() => add(k)} title={CATALOG[k].role}>
+            <span aria-hidden="true">{CATALOG[k].emoji}</span> {CATALOG[k].short}
+            <small>từ ${CATALOG[k].variants[0].price}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="sx-canvas-wrap">
+        <SxCanvas
+          design={design}
+          label="Sơ đồ hệ thống — kéo để di chuyển, kéo từ chấm tròn để nối"
+          marks={report.errors.flatMap((e) => e.nodes?.slice(-1) ?? [])}
+          edit={opened ? { onChange: change, onDelete: remove, sel, onSel: setSel } : undefined}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Inspector design={design} labels={labels} sel={sel} onSel={setSel} change={change} remove={remove} clone={clone} />
+        <Checklist p={p} report={report} />
+      </div>
+    </section>
+  );
+}
+
+function Inspector({
+  design,
+  labels,
+  sel,
+  onSel,
+  change,
+  remove,
+  clone,
+}: {
+  design: Design;
+  labels: Map<number, string>;
+  sel: Sel;
+  onSel: (s: Sel) => void;
+  change: (d: Design, commit: boolean) => void;
+  remove: () => void;
+  clone: (id: number) => void;
+}) {
+  if (!sel)
+    return (
+      <div className="sx-panel">
+        <p className="font-bold">🧭 Cách dựng</p>
+        <ul className="mt-1.5 grid list-disc gap-1 pl-5 text-[13.5px] text-ink-2">
+          <li>Bấm component ở thanh trên để đặt, kéo để xếp chỗ.</li>
+          <li>Kéo từ chấm tròn bên phải một component sang component khác để nối — hoặc chạm chấm rồi chạm đích. Ô viền xanh là đích nối được.</li>
+          <li>Chọn component để đổi variant, nhân bản, nối nhanh hoặc xoá. Chọn đường nối để xoá.</li>
+          <li>Đường nét đứt tím là nhân bản Database → Read Replica.</li>
+        </ul>
+      </div>
+    );
+  if ("edge" in sel) {
+    const [a, b] = sel.edge;
+    return (
+      <div className="sx-panel">
+        <p className="font-bold">
+          🔗 {labels.get(a)} → {labels.get(b)}
+        </p>
+        <button type="button" className="btn btn-sm btn-coral mt-3" onClick={remove}>
+          ✕ Xoá đường nối
+        </button>
+      </div>
+    );
+  }
+  const id = sel.node;
+  const n = design.nodes.find((x) => x.id === id);
+  const info = n ? CATALOG[n.k] : USERS;
+  const reach = design.nodes.filter((x) => !linkIssue(design, id, x.id));
+  const outs = design.edges.filter(([a]) => a === id);
+  const ins = design.edges.filter(([, b]) => b === id);
+  const unlink = (a: number, b: number) => change({ ...design, edges: design.edges.filter(([x, y]) => x !== a || y !== b) }, true);
+  return (
+    <div className="sx-panel grid content-start gap-3">
+      <div>
+        <p className="font-bold">
+          {info.emoji} {labels.get(id)} <span className="text-[13px] font-semibold text-ink-3">· {n ? CATALOG[n.k].name : USERS.role}</span>
+        </p>
+        {n && <p className="mt-1 text-[12.5px] text-ink-2">{CATALOG[n.k].rule}</p>}
+      </div>
+      {n && (
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Variant">
+          {CATALOG[n.k].variants.map((x, v) => (
+            <button
+              key={x.name}
+              type="button"
+              role="radio"
+              aria-checked={n.v === v}
+              className={`sx-variant ${n.v === v ? "is-on" : ""}`}
+              onClick={() => change({ ...design, nodes: design.nodes.map((y) => (y.id === id ? { ...y, v } : y)) }, true)}
+            >
+              <b>{x.name}</b>
+              <span>{fmt(x.tps)} TPS</span>
+              {extra(n.k, v) && <span>{extra(n.k, v)}</span>}
+              <span className="font-bold">${x.price}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {(outs.length > 0 || ins.length > 0) && (
+        <div className="grid gap-1.5 text-[13px]">
+          {outs.length > 0 && <Links title="Đi tới" items={outs.map(([, b]) => ({ id: b, label: labels.get(b)!, drop: () => unlink(id, b) }))} />}
+          {ins.length > 0 && <Links title="Nhận từ" items={ins.map(([a]) => ({ id: a, label: labels.get(a)!, drop: () => unlink(a, id) }))} />}
+        </div>
+      )}
+      {reach.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[13px] font-bold">Nối nhanh tới</p>
+          <div className="flex flex-wrap gap-1.5">
+            {reach.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                className="btn btn-sm !min-h-[30px] !px-2.5"
+                onClick={() => {
+                  change({ ...design, edges: [...design.edges, [id, x.id]] }, true);
+                  onSel({ node: id });
+                }}
+              >
+                ＋ {labels.get(x.id)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {n && (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-sm" onClick={() => clone(id)} disabled={design.nodes.length >= MAX_NODES}>
+            ⧉ Nhân bản
+          </button>
+          <button type="button" className="btn btn-sm btn-coral" onClick={remove}>
+            🗑 Xoá
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Links({ title, items }: { title: string; items: { id: number; label: string; drop: () => void }[] }) {
+  return (
+    <p className="flex flex-wrap items-center gap-1.5">
+      <span className="font-bold">{title}:</span>
+      {items.map((x) => (
+        <span key={x.id} className="inline-flex items-center gap-1 rounded-lg bg-sunken py-0.5 pr-1 pl-2 font-semibold">
+          {x.label}
+          <button type="button" className="rounded px-1 text-ink-3 hover:text-coral" aria-label={`Bỏ nối ${x.label}`} onClick={x.drop}>
+            ✕
+          </button>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function Checklist({ p, report }: { p: Problem; report: ReturnType<typeof inspect> }) {
+  const bad = new Map(report.errors.filter((e) => e.flow !== undefined).map((e) => [e.flow!, e]));
+  const loose = report.errors.filter((e) => e.flow === undefined);
+  return (
+    <div className="sx-panel">
+      <p className="font-bold">✅ Kiểm tra đường đi</p>
+      <ul className="mt-2 grid gap-1.5 text-[13.5px]">
+        {loose.map((e) => (
+          <li key={e.text} className="text-coral">
+            ⛔ {e.text}
+          </li>
+        ))}
+        {p.flows.map((f, i) => {
+          const e = bad.get(i);
+          return (
+            <li key={i} className={e ? "" : "text-ink-2"}>
+              {e || loose.length ? "❌" : "✔️"} <b>{f.name}</b> <span className="text-ink-3">({f.pct}%)</span>
+              {e && <span className="block pl-6 text-[12.5px] text-coral">{e.text}</span>}
+            </li>
+          );
+        })}
+        {report.idle.map((e) => (
+          <li key={e.text} className="text-[12.5px] text-ink-3">
+            💤 {e.text}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[12px] text-ink-3">Chỉ kiểm tra đường đi — không được chạy thử tải trước khi chốt.</p>
+    </div>
+  );
+}
+
+const MinePart = memo(function MinePart({ session }: { session: SystemDesignRoom }) {
+  const round = useGame(session, (v) => v?.match?.round ?? 0);
+  const p = useGame(session, (v) => v?.match?.problem);
+  const design = useMemo(() => (round ? session.myDesign() : null), [session, round]);
+  if (!design || !p) return null;
+  return (
+    <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Thiết kế bạn đã chốt">
+      <h2 className="font-display text-xl font-extrabold">🔒 Thiết kế bạn đã chốt</h2>
+      <p className="text-[13.5px] text-ink-2">
+        💰 Chi phí {fmt(designCost(design))} / {fmt(p.budget)} · {design.nodes.length} component. Kết quả load test có khi mọi người đã chốt.
+      </p>
+      <div className="sx-canvas-wrap">
+        <SxCanvas design={design} label="Thiết kế đã chốt" />
+      </div>
+    </section>
+  );
+});
+
+const ProgressPart = memo(function ProgressPart({ session }: { session: SystemDesignRoom }) {
+  const view = useSxView(session);
+  const g = view.game?.match;
+  if (!g) return null;
+  return (
+    <section className="card mt-4 p-4 sm:p-5" aria-label="Tiến độ">
+      <h2 className="font-display text-lg font-extrabold">👥 Ai đã chốt</h2>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {g.lineup.map((s) => (
+          <li key={s.seat.uid} className="flex min-w-0 items-center gap-2.5">
+            {s.seat.member ? <Avatar p={s.seat.member} size={30} className={s.seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[30px] w-[30px] bg-sunken" />}
+            <b className="min-w-0 flex-1 truncate text-[14px]">{nameIn(view, s.seat.uid)}</b>
+            <span className={`rounded-lg px-2 py-0.5 text-[12.5px] font-bold ${s.out ? "bg-coral-soft" : s.locked ? "bg-lime-soft" : "bg-sunken"}`}>
+              {s.out ? "🚪 Bị loại" : s.locked ? "🔒 Đã chốt" : "✏️ Đang thiết kế"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Kết quả.
+
+const STATUS: Record<Standing["status"], { label: string; cls: string }> = {
+  pass: { label: "✅ Đạt", cls: "bg-lime-soft" },
+  fail: { label: "❌ Không đạt", cls: "bg-coral-soft" },
+  invalid: { label: "⛔ Không hợp lệ", cls: "bg-sunken" },
+  out: { label: "🚪 Bị loại", cls: "bg-sunken" },
+};
+
+function stopText(r: Pick<Standing, "status" | "sim">) {
+  const s = r.sim;
+  if (r.status === "out") return "Mất kết nối hoặc vi phạm giữa ván.";
+  if (!s) return "";
+  if (!s.valid) return s.errors[0]?.text ?? "Thiết kế không hợp lệ.";
+  if (s.capped) return `Vượt mức tải tối đa của kịch bản (${fmt(s.maxTps)} TPS) mà chưa thất bại.`;
+  if (!s.fail) return "";
+  return `Thất bại ở mức ${s.fail.level} (${fmt(s.fail.tps)} TPS), giây ${s.fail.t}: ${s.fail.text}`;
+}
+
+const ResultPart = memo(function ResultPart({ session }: { session: SystemDesignRoom }) {
+  const view = useSxView(session);
+  const g = view.game?.match;
+  if (!g?.final) return null;
+  return <Results view={view} match={g} final={g.final} />;
+});
+
+function Results({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
+  const p = g.problem;
+  const rows = final.rows;
+  const winners = rows.filter((r) => r.rank === 1);
+  const iWon = winners.some((r) => r.uid === view.me);
+  const names = winners.map((r) => nameIn(view, r.uid)).join(", ");
+  const top = winners[0];
+  const [pick, setPick] = useState<string>(() => (final.designs[view.me] ? view.me : (top?.uid ?? rows.find((r) => final.designs[r.uid])?.uid ?? "@ref")));
+  return (
+    <>
+      <ResultCard
+        round={g.round}
+        title={!winners.length ? "🤷 Không ai vượt quality gate" : winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
+        sub={
+          top
+            ? `${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)} — vượt mục tiêu ${fmt(p.target)} TPS trong budget ${fmt(p.budget)}.`
+            : `Cần đạt ít nhất ${fmt(p.target)} TPS với chi phí không quá ${fmt(p.budget)}.`
+        }
+      >
+        <LoadRace view={view} p={p} final={final} />
+      </ResultCard>
+      <section className="card mt-4 p-4 sm:p-5" aria-label="Bảng xếp hạng">
+        <h2 className="font-display text-xl font-extrabold">🏁 Bảng kết quả</h2>
+        <ol className="mt-3 grid gap-2.5">
+          {rows.map((r) => (
+            <li key={r.uid}>
+              <button type="button" className={`sx-row ${pick === r.uid ? "is-on" : ""}`} onClick={() => final.designs[r.uid] && setPick(r.uid)} disabled={!final.designs[r.uid]}>
+                <span className="sx-row-rank">{r.rank ? (["🥇", "🥈", "🥉"][r.rank - 1] ?? r.rank) : "–"}</span>
+                <span className="grid min-w-0 flex-1 gap-1">
+                  <span className="flex min-w-0 flex-wrap items-center gap-2">
+                    <b className="min-w-0 truncate">{nameIn(view, r.uid)}</b>
+                    <span className={`rounded-lg px-2 py-0.5 text-[12px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
+                    {r.auto && <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[12px] font-bold">⏱ Tự chốt khi hết giờ</span>}
+                  </span>
+                  {r.status !== "out" && (
+                    <span className="flex flex-wrap gap-x-4 gap-y-0.5 text-[13px] tabular-nums">
+                      <span>
+                        📈 <b>{fmt(r.tps)}</b> TPS {r.sim?.valid && <>{r.traffic ? "✓" : "✗"}</>}
+                      </span>
+                      <span>
+                        💰 <b>{fmt(r.cost)}</b> {r.budget ? "✓" : "✗"}
+                      </span>
+                    </span>
+                  )}
+                  {stopText(r) && <span className="text-[12.5px] text-ink-2">{stopText(r)}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-[12.5px] text-ink-3">
+          Đạt khi TPS tối đa ≥ {fmt(p.target)} và chi phí ≤ {fmt(p.budget)}. Xếp hạng: TPS cao hơn đứng trên, bằng TPS thì rẻ hơn đứng trên. Bấm một dòng để
+          xem thiết kế.
+        </p>
+      </section>
+      <Viewer key={pick} view={view} p={p} final={final} pick={pick} setPick={setPick} />
+    </>
+  );
+}
+
+function LoadRace({ view, p, final }: { view: View; p: Problem; final: SxFinal }) {
+  const { levels, tick } = raceTiming(final);
+  const [at, setAt] = useState(0);
+  const [run, setRun] = useState(1);
+  useEffect(() => {
+    let n = 0;
+    const t = setInterval(() => {
+      // Bấm tua tới cuối thì giữ nguyên ở cuối.
+      setAt((a) => Math.min(levels, a + 1));
+      if (++n >= levels) clearInterval(t);
+    }, tick);
+    return () => clearInterval(t);
+  }, [levels, tick, run]);
+  const step = levelStep(p);
+  const best = Math.max(0, ...final.rows.map((r) => r.tps));
+  const scale = Math.max(p.target * 1.25, best + step * 2);
+  const done = at >= levels;
+  return (
+    <div className="mt-4 grid gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[13.5px] font-bold">
+        <span className="tabular-nums">
+          📈 Load test · mức {Math.min(at, levels)} · {fmt(Math.min(at, levels) * step)} TPS
+        </span>
+        <span className="flex gap-2">
+          {!done && (
+            <button type="button" className="btn btn-sm" onClick={() => setAt(levels)}>
+              ⏭ Tua tới cuối
+            </button>
+          )}
+          {done && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => {
+                setAt(0);
+                setRun((x) => x + 1);
+              }}
+            >
+              ↻ Chạy lại
+            </button>
+          )}
+        </span>
+      </div>
+      {final.rows.map((r) => {
+        const s = r.sim;
+        const passed = s?.valid ? (s.fail ? s.fail.level - 1 : s.levels.length) : 0;
+        const shown = Math.min(at, passed) * step;
+        const dead = !!s?.valid && !!s.fail && at >= s.fail.level;
+        const ended = r.status === "out" || !s?.valid || dead || (done && !s.fail);
+        return (
+          <div key={r.uid} className="grid grid-cols-[minmax(0,7.5rem)_1fr] items-center gap-2.5 sm:grid-cols-[minmax(0,10rem)_1fr]">
+            <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-bold">
+              <span className="min-w-0 truncate">{nameIn(view, r.uid)}</span>
+            </span>
+            <div className="sx-race">
+              <span className={`sx-race-bar ${dead ? "is-dead" : shown >= p.target ? "is-met" : ""}`} style={{ width: `${(shown / scale) * 100}%` }} />
+              <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
+              <span className="sx-race-tag tabular-nums">
+                {r.status === "out" ? "🚪 Bị loại" : !s?.valid ? "⛔ Không hợp lệ" : dead ? `${fmt(shown)} TPS · 💥 gục ở ${fmt(s.fail!.tps)}` : `${fmt(shown)} TPS${ended ? " ✓" : ""}`}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-[12px] text-ink-3">Vạch đen là traffic mục tiêu {fmt(p.target)} TPS.</p>
+    </div>
+  );
+}
+
+// Sự cố nhắm vào một component / đường nối cụ thể (hiện tên đối tượng); các sự cố còn lại tác động chung.
+const TARGETED: readonly Incident[] = ["app-down", "link-cut", "ext-down", "worker-down"];
+
+function heatOf(sim: SimResult, level: number): Heat | undefined {
+  const lv = sim.levels[level - 1];
+  if (!lv) return undefined;
+  return {
+    input: lv.tps,
+    load: new Map(sim.ids.map((id, i) => [id, lv.peak[i]])),
+    edges: lv.edges,
+    fail: sim.fail?.level === level ? sim.fail.node : undefined,
+    down: lv.down,
+    cut: lv.cut,
+  };
+}
+
+function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; final: SxFinal; pick: string; setPick: (u: string) => void }) {
+  const ref = useMemo(() => {
+    const { design } = autoDesign(p);
+    return { design, sim: simulate(p, design) };
+  }, [p]);
+  const row = final.rows.find((r) => r.uid === pick);
+  const design = pick === "@ref" ? ref.design : final.designs[pick];
+  const sim = pick === "@ref" ? ref.sim : row?.sim;
+  const last = sim?.levels.length ?? 0;
+  const [level, setLevel] = useState(() => Math.max(1, Math.min(last, sim?.fail?.level ?? last)));
+  const heat = sim?.valid ? heatOf(sim, level) : undefined;
+  const lv = sim?.levels[level - 1];
+  const labels = useMemo(() => (design ? nodeLabels(design) : new Map<number, string>()), [design]);
+  const people = final.rows.filter((r) => final.designs[r.uid]);
+  return (
+    <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Xem thiết kế">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="mr-auto font-display text-xl font-extrabold">🔍 Xem thiết kế</h2>
+        {people.map((r) => (
+          <button key={r.uid} type="button" className={`btn btn-sm ${pick === r.uid ? "btn-sun" : ""}`} aria-pressed={pick === r.uid} onClick={() => setPick(r.uid)}>
+            {nameIn(view, r.uid)}
+          </button>
+        ))}
+        <button type="button" className={`btn btn-sm ${pick === "@ref" ? "btn-sun" : ""}`} aria-pressed={pick === "@ref"} onClick={() => setPick("@ref")}>
+          🤖 Máy tham khảo
+        </button>
+      </div>
+      {pick === "@ref" && (
+        <p className="text-[13px] text-ink-2">
+          Máy tự dựng bằng cách nâng dần chỗ nghẽn — không tối ưu chi phí và không tính vào xếp hạng: {fmt(ref.sim.maxTps)} TPS, chi phí {fmt(ref.sim.cost)}.
+        </p>
+      )}
+      {design && (
+        <>
+          {sim?.valid && last > 0 && (
+            <label className="grid gap-1.5">
+              <span className="flex flex-wrap justify-between gap-2 text-[13.5px] font-bold tabular-nums">
+                <span>
+                  Mức {level}/{last} · {fmt(lv?.tps ?? 0)} TPS{sim.fail?.level === level ? " — 💥 thất bại ở mức này" : ""}
+                </span>
+                {lv && lv.backlog > 0 && <span className="text-ink-3">📬 Hàng chờ đỉnh {fmt(lv.backlog)} tác vụ</span>}
+              </span>
+              <input type="range" min={1} max={last} value={level} onChange={(e) => setLevel(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
+            </label>
+          )}
+          <div className="sx-canvas-wrap">
+            <SxCanvas design={design} heat={heat} marks={sim && !sim.valid ? sim.errors.flatMap((e) => e.nodes?.slice(-1) ?? []) : undefined} label="Thiết kế và tải từng component" />
+          </div>
+          <div className="grid gap-1 text-[13px] text-ink-2">
+            {lv && p.incidents.length > 0 && (
+              <p>
+                ⚡ Sự cố giây {SIM.incFrom}–{SIM.incTo}:{" "}
+                {[
+                  ...lv.down.map((id) => `${labels.get(id)} ngừng hoạt động`),
+                  ...(lv.cut ? [`đứt ${labels.get(lv.cut[0])} → ${labels.get(lv.cut[1])}`] : []),
+                  ...p.incidents.filter((k) => !TARGETED.includes(k)).map((k) => INCIDENTS[k].name.toLowerCase()),
+                ].join(", ") || "không trúng component nào"}
+                .
+              </p>
+            )}
+            {sim && <p>{stopText({ status: row?.status ?? "fail", sim })}</p>}
+            {sim?.valid && <p className="text-[12px] text-ink-3">Màu theo mức sử dụng đỉnh trong mức tải: xanh &lt; 60%, vàng &lt; 85%, cam tới 100%, đỏ là quá tải. Số trên đường nối là TPS đi qua.</p>}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesignRoom }) {
+  const live = useSxLive(session);
+  const g = useGame(session, (v) => v?.match);
+  const me = useRoomState(session, (r) => r.me);
+  const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
+  const final = g?.final;
+  const winners = final ? final.rows.filter((r) => r.rank === 1) : [];
+  const end = useEndScene(final && winners.length ? g!.round : 0, { delay: final ? raceTiming(final).ms + 600 : 0, ms: WIN_SCENE_MS, emojis: CONFETTI });
+  if (!g) return null;
+  if (count > 0)
+    return (
+      <CountdownCine eyebrow={`🏗️ ${g.problem.title}`} n={count} title="Dựng hệ thống chịu tải tốt nhất trong budget!" tip={`🎯 ${fmt(g.problem.target)} TPS · 💰 ${fmt(g.problem.budget)} · ⏱ ${timeLabel(g.problem.time)}`} />
+    );
+  if (!end.shown || !winners.length) return <Party bits={end.party} />;
+  const top = winners[0];
+  const iWon = winners.some((r) => r.uid === me);
+  const names = winners.map((r) => (r.uid === me ? "Bạn" : (g.lineup.find((s) => s.seat.uid === r.uid)?.seat.member?.name ?? "Ai đó"))).join(", ");
+  return (
+    <>
+      <WinCine
+        winners={winners.map((r) => ({ uid: r.uid, p: g.lineup.find((s) => s.seat.uid === r.uid)?.seat.member }))}
+        title={iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${names} chiến thắng!`}
+        sub={`${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)}`}
+        onClose={end.close}
+      />
+      <Party bits={end.party} />
+    </>
+  );
+});

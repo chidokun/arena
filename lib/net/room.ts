@@ -6,6 +6,7 @@ import type { KwRound } from "../games/kawaii";
 import type { McPublic } from "../games/mine-control";
 import type { MsRound } from "../games/minesweeper";
 import type { SudokuRound } from "../games/sudoku";
+import type { Problem as SxProblem, SxRound } from "../games/system-design";
 import type { TxRound } from "../games/truc-xanh";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
@@ -56,6 +57,7 @@ export type Meta = {
   dwUsed?: number[];
   // Chốt lúc bắt đầu để chủ phòng đổi cỡ giữa các ván không làm hỏng ván vừa xong.
   dbSize?: number;
+  dbTurn?: number;
   cdSetup?: string;
   cc?: CcPublic;
   mc?: McPublic;
@@ -63,6 +65,9 @@ export type Meta = {
   tx?: TxRound;
   txUsed?: number[];
   ms?: MsRound;
+  sx?: SxRound;
+  // Đề đang soạn cho ván tới (opts chỉ giữ phần tóm tắt cho thẻ phòng ở sảnh).
+  sxq?: SxProblem;
   ack: Record<string, number>;
   kicked: string[];
   cheats?: string[];

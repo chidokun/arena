@@ -2,15 +2,23 @@
 export const SIZES = [3, 5, 7] as const;
 export type Size = (typeof SIZES)[number];
 
-export type DotsOptions = { size: Size };
-export const DEFAULT_OPTIONS: DotsOptions = { size: 5 };
+// Giây tối đa cho mỗi lượt; 0 là không giới hạn.
+export const TURN_LIMITS = [15, 30, 60, 0] as const;
+export type TurnLimit = (typeof TURN_LIMITS)[number];
+export const turnLabel = (t: number) => (!t ? "Không giới hạn" : t < 60 ? `${t} giây` : `${t / 60} phút`);
+
+export type DotsOptions = { size: Size; turn: TurnLimit };
+export const DEFAULT_OPTIONS: DotsOptions = { size: 5, turn: 0 };
 
 export function normOptions(o: Record<string, unknown> | undefined): DotsOptions {
   const size = SIZES.find((s) => s === o?.size) ?? DEFAULT_OPTIONS.size;
-  return { size };
+  const turn = TURN_LIMITS.find((t) => t === o?.turn) ?? DEFAULT_OPTIONS.turn;
+  return { size, turn };
 }
 
+/** Nước đi là chỉ số cạnh; `PASS` là lượt bị bỏ vì hết giờ. */
 export type Move = number;
+export const PASS = -1;
 
 export const lineCount = (size: number) => 2 * size * (size + 1);
 
@@ -52,6 +60,8 @@ export type DotsState = {
   turn: 1 | 2;
   last: number;
   fresh: number[];
+  /** Màu vừa mất lượt vì hết giờ (nước cuối là `PASS`), 0 nếu không. */
+  passed: 0 | 1 | 2;
   winner: 0 | 1 | 2;
   draw: boolean;
   over: boolean;
@@ -67,6 +77,7 @@ export function emptyState(size: number): DotsState {
     turn: 1,
     last: -1,
     fresh: [],
+    passed: 0,
     winner: 0,
     draw: false,
     over: false,
@@ -82,9 +93,17 @@ export function replay(size: number, moves: readonly Move[]): DotsState {
   const total = size * size;
   for (const i of moves) {
     if (s.over) break;
+    if (i === PASS) {
+      s.count++;
+      s.fresh = [];
+      s.passed = s.turn;
+      s.turn = s.turn === 1 ? 2 : 1;
+      continue;
+    }
     if (!Number.isInteger(i) || i < 0 || i >= s.lines.length || s.lines[i]) break;
     s.lines[i] = s.turn;
     s.count++;
+    s.passed = 0;
     s.last = i;
     s.fresh = boxesOf(size, i).filter((b) => sidesDrawn(s, b) === 4);
     for (const b of s.fresh) s.boxes[b] = s.turn;

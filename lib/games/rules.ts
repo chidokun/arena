@@ -7,6 +7,88 @@ export type GameRules = {
 };
 
 export const RULES: Record<string, GameRules> = {
+  "system-design": {
+    intro:
+      "Cả phòng nhận cùng một đề, mỗi người tự đặt và nối các component có sẵn thành hệ thống của mình rồi chốt. Khi mọi người đã chốt, load test giả lập tăng tải tới khi từng thiết kế gục: thiết kế vượt quality gate, chịu TPS cao nhất thì thắng.",
+    sections: [
+      {
+        emoji: "📋",
+        title: "Đề bài",
+        items: [
+          "Chủ phòng soạn đề trước mỗi ván (hoặc bấm tự sinh): tiêu đề, mô tả, thời gian thiết kế (2 phút, 5 phút hoặc không giới hạn), component được dùng, các luồng nghiệp vụ, sự cố, traffic mục tiêu và budget tối đa.",
+          "Mỗi luồng nghiệp vụ có loại request, tỷ lệ trong tổng traffic (cộng lại đúng 100%) và điều kiện hoàn thành — có thể bắt buộc đi qua API Gateway, CDN hoặc Cache.",
+          "Mọi người nhận cùng đề, cùng bảng thông số component và cùng kịch bản giả lập; đề giữ nguyên suốt ván.",
+        ],
+      },
+      {
+        emoji: "🧰",
+        title: "Component",
+        items: [
+          "11 loại: Load Balancer, API Gateway, Application Server, Cache, Database, Read Replica, Message Queue, Worker, Object Storage, CDN, External Service — mỗi loại 3 variant khác nhau về TPS, giá và thuộc tính riêng (tỷ lệ cache hit, sức chứa hàng chờ).",
+          "Đặt bao nhiêu bản cũng được, trộn variant thoải mái, đổi variant trước khi chốt. Tổng chi phí là tổng giá mọi bản đã đặt, kể cả cái không nối hay không nhận traffic.",
+          "Users chỉ có một cửa vào cho request (LB, Gateway hoặc App) và một cho tệp tĩnh (CDN hoặc Object Storage) — muốn nhiều App thì phải chia qua LB / Gateway.",
+        ],
+      },
+      {
+        emoji: "🔀",
+        title: "Request đi thế nào",
+        items: [
+          "Load Balancer chia đều mọi request cho các nhánh còn sống, không nhìn loại request — nhánh nào sau LB cũng phải xử lý được mọi loại đi qua nó.",
+          "API Gateway định tuyến theo loại: mỗi loại request chỉ gửi tới nhánh xử lý được loại đó, chia đều giữa các nhánh hợp lệ.",
+          "App Server: đọc thì ưu tiên Cache, rồi Read Replica, rồi Database; ghi vào Database; xử lý nền đẩy vào Queue; tải tệp lên vào Object Storage; gọi ngoài tới External Service. Nhiều đích cùng loại thì chia đều.",
+          "Cache / CDN trả ngay phần hit; phần miss phải có đường tới Read Replica / Database (Cache) hoặc Object Storage (CDN).",
+          "Read Replica chỉ xử lý đọc, phải được nối nhân bản từ Database chính và chịu thêm một lượt tải cho mỗi thao tác ghi vào Database đó.",
+          "Queue nhận tác vụ, Worker lấy ra xử lý theo sức mình; tác vụ cần ghi tiếp thì Worker phải nối tới đích. Đích gián đoạn thì Worker tạm dừng, tác vụ chờ trong hàng.",
+        ],
+      },
+      {
+        emoji: "⛔",
+        title: "Thiết kế hợp lệ",
+        items: [
+          "Mọi luồng phải có đường xử lý hoàn chỉnh qua đủ vai trò bắt buộc tới điểm hoàn thành; không có nhánh làm mất request, không có vòng lặp.",
+          "Trong lúc thiết kế, trò chơi chỉ kiểm tra đường đi (✔️ / ❌ từng luồng) — không được chạy thử tải trước khi chốt.",
+          "Thiết kế không hợp lệ không được xét chiến thắng.",
+        ],
+      },
+      {
+        emoji: "🔒",
+        title: "Chốt thiết kế",
+        items: [
+          "Chốt bất cứ lúc nào; đã chốt thì không sửa hay mở lại được.",
+          "Hết giờ, thiết kế đang có của người chưa chốt được tự chốt. Phòng không giới hạn thời gian thì chờ tới khi mọi người còn trong ván đều chốt.",
+          "Mất kết nối giữa ván (quá 20 giây) là bị loại; người còn lại chơi tiếp.",
+        ],
+      },
+      {
+        emoji: "📈",
+        title: "Load test giả lập",
+        items: [
+          "Traffic tăng từ 0, mỗi mức thêm 1/20 traffic mục tiêu (mức 20 đúng bằng mục tiêu) và tiếp tục tăng cho tới khi thiết kế thất bại (tối đa 5 lần mục tiêu).",
+          "Mỗi mức đánh giá 10 giây, traffic chia theo tỷ lệ các luồng; sau đó ngừng nhận request và Queue có 5 giây để xử lý hết tác vụ.",
+          "Thất bại khi một component phải xử lý vượt giới hạn TPS hiện tại, một luồng mất đường xử lý, Queue vượt sức chứa hoặc còn tồn tác vụ sau 5 giây hoàn tất. Một component quá tải là đủ dừng.",
+          "TPS tối đa là mức tải cao nhất đã qua trọn vẹn; gục ngay mức đầu thì bằng 0.",
+        ],
+      },
+      {
+        emoji: "⚡",
+        title: "Sự cố",
+        items: [
+          "Chủ phòng chọn không có hoặc một vài sự cố: App Server sập, Database giảm 40% TPS, đứt đường vào App, Cache bị xoá, Cache hit giảm, traffic lệch nhánh, tăng gấp đôi tỷ lệ ghi, Worker sập, External Service gián đoạn.",
+          "Ở mọi mức tải, các sự cố đã chọn cùng xảy ra từ giây 4 tới giây 7. Đối tượng bị nhắm là component / đường nối nhận nhiều traffic nhất lúc yên ổn (bằng nhau thì cái đặt sớm hơn).",
+          "Component sập không tự khiến bạn thua nếu hệ thống vẫn gánh được tải bằng các đường còn lại.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Quality gate & xếp hạng",
+        items: [
+          "Đạt khi cùng lúc: TPS tối đa ≥ traffic mục tiêu và tổng chi phí ≤ budget tối đa.",
+          "Trong các thiết kế đạt: TPS cao hơn đứng trên; bằng TPS thì chi phí thấp hơn đứng trên; bằng cả hai thì đồng hạng. Ai đứng đầu thắng — không ai đạt thì ván không có người thắng.",
+          "Hết ván, mọi người xem lại load test, bảng kết quả, mức tải và nguyên nhân gục của từng thiết kế, cùng một thiết kế tham khảo do máy dựng.",
+        ],
+      },
+    ],
+  },
   kawaii: {
     intro: "Nối thú kiểu Pikachu cho bao nhiêu người cũng được, một mình cũng chơi được: nối hai ô cùng hình để dọn bàn — cả phòng tranh nhau trên một bàn chung, hoặc mỗi người một bàn thi xem ai dọn sạch trước.",
     sections: [
@@ -438,6 +520,7 @@ export const RULES: Record<string, GameRules> = {
         title: "Cách chơi",
         items: [
           "Bàn là lưới chấm 3×3, 5×5 hoặc 7×7 ô — chủ phòng chọn lúc tạo phòng và đổi được trước mỗi ván.",
+          "Chủ phòng chọn thời gian tối đa mỗi lượt: 15 giây, 30 giây, 1 phút hoặc không giới hạn. Hết giờ mà chưa kẻ thì mất lượt — kể cả lượt được đi tiếp sau khi khép ô.",
           "Đỏ đi trước, Xanh đi sau; người đi trước đổi luân phiên sau mỗi ván.",
           "Mỗi lượt kẻ một cạnh nối hai chấm kề nhau theo hàng ngang hoặc dọc, vào chỗ chưa ai kẻ.",
           "Kẻ cạnh thứ tư khép kín một ô (hoặc hai ô cùng lúc) thì ô đó mang màu của bạn và bạn được kẻ thêm một cạnh nữa — cứ khép được ô là đi tiếp.",

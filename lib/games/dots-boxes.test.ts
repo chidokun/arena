@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { boxesOf, boxSides, hLine, lineAt, lineCount, normOptions, replay, vLine } from "./dots-boxes.ts";
+import { boxesOf, boxSides, hLine, lineAt, lineCount, normOptions, PASS, replay, vLine } from "./dots-boxes.ts";
 
 test("đánh số cạnh: mỗi cạnh một chỉ số, đổi qua lại được", () => {
   for (const n of [1, 3, 5]) {
@@ -55,7 +55,7 @@ test("một cạnh khép hai ô cùng lúc", () => {
 test("nước không hợp lệ bị dừng", () => {
   assert.equal(replay(3, [0, 0, 1]).count, 1);
   assert.equal(replay(3, [lineCount(3)]).count, 0);
-  assert.equal(replay(3, [-1]).count, 0);
+  assert.equal(replay(3, [-2]).count, 0);
   assert.equal(replay(3, [0.5]).count, 0);
 });
 
@@ -93,8 +93,27 @@ test("ván kết thúc sớm khi một người đã quá nửa số ô", () => 
   assert.equal(replay(2, [...OPENING, 10, 4]).count, s.count);
 });
 
-test("tuỳ chọn cỡ bàn lạ thì về mặc định", () => {
-  assert.deepEqual(normOptions({ size: 7 }), { size: 7 });
-  assert.deepEqual(normOptions({ size: 4 }), { size: 5 });
-  assert.deepEqual(normOptions(undefined), { size: 5 });
+test("tuỳ chọn lạ thì về mặc định", () => {
+  assert.deepEqual(normOptions({ size: 7 }), { size: 7, turn: 0 });
+  assert.deepEqual(normOptions({ size: 4, turn: 20 }), { size: 5, turn: 0 });
+  assert.deepEqual(normOptions({ size: 3, turn: 15 }), { size: 3, turn: 15 });
+  assert.deepEqual(normOptions(undefined), { size: 5, turn: 0 });
+});
+
+test("hết giờ thì mất lượt, kể cả lượt thưởng sau khi khép ô", () => {
+  const s = replay(3, [hLine(3, 0, 0), PASS]);
+  assert.equal(s.count, 2);
+  assert.equal(s.turn, 1);
+  assert.equal(s.passed, 2);
+  assert.equal(s.last, hLine(3, 0, 0));
+  assert.equal(replay(3, [hLine(3, 0, 0), PASS, hLine(3, 0, 1)]).passed, 0);
+
+  // Đỏ khép ô 0 nên được đi tiếp, nhưng hết giờ thì lượt sang Xanh.
+  const closed = replay(3, [hLine(3, 0, 0), hLine(3, 1, 0), vLine(3, 0, 0), vLine(3, 0, 1)]);
+  const bonus = closed.turn;
+  const t = replay(3, [hLine(3, 0, 0), hLine(3, 1, 0), vLine(3, 0, 0), vLine(3, 0, 1), PASS]);
+  assert.equal(t.passed, bonus);
+  assert.notEqual(t.turn, bonus);
+  assert.deepEqual(t.fresh, []);
+  assert.equal(t.score[bonus - 1], 1);
 });
