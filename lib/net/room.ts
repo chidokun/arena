@@ -77,6 +77,8 @@ export type Meta = {
   // Ván gần nhất đã cộng vào `wins`/`draws`, để mỗi kết quả chỉ được tính một lần.
   scored?: number;
   created: number;
+  // Lúc `status` đổi gần nhất (giờ máy chủ phòng); chưa đổi lần nào thì lấy `created`.
+  statusAt?: number;
 };
 
 export type Member = Profile & {
@@ -201,6 +203,10 @@ function takeCreate(id: string): CreateRoom | null {
   } catch {
     return null;
   }
+}
+
+function stampStatus(prev: Meta, next: Meta) {
+  if (next.status !== prev.status) next.statusAt = Date.now();
 }
 
 export const seatOpen = (m: Pick<Meta, "players" | "seats">) => m.seats <= 0 || m.players.length < m.seats;
@@ -580,6 +586,7 @@ export abstract class RoomSession<G = unknown> {
     }
     this.denyCheaters(m);
     this.tidy?.(m);
+    stampStatus(cur, m);
     const dirty = JSON.stringify(m) !== JSON.stringify(cur);
     if (dirty) this.gossip.set("meta", m);
 
@@ -600,6 +607,7 @@ export abstract class RoomSession<G = unknown> {
           members: this.onlineSet().size,
           players: m.players.length,
           status: m.status,
+          since: m.statusAt ?? m.created,
           opts: m.opts,
           ...this.adExtra?.(m),
         },
@@ -929,6 +937,7 @@ export abstract class RoomSession<G = unknown> {
     if (fn(m) === false) return;
     this.denyCheaters(m);
     this.tidy?.(m);
+    stampStatus(cur, m);
     this.gossip.set("meta", m);
     this.react();
   }

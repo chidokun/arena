@@ -25,6 +25,8 @@ export type RoomAd = {
   players: number;
   sheets?: number;
   status: "waiting" | "playing" | "ended";
+  // Lúc `status` đổi gần nhất (epoch ms).
+  since?: number;
   opts: Record<string, unknown>;
   hb: number;
   closed?: boolean;

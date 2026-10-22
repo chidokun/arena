@@ -212,6 +212,9 @@ export function GameLobby({ slug }: { slug: string }) {
   );
 }
 
+const stamp = (t: number) =>
+  new Date(t).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
 function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const loto = room.game === "loto";
   const wolf = room.game === "werewolf";
@@ -339,7 +342,14 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <CaroChips room={room} />
         )}</div>
       <div className="mt-auto flex items-center justify-between gap-3">
-        <span className="font-mono text-xs text-ink-3">#{room.id}</span>
+        <div className="flex min-w-0 flex-col gap-0.5 font-mono text-xs text-ink-3">
+          <span>#{room.id}</span>
+          {room.since ? (
+            <time dateTime={new Date(room.since).toISOString()} title={`${status.label} từ lúc này`}>
+              {stamp(room.since)}
+            </time>
+          ) : null}
+        </div>
         {full ? (
           <span className="btn btn-sm" aria-disabled="true" style={{ opacity: 0.5 }}>
             Phòng đầy
