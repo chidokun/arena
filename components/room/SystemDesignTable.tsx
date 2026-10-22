@@ -161,9 +161,11 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
 // Mọi người chốt xong: đếm ngược mở màn (`intro`), load test chạy lại từng mức trên sơ đồ (`run`), rồi mới lộ kết quả.
 // Kết quả đã tính sẵn — đây chỉ là phần trình diễn, máy nào tự chạy theo đồng hồ của mình.
 type Phase = "intro" | "run" | "done";
-type Playback = { phase: Phase; level: number; n: number; fresh: boolean; skip: () => void };
+// `run` đếm số lần phát (0 = lần tự phát khi ván vừa xong, tăng mỗi lần bấm "Chạy lại") để bàn chạy tải và cảnh kết thúc
+// diễn lại từ đầu.
+type Playback = { phase: Phase; level: number; n: number; fresh: boolean; run: number; skip: () => void; replay: () => void };
 
-const PlaybackCtx = createContext<Playback>({ phase: "done", level: 0, n: 0, fresh: false, skip: () => {} });
+const PlaybackCtx = createContext<Playback>({ phase: "done", level: 0, n: 0, fresh: false, run: 0, skip: () => {}, replay: () => {} });
 
 function PlaybackHost({ session, children }: { session: SystemDesignRoom; children: React.ReactNode }) {
   const g = useGame(
@@ -171,17 +173,34 @@ function PlaybackHost({ session, children }: { session: SystemDesignRoom; childr
     (v) => (v?.match?.final ? { round: v.match.round, at: v.match.playAt, final: v.match.final } : null),
     (a, b) => a?.round === b?.round && a?.at === b?.at && a?.final === b?.final,
   );
-  const [skipped, setSkipped] = useState(-1);
+  const round = g?.round ?? 0;
+  const [skipped, setSkipped] = useState("");
+  const [again, setAgain] = useState({ round: -1, at: 0, run: 0 });
   const timing = g ? playbackOf(g.final) : null;
-  const at = g?.at ?? 0;
-  const playing = !!at && !!timing && skipped !== g!.round;
+  const replayed = again.round === round;
+  const at = replayed ? again.at : (g?.at ?? 0);
+  const run = replayed ? again.run : 0;
+  const playing = !!at && !!timing && skipped !== `${round}:${run}`;
   const now = useClock(playing ? at : 0, playing ? at + timing!.total : 0);
   const elapsed = now ? Math.max(0, now - at) : 0;
   const phase: Phase = !playing || elapsed >= timing!.total ? "done" : elapsed < timing!.intro ? "intro" : "run";
   const level = !timing ? 0 : phase === "done" ? timing.levels : phase === "run" ? Math.min(timing.levels, Math.floor((elapsed - timing.intro) / timing.tick) + 1) : 0;
   const n = phase === "intro" ? Math.max(1, Math.ceil((timing!.intro - elapsed) / 1000)) : 0;
-  const round = g?.round ?? 0;
-  const value = useMemo(() => ({ phase, level, n, fresh: !!at, skip: () => setSkipped(round) }), [phase, level, n, at, round]);
+  const value = useMemo(
+    () => ({
+      phase,
+      level,
+      n,
+      fresh: !!at,
+      run,
+      skip: () => setSkipped(`${round}:${run}`),
+      replay: () => {
+        setAgain({ round, at: Date.now(), run: run + 1 });
+        scrollTo({ top: 0, behavior: "smooth" });
+      },
+    }),
+    [phase, level, n, at, run, round],
+  );
   return <PlaybackCtx value={value}>{children}</PlaybackCtx>;
 }
 
@@ -272,9 +291,10 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
     return g.result ? "tally" : "idle";
   });
   const round = useGame(session, (v) => v?.match?.round ?? 0);
-  const running = useContext(PlaybackCtx).phase !== "done";
+  const pb = useContext(PlaybackCtx);
+  const running = pb.phase !== "done";
   if (stage === "design") return <DesignPart key={round} session={session} />;
-  if (stage === "result" && running) return <RunPart key={round} session={session} />;
+  if (stage === "result" && running) return <RunPart key={`${round}:${pb.run}`} session={session} />;
   if (stage === "locked" || stage === "watch")
     return (
       <>
@@ -1203,21 +1223,11 @@ function Results({ view, match: g, final }: { view: View; match: SxMatch; final:
 }
 
 // Thanh tải của từng người theo mức tải. `at` có thì chạy theo đồng hồ phát lại (bàn chạy tải); không có thì là bản tĩnh ở
-// màn kết quả, bấm "Chạy lại" để xem lại.
+// màn kết quả, bấm "Chạy lại" để phát lại cả quá trình: mở màn, chạy tải, cảnh kết thúc.
 function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p: Problem; final: SxFinal; at?: number; pick?: string; onPick?: (uid: string) => void }) {
-  const { levels, tick } = playbackOf(final);
-  const [own, setOwn] = useState(levels);
-  const [run, setRun] = useState(0);
-  useEffect(() => {
-    if (!run) return;
-    let n = 0;
-    const t = setInterval(() => {
-      setOwn((a) => Math.min(levels, a + 1));
-      if (++n >= levels) clearInterval(t);
-    }, tick);
-    return () => clearInterval(t);
-  }, [levels, tick, run]);
-  const at = shownAt ?? own;
+  const { levels } = playbackOf(final);
+  const { replay } = useContext(PlaybackCtx);
+  const at = shownAt ?? levels;
   const step = levelStep(p);
   const best = Math.max(0, ...final.rows.map((r) => r.tps));
   const scale = Math.max(p.target * 1.25, best + step * 2);
@@ -1229,22 +1239,9 @@ function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p
           <span className="tabular-nums">
             📈 Load test · mức {Math.min(at, levels)} · {fmt(Math.min(at, levels) * step)} TPS
           </span>
-          {done ? (
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => {
-                setOwn(0);
-                setRun((x) => x + 1);
-              }}
-            >
-              ↻ Chạy lại
-            </button>
-          ) : (
-            <button type="button" className="btn btn-sm" onClick={() => setOwn(levels)}>
-              ⏭ Tua tới cuối
-            </button>
-          )}
+          <button type="button" className="btn btn-sm" onClick={replay}>
+            ↻ Chạy lại
+          </button>
         </div>
       )}
       {final.rows.map((r) => {
@@ -1269,7 +1266,7 @@ function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p
             <span className="sx-race">
               <span className={`sx-race-bar ${dead ? "is-dead" : shown >= p.target ? "is-met" : ""}`} style={{ width: `${(shown / scale) * 100}%` }} />
               <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
-              {dead && (shownAt !== undefined || run > 0) && at - s.fail!.level < 4 && (
+              {dead && shownAt !== undefined && at - s.fail!.level < 4 && (
                 <span className="sx-race-boom" style={{ left: `${(shown / scale) * 100}%` }} aria-hidden="true">
                   💥
                 </span>
@@ -1574,7 +1571,7 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
   const missed = !!mine && mine.status !== "pass";
   // Chỉ công bố khi máy này vừa phát lại xong — sau cả vụ nổ cuối cùng (hoặc bấm bỏ qua); vào phòng / tải lại trang lúc ván đã
   // xong thì thôi.
-  const end = useEndScene(final && pb.fresh && pb.phase === "done" ? g!.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI, cheer: winners.length > 0 && !missed });
+  const end = useEndScene(final && pb.fresh && pb.phase === "done" ? `${g!.round}:${pb.run}` : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI, cheer: winners.length > 0 && !missed });
   if (!g) return null;
   if (count > 0)
     return (
