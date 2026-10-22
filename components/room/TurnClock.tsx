@@ -7,6 +7,12 @@ import { useEffect, useState } from "react";
 /** Còn chừng này giây thì đồng hồ chuyển đỏ và nhấp nháy. */
 const HURRY_S = 5;
 
+/** Cao của `TimeBar` kể cả lề dưới (8px + `mb-3`): lúc trình chiếu bàn vuông phải chừa chỗ này để không tràn khung. */
+export const TIME_BAR_H = 20;
+/** `fit` / `center` cho `StageArea` của bàn vuông có thể kèm `TimeBar` phía trên. */
+export const SQUARE_FIT = "w-[min(100cqw,var(--stage-center))]";
+export const squareCenter = (timed: boolean) => (timed ? `100cqh - ${TIME_BAR_H}px` : "100cqh");
+
 export const shortTurn = (t: number) => (!t ? "∞" : t < 60 ? `${t}s` : `${t / 60}p`);
 
 /** Mili-giây còn lại tới `deadline` (0 là không giới hạn), cập nhật vài lần mỗi giây. */

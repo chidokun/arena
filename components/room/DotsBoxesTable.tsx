@@ -13,7 +13,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { shortTurn, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
+import { shortTurn, SQUARE_FIT, squareCenter, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<DotsView>, "chat">;
@@ -57,6 +57,7 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
   const staged = useStaged();
   const deadline = live && !count ? g!.deadline : 0;
   const left = useTimeLeft(deadline);
+  const timed = live && g!.limit > 0;
 
   const slots = showGame ? g!.lineup : Array.from({ length: m.seats }, (_, i) => view.seats[i]);
   const marks = { 1: slots[0]?.member?.avatar, 2: slots[1]?.member?.avatar };
@@ -106,13 +107,14 @@ const DotsBoxesBody = memo(function DotsBoxesBody({ session }: { session: DotsBo
       {/* Lúc trình chiếu bỏ giới hạn bề ngang (vốn để chấm, nét ở bàn nhỏ không to quá cỡ): bàn lấp ô giữa cho người xem ở xa. */}
       <StageArea
         className="mt-4"
-        fit="w-[min(100cqw,100cqh)]"
+        fit={SQUARE_FIT}
+        center={squareCenter(timed)}
         flanks={[seatCard(0, true), seatCard(1, true)]}
         tools={<Buttons view={view} session={session} />}
       >
         <div className="relative mx-auto" style={staged ? undefined : { maxWidth: boardMaxWidth(state.size) }}>
           {/* Hiện suốt ván có bấm giờ (lúc đếm ngược mở màn thì đầy) để bàn không bị đẩy xuống khi đồng hồ bắt đầu chạy. */}
-          {live && g!.limit > 0 && <TimeBar left={deadline ? left : g!.limit * 1000} total={g!.limit * 1000} tone={DB_TONE[state.turn]} />}
+          {timed && <TimeBar left={deadline ? left : g!.limit * 1000} total={g!.limit * 1000} tone={DB_TONE[state.turn]} />}
           <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
             <DotsBoxesBoard state={state} canPlay={!!g?.myTurn && !count && (!deadline || left > 0)} myMark={g?.myMark ?? 0} marks={marks} onDraw={(line) => session.draw(line)} />
           </div>

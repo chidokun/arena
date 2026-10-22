@@ -12,7 +12,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { shortTurn, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
+import { shortTurn, SQUARE_FIT, squareCenter, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "❌", "⭕"];
@@ -148,12 +148,13 @@ function Play({ session }: { session: CaroRoom }) {
   const state = useMemo(() => shown?.state ?? emptyState(size), [shown?.state, size]);
   const onPlay = useCallback((x: number, y: number) => session.move(x, y), [session]);
   const inLineup = !!g && g.myMark > 0;
+  const timed = live && g!.opts.turn > 0;
 
   return (
     <>
-      <StageArea className="relative mt-4" fit="w-[min(100cqw,100cqh)]" flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
+      <StageArea className="relative mt-4" fit={SQUARE_FIT} center={squareCenter(timed)} flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
         {/* Hiện suốt ván có bấm giờ (lúc đếm ngược mở màn thì đầy) để bàn không bị đẩy xuống khi đồng hồ bắt đầu chạy. */}
-        {live && g!.opts.turn > 0 && <TurnBar match={g!} />}
+        {timed && <TurnBar match={g!} />}
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
           <CaroBoard state={state} canPlay={!!g?.myTurn && !count} myMark={g?.myMark ?? 0} onPlay={onPlay} />
         </div>
