@@ -29,8 +29,8 @@ import type { Member, RoomState, RoomView, SeatView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
-import { CountdownCine, Crowd, DrawCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { MineBlasts } from "./MineBlast";
+import { CountdownCine, Crowd, DrawCine, LoseCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { MineBlasts, useBoomScene } from "./MineBlast";
 import { MC_TONE_NAMES, MC_TONES, MineControlBoard, type McTool } from "./MineControlBoard";
 import { PeoplePanel } from "./People";
 import { ResultCard, Standings } from "./ResultCard";
@@ -145,7 +145,16 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
   const flyers = useFlyers(session, boardRef);
   const count = useCountdown(live && g!.state.count === 0 ? g!.round : 0);
   const iWon = !!g?.result?.winners?.includes(view.me);
-  const end = useEndScene(g?.result ? g.round : 0, { delay: 900, cheer: iWon || (g?.me ?? -1) < 0, emojis: CHEERS });
+  // Đạp mìn hết mạng: nổ xong mới báo thua (ván còn tiếp) — ván hết luôn thì cảnh hết ván thay cho cảnh báo thua. Ván
+  // hết vì đạp mìn: nổ xong mới tới cảnh hết ván, thẻ kết quả và lộ bãi mìn.
+  const dead = !!g && showGame && me >= 0 && s.players[me].out === "dead";
+  const lose = useBoomScene(dead ? g!.round : 0, !g?.result);
+  const boomEnd = !!g?.result && s.events.at(-1)?.t === "boom";
+  const ended = useBoomScene(boomEnd ? g!.round : 0, false);
+  const blasting = lose.blasting || ended.blasting;
+  // Trong lúc nổ thanh trạng thái vẫn như đang chơi (chưa hiện chọn bản đồ / số mìn cho ván tới, nút Vào chơi…).
+  const held = useMemo(() => (blasting && m.status === "ended" ? { ...view, meta: { ...m, status: "playing" as const } } : view), [view, m, blasting]);
+  const end = useEndScene(g?.result && !blasting ? g.round : 0, { delay: boomEnd ? 0 : 900, cheer: iWon || (g?.me ?? -1) < 0, emojis: CHEERS });
   const players = showGame ? g!.lineup : view.seats;
   const avatars = players.map((p) => p.member?.avatar ?? "🏠");
 
@@ -190,9 +199,9 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
 
   return (
     <>
-      <ActionBar view={view} session={session} counting={count > 0} />
+      <ActionBar view={held} session={session} counting={count > 0} />
       {!staged && toolbar}
-      {m.status === "ended" && g?.result && <Result match={g} me={view.me} />}
+      {m.status === "ended" && g?.result && !blasting && <Result match={g} me={view.me} />}
 
       <StageArea
         className="mt-4"
@@ -203,12 +212,12 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
             <PlayerCards view={view} staged />
           </div>,
           <div key="b" className="sd-flank">
-            <TurnNote view={view} counting={count > 0} />
+            <TurnNote view={held} counting={count > 0} />
             {toolbar}
             {showGame && <LastAction match={g!} me={view.me} staged />}
           </div>,
         ]}
-        tools={<Buttons view={view} session={session} />}
+        tools={<Buttons view={held} session={session} />}
       >
         <div className="relative mx-auto" style={staged ? undefined : { maxWidth: s.w * 48 + 24 }}>
           <div ref={boardRef} className={`card relative ${staged ? "p-3" : "p-2 sm:p-3"}`} style={{ background: "var(--board)" }}>
@@ -218,7 +227,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
               tool={myTurn ? tool : null}
               me={me}
               valid={valid}
-              reveal={!!g?.result && showGame}
+              reveal={!!g?.result && showGame && !blasting}
               last={showGame ? last : -1}
               staged={staged}
               gridRef={gridRef}
@@ -237,6 +246,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: MineControlRoom 
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
       {g?.result && end.shown && <EndScene match={g} me={view.me} onClose={end.close} />}
+      {g && lose.shown && !g.result && <LoseScene match={g} onClose={lose.close} />}
       <Party bits={end.party} />
     </>
   );
@@ -445,7 +455,7 @@ function TurnNote({ view, counting }: { view: View; counting: boolean }) {
 function Buttons({ view, session }: { view: View; session: MineControlRoom }) {
   const g = view.game?.match;
   if (view.meta!.status !== "playing") return <SeatButtons view={view} session={session} blocked={startBlocker(view, { min: MIN_PLAYERS })} />;
-  return g && g.me >= 0 && !g.state.players[g.me]?.out ? <ResignButton label="Bỏ cuộc" onConfirm={() => session.resign()} /> : null;
+  return g && !g.result && g.me >= 0 && !g.state.players[g.me]?.out ? <ResignButton label="Bỏ cuộc" onConfirm={() => session.resign()} /> : null;
 }
 
 function playStatus(view: View, counting: boolean, left: number): { tone: string; message: React.ReactNode } {
@@ -455,7 +465,8 @@ function playStatus(view: View, counting: boolean, left: number): { tone: string
   let message: React.ReactNode;
   let tone: string = TONE.idle;
   const clock = left > 0 && left <= 15 ? <span className="ml-1 tabular-nums text-coral">⏱ {left}s</span> : null;
-  if (!g || !s || g.result || counting) message = <>💣 Chuẩn bị dò mìn…</>;
+  if (g?.result && s?.events.length) message = describe(s.events[s.events.length - 1], (k) => (g.lineup[k]?.uid === view.me ? "Bạn" : (g.lineup[k]?.member?.name ?? "Ai đó")));
+  else if (!g || !s || g.result || counting) message = <>💣 Chuẩn bị dò mìn…</>;
   else if (g.myTurn) {
     tone = TONE.turn;
     message = (
@@ -539,6 +550,20 @@ function summary(g: McMatch, me: string) {
   if (!ws.length) return { ws, title: "Hết ván", sub: why };
   const top = rows[g.lineup.findIndex((s) => s.uid === ws[0])];
   return { ws, title: ws[0] === me ? "Bạn chiến thắng!" : `${nameOf(ws[0])} chiến thắng!`, sub: `${why} · ${top?.total ?? 0} điểm, nhiều nhất bàn` };
+}
+
+function LoseScene({ match: g, onClose }: { match: McMatch; onClose: () => void }) {
+  const alive = g.state.players.filter((p) => !p.out).length;
+  return (
+    <LoseCine
+      p={g.lineup[g.me]?.member}
+      emoji="💀"
+      title="Bạn hết mạng rồi!"
+      sub={`Bị loại với ${g.state.players[g.me].score} điểm`}
+      note={`Điểm vẫn được tính nếu ván kết thúc vì hết ô / bế tắc · còn ${alive} người đang dò.`}
+      onClose={onClose}
+    />
+  );
 }
 
 function EndScene({ match: g, me, onClose }: { match: McMatch; me: string; onClose: () => void }) {

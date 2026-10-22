@@ -103,6 +103,32 @@ export function MineBlasts({
   );
 }
 
+// Đạp mìn xong mới tới cảnh / kết quả: lửa và đất đá tắt hẳn (khói còn bay nốt) rồi mới mở cảnh báo thua, chèn thẻ kết
+// quả hay lộ hết bãi mìn — chèn thẻ kết quả lúc đang nổ sẽ đẩy bàn xuống giữa vụ nổ.
+export const BOOM_PAUSE_MS = 1400;
+const LOSE_SCENE_MS = 4500;
+
+type BoomPhase = "blast" | "scene" | "done";
+
+// `key` khác 0 và mới đổi: vụ nổ đang diễn (`blasting`), xong thì tới cảnh báo thua (`shown`) nếu `scene`. Lần đầu gắn
+// (vào phòng / tải lại giữa ván) coi như đã diễn xong. Đổi pha ngay trong lúc vẽ để khung hình có kết quả mới cũng đã bị
+// giữ lại, không loé thẻ kết quả một khung.
+export function useBoomScene(key: number, scene: boolean) {
+  const [state, setState] = useState<{ key: number; phase: BoomPhase }>({ key, phase: "done" });
+  let phase = state.phase;
+  if (state.key !== key) {
+    phase = key ? "blast" : "done";
+    setState({ key, phase });
+  }
+  useEffect(() => {
+    if (phase === "done") return;
+    const next: BoomPhase = phase === "blast" && scene ? "scene" : "done";
+    const t = setTimeout(() => setState((s) => (s.key === key ? { key, phase: next } : s)), phase === "blast" ? BOOM_PAUSE_MS : LOSE_SCENE_MS);
+    return () => clearTimeout(t);
+  }, [key, phase, scene]);
+  return { blasting: phase === "blast", shown: phase === "scene", close: () => setState({ key, phase: "done" }) };
+}
+
 function jolt(el: HTMLElement | null, big: boolean) {
   if (!el) return;
   el.classList.remove("mb-quake", "mb-quake-lg");

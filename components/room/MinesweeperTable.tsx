@@ -8,8 +8,8 @@ import type { RoomView } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { MineCount } from "../MineCount";
 import { ChatPanel } from "./ChatPanel";
-import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
-import { MineBlasts } from "./MineBlast";
+import { CountdownCine, LoseCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { MineBlasts, useBoomScene } from "./MineBlast";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, Standings, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
@@ -85,9 +85,16 @@ export function MinesweeperTable({ id, slug, session }: { id: string; slug: stri
 }
 
 const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: MinesweeperRoom }) {
-  const view = useMsView(session);
+  const raw = useMsView(session);
+  const { opts, match: g } = raw.game!;
+  // Bạn đạp mìn: nổ xong mới báo thua; ván hết vì đạp mìn: nổ xong mới lộ bãi mìn và chèn thẻ kết quả (lúc đó cảnh báo
+  // thua đang che, bàn có bị đẩy xuống cũng không thấy giật).
+  const lose = useBoomScene(g && g.me >= 0 && g.view.fate[g.me] === "boom" ? g.round : 0, true);
+  const ended = useBoomScene(g?.result?.reason === "boom" ? g.round : 0, false);
+  const blasting = lose.blasting || ended.blasting;
+  // Trong lúc nổ phòng vẫn hiện như đang chơi (thanh trạng thái, nút, luật ván tới…): phòng sang "hết ván" sau vụ nổ.
+  const view = useMemo(() => (blasting && raw.meta!.status === "ended" ? { ...raw, meta: { ...raw.meta!, status: "playing" as const } } : raw), [raw, blasting]);
   const m = view.meta!;
-  const { opts, match: g } = view.game!;
   const areaRef = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, areaRef);
   const live = isLive(view);
@@ -117,7 +124,7 @@ const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: Mi
 
       <ActionBar view={view} session={session} />
       {!live && <Rules view={view} session={session} />}
-      {g?.result && <ResultCard view={view} match={g} />}
+      {g?.result && !blasting && <ResultCard view={view} match={g} />}
 
       <StageArea
         fit="w-[min(100cqw,var(--stage-center))]"
@@ -131,13 +138,14 @@ const MinesweeperBody = memo(function MinesweeperBody({ session }: { session: Mi
         tools={<Buttons view={view} session={session} />}
       >
         <div ref={areaRef} className={staged ? "relative" : "relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]"}>
-          {g ? <Play key={g.round} view={view} session={session} match={g} slot={slot} /> : <EmptyBoard view={view} />}
+          {g ? <Play key={g.round} view={view} session={session} match={g} blasting={blasting} slot={slot} /> : <EmptyBoard view={view} />}
           {g && !staged && <Scoreboard view={view} match={g} />}
           <Flyers flyers={flyers} />
         </div>
       </StageArea>
 
       {g && <Cinema match={g} count={count} win={end.shown} onClose={end.close} />}
+      {g && lose.shown && !end.shown && <LoseScene match={g} onClose={lose.close} />}
       <Party bits={end.party} />
     </>
   );
@@ -179,6 +187,21 @@ function Cinema({ match: g, count, win, onClose }: { match: MsMatch; count: numb
         {g.lineup.length > 1 && solve ? "người trụ lại cuối cùng" : `${g.mines} mìn`}
       </p>
     </WinCine>
+  );
+}
+
+function LoseScene({ match: g, onClose }: { match: MsMatch; onClose: () => void }) {
+  const s = g.view;
+  const solo = g.lineup.length === 1;
+  const alive = aliveOf(s).length;
+  return (
+    <LoseCine
+      p={g.lineup[g.me]?.member}
+      title="Bạn đạp mìn rồi!"
+      sub={solo || s.over ? `Còn ${s.left} ô an toàn chưa mở${g.time != null ? ` · ${clock(g.time)}` : ""}` : `Bị loại với ${s.score[g.me]} ô`}
+      note={!s.over && alive > 0 ? `Còn ${alive} người đang trụ — ở lại xem mọi người gỡ nốt nhé.` : undefined}
+      onClose={onClose}
+    />
   );
 }
 
@@ -235,7 +258,7 @@ function ActionBar({ view, session }: { view: View; session: MinesweeperRoom }) 
 // Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
 function Buttons({ view, session }: { view: View; session: MinesweeperRoom }) {
   const m = view.meta!;
-  if (isLive(view) && view.game!.match) return view.isHost ? <StopButton onConfirm={() => session.stop()} /> : null;
+  if (isLive(view) && view.game!.match) return view.isHost && !view.game!.match.result ? <StopButton onConfirm={() => session.stop()} /> : null;
   const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return <SeatButtons view={view} session={session} blocked={blocked} />;
 }
@@ -378,7 +401,8 @@ function Grid({
   );
 }
 
-function Play({ view, session, match: g, slot }: { view: View; session: MinesweeperRoom; match: MsMatch; slot: HTMLElement | null }) {
+// `blasting`: vừa đạp mìn — chờ nổ xong mới lộ cả bãi mìn.
+function Play({ view, session, match: g, blasting, slot }: { view: View; session: MinesweeperRoom; match: MsMatch; blasting: boolean; slot: HTMLElement | null }) {
   const live = isLive(view);
   const player = g.me >= 0;
   // Bàn chỉ cần biết đã lộ chưa — vẽ lại một lần lúc lộ bàn; đồng hồ ván chạy riêng trong <Elapsed>.
@@ -437,7 +461,7 @@ function Play({ view, session, match: g, slot }: { view: View; session: Mineswee
           layout={g.layout}
           flags={g.flags}
           hide={counting}
-          reveal={!live || s.over}
+          reveal={(!live || s.over) && !blasting}
           canPlay={canPlay}
           flagMode={flagMode}
           staged={staged}

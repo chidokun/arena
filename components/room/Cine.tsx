@@ -246,6 +246,37 @@ export function WinCine({
   );
 }
 
+export function LoseCine({
+  p,
+  title,
+  sub,
+  note,
+  emoji = "💥",
+  children,
+  onClose,
+}: {
+  p?: Member;
+  title: ReactNode;
+  sub?: ReactNode;
+  note?: ReactNode;
+  emoji?: string;
+  children?: ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <Cine tone="red" label="Thua cuộc" onClose={onClose}>
+      <span className="cine-trophy cine-lose-emoji" aria-hidden="true">
+        {emoji}
+      </span>
+      {p && <Face p={p} size={84} className="cine-lose-avatar" />}
+      <p className="cine-title !text-[34px] sm:!text-[42px]">{title}</p>
+      {sub && <p className="text-[17px] font-bold opacity-90">{sub}</p>}
+      {children}
+      {note && <p className="cine-next">{note}</p>}
+    </Cine>
+  );
+}
+
 export type DrawPerson = { uid: string; p?: Member; ring?: string };
 
 export function DrawCine({ people, title, sub, emoji = "🤝", onClose }: { people: DrawPerson[]; title: ReactNode; sub?: ReactNode; emoji?: string; onClose: () => void }) {
