@@ -262,6 +262,19 @@
     box-shadow: none;
     transform: none;
   }
+  /* Nút đang chờ người chơi bấm (cả bàn chờ, hoặc ván không đi tiếp được) nhún nhảy để người chơi để ý.
+     Mỗi màn hình chỉ một nút; nút tắt thì đứng yên. */
+  .btn-nudge:not(:disabled) {
+    animation: btn-nudge 1.6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite;
+  }
+  .btn-nudge:hover {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-nudge:not(:disabled) {
+      animation: none;
+    }
+  }
 
   .chip {
     display: inline-flex;
@@ -3374,18 +3387,6 @@
     pointer-events: none;
     animation: sx-race-boom 900ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
   }
-  /* Nút xác nhận đọc đề nhún nhảy để người chơi để ý. */
-  .sx-bounce {
-    animation: sx-bounce 1.6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite;
-  }
-  .sx-bounce:hover {
-    animation-play-state: paused;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .sx-bounce {
-      animation: none;
-    }
-  }
   .sx-run {
     position: relative;
   }
@@ -5146,6 +5147,22 @@
     opacity: 0;
   }
 }
+@keyframes btn-nudge {
+  0%,
+  42%,
+  100% {
+    transform: translateY(0);
+  }
+  12% {
+    transform: translateY(-9px);
+  }
+  24% {
+    transform: translateY(0);
+  }
+  32% {
+    transform: translateY(-4px);
+  }
+}
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -5220,22 +5237,6 @@
   from {
     opacity: 0;
     transform: scale(0.85);
-  }
-}
-@keyframes sx-bounce {
-  0%,
-  42%,
-  100% {
-    transform: translateY(0);
-  }
-  12% {
-    transform: translateY(-9px);
-  }
-  24% {
-    transform: translateY(0);
-  }
-  32% {
-    transform: translateY(-4px);
   }
 }
 @keyframes sx-fade-in {

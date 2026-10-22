@@ -31,6 +31,7 @@ import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { nudgeStart } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<UcView>, "chat">;
@@ -407,12 +408,18 @@ function ReadyBar({ view, session }: { view: View; session: UndercoverRoom }) {
             Huỷ sẵn sàng
           </button>
         ) : (
-          <button type="button" className="btn btn-lime" onClick={() => session.setReady(true)} disabled={!!view.pending || m.players.length >= MAX_PLAYERS}>
+          <button type="button" className="btn btn-lime btn-nudge" onClick={() => session.setReady(true)} disabled={!!view.pending || m.players.length >= MAX_PLAYERS}>
             🙋 Sẵn sàng
           </button>
         )}
         {view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!!blocker} title={blocker}>
+          <button
+            type="button"
+            className={`btn btn-pen ${nudgeStart(m.players.length, !!blocker, g.opts.hostPlays && !me.ready) ? "btn-nudge" : ""}`}
+            onClick={() => session.start()}
+            disabled={!!blocker}
+            title={blocker}
+          >
             {m.round ? "🔁 Ván mới" : "▶ Bắt đầu"}
           </button>
         )}
@@ -535,7 +542,7 @@ function ActionCard({
         <>
           <button
             type="button"
-            className="btn btn-coral"
+            className="btn btn-coral btn-nudge"
             onClick={() => {
               session.vote(selected);
               clear();
@@ -660,7 +667,7 @@ function GuessForm({ session }: { session: UndercoverRoom }) {
         autoComplete="off"
         autoFocus
       />
-      <ConfirmButton className="btn btn-sun" onConfirm={() => text.trim() && session.guess(text)} confirmLabel="Chắc chưa? Bấm lần nữa">
+      <ConfirmButton className={`btn btn-sun ${text.trim() ? "btn-nudge" : ""}`} onConfirm={() => text.trim() && session.guess(text)} confirmLabel="Chắc chưa? Bấm lần nữa">
         🎯 Đoán
       </ConfirmButton>
     </form>
@@ -928,7 +935,7 @@ function DealScene({ view, session, close }: { view: View; session: UndercoverRo
           return (
             <li key={uid} className={`ww-card ${open ? "is-flipped" : ""} ${me ? "is-me" : ""}`} style={{ animationDelay: `${i * 90}ms` }}>
               {me && !all ? (
-                <button type="button" className="block h-full w-full" onClick={flip} aria-label={mine ? "Lá bài của bạn" : "Lật lá bài của bạn"}>
+                <button type="button" className={`block h-full w-full ${mine ? "" : "btn-nudge"}`} onClick={flip} aria-label={mine ? "Lá bài của bạn" : "Lật lá bài của bạn"}>
                   {card}
                 </button>
               ) : (

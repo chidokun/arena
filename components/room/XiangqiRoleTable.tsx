@@ -387,7 +387,7 @@ function TurnPanel({
           </ul>
         )}
         {isClaim && match.canClaim && (
-          <button type="button" className="btn btn-pen mt-3 w-full" onClick={() => session.claim()}>
+          <button type="button" className="btn btn-pen btn-nudge mt-3 w-full" onClick={() => session.claim()}>
             CLAIM TURN
           </button>
         )}

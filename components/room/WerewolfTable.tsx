@@ -29,6 +29,7 @@ import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { PeoplePanel } from "./People";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { nudgeStart } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<WolfView>, "chat">;
@@ -513,12 +514,18 @@ function ReadyBar({ view, session }: { view: View; session: WerewolfRoom }) {
             Huỷ sẵn sàng
           </button>
         ) : (
-          <button type="button" className="btn btn-lime" onClick={() => session.setReady(true)} disabled={!!view.pending || m.players.length >= MAX_PLAYERS}>
+          <button type="button" className="btn btn-lime btn-nudge" onClick={() => session.setReady(true)} disabled={!!view.pending || m.players.length >= MAX_PLAYERS}>
             🙋 Sẵn sàng
           </button>
         )}
         {view.isHost && (
-          <button type="button" className="btn btn-pen" onClick={() => session.start()} disabled={!!blocker} title={blocker}>
+          <button
+            type="button"
+            className={`btn btn-pen ${nudgeStart(m.players.length, !!blocker, g.opts.hostPlays && !me.ready) ? "btn-nudge" : ""}`}
+            onClick={() => session.start()}
+            disabled={!!blocker}
+            title={blocker}
+          >
             {m.round ? "🔁 Ván mới" : "▶ Bắt đầu"}
           </button>
         )}
@@ -675,7 +682,7 @@ function ActionCard({
   const chosen = pick?.chosen[0] ? nameMid(view, pick.chosen[0]) : null;
   const done = isDone(g);
   const confirm = (label: string, ok: boolean) => (
-    <button type="button" className="btn btn-pen" onClick={() => session.confirm()} disabled={!ok}>
+    <button type="button" className="btn btn-pen btn-nudge" onClick={() => session.confirm()} disabled={!ok}>
       ✅ {label}
     </button>
   );
@@ -865,7 +872,7 @@ function ActionCard({
             )}
             <button
               type="button"
-              className="btn btn-pen"
+              className="btn btn-pen btn-nudge"
               onClick={() => {
                 setPoisoning(false);
                 session.confirm();

@@ -299,7 +299,7 @@ function ActionBar({ view, session }: { view: View; session: SystemDesignRoom })
 
 function ReadButton({ session, big }: { session: SystemDesignRoom; big?: boolean }) {
   return (
-    <button type="button" className={`btn btn-lime sx-bounce ${big ? "h-12 px-6 text-base" : ""}`} onClick={() => session.markRead()}>
+    <button type="button" className={`btn btn-lime btn-nudge ${big ? "h-12 px-6 text-base" : ""}`} onClick={() => session.markRead()}>
       ✅ Xác nhận đã đọc kỹ đề
     </button>
   );

@@ -594,7 +594,7 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
         </ul>
         <button
           type="button"
-          className="btn btn-lime h-12 text-base"
+          className="btn btn-lime btn-nudge h-12 text-base"
           disabled={!done || sending}
           onClick={() => {
             setSending(true);

@@ -390,7 +390,7 @@ function Buttons({ view, session }: { view: View; session: ChessRoom }) {
     const iOffer = g.offers.includes(g.mySide);
     return (
       <>
-        <button type="button" className={`btn ${theyOffer ? "btn-lime" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
+        <button type="button" className={`btn ${theyOffer ? "btn-lime btn-nudge" : ""}`} onClick={() => session.offerDraw()} disabled={iOffer}>
           🤝 {theyOffer ? "Đồng ý hoà" : iOffer ? "Đã xin hoà" : "Xin hoà"}
         </button>
         <ResignButton onConfirm={() => session.resign()} />

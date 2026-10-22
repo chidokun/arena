@@ -476,7 +476,7 @@ function ActionBar({ view, session, onAim, canAim, busy }: { view: View; session
   return (
     <StatusBar stack tone={tone} message={message}>
       {canAim && (
-        <button type="button" className="btn btn-sun" onClick={onAim}>
+        <button type="button" className="btn btn-sun btn-nudge" onClick={onAim}>
           🎯 Chọi đá
         </button>
       )}

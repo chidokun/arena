@@ -65,10 +65,11 @@ export function SeatButtons({
 }) {
   const m = view.meta!;
   const seated = view.mySeat >= 0;
+  const joinable = !seated && !isFull(view);
   return (
     <>
-      {!seated && !isFull(view) && (
-        <button type="button" className="btn btn-lime" onClick={() => session.join()} disabled={view.pending === "play"}>
+      {joinable && (
+        <button type="button" className="btn btn-lime btn-nudge" onClick={() => session.join()} disabled={view.pending === "play"}>
           {joinLabel}
         </button>
       )}
@@ -80,7 +81,7 @@ export function SeatButtons({
       {view.isHost && (
         <button
           type="button"
-          className="btn btn-pen"
+          className={`btn btn-pen ${nudgeStart(m.players.length, !!blocked, joinable) ? "btn-nudge" : ""}`}
           onClick={() => {
             onStart?.();
             session.start();
@@ -93,6 +94,11 @@ export function SeatButtons({
       )}
     </>
   );
+}
+
+/** Chủ phòng có thể bắt đầu và đã có người chờ: nút Bắt đầu nhún — nhường cho nút vào ghế nếu nó còn hiện, và không nhún khi chỉ một mình. */
+export function nudgeStart(players: number, blocked: boolean, joinable = false): boolean {
+  return !blocked && !joinable && players >= 2;
 }
 
 export function ResignButton({ onConfirm, label = "Xin thua" }: { onConfirm: () => void; label?: string }) {

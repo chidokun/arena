@@ -12,7 +12,7 @@ import { LotoSheet, SheetDots, sheetStyle } from "./LotoSheet";
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
-import { StatusBar, StopButton, TONE } from "./StatusBar";
+import { nudgeStart, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useConfetti, useInView, useVoice } from "./useLoto";
 import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -419,7 +419,7 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
         </button>
       )}
       {!playing && !view.isHost && g.mine.length > 0 && !me.ready && (
-        <button type="button" className="btn btn-lime" onClick={() => session.setReady(true)} disabled={me.waiting}>
+        <button type="button" className="btn btn-lime btn-nudge" onClick={() => session.setReady(true)} disabled={me.waiting}>
           🙋 Sẵn sàng
         </button>
       )}
@@ -431,7 +431,7 @@ function ActionBar({ view, session, voice }: { view: View; session: LotoRoom; vo
       {!playing && view.isHost && (
         <button
           type="button"
-          className="btn btn-pen"
+          className={`btn btn-pen ${nudgeStart(m.players.length, !canStart) ? "btn-nudge" : ""}`}
           onClick={() => {
             voice.announce("Bắt đầu!");
             session.start();
