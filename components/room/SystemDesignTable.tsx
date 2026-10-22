@@ -60,11 +60,11 @@ import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, LoseCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard, StoppedCard } from "./ResultCard";
-import { RoomHeader, RoomLayout } from "./RoomLayout";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { StageArea, useStaged } from "./stage";
 import { SxCanvas, type Balloon, type Blast, type Fx, type Heat, type Sel } from "./SxCanvas";
-import { shallowEqual, useGame, usePeople, useRoomState } from "./useRoom";
+import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<SxView>, "chat">;
 
@@ -134,6 +134,7 @@ const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, 
 
 export function SystemDesignTable({ id, slug, session }: { id: string; slug: string; session: SystemDesignRoom }) {
   const head = useRoomState(session, headOf, shallowEqual);
+  const areaRef = useRef<HTMLDivElement>(null);
   const live = useSxLive(session);
   const chips = useGame(
     session,
@@ -155,11 +156,28 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
         {/* Trình chiếu: thanh trạng thái (kèm nút xác nhận đọc đề / bắt đầu…) lên đầu, phần thân cuộn được; lúc chạy tải thì
             bàn chạy tải tự xếp vừa một màn hình. */}
         <StageArea scroll fit="w-full max-w-[1240px]" head={<ActionPart session={session} />}>
-          <BodyPart session={session} />
+          <div ref={areaRef} className="relative">
+            <BodyPart session={session} />
+            <FlyersPart session={session} areaRef={areaRef} />
+          </div>
         </StageArea>
         <CinemaPart session={session} />
       </PlaybackHost>
     </RoomLayout>
+  );
+}
+
+// Thân bàn dài hơn một màn hình (đề, sơ đồ, danh mục…): lớp sticker bám theo khung đang nhìn thay vì rải khắp chiều cao,
+// để sticker không bay ở đoạn đã cuộn qua. Tách riêng để sticker bay không làm cả bàn vẽ lại.
+function FlyersPart({ session, areaRef }: { session: SystemDesignRoom; areaRef: React.RefObject<HTMLDivElement | null> }) {
+  const flyers = useFlyers(session, areaRef);
+  if (!flyers.length) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30" aria-hidden="true">
+      <div className="sticky top-0 h-[min(100svh,100%)]">
+        <Flyers flyers={flyers} />
+      </div>
+    </div>
   );
 }
 
