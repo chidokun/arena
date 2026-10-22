@@ -181,13 +181,13 @@ export function answerShot(fleet: readonly Ship[], prior: readonly number[], c: 
   return { c, r: 2, k: ship.k, at: ship.at, o: ship.o };
 }
 
-// `passes[j]` là số phát bắn đã có lúc một người mất lượt vì hết giờ (tăng dần, lặp lại được khi mất lượt liên tiếp).
 // `kinds[i]` là các loại tàu bên i đã công bố: khai chìm loại khác là sai, chìm đủ thì bên kia thắng.
+// `passes[j]` là số phát bắn đã có lúc một người mất lượt vì hết giờ (tăng dần, lặp lại được khi mất lượt liên tiếp).
 export function replay(
   log: readonly Shot[],
   opts: Pick<BsOptions, "chain">,
+  kinds: readonly [readonly number[], readonly number[]],
   passes: readonly number[] = [],
-  kinds: readonly [readonly number[], readonly number[]] = [CLASSIC, CLASSIC],
 ): BsState {
   const s: BsState = {
     shots: [],

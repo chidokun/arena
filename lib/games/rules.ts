@@ -608,7 +608,7 @@ export const RULES: Record<string, GameRules> = {
           "Tàu thẳng: Tàu sân bay (5 ô), Thiết giáp hạm (4), Tuần dương hạm (3), Tàu ngầm (3), Khu trục hạm (2).",
           "Tàu hình đặc biệt: Pháo đài nổi (dấu cộng, 5 ô), Tàu đổ bộ (chữ L, 4), Tàu tàng hình (3 ô nằm chéo), Tàu hộ tống (chữ T, 4), Tàu quét mìn (chữ Z, 4), Tàu hai thân (hai thân 2 ô cách nhau một cột).",
           "Tàu xoay được 4 hướng, tàu chữ L và chữ Z lật được; không chồng lên nhau, không tràn ra ngoài hải đồ. Có thể bấm bày ngẫu nhiên cho nhanh.",
-          "Khi bấm Sẵn sàng, đối thủ được biết bạn chọn những loại tàu nào (để biết phải đánh chìm bao nhiêu tàu), nhưng không biết vị trí.",
+          "Trong ván, hải đồ chỉ hiện số tàu còn lại của mỗi bên. Tàu nào chìm thì lộ loại và vị trí của tàu đó; hết ván mới hiện đủ đội hình hai bên.",
         ],
       },
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { CELLS, colName, coord, FLEET, orients, shapeOf, shipCells, SIZE, type Ship } from "@/lib/games/battleship";
 
 const C = 40;
@@ -83,35 +83,50 @@ function linksOf(cells: [number, number][]) {
   return out;
 }
 
-// Tàu hình đặc biệt: các khoang vuông nối bằng cổ. Vẽ ba lớp (viền, nền biển, màu thân) để màu thân trong suốt không
-// chồng lên nhau ở chỗ nối; vì thế viền không đứt nét được như tàu thẳng. Viền lấn 1,25px ra ngoài và 1,25px vào trong
-// khoang, dày 2,5px như nét viền tàu thẳng.
+// Tàu hình đặc biệt: các khoang vuông nối bằng cổ. Màu thân tô một lần qua clipPath (hợp các mảnh) nên màu trong suốt
+// không đậm lên ở chỗ chồng. Viền là nét của từng mảnh, che phần nằm lọt trong thân (mask là thân co vào nửa nét) để chỉ
+// còn đường bao ngoài — đứt nét được như tàu thẳng, dày 2,5px nằm giữa mép thân.
 function BlockHull({ ship, tone, fresh }: ShipDraw) {
+  const id = `bs-${useId().replace(/[^\w-]/g, "")}`;
   const shape = shapeOf(ship.k, ship.o);
   if (!shape) return null;
   const x0 = left(ship.at) + C / 2;
   const y0 = top(ship.at) + C / 2;
   const links = linksOf(shape.cells);
   const h = HULL[tone];
-  const layer = (pad: number, fill: string, className?: string, opacity?: number) => (
-    <g className={className} fill={fill} stroke={fill} opacity={opacity}>
-      {links.map(([ax, ay, bx, by], i) => (
-        <line key={i} x1={x0 + ax * C} y1={y0 + ay * C} x2={x0 + bx * C} y2={y0 + by * C} strokeWidth={NECK + pad * 2} />
-      ))}
+  const box = { x: left(ship.at), y: top(ship.at), width: shape.w * C, height: shape.h * C };
+  const pieces = (pad: number) => (
+    <>
+      {links.map(([ax, ay, bx, by], i) => {
+        const x1 = x0 + ax * C;
+        const y1 = y0 + ay * C;
+        const len = Math.hypot(bx - ax, by - ay) * C;
+        const deg = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+        const half = NECK / 2 + pad;
+        return <rect key={`n${i}`} x={x1} y={y1 - half} width={len} height={half * 2} transform={`rotate(${deg} ${x1} ${y1})`} />;
+      })}
       {shape.cells.map(([x, y], i) => (
-        <rect key={i} x={x0 + x * C - POD / 2 - pad} y={y0 + y * C - POD / 2 - pad} width={POD + pad * 2} height={POD + pad * 2} rx={9 + pad} strokeWidth={0} />
+        <rect key={`p${i}`} x={x0 + x * C - POD / 2 - pad} y={y0 + y * C - POD / 2 - pad} width={POD + pad * 2} height={POD + pad * 2} rx={9 + pad} />
       ))}
-    </g>
+    </>
   );
   return (
     <g opacity={h.opacity} pointerEvents="none">
+      <defs>
+        <clipPath id={`${id}-body`}>{pieces(0)}</clipPath>
+        <mask id={`${id}-rim`} maskUnits="userSpaceOnUse" x={box.x} y={box.y} width={box.width} height={box.height}>
+          <rect {...box} fill="white" />
+          <g fill="black">{pieces(-1.25)}</g>
+        </mask>
+      </defs>
       <g className={fresh ? "bs-sink" : undefined}>
-        {layer(1.25, h.stroke)}
-        {h.fill !== "transparent" && layer(-1.25, SEA)}
-        {layer(-1.25, h.fill === "transparent" ? SEA : h.fill)}
+        {h.fill !== "transparent" && <rect {...box} clipPath={`url(#${id}-body)`} fill={h.fill} />}
         {(tone === "steel" || tone === "sunk") &&
           shape.cells.map(([x, y], i) => <circle key={i} cx={x0 + x * C} cy={y0 + y * C} r={4} fill="color-mix(in srgb, var(--edge) 30%, transparent)" />)}
-        {tone === "sunk" && layer(-1.25, FLOOD, fresh ? "bs-flood" : undefined, 0.6)}
+        {tone === "sunk" && <rect {...box} className={fresh ? "bs-flood" : undefined} clipPath={`url(#${id}-body)`} fill={FLOOD} opacity={0.6} />}
+        <g mask={`url(#${id}-rim)`} fill="none" stroke={h.stroke} strokeWidth={2.5} strokeDasharray={h.dash}>
+          {pieces(0)}
+        </g>
       </g>
     </g>
   );

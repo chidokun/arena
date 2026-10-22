@@ -28,6 +28,7 @@ import {
 const at = (x: number, y: number) => y * SIZE + x;
 
 const ROWS: Fleet = [0, 2, 4, 6, 8].map((y, k) => ({ k, at: at(0, y), o: 0 }));
+const BOTH = [CLASSIC, CLASSIC] as const;
 const ROWS_CELLS = ROWS.reduce((n, s) => n + shipCells(s)!.length, 0);
 
 function play(fleets: [Fleet, Fleet], targets: [number[], number[]], chain: boolean) {
@@ -35,7 +36,7 @@ function play(fleets: [Fleet, Fleet], targets: [number[], number[]], chain: bool
   const next = [0, 0];
   const kinds = [kindsOf(fleets[0]), kindsOf(fleets[1])] as [number[], number[]];
   for (let guard = 0; guard < 400; guard++) {
-    const s = replay(log, { chain }, [], kinds);
+    const s = replay(log, { chain }, kinds);
     if (s.winner >= 0) return s;
     const foe = 1 - s.turn;
     const c = targets[s.turn][next[s.turn]++];
@@ -151,34 +152,34 @@ test("trả lời trúng / trượt / chìm kèm vị trí tàu", () => {
 
 test("trúng được bắn tiếp, trượt thì đổi lượt", () => {
   const log: Shot[] = [{ c: at(0, 0), r: 1 }];
-  assert.equal(replay(log, { chain: true }).turn, 0);
-  assert.equal(replay(log, { chain: false }).turn, 1);
+  assert.equal(replay(log, { chain: true }, BOTH).turn, 0);
+  assert.equal(replay(log, { chain: false }, BOTH).turn, 1);
   log.push({ c: at(9, 9), r: 0 });
-  assert.equal(replay(log, { chain: true }).turn, 1);
+  assert.equal(replay(log, { chain: true }, BOTH).turn, 1);
 });
 
 test("phát chờ trả lời chỉ được ở cuối nhật ký", () => {
-  const s = replay([{ c: 3, r: 0 }, { c: 7 }], { chain: true });
+  const s = replay([{ c: 3, r: 0 }, { c: 7 }], { chain: true }, BOTH);
   assert.equal(s.pending, 7);
   assert.equal(s.turn, 1);
-  assert.equal(replay([{ c: 3 }, { c: 7, r: 0 }], { chain: true }).shots.length, 0);
+  assert.equal(replay([{ c: 3 }, { c: 7, r: 0 }], { chain: true }, BOTH).shots.length, 0);
 });
 
 test("bắn ô đã bắn hoặc ngoài hải đồ thì dừng", () => {
   const opts = { chain: true };
-  assert.equal(replay([{ c: 3, r: 1 }, { c: 3, r: 1 }], opts).shots.length, 1);
-  assert.equal(replay([{ c: 100, r: 0 }], opts).shots.length, 0);
-  assert.equal(replay([{ c: 1.5, r: 0 }], opts).shots.length, 0);
+  assert.equal(replay([{ c: 3, r: 1 }, { c: 3, r: 1 }], opts, BOTH).shots.length, 1);
+  assert.equal(replay([{ c: 100, r: 0 }], opts, BOTH).shots.length, 0);
+  assert.equal(replay([{ c: 1.5, r: 0 }], opts, BOTH).shots.length, 0);
   // Đổi lượt rồi thì bắn lại ô đó trên hải đồ bên kia vẫn được.
-  assert.equal(replay([{ c: 3, r: 0 }, { c: 3, r: 0 }], opts).shots.length, 2);
+  assert.equal(replay([{ c: 3, r: 0 }, { c: 3, r: 0 }], opts, BOTH).shots.length, 2);
 });
 
 test("khai chìm sai thì dừng", () => {
   const opts = { chain: true };
   // Khu trục hạm (2 ô) mới trúng một ô mà đã khai chìm.
-  assert.equal(replay([{ c: at(0, 8), r: 2, k: 4, at: at(0, 8), o: 0 }], opts).shots.length, 0);
+  assert.equal(replay([{ c: at(0, 8), r: 2, k: 4, at: at(0, 8), o: 0 }], opts, BOTH).shots.length, 0);
   // Ô vừa bắn không thuộc tàu khai chìm.
-  assert.equal(replay([{ c: at(0, 8), r: 1 }, { c: at(5, 5), r: 2, k: 4, at: at(0, 8), o: 1 }], opts).shots.length, 1);
+  assert.equal(replay([{ c: at(0, 8), r: 1 }, { c: at(5, 5), r: 2, k: 4, at: at(0, 8), o: 1 }], opts, BOTH).shots.length, 1);
   // Khai chìm cùng một tàu hai lần.
   const twice: Shot[] = [
     { c: at(0, 8), r: 1 },
@@ -186,11 +187,11 @@ test("khai chìm sai thì dừng", () => {
     { c: at(0, 9), r: 1 },
     { c: at(1, 9), r: 2, k: 4, at: at(0, 9), o: 0 },
   ];
-  assert.equal(replay(twice, opts).shots.length, 3);
+  assert.equal(replay(twice, opts, BOTH).shots.length, 3);
   // Khai chìm loại tàu bên bị bắn không chọn.
   const sunk: Shot[] = [{ c: at(0, 8), r: 1 }, { c: at(1, 8), r: 2, k: 4, at: at(0, 8), o: 0 }];
-  assert.equal(replay(sunk, opts, [], [CLASSIC, CLASSIC]).shots.length, 2);
-  assert.equal(replay(sunk, opts, [], [CLASSIC, [0, 5]]).shots.length, 1);
+  assert.equal(replay(sunk, opts, [CLASSIC, CLASSIC]).shots.length, 2);
+  assert.equal(replay(sunk, opts, [CLASSIC, [0, 5]]).shots.length, 1);
 });
 
 test("bắn chìm hết hạm đội thì thắng, nhật ký sau đó bị bỏ qua", () => {
@@ -225,6 +226,19 @@ test("hai bên chọn hạm đội khác nhau: chìm đủ số tàu bên kia đ
     [5, 6, 10],
   );
   assert.ok(honest(big, shotsAt(t, 0)));
+});
+
+test("chìm tàu loại mới giữa ván thì vẫn bắn tiếp được", () => {
+  const fleet: Fleet = [
+    { k: 2, at: at(0, 0), o: 0 },
+    { k: 7, at: at(5, 5), o: 0 },
+  ];
+  const log: Shot[] = [at(5, 5), at(6, 6), at(7, 7)].map((c, i, all) => answerShot(fleet, all.slice(0, i), c));
+  assert.equal(log[2].r, 2);
+  const s = replay([...log, { c: at(9, 0) }], { chain: true }, [CLASSIC, kindsOf(fleet)]);
+  assert.equal(s.sunk[1].length, 1);
+  assert.equal(s.winner, -1);
+  assert.equal(s.pending, at(9, 0));
 });
 
 test("không bắn tiếp: hai bên thay phiên tới khi một bên chìm hết", () => {
@@ -279,25 +293,25 @@ test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời g
 test("hết giờ thì mất lượt: chuyển bên bắn, phát bắn trễ của người mất lượt bị bỏ", () => {
   const chain = { chain: true };
   // Hết giờ trước phát đầu: bên 1 bắn trước.
-  let s = replay([], chain, [0]);
+  let s = replay([], chain, BOTH, [0]);
   assert.equal(s.turn, 1);
   assert.equal(s.passed, 0);
   // Bên 0 trúng (vẫn giữ lượt) rồi hết giờ: sang bên 1; bên 1 cũng hết giờ: về lại bên 0.
   const hit = answerShot(ROWS, [], at(0, 0));
-  s = replay([{ ...hit, p: 0 }], chain, [1]);
+  s = replay([{ ...hit, p: 0 }], chain, BOTH, [1]);
   assert.equal(s.turn, 1);
-  s = replay([{ ...hit, p: 0 }], chain, [1, 1]);
+  s = replay([{ ...hit, p: 0 }], chain, BOTH, [1, 1]);
   assert.equal(s.turn, 0);
   assert.equal(s.passed, 1);
   // Có phát bắn mới thì không còn là diễn biến mới nhất.
-  s = replay([{ ...hit, p: 0 }, { c: at(5, 5), r: 0, p: 1 }], chain, [1]);
+  s = replay([{ ...hit, p: 0 }, { c: at(5, 5), r: 0, p: 1 }], chain, BOTH, [1]);
   assert.equal(s.passed, -1);
   assert.equal(s.turn, 0);
   // Bên 0 bắn trễ ngay lúc chủ phòng chuyển lượt: phát đó không tính, cũng không thành câu trả lời.
-  s = replay([{ c: at(3, 3), p: 0 }], chain, [0]);
+  s = replay([{ c: at(3, 3), p: 0 }], chain, BOTH, [0]);
   assert.equal(s.pending, -1);
   assert.equal(s.shots.length, 0);
   assert.equal(s.turn, 1);
-  s = replay([{ c: at(3, 3), r: 0, p: 0 }], chain, [0]);
+  s = replay([{ c: at(3, 3), r: 0, p: 0 }], chain, BOTH, [0]);
   assert.equal(s.shots.length, 0);
 });

@@ -131,9 +131,11 @@ export class BattleshipRoom extends RoomSession<BsView> {
   }
 
   private gameOf(m: Meta) {
-    const kinds = m.lineup.map((u) => this.kindsIn(m, u));
-    const ready = m.lineup.length === 2 && kinds.every(Boolean);
-    const state = ready ? replay(this.logOf(m), this.rulesOf(m), this.passesOf(m), kinds as [number[], number[]]) : replay([], this.rulesOf(m));
+    const found = m.lineup.map((u) => this.kindsIn(m, u));
+    const ready = m.lineup.length === 2 && found.every(Boolean);
+    // Mọi lần dựng lại ván phải dùng đúng loại tàu hai bên đã chọn: thiếu là khai chìm tàu loại mới bị coi là sai.
+    const kinds = (ready ? found : [[], []]) as [number[], number[]];
+    const state = replay(ready ? this.logOf(m) : [], this.rulesOf(m), kinds, ready ? this.passesOf(m) : []);
     let result: Result | undefined;
     if (state.winner >= 0) result = { round: m.round, winner: m.lineup[state.winner], loser: m.lineup[1 - state.winner], reason: "sunk" };
     else {
@@ -141,7 +143,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
       if (quitter) result = { round: m.round, winner: m.lineup.find((u) => u !== quitter) ?? null, loser: quitter, reason: "resign" };
       else if (m.result?.round === m.round) result = m.result;
     }
-    return { ready, state, result };
+    return { ready, kinds, state, result };
   }
 
   protected begin(m: Meta) {
@@ -355,7 +357,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
     if (!m || !cur?.myTurn || (cur.deadline && Date.now() >= cur.deadline)) return;
     const g = this.gameOf(m);
     const next = [...this.logOf(m).slice(0, g.state.shots.length), { c, p: g.state.turn }];
-    if (replay(next, this.rulesOf(m), this.passesOf(m)).pending !== c) return;
+    if (replay(next, this.rulesOf(m), g.kinds, this.passesOf(m)).pending !== c) return;
     this.gossip.set(`g:${m.round}`, { shots: next });
     this.react();
   }

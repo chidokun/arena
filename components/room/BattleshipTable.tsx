@@ -450,7 +450,8 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
             </div>
           </div>
           <div className={fit ? "bs-fit-info" : undefined}>
-            <FleetList side={side} />
+            {/* Đang chơi chỉ hiện số tàu còn lại; đội hình hai bên chỉ lộ khi hết ván. */}
+            {ended && <FleetList side={side} />}
             {ended && <Honesty side={side} />}
           </div>
         </div>
@@ -722,7 +723,7 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
             <>Chọn ít nhất {MIN_SHIPS} tàu để bày.</>
           ) : (
             <>
-              Đối thủ chỉ biết bạn chọn những tàu nào, không biết vị trí. Bấm Sẵn sàng là chốt: máy bạn giữ sơ đồ và chỉ gửi đi <b>mã niêm phong</b> (SHA-256). Hết ván sơ đồ
+              Trong ván đối thủ chỉ thấy bạn có bao nhiêu tàu; loại tàu và vị trí lộ ra khi tàu chìm hoặc hết ván. Bấm Sẵn sàng là chốt: máy bạn giữ sơ đồ và chỉ gửi đi <b>mã niêm phong</b> (SHA-256). Hết ván sơ đồ
               được công bố để mọi người đối chiếu.
             </>
           )}
