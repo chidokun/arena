@@ -17,13 +17,16 @@ const QUIT_MS = 20000;
 // Hết giờ thì máy ai nấy tự chốt; chủ phòng chờ thêm chút (lệch đồng hồ, tin còn trên đường) rồi mới chốt hộ.
 const GRACE_MS = 5000;
 const SAVE_MS = 600;
+// Mọi người đã đọc đề: cảnh chuẩn bị thiết kế đếm ngược chừng này rồi mới mở bàn.
+export const PREP_MS = 3000;
 
-// Bản nháp của từng người (`m:<ván>:<uid>`, chỉ chủ nhân ghi được); `lock` là lúc chốt, `auto` là máy tự chốt khi hết giờ.
-type Draft = { d?: unknown; lock?: number; auto?: boolean };
+// Bản nháp của từng người (`m:<ván>:<uid>`, chỉ chủ nhân ghi được); `read` là lúc xác nhận đã đọc đề, `lock` là lúc chốt,
+// `auto` là máy tự chốt khi hết giờ.
+type Draft = { d?: unknown; read?: number; lock?: number; auto?: boolean };
 // Thiết kế đã chốt do chủ phòng ghi nhận (`g:<ván>`): đã chốt thì không đổi được nữa, kể cả khi bản nháp đổi sau đó.
 type Board = { d: Record<string, unknown>; auto: string[]; out: string[] };
 
-export type SxSeat = { seat: SeatView; locked: boolean; out: boolean; auto: boolean };
+export type SxSeat = { seat: SeatView; read: boolean; locked: boolean; out: boolean; auto: boolean };
 
 export type SxFinal = { designs: Record<string, Design>; rows: Standing[] };
 
@@ -42,6 +45,9 @@ export function playbackOf(final: SxFinal) {
 export type SxMatch = {
   round: number;
   problem: Problem;
+  // Lúc lộ đề cho mọi người đọc (sau cảnh bắt đầu ván).
+  readAt: number;
+  // Lúc mở bàn thiết kế; 0 = còn đang chờ mọi người xác nhận đã đọc đề.
   opensAt: number;
   // 0 = không giới hạn.
   endsAt: number;
@@ -61,6 +67,8 @@ export class SystemDesignRoom extends RoomSession<SxView> {
   private mine: { round: number; d: Design; lock: boolean; auto?: boolean } | null = null;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private opened = { round: -1, at: 0 };
+  private readOpen = { round: -1, at: 0 };
+  private readRound = -1;
   private ranked: { key: string; final: SxFinal } | null = null;
   private sawLive = -1;
   private play = { round: -1, at: 0 };
@@ -100,18 +108,32 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     return final;
   }
 
+  // Mốc theo đồng hồ chủ phòng; máy chậm / nhanh giờ thì đếm ngược tối đa `ms` kể từ lúc máy này thấy mốc.
+  private local(at: number, ms: number) {
+    const now = Date.now();
+    return at <= now ? at : now + Math.min(ms, at - now);
+  }
+
+  private readAt(m: Meta) {
+    if (this.readOpen.round !== m.round) this.readOpen = { round: m.round, at: this.local(m.sx!.t0, COUNTDOWN_MS) };
+    return this.readOpen.at;
+  }
+
   private opensAt(m: Meta) {
-    if (this.opened.round !== m.round) {
-      const now = Date.now();
-      const t0 = m.sx!.t0;
-      this.opened = { round: m.round, at: t0 <= now ? t0 : now + Math.min(COUNTDOWN_MS, t0 - now) };
-    }
+    const go = m.sx!.go;
+    if (!go) return 0;
+    if (this.opened.round !== m.round) this.opened = { round: m.round, at: this.local(go, PREP_MS) };
     return this.opened.at;
   }
 
   private endsAt(m: Meta) {
     const t = m.sx!.p.time;
-    return t ? this.opensAt(m) + t * 1000 : 0;
+    const open = this.opensAt(m);
+    return t && open ? open + t * 1000 : 0;
+  }
+
+  private hasRead(m: Meta, uid: string) {
+    return !!m.sx?.read?.includes(uid) || (uid === this.me && this.readRound === m.round) || !!this.draftOf(m, uid)?.read;
   }
 
   protected tidy(m: Meta) {
@@ -127,8 +149,7 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     const lineup = m.players.filter((u) => this.isOnline(u));
     if (!lineup.length || !m.sxq) return false;
     m.lineup = lineup;
-    const t0 = Date.now() + COUNTDOWN_MS;
-    m.sx = { p: m.sxq, t0, end: m.sxq.time ? t0 + m.sxq.time * 1000 : 0 };
+    m.sx = { p: m.sxq, t0: Date.now() + COUNTDOWN_MS, end: 0, read: [] };
     return true;
   }
 
@@ -149,7 +170,7 @@ export class SystemDesignRoom extends RoomSession<SxView> {
       if (u in b.d || b.out.includes(u)) continue;
       const draft = this.draftOf(m, u);
       if (this.cheated(m, u) || m.kicked.includes(u)) b.out.push(u);
-      else if (draft?.lock) {
+      else if (draft?.lock && sx.go) {
         b.d[u] = normDesign(draft.d, sx.p);
         if (draft.auto) b.auto.push(u);
       } else if (u !== this.me && this.silentFor(u) >= QUIT_MS) b.out.push(u);
@@ -160,6 +181,15 @@ export class SystemDesignRoom extends RoomSession<SxView> {
       dirty = true;
     }
     if (dirty) this.gossip.set(`g:${m.round}`, b);
+    if (sx.go) return;
+    // Ghi nhận ai đã xác nhận đọc đề; người còn trong ván đều xác nhận thì mở cảnh chuẩn bị rồi bàn thiết kế.
+    const read = m.lineup.filter((u) => !b.out.includes(u) && this.hasRead(m, u));
+    if (read.length !== (sx.read ?? []).length) sx.read = read;
+    const left = m.lineup.filter((u) => !b.out.includes(u) && !this.cheated(m, u));
+    if (left.length && left.every((u) => read.includes(u))) {
+      sx.go = now + PREP_MS;
+      sx.end = sx.p.time ? sx.go + sx.p.time * 1000 : 0;
+    }
   }
 
   protected watch(m: Meta) {
@@ -226,9 +256,10 @@ export class SystemDesignRoom extends RoomSession<SxView> {
       match: {
         round: m.round,
         problem: sx.p,
+        readAt: this.readAt(m),
         opensAt: this.opensAt(m),
         endsAt: this.endsAt(m),
-        lineup: m.lineup.map((u) => ({ seat: seatOf(u), locked: u in b.d || (u === this.me && locked), out: b.out.includes(u) || this.cheated(m, u), auto: b.auto.includes(u) })),
+        lineup: m.lineup.map((u) => ({ seat: seatOf(u), read: this.hasRead(m, u), locked: u in b.d || (u === this.me && locked), out: b.out.includes(u) || this.cheated(m, u), auto: b.auto.includes(u) })),
         me,
         locked,
         final,
@@ -254,7 +285,8 @@ export class SystemDesignRoom extends RoomSession<SxView> {
   }
 
   private canEdit(m: Meta | undefined): m is Meta {
-    return !!m?.sx && m.status === "playing" && m.lineup.includes(this.me) && !this.lockedIn(m) && Date.now() >= this.opensAt(m);
+    const open = m?.sx ? this.opensAt(m) : 0;
+    return !!m?.sx && m.status === "playing" && m.lineup.includes(this.me) && !this.lockedIn(m) && !!open && Date.now() >= open;
   }
 
   edit(d: Design) {
@@ -274,9 +306,19 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     this.gossip.set(`m:${m.round}:${this.me}`, mine.lock ? { d: mine.d, lock: Date.now(), ...(mine.auto ? { auto: true } : {}) } : { d: mine.d });
   }
 
+  /** Xác nhận đã đọc kỹ đề; mọi người xác nhận xong thì chủ phòng mới mở bàn thiết kế. */
+  markRead() {
+    const m = this.meta();
+    if (!m?.sx || m.status !== "playing" || !m.lineup.includes(this.me) || m.sx.go || this.hasRead(m, this.me)) return;
+    this.readRound = m.round;
+    this.gossip.set(`m:${m.round}:${this.me}`, { ...(this.draftOf(m, this.me) ?? {}), read: Date.now() });
+    this.gameStore.invalidate();
+    this.react();
+  }
+
   lock(auto = false) {
     const m = this.meta();
-    if (!m?.sx || m.status !== "playing" || !m.lineup.includes(this.me) || this.lockedIn(m)) return;
+    if (!m?.sx?.go || m.status !== "playing" || !m.lineup.includes(this.me) || this.lockedIn(m)) return;
     this.mine = { round: m.round, d: this.mine?.round === m.round ? this.mine.d : this.myDesign(), lock: true, auto };
     this.save();
     this.gameStore.invalidate();

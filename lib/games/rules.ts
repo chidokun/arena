@@ -18,6 +18,8 @@ export const RULES: Record<string, GameRules> = {
           "Chủ phòng soạn đề trước mỗi ván (hoặc bấm tự sinh): tiêu đề, mô tả, thời gian thiết kế (2 phút, 5 phút hoặc không giới hạn), component được dùng, các luồng nghiệp vụ, sự cố, traffic mục tiêu và budget tối đa.",
           "Mỗi luồng nghiệp vụ có loại request, tỷ lệ trong tổng traffic (cộng lại đúng 100%) và điều kiện hoàn thành — có thể bắt buộc đi qua API Gateway, CDN hoặc Cache.",
           "Mọi người nhận cùng đề, cùng bảng thông số component và cùng kịch bản giả lập; đề giữ nguyên suốt ván.",
+          "Ván mở đầu bằng bước đọc đề: màn hình chỉ có đề, ai cũng phải bấm “Xác nhận đã đọc kỹ đề”. Đủ mọi người thì sau 3 giây chuẩn bị bàn thiết kế mới mở và đồng hồ thiết kế mới bắt đầu chạy.",
+          "Người xem thấy đề và trạng thái từng người chơi; thiết kế chỉ lộ khi chạy tải — người xem được xem ngẫu nhiên một thiết kế, rồi kết quả của tất cả.",
         ],
       },
       {

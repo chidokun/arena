@@ -53,7 +53,7 @@ import {
   type Standing,
 } from "@/lib/games/system-design";
 import type { RoomState, RoomView } from "@/lib/net/room";
-import { playbackOf, type SxFinal, type SxMatch, type SxView, type SystemDesignRoom } from "@/lib/net/system-design-room";
+import { playbackOf, PREP_MS, type SxFinal, type SxMatch, type SxSeat, type SxView, type SystemDesignRoom } from "@/lib/net/system-design-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
@@ -218,15 +218,35 @@ const ActionPart = memo(function ActionPart({ session }: { session: SystemDesign
 function ActionBar({ view, session }: { view: View; session: SystemDesignRoom }) {
   const g = view.game?.match;
   const live = isLive(view);
-  const opened = useReached(g?.opensAt);
+  const shown = useReached(g?.readAt);
+  const opened = useReached(g?.opensAt || undefined);
   if (live && g) {
     const done = g.lineup.filter((s) => s.locked || s.out).length;
+    const read = g.lineup.filter((s) => s.read && !s.out).length;
     const n = g.lineup.length;
+    const players = g.lineup.filter((s) => !s.out).length;
     let tone: string = TONE.turn;
     let message: React.ReactNode;
-    if (!opened) {
+    let action: React.ReactNode = null;
+    if (!shown) {
       tone = TONE.hot;
       message = <>⏳ Chuẩn bị… đề lộ sau vài giây!</>;
+    } else if (!g.opensAt) {
+      const mine = g.lineup[g.me];
+      if (mine && !mine.read) {
+        message = (
+          <>
+            📖 Đọc kỹ đề rồi bấm xác nhận — bàn thiết kế mở khi mọi người đã đọc xong ({read}/{players}).
+          </>
+        );
+        action = <ReadButton session={session} />;
+      } else {
+        tone = mine ? TONE.info : TONE.idle;
+        message = mine ? <>✅ Bạn đã xác nhận đọc đề. Chờ mọi người đọc xong ({read}/{players})…</> : <>👀 Mọi người đang đọc đề — {read}/{players} đã xác nhận.</>;
+      }
+    } else if (!opened) {
+      tone = TONE.hot;
+      message = <>⏳ Mọi người đã đọc đề — chuẩn bị thiết kế!</>;
     } else if (g.me >= 0 && !g.locked)
       message = (
         <>
@@ -258,6 +278,7 @@ function ActionBar({ view, session }: { view: View; session: SystemDesignRoom })
     }
     return (
       <StatusBar tone={tone} message={message}>
+        {action}
         {view.isHost && <StopButton onConfirm={() => session.stop()} />}
       </StatusBar>
     );
@@ -271,6 +292,14 @@ function ActionBar({ view, session }: { view: View; session: SystemDesignRoom })
   );
 }
 
+function ReadButton({ session, big }: { session: SystemDesignRoom; big?: boolean }) {
+  return (
+    <button type="button" className={`btn btn-lime sx-bounce ${big ? "h-12 px-6 text-base" : ""}`} onClick={() => session.markRead()}>
+      ✅ Xác nhận đã đọc kỹ đề
+    </button>
+  );
+}
+
 function Countdown({ until }: { until: number }) {
   const now = useNow(true, 500);
   if (!now) return <b>…</b>;
@@ -278,14 +307,14 @@ function Countdown({ until }: { until: number }) {
   return <b className={`tabular-nums ${left < 30000 ? "text-coral" : ""}`}>{clock(left)}</b>;
 }
 
-type Stage = "idle" | "design" | "locked" | "watch" | "result" | "tally" | "stopped";
+type Stage = "idle" | "read" | "design" | "locked" | "watch" | "result" | "tally" | "stopped";
 
 const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom }) {
   const live = useSxLive(session);
   const stage = useGame(session, (v): Stage => {
     const g = v?.match;
     if (!g) return "idle";
-    if (live) return g.me < 0 ? "watch" : g.locked ? "locked" : "design";
+    if (live) return g.me < 0 ? "watch" : !g.opensAt ? "read" : g.locked ? "locked" : "design";
     if (g.result?.reason === "stop") return "stopped";
     if (g.final) return "result";
     return g.result ? "tally" : "idle";
@@ -294,6 +323,14 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
   const pb = useContext(PlaybackCtx);
   const running = pb.phase !== "done";
   if (stage === "design") return <DesignPart key={round} session={session} />;
+  if (stage === "read")
+    return (
+      <>
+        <ReadPart session={session} />
+        <ProgressPart session={session} />
+        <CatalogPart session={session} />
+      </>
+    );
   if (stage === "result" && running) return <RunPart key={`${round}:${pb.run}`} session={session} />;
   if (stage === "locked" || stage === "watch")
     return (
@@ -1113,21 +1150,55 @@ const MinePart = memo(function MinePart({ session }: { session: SystemDesignRoom
   );
 });
 
+// Bước đọc đề: màn hình chỉ có đề và nút xác nhận; mọi người xác nhận xong mới mở bàn thiết kế.
+const ReadPart = memo(function ReadPart({ session }: { session: SystemDesignRoom }) {
+  const g = useGame(session, (v) => v?.match);
+  const shown = useReached(g?.readAt);
+  if (!g) return null;
+  const mine = g.lineup[g.me];
+  const players = g.lineup.filter((s) => !s.out);
+  const read = players.filter((s) => s.read).length;
+  return (
+    <section className="card mt-4 grid gap-4 p-4 sm:p-5" aria-label="Đọc đề">
+      <ProblemCard p={g.problem} title="📋 Đề ván này — đọc kỹ trước khi thiết kế" />
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sunken p-3 sm:p-4">
+        <p className="text-[14px] font-semibold text-ink-2">
+          {mine?.read ? "✅ Bạn đã xác nhận — chờ mọi người đọc xong." : "Đọc xong đề, luồng nghiệp vụ, sự cố và luật chạy tải thì xác nhận."}{" "}
+          <b className="text-ink tabular-nums">
+            {read}/{players.length}
+          </b>{" "}
+          người đã đọc kỹ đề.
+        </p>
+        {mine && !mine.read && shown && <ReadButton session={session} big />}
+      </div>
+    </section>
+  );
+});
+
 const ProgressPart = memo(function ProgressPart({ session }: { session: SystemDesignRoom }) {
   const view = useSxView(session);
   const g = view.game?.match;
   if (!g) return null;
+  const reading = !g.opensAt;
+  const status = (s: SxSeat) =>
+    s.out
+      ? { text: "🚪 Bị loại", cls: "bg-coral-soft" }
+      : reading
+        ? s.read
+          ? { text: "✅ Đã đọc kỹ đề", cls: "bg-lime-soft" }
+          : { text: "📖 Đang đọc đề", cls: "bg-sunken" }
+        : s.locked
+          ? { text: "🔒 Đã chốt", cls: "bg-lime-soft" }
+          : { text: "✏️ Đang thiết kế", cls: "bg-sunken" };
   return (
     <section className="card mt-4 p-4 sm:p-5" aria-label="Tiến độ">
-      <h2 className="font-display text-lg font-extrabold">👥 Ai đã chốt</h2>
+      <h2 className="font-display text-lg font-extrabold">👥 Người chơi {reading ? "đọc đề" : "thiết kế"}</h2>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {g.lineup.map((s) => (
           <li key={s.seat.uid} className="flex min-w-0 items-center gap-2.5">
             {s.seat.member ? <Avatar p={s.seat.member} size={30} className={s.seat.online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[30px] w-[30px] bg-sunken" />}
             <b className="min-w-0 flex-1 truncate text-[14px]">{nameIn(view, s.seat.uid)}</b>
-            <span className={`rounded-lg px-2 py-0.5 text-[12.5px] font-bold ${s.out ? "bg-coral-soft" : s.locked ? "bg-lime-soft" : "bg-sunken"}`}>
-              {s.out ? "🚪 Bị loại" : s.locked ? "🔒 Đã chốt" : "✏️ Đang thiết kế"}
-            </span>
+            <span className={`rounded-lg px-2 py-0.5 text-[12.5px] font-bold ${status(s).cls}`}>{status(s).text}</span>
           </li>
         ))}
       </ul>
@@ -1292,6 +1363,8 @@ const RunPart = memo(function RunPart({ session }: { session: SystemDesignRoom }
 
 // Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, gục thì báo nguyên nhân.
 // Mặc định xem thiết kế của mình (người xem thì của người đứng đầu); bấm thanh tải của ai để xem sơ đồ người đó.
+const luck = (key: string) => [...key].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
+
 const centerOf = (d: Design, id: number) => {
   const b = id === USERS_ID ? USERS_POS : d.nodes.find((n) => n.id === id);
   return b ? { x: b.x + NODE.w / 2, y: b.y + NODE.h / 2 } : null;
@@ -1339,7 +1412,8 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
   const step = levelStep(p);
   const { tick } = playbackOf(final);
   const people = final.rows.filter((r) => final.designs[r.uid]);
-  const [pick, setPick] = useState(() => (final.designs[view.me] ? view.me : (people[0]?.uid ?? "")));
+  // Người chơi xem thiết kế của mình; khách xem ngẫu nhiên một người (mỗi khách một người, theo uid và ván).
+  const [pick, setPick] = useState(() => (final.designs[view.me] ? view.me : (people[luck(`${view.me}:${g.round}`) % Math.max(1, people.length)]?.uid ?? "")));
   const row = final.rows.find((r) => r.uid === pick);
   const design = final.designs[pick];
   const sim = row?.sim;
@@ -1564,7 +1638,10 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
   const g = useGame(session, (v) => v?.match);
   const me = useRoomState(session, (r) => r.me);
   const pb = useContext(PlaybackCtx);
-  const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
+  // Cảnh bắt đầu ván (đếm tới lúc lộ đề) và cảnh chuẩn bị thiết kế (mọi người đã đọc đề, đếm tới lúc mở bàn). Vào phòng / tải
+  // lại trang giữa lúc đếm thì vẫn đếm nốt phần còn lại.
+  const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.readAt, ms: COUNTDOWN_MS, onMount: true });
+  const prep = useCountdown(live && g?.opensAt ? `prep:${g.round}` : 0, { endsAt: g?.opensAt, ms: PREP_MS, onMount: true });
   const final = g?.final;
   const winners = final ? final.rows.filter((r) => r.rank === 1) : [];
   const mine = final?.rows.find((r) => r.uid === me);
@@ -1575,7 +1652,17 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
   if (!g) return null;
   if (count > 0)
     return (
-      <CountdownCine eyebrow={`🏗️ ${g.problem.title}`} n={count} title="Dựng hệ thống chịu tải tốt nhất trong budget!" tip={`🎯 ${fmt(g.problem.target)} TPS · 💰 ${fmt(g.problem.budget)} · ⏱ ${timeLabel(g.problem.time)}`} />
+      <CountdownCine eyebrow={`🏗️ Ván ${g.round} · ${g.problem.title}`} n={count} title="Đọc kỹ đề trước khi thiết kế!" tip="Mọi người xác nhận đã đọc kỹ đề thì bàn thiết kế mới mở." />
+    );
+  if (prep > 0)
+    return (
+      <CountdownCine
+        tone="grape"
+        eyebrow="✅ Mọi người đã đọc kỹ đề"
+        n={prep}
+        title="Chuẩn bị thiết kế!"
+        tip={`🎯 ${fmt(g.problem.target)} TPS · 💰 ${fmt(g.problem.budget)} · ⏱ ${timeLabel(g.problem.time)}`}
+      />
     );
   if (pb.phase === "intro" && final)
     return (

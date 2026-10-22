@@ -230,8 +230,9 @@ export type Problem = {
   incidents: Incident[];
 };
 
-// Đề của ván đang chơi; `end` = 0 là không giới hạn thời gian thiết kế.
-export type SxRound = { p: Problem; t0: number; end: number };
+// Đề của ván đang chơi. Từ `t0` mọi người đọc đề và xác nhận (`read`); đủ cả thì chủ phòng đặt `go` — lúc mở bàn thiết kế
+// sau cảnh chuẩn bị — và hạn chốt `end` (0 = không giới hạn thời gian thiết kế).
+export type SxRound = { p: Problem; t0: number; end: number; read?: string[]; go?: number };
 
 export type Node = { id: number; k: Kind; v: number; x: number; y: number };
 export type Design = { nodes: Node[]; edges: [number, number][] };
