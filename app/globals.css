@@ -6204,6 +6204,15 @@
 .bob {
   animation: bob 3.2s ease-in-out infinite;
 }
+@keyframes sd-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.sd-flow {
+  stroke-dasharray: 6 4;
+  animation: sd-flow 0.8s linear infinite;
+}
 .net-pop {
   position: absolute;
   top: calc(100% + 10px);

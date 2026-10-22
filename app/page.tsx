@@ -25,6 +25,7 @@ export default async function Home() {
     <>
       <HeroCarousel
         slides={[
+          { label: "Thiết kế hệ thống", content: <SystemDesignSlide /> },
           { label: "Đấu trường mini", content: <ArenaSlide /> },
           { label: "Kho game", content: <GamesSlide games={games} /> },
           { label: "Lịch sử đấu", content: <HistorySlide /> },
@@ -85,6 +86,102 @@ function ArenaSlide() {
         </div>
       </div>
       <HeroArt />
+    </div>
+  );
+}
+
+function SystemDesignSlide() {
+  return (
+    <div className={SLIDE}>
+      <div>
+        <p className="chip bg-surface" style={{ color: "var(--grape)" }}>
+          🏗️ Game mới · Thiết kế hệ thống
+        </p>
+        <h2 className={SLIDE_TITLE}>
+          Trò chơi <span className="text-pen">Thiết kế hệ thống</span> chịu tải cùng bạn bè
+        </h2>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Cùng một đề bài, bạn sẽ cùng bạn bè thiết kế hệ thống chịu tải lớn sử dụng các thành phần Load Balancer, Cache, Database, Queue…
+          Hệ thống của ai chịu được nhiều TPS nhất trong budget sẽ chiến thắng.
+        </p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/games/system-design/" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Thử thiết kế ngay →
+          </Link>
+          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+            Xem các game
+          </Link>
+        </div>
+      </div>
+      <SystemDesignArt />
+    </div>
+  );
+}
+
+const SD_NODES = [
+  { id: "users", emoji: "👥", label: "Users", x: 160, y: 26 },
+  { id: "lb", emoji: "⚖️", label: "LB", x: 160, y: 88 },
+  { id: "app1", emoji: "🖥️", label: "App", x: 85, y: 150 },
+  { id: "app2", emoji: "🖥️", label: "App", x: 235, y: 150 },
+  { id: "cache", emoji: "⚡", label: "Cache", x: 85, y: 212 },
+  { id: "db", emoji: "🗄️", label: "DB", x: 235, y: 212 },
+] as const;
+
+const SD_EDGES = [
+  ["users", "lb"],
+  ["lb", "app1"],
+  ["lb", "app2"],
+  ["app1", "cache"],
+  ["app2", "cache"],
+  ["app1", "db"],
+  ["app2", "db"],
+] as const;
+
+function SystemDesignArt() {
+  const at = (id: string) => SD_NODES.find((n) => n.id === id)!;
+  return (
+    <div className="relative mx-auto w-full max-w-[460px]" aria-hidden="true">
+      <div className="card -rotate-2 p-5" style={{ boxShadow: "0 8px 0 var(--edge)" }}>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-display text-xl font-extrabold">📋 Đề: Mạng xã hội</p>
+          <span className="chip bg-surface" style={{ color: "var(--grape)" }}>
+            ⏱ 05:00
+          </span>
+        </div>
+        <svg viewBox="0 0 320 240" className="mt-3 block w-full rounded-2xl border-2 border-edge bg-sunken">
+          {SD_EDGES.map(([a, b]) => {
+            const p = at(a);
+            const q = at(b);
+            return <line key={a + b} className="sd-flow" x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="var(--pen)" strokeWidth="2.5" strokeLinecap="round" />;
+          })}
+          {SD_NODES.map((n) => (
+            <g key={n.id}>
+              <rect x={n.x - 44} y={n.y - 17} width={88} height={34} rx={10} fill="var(--surface)" stroke="var(--edge)" strokeWidth="2" />
+              <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize="14" fontWeight="800" fill="var(--ink)">
+                {n.emoji} {n.label}
+              </text>
+            </g>
+          ))}
+        </svg>
+        <div className="mt-4">
+          <div className="flex items-baseline justify-between text-[15px] font-bold">
+            <span>📈 Load test</span>
+            <span className="font-display text-xl font-extrabold tabular-nums" style={{ color: "var(--lime)" }}>
+              12.400 TPS
+            </span>
+          </div>
+          <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-edge bg-surface">
+            <div className="h-full w-[78%]" style={{ background: "var(--lime)" }} />
+          </div>
+          <p className="mt-1.5 text-[13px] text-ink-3">Budget 180 · Đã dùng 142 · Vượt quality gate ✓</p>
+        </div>
+      </div>
+      <span className="bob absolute -top-12 -right-6" style={{ ["--r" as string]: "10deg" }}>
+        <StickerArt id="kx-dang-cap" size={70} />
+      </span>
+      <span className="bob absolute -right-5 -bottom-8" style={{ ["--r" as string]: "-12deg", animationDelay: "-1.4s" }}>
+        <StickerArt id="clap" size={58} />
+      </span>
     </div>
   );
 }
