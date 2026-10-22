@@ -27,6 +27,17 @@ export type SxSeat = { seat: SeatView; locked: boolean; out: boolean; auto: bool
 
 export type SxFinal = { designs: Record<string, Design>; rows: Standing[] };
 
+// Mọi người chốt xong thì cả phòng xem load test chạy lại trên sơ đồ trước khi lộ kết quả: đếm ngược `intro`, mỗi mức tải
+// `tick`, dừng ở mức cuối `hold` rồi mới công bố. Tốc độ theo số mức của thiết kế trụ lâu nhất để ván nào cũng chạy ~8 giây.
+export const PLAY_INTRO_MS = 3000;
+const PLAY_HOLD_MS = 900;
+
+export function playbackOf(final: SxFinal) {
+  const levels = Math.max(1, ...final.rows.map((r) => r.sim?.levels.length ?? 0));
+  const tick = Math.min(320, Math.max(110, Math.round(8000 / levels)));
+  return { intro: PLAY_INTRO_MS, levels, tick, total: PLAY_INTRO_MS + levels * tick + PLAY_HOLD_MS };
+}
+
 export type SxMatch = {
   round: number;
   problem: Problem;
@@ -37,6 +48,8 @@ export type SxMatch = {
   me: number;
   locked: boolean;
   final?: SxFinal;
+  // Lúc máy này bắt đầu phát lại load test; 0 = vào phòng / tải lại trang khi ván đã xong — xem kết quả luôn.
+  playAt: number;
   result?: Result;
 };
 
@@ -48,6 +61,9 @@ export class SystemDesignRoom extends RoomSession<SxView> {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private opened = { round: -1, at: 0 };
   private ranked: { key: string; final: SxFinal } | null = null;
+  private sawLive = -1;
+  private play = { round: -1, at: 0 };
+  private told = -1;
 
   private board(m: Meta): Board {
     const b = this.gossip.get<Partial<Board>>(`g:${m.round}`);
@@ -145,11 +161,39 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     if (dirty) this.gossip.set(`g:${m.round}`, b);
   }
 
-  // Hết giờ thì tự chốt thiết kế đang có, kể cả khi bàn chơi không mở.
   protected watch(m: Meta) {
+    if (m.status === "playing") this.sawLive = m.round;
+    this.tellVerdict(m);
+    // Hết giờ thì tự chốt thiết kế đang có, kể cả khi bàn chơi không mở.
     if (m.status !== "playing" || !m.sx || !m.lineup.includes(this.me) || this.lockedIn(m)) return;
     const end = this.endsAt(m);
     if (end && Date.now() >= end) this.lock(true);
+  }
+
+  // Máy này chứng kiến ván đang chơi rồi mới xong thì phát lại load test; vào giữa chừng / tải lại trang thì thôi.
+  private playAt(m: Meta) {
+    if (this.play.round !== m.round) this.play = { round: m.round, at: this.sawLive === m.round ? Date.now() : 0 };
+    return this.play.at;
+  }
+
+  // Câu báo người thắng đợi phát lại load test xong mới lên khung chat, để không lộ kết quả trước. Id cố định theo ván:
+  // tải lại trang (chat khôi phục từ snapshot) không báo lặp.
+  private tellVerdict(m: Meta) {
+    const r = m.result;
+    if (m.status !== "ended" || !m.sx || r?.round !== m.round || r.reason === "stop" || this.told === m.round) return;
+    const b = this.board(m);
+    if (!this.complete(m, b)) return;
+    const at = this.playAt(m);
+    if (at && Date.now() < at + playbackOf(this.final(m, b)).total) return;
+    this.told = m.round;
+    const w = r.winners ?? [];
+    const name = (u: string) => this.nameOf(u);
+    const text = !w.length
+      ? `📉 Ván ${r.round}: không thiết kế nào vượt quality gate — không ai thắng`
+      : w.length > 1
+        ? `🤝 ${w.map(name).join(", ")} đồng hạng nhất ván ${r.round}`
+        : `🏆 ${name(w[0])} có thiết kế tốt nhất — thắng ván ${r.round}!`;
+    this.pushChat({ id: `sx-verdict:${m.round}`, uid: "", name: "", avatar: "", color: "", at: Date.now(), text, system: true });
   }
 
   protected stopped() {
@@ -174,6 +218,8 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     const me = m.lineup.indexOf(this.me);
     const locked = me >= 0 && this.lockedIn(m);
     const ended = m.status === "ended" && m.result?.round === m.round;
+    if (m.status === "playing") this.sawLive = m.round;
+    const final = ended && this.complete(m, b) ? this.final(m, b) : undefined;
     return {
       problem,
       match: {
@@ -184,17 +230,17 @@ export class SystemDesignRoom extends RoomSession<SxView> {
         lineup: m.lineup.map((u) => ({ seat: seatOf(u), locked: u in b.d || (u === this.me && locked), out: b.out.includes(u) || this.cheated(m, u), auto: b.auto.includes(u) })),
         me,
         locked,
-        final: ended && this.complete(m, b) ? this.final(m, b) : undefined,
+        final,
+        playAt: final && m.result?.reason !== "stop" ? this.playAt(m) : 0,
         result: ended ? m.result : undefined,
       },
     };
   }
 
-  protected resultText(r: Result, name: (uid: string) => string) {
+  // Lúc ván vừa xong chỉ báo bắt đầu chạy tải; ai thắng thì `tellVerdict` báo sau khi phát lại xong.
+  protected resultText(r: Result) {
     if (r.reason === "stop") return `Ván ${r.round} dừng giữa chừng`;
-    const w = r.winners ?? [];
-    if (!w.length) return `Ván ${r.round}: không thiết kế nào vượt quality gate — không ai thắng`;
-    return w.length > 1 ? `${w.map(name).join(", ")} đồng hạng nhất ván ${r.round}` : `${name(w[0])} có thiết kế tốt nhất — thắng ván ${r.round}!`;
+    return `🔒 Ván ${r.round}: mọi người đã chốt thiết kế — bắt đầu chạy tải!`;
   }
 
   /** Thiết kế đang làm dở của mình (để bàn chơi dựng lại sau khi tải trang). */

@@ -84,7 +84,8 @@ export const RULES: Record<string, GameRules> = {
         items: [
           "Đạt khi cùng lúc: TPS tối đa ≥ traffic mục tiêu và tổng chi phí ≤ budget tối đa.",
           "Trong các thiết kế đạt: TPS cao hơn đứng trên; bằng TPS thì chi phí thấp hơn đứng trên; bằng cả hai thì đồng hạng. Ai đứng đầu thắng — không ai đạt thì ván không có người thắng.",
-          "Hết ván, mọi người xem lại load test, bảng kết quả, mức tải và nguyên nhân gục của từng thiết kế, cùng một thiết kế tham khảo do máy dựng.",
+          "Mọi người chốt xong thì cả phòng cùng xem load test chạy trên sơ đồ: tải từng component tăng theo mức, traffic chạy trên đường nối, ai gục ở đâu hiện ngay — chạy xong mới công bố người thắng.",
+          "Sau đó xem lại bảng kết quả, mức tải và nguyên nhân gục của từng thiết kế, cùng một thiết kế tham khảo do máy dựng.",
         ],
       },
     ],

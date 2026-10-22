@@ -3277,6 +3277,66 @@
     stroke-width: 2.5;
     stroke-dasharray: 6 4;
   }
+  /* Phát lại load test: chấm sáng chạy dọc đường nối như request đang đi qua. */
+  .sx-edge-flow {
+    fill: none;
+    stroke: var(--surface);
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 14;
+    animation: sx-flow 1s linear infinite;
+    pointer-events: none;
+  }
+  .sx-canvas.is-live .sx-node.is-hot .sx-node-box,
+  .sx-canvas.is-live .sx-node.is-over .sx-node-box {
+    animation: sx-strain 260ms ease-in-out infinite alternate;
+  }
+  .sx-canvas.is-live .sx-node.is-fail .sx-node-box {
+    animation: sx-alarm 900ms ease-in-out infinite alternate;
+  }
+  .sx-run {
+    position: relative;
+  }
+  .sx-run-veil {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--paper) 55%, transparent);
+    pointer-events: none;
+  }
+  .sx-run-veil > p {
+    max-width: 30rem;
+    padding: 12px 18px;
+    border: 2px solid var(--edge);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    text-align: center;
+    animation: sx-pop 320ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  .sx-ticker {
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: clamp(28px, 5vw, 40px);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .sx-meter {
+    position: relative;
+    height: 14px;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sunken);
+  }
+  .sx-meter > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--sky), var(--lime));
+    transition: width 120ms linear;
+  }
   .sx-node {
     --sx-tint: var(--surface);
   }
@@ -3526,6 +3586,7 @@
   }
   .sx-race {
     position: relative;
+    display: block;
     height: 26px;
     overflow: hidden;
     border: 2px solid var(--edge);
@@ -4989,6 +5050,25 @@
 @keyframes sx-alarm {
   to {
     stroke-width: 9;
+  }
+}
+@keyframes sx-flow {
+  to {
+    stroke-dashoffset: -14.1;
+  }
+}
+@keyframes sx-strain {
+  from {
+    stroke-width: 2;
+  }
+  to {
+    stroke-width: 4.5;
+  }
+}
+@keyframes sx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
   }
 }
 @keyframes count-pop {

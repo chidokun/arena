@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   autoDesign,
   BUDGET_MAX,
@@ -51,11 +51,11 @@ import {
   type Standing,
 } from "@/lib/games/system-design";
 import type { RoomState, RoomView } from "@/lib/net/room";
-import type { SxFinal, SxMatch, SxView, SystemDesignRoom } from "@/lib/net/system-design-room";
+import { playbackOf, type SxFinal, type SxMatch, type SxView, type SystemDesignRoom } from "@/lib/net/system-design-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
 import { ChatPanel } from "./ChatPanel";
-import { CountdownCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
+import { CountdownCine, LoseCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard, StoppedCard } from "./ResultCard";
 import { RoomHeader, RoomLayout } from "./RoomLayout";
@@ -87,6 +87,23 @@ function useNow(active: boolean, every = 500) {
   return now;
 }
 
+// Đồng hồ chạy từ `from` tới `until` rồi tự dừng (không đếm mãi sau khi phát lại xong).
+function useClock(from: number, until: number) {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!from) return;
+    const tick = () => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= until) clearInterval(id);
+    };
+    const id = setInterval(tick, 100);
+    tick();
+    return () => clearInterval(id);
+  }, [from, until]);
+  return now;
+}
+
 // Chỉ vẽ lại đúng một lần lúc vượt mốc (lộ đề), không theo nhịp đồng hồ.
 function useReached(at: number | undefined) {
   const [hit, setHit] = useState<number | undefined>(undefined);
@@ -110,13 +127,6 @@ const clock = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-// Thời lượng chạy lại load test ở màn kết quả; cảnh chiến thắng đợi chạy xong mới hiện.
-function raceTiming(final: SxFinal) {
-  const levels = Math.max(1, ...final.rows.map((r) => r.sim?.levels.length ?? 0));
-  const tick = Math.min(220, Math.max(60, Math.round(6000 / levels)));
-  return { levels, tick, ms: levels * tick };
-}
-
 const headOf = (r: RoomState) => ({ name: r.meta!.name, status: r.meta!.status, round: r.meta!.round });
 
 export function SystemDesignTable({ id, slug, session }: { id: string; slug: string; session: SystemDesignRoom }) {
@@ -138,10 +148,39 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
         <span className="chip text-ink-2">⏱ {timeLabel(chips.time)}</span>
       </RoomHeader>
       <ActionPart session={session} />
-      <BodyPart session={session} />
-      <CinemaPart session={session} />
+      <PlaybackHost session={session}>
+        <BodyPart session={session} />
+        <CinemaPart session={session} />
+      </PlaybackHost>
     </RoomLayout>
   );
+}
+
+// Mọi người chốt xong: đếm ngược mở màn (`intro`), load test chạy lại từng mức trên sơ đồ (`run`), rồi mới lộ kết quả.
+// Kết quả đã tính sẵn — đây chỉ là phần trình diễn, máy nào tự chạy theo đồng hồ của mình.
+type Phase = "intro" | "run" | "done";
+type Playback = { phase: Phase; level: number; n: number; fresh: boolean; skip: () => void };
+
+const PlaybackCtx = createContext<Playback>({ phase: "done", level: 0, n: 0, fresh: false, skip: () => {} });
+
+function PlaybackHost({ session, children }: { session: SystemDesignRoom; children: React.ReactNode }) {
+  const g = useGame(
+    session,
+    (v) => (v?.match?.final ? { round: v.match.round, at: v.match.playAt, final: v.match.final } : null),
+    (a, b) => a?.round === b?.round && a?.at === b?.at && a?.final === b?.final,
+  );
+  const [skipped, setSkipped] = useState(-1);
+  const timing = g ? playbackOf(g.final) : null;
+  const at = g?.at ?? 0;
+  const playing = !!at && !!timing && skipped !== g!.round;
+  const now = useClock(playing ? at : 0, playing ? at + timing!.total : 0);
+  const elapsed = now ? Math.max(0, now - at) : 0;
+  const phase: Phase = !playing || elapsed >= timing!.total ? "done" : elapsed < timing!.intro ? "intro" : "run";
+  const level = !timing ? 0 : phase === "done" ? timing.levels : phase === "run" ? Math.min(timing.levels, Math.floor((elapsed - timing.intro) / timing.tick) + 1) : 0;
+  const n = phase === "intro" ? Math.max(1, Math.ceil((timing!.intro - elapsed) / 1000)) : 0;
+  const round = g?.round ?? 0;
+  const value = useMemo(() => ({ phase, level, n, fresh: !!at, skip: () => setSkipped(round) }), [phase, level, n, at, round]);
+  return <PlaybackCtx value={value}>{children}</PlaybackCtx>;
 }
 
 function useSxLive(session: SystemDesignRoom) {
@@ -231,7 +270,9 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
     return g.result ? "tally" : "idle";
   });
   const round = useGame(session, (v) => v?.match?.round ?? 0);
+  const running = useContext(PlaybackCtx).phase !== "done";
   if (stage === "design") return <DesignPart key={round} session={session} />;
+  if (stage === "result" && running) return <RunPart key={round} session={session} />;
   if (stage === "locked" || stage === "watch")
     return (
       <>
@@ -1159,72 +1200,158 @@ function Results({ view, match: g, final }: { view: View; match: SxMatch; final:
   );
 }
 
-function LoadRace({ view, p, final }: { view: View; p: Problem; final: SxFinal }) {
-  const { levels, tick } = raceTiming(final);
-  const [at, setAt] = useState(0);
-  const [run, setRun] = useState(1);
+// Thanh tải của từng người theo mức tải. `at` có thì chạy theo đồng hồ phát lại (bàn chạy tải); không có thì là bản tĩnh ở
+// màn kết quả, bấm "Chạy lại" để xem lại.
+function LoadRace({ view, p, final, at: shownAt, pick, onPick }: { view: View; p: Problem; final: SxFinal; at?: number; pick?: string; onPick?: (uid: string) => void }) {
+  const { levels, tick } = playbackOf(final);
+  const [own, setOwn] = useState(levels);
+  const [run, setRun] = useState(0);
   useEffect(() => {
+    if (!run) return;
     let n = 0;
     const t = setInterval(() => {
-      // Bấm tua tới cuối thì giữ nguyên ở cuối.
-      setAt((a) => Math.min(levels, a + 1));
+      setOwn((a) => Math.min(levels, a + 1));
       if (++n >= levels) clearInterval(t);
     }, tick);
     return () => clearInterval(t);
   }, [levels, tick, run]);
+  const at = shownAt ?? own;
   const step = levelStep(p);
   const best = Math.max(0, ...final.rows.map((r) => r.tps));
   const scale = Math.max(p.target * 1.25, best + step * 2);
   const done = at >= levels;
   return (
     <div className="mt-4 grid gap-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[13.5px] font-bold">
-        <span className="tabular-nums">
-          📈 Load test · mức {Math.min(at, levels)} · {fmt(Math.min(at, levels) * step)} TPS
-        </span>
-        <span className="flex gap-2">
-          {!done && (
-            <button type="button" className="btn btn-sm" onClick={() => setAt(levels)}>
-              ⏭ Tua tới cuối
-            </button>
-          )}
-          {done && (
+      {shownAt === undefined && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13.5px] font-bold">
+          <span className="tabular-nums">
+            📈 Load test · mức {Math.min(at, levels)} · {fmt(Math.min(at, levels) * step)} TPS
+          </span>
+          {done ? (
             <button
               type="button"
               className="btn btn-sm"
               onClick={() => {
-                setAt(0);
+                setOwn(0);
                 setRun((x) => x + 1);
               }}
             >
               ↻ Chạy lại
             </button>
+          ) : (
+            <button type="button" className="btn btn-sm" onClick={() => setOwn(levels)}>
+              ⏭ Tua tới cuối
+            </button>
           )}
-        </span>
-      </div>
+        </div>
+      )}
       {final.rows.map((r) => {
         const s = r.sim;
         const passed = s?.valid ? (s.fail ? s.fail.level - 1 : s.levels.length) : 0;
         const shown = Math.min(at, passed) * step;
         const dead = !!s?.valid && !!s.fail && at >= s.fail.level;
         const ended = r.status === "out" || !s?.valid || dead || (done && !s.fail);
+        const picked = onPick && pick === r.uid;
         return (
-          <div key={r.uid} className="grid grid-cols-[minmax(0,7.5rem)_1fr] items-center gap-2.5 sm:grid-cols-[minmax(0,10rem)_1fr]">
-            <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-bold">
+          <button
+            key={r.uid}
+            type="button"
+            className={`grid grid-cols-[minmax(0,7.5rem)_1fr] items-center gap-2.5 rounded-xl text-left sm:grid-cols-[minmax(0,10rem)_1fr] ${picked ? "bg-pen-soft" : ""}`}
+            disabled={!onPick || !final.designs[r.uid]}
+            onClick={() => onPick?.(r.uid)}
+            aria-pressed={onPick ? picked : undefined}
+          >
+            <span className="flex min-w-0 items-center gap-1.5 pl-1 text-[13.5px] font-bold">
               <span className="min-w-0 truncate">{nameIn(view, r.uid)}</span>
             </span>
-            <div className="sx-race">
+            <span className="sx-race">
               <span className={`sx-race-bar ${dead ? "is-dead" : shown >= p.target ? "is-met" : ""}`} style={{ width: `${(shown / scale) * 100}%` }} />
               <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
               <span className="sx-race-tag tabular-nums">
                 {r.status === "out" ? "🚪 Bị loại" : !s?.valid ? "⛔ Không hợp lệ" : dead ? `${fmt(shown)} TPS · 💥 gục ở ${fmt(s.fail!.tps)}` : `${fmt(shown)} TPS${ended ? " ✓" : ""}`}
               </span>
-            </div>
-          </div>
+            </span>
+          </button>
         );
       })}
       <p className="text-[12px] text-ink-3">Vạch đen là traffic mục tiêu {fmt(p.target)} TPS.</p>
     </div>
+  );
+}
+
+const RunPart = memo(function RunPart({ session }: { session: SystemDesignRoom }) {
+  const view = useSxView(session);
+  const g = view.game?.match;
+  if (!g?.final) return null;
+  return <LiveRun view={view} match={g} final={g.final} />;
+});
+
+// Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, gục thì báo nguyên nhân.
+// Mặc định xem thiết kế của mình (người xem thì của người đứng đầu); bấm thanh tải của ai để xem sơ đồ người đó.
+function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
+  const pb = useContext(PlaybackCtx);
+  const p = g.problem;
+  const step = levelStep(p);
+  const people = final.rows.filter((r) => final.designs[r.uid]);
+  const [pick, setPick] = useState(() => (final.designs[view.me] ? view.me : (people[0]?.uid ?? "")));
+  const row = final.rows.find((r) => r.uid === pick);
+  const design = final.designs[pick];
+  const sim = row?.sim;
+  const tps = pb.level * step;
+  const dead = !!sim?.valid && !!sim.fail && pb.level >= sim.fail.level;
+  const lv = sim?.valid ? Math.min(pb.level, sim.levels.length) : 0;
+  const heat = sim?.valid && lv > 0 ? heatOf(sim, lv) : undefined;
+  const labels = useMemo(() => (design ? nodeLabels(design) : new Map<number, string>()), [design]);
+  const hit = heat && (heat.down?.length || heat.cut) ? [...(heat.down ?? []).map((id) => `${labels.get(id)} sập`), ...(heat.cut ? [`đứt ${labels.get(heat.cut[0])} → ${labels.get(heat.cut[1])}`] : [])] : [];
+  return (
+    <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Load test đang chạy">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">📈 Load test đang chạy · mức {pb.level}</p>
+          <p className="sx-ticker" aria-live="off">
+            {fmt(tps)} <small className="text-lg">TPS</small>
+          </p>
+        </div>
+        <button type="button" className="btn btn-sm" onClick={pb.skip}>
+          ⏭ Xem kết quả luôn
+        </button>
+      </div>
+      <div className="sx-meter" aria-hidden="true">
+        <span style={{ width: `${Math.min(100, (tps / p.target) * 100)}%` }} />
+      </div>
+      <p className="text-[13px] font-semibold text-ink-2">
+        🎯 Mục tiêu {fmt(p.target)} TPS{tps >= p.target ? " — đã vượt mục tiêu, tiếp tục tăng tải tới khi gục…" : pb.level ? ` — còn ${fmt(p.target - tps)} TPS` : ""}
+      </p>
+      {design && (
+        <>
+          <p className="text-[13.5px] font-bold">
+            🔍 Sơ đồ của {nameIn(view, pick)}
+            {hit.length > 0 && !dead && <span className="ml-2 font-semibold text-coral">⚡ Sự cố: {hit.join(", ")}</span>}
+          </p>
+          <div className="sx-run">
+            <div className="sx-canvas-wrap">
+              <SxCanvas design={design} heat={heat} live={!!heat && !dead} label={`Load test trên sơ đồ của ${nameIn(view, pick)}`} />
+            </div>
+            {(dead || !sim?.valid) && (
+              <div className="sx-run-veil">
+                {sim?.valid ? (
+                  <p key="dead">
+                    <b className="font-display text-xl">💥 Gục ở {fmt(sim.fail!.tps)} TPS</b>
+                    <span className="mt-1 block text-[13.5px] text-ink-2">{sim.fail!.text}</span>
+                  </p>
+                ) : (
+                  <p key="invalid">
+                    <b className="font-display text-xl">⛔ Không hợp lệ — không được chạy tải</b>
+                    <span className="mt-1 block text-[13.5px] text-ink-2">{sim?.errors[0]?.text}</span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} />
+    </section>
   );
 }
 
@@ -1315,20 +1442,48 @@ function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; fin
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// Kết quả của chính mình, kèm dưới cảnh công bố (khi mình không nằm trong số người thắng).
+function selfNote(rows: readonly Standing[], me: string) {
+  const r = rows.find((x) => x.uid === me);
+  if (!r || r.rank === 1) return undefined;
+  if (r.status === "out") return "Bạn bị loại khỏi ván này.";
+  if (r.status === "invalid") return "Thiết kế của bạn không hợp lệ nên không được chạy tải.";
+  if (r.status === "pass") return `Bạn hạng ${r.rank}: ${fmt(r.tps)} TPS · chi phí ${fmt(r.cost)}.`;
+  const why = [!r.traffic && "chưa đạt traffic", !r.budget && "vượt budget"].filter(Boolean).join(", ");
+  return `Bạn: ${fmt(r.tps)} TPS · chi phí ${fmt(r.cost)} — ${why}.`;
+}
+
 const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesignRoom }) {
   const live = useSxLive(session);
   const g = useGame(session, (v) => v?.match);
   const me = useRoomState(session, (r) => r.me);
+  const pb = useContext(PlaybackCtx);
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const final = g?.final;
   const winners = final ? final.rows.filter((r) => r.rank === 1) : [];
-  const end = useEndScene(final && winners.length ? g!.round : 0, { delay: final ? raceTiming(final).ms + 600 : 0, ms: WIN_SCENE_MS, emojis: CONFETTI });
+  // Chỉ công bố khi máy này vừa phát lại xong (hoặc bấm bỏ qua); vào phòng / tải lại trang lúc ván đã xong thì thôi.
+  const end = useEndScene(final && pb.fresh && pb.phase === "done" ? g!.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI, cheer: winners.length > 0 });
   if (!g) return null;
   if (count > 0)
     return (
       <CountdownCine eyebrow={`🏗️ ${g.problem.title}`} n={count} title="Dựng hệ thống chịu tải tốt nhất trong budget!" tip={`🎯 ${fmt(g.problem.target)} TPS · 💰 ${fmt(g.problem.budget)} · ⏱ ${timeLabel(g.problem.time)}`} />
     );
-  if (!end.shown || !winners.length) return <Party bits={end.party} />;
+  if (pb.phase === "intro" && final)
+    return (
+      <CountdownCine
+        tone="grape"
+        eyebrow="🔒 Mọi người đã chốt thiết kế"
+        n={pb.n}
+        title="Bắt đầu chạy tải!"
+        tip={`Traffic tăng dần ${fmt(levelStep(g.problem))} TPS mỗi mức tới khi hệ thống gục · 🎯 ${fmt(g.problem.target)} TPS`}
+      />
+    );
+  if (!end.shown || !final) return <Party bits={end.party} />;
+  const note = selfNote(final.rows, me);
+  if (!winners.length)
+    return (
+      <LoseCine emoji="🤷" title="Không ai vượt quality gate" sub={`Cần ≥ ${fmt(g.problem.target)} TPS với chi phí ≤ ${fmt(g.problem.budget)}`} note={note} onClose={end.close} />
+    );
   const top = winners[0];
   const iWon = winners.some((r) => r.uid === me);
   const names = winners.map((r) => (r.uid === me ? "Bạn" : (g.lineup.find((s) => s.seat.uid === r.uid)?.seat.member?.name ?? "Ai đó"))).join(", ");
@@ -1336,8 +1491,9 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: SystemDesign
     <>
       <WinCine
         winners={winners.map((r) => ({ uid: r.uid, p: g.lineup.find((s) => s.seat.uid === r.uid)?.seat.member }))}
-        title={iWon && winners.length === 1 ? "Bạn chiến thắng!" : `${names} chiến thắng!`}
+        title={iWon && winners.length === 1 ? "Bạn chiến thắng!" : winners.length > 1 ? `${names} đồng hạng nhất!` : `${names} chiến thắng!`}
         sub={`${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)}`}
+        note={note}
         onClose={end.close}
       />
       <Party bits={end.party} />

@@ -32,9 +32,13 @@ function curve(a: { x: number; y: number }, b: { x: number; y: number }) {
   return `M${a.x} ${a.y} C${a.x + dx} ${a.y} ${b.x - dx} ${b.y} ${b.x} ${b.y}`;
 }
 
+// Hạt traffic chạy nhanh hơn trên đường nối mang phần lớn traffic đầu vào.
+const pace = (flow: number, input: number) => Math.round((1.3 - 0.95 * Math.min(1, flow / Math.max(1, input))) * 100) / 100;
+
 const tone = (u: number) => (u > 1 + 1e-9 ? "is-over" : u >= 0.85 ? "is-hot" : u >= 0.6 ? "is-warm" : u > 0 ? "is-cool" : "is-idle");
 
-export function SxCanvas({ design, edit, heat, marks, label }: { design: Design; edit?: Edit; heat?: Heat; marks?: number[]; label: string }) {
+// `live`: đang phát lại load test — traffic chạy trên đường nối, component căng tải rung lên.
+export function SxCanvas({ design, edit, heat, live, marks, label }: { design: Design; edit?: Edit; heat?: Heat; live?: boolean; marks?: number[]; label: string }) {
   const svg = useRef<SVGSVGElement>(null);
   const labels = useMemo(() => nodeLabels(design), [design]);
   const boxes = useMemo<Box[]>(() => [{ id: USERS_ID, k: "users", ...USERS_POS }, ...design.nodes], [design.nodes]);
@@ -139,7 +143,7 @@ export function SxCanvas({ design, edit, heat, marks, label }: { design: Design;
     <svg
       ref={svg}
       viewBox={`0 0 ${CANVAS.w} ${CANVAS.h}`}
-      className={`sx-canvas ${edit ? "is-edit" : ""} ${wire ? "is-wiring" : ""}`}
+      className={`sx-canvas ${edit ? "is-edit" : ""} ${wire ? "is-wiring" : ""} ${live ? "is-live" : ""}`}
       role="application"
       aria-label={label}
       tabIndex={edit ? 0 : undefined}
@@ -183,6 +187,9 @@ export function SxCanvas({ design, edit, heat, marks, label }: { design: Design;
         return (
           <g key={key} className={`sx-edge ${repl ? "is-repl" : ""} ${on ? "is-sel" : ""} ${cut ? "is-cut" : ""} ${heat && !flow ? "is-idle" : ""}`}>
             <path d={d} className="sx-edge-line" strokeWidth={width} markerEnd="url(#sx-arrow)" />
+            {live && flow > 0 && !cut && (
+              <path d={d} className="sx-edge-flow" strokeWidth={Math.max(2.5, width - 1.5)} style={{ animationDuration: `${pace(flow, heat!.input)}s` }} />
+            )}
             {edit && (
               <path
                 d={d}
