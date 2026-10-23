@@ -679,6 +679,14 @@
   .caro .cell {
     fill: transparent;
   }
+  /* Bàn gần vô hạn kéo được bằng tay, nên chặn trình duyệt cuộn trang khi vuốt trên bàn. */
+  .caro.roam {
+    touch-action: none;
+    cursor: grab;
+  }
+  .caro.roam:active {
+    cursor: grabbing;
+  }
   .caro.can-play .cell:hover {
     fill: var(--board-hover);
     cursor: pointer;

@@ -1,8 +1,10 @@
-export const SIZES = [15, 19] as const;
+export const SIZES = [15, 19, 200] as const;
 export type Size = (typeof SIZES)[number];
+// Bàn 200×200 rộng tới mức chẳng ván nào chạm mép, nên gọi là "gần vô hạn"; mép vẫn giữ để toạ độ có giới hạn.
+export const sizeLabel = (s: number) => (s >= 200 ? "Gần vô hạn" : `${s}×${s}`);
 
 // Giây tối đa cho mỗi lượt; 0 là không giới hạn.
-export const TURN_LIMITS = [15, 30, 45, 60, 0] as const;
+export const TURN_LIMITS = [15, 30, 45, 0] as const;
 export type TurnLimit = (typeof TURN_LIMITS)[number];
 export const turnLabel = (t: number) => (!t ? "Không giới hạn" : t < 60 ? `${t} giây` : `${t / 60} phút`);
 

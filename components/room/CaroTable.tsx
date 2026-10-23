@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, type ReactNode } from "react";
-import { emptyState, normOptions, SIZES, TURN_LIMITS, turnLabel } from "@/lib/games/caro";
+import { emptyState, normOptions, SIZES, sizeLabel, TURN_LIMITS, turnLabel } from "@/lib/games/caro";
 import type { CaroMatch, CaroRoom, CaroView } from "@/lib/net/caro-room";
 import type { RoomState, SeatView } from "@/lib/net/room";
 import { CaroBoard, MarkIcon } from "./CaroBoard";
@@ -27,7 +27,7 @@ export function CaroTable({ id, slug, session }: { id: string; slug: string; ses
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
       <RoomHeader name={head.name} status={head.status} round={head.round}>
         <span className="chip text-ink-2">
-          ▦ {head.size}×{head.size}
+          ▦ {sizeLabel(head.size)}
         </span>
         <span className="chip" style={{ color: head.block ? "var(--sun)" : "var(--ink-3)" }}>
           {head.block ? "🚧 Chặn 2 đầu" : "Không chặn 2 đầu"}
@@ -367,7 +367,7 @@ function Settings({ session }: { session: CaroRoom }) {
     <section className="card mt-4 grid gap-3 p-4" aria-label="Luật ván tới">
       {row(
         "Cỡ bàn",
-        SIZES.map((s) => pick(s, s === opts.size, `${s}×${s}`, () => session.setOptions({ size: s }))),
+        SIZES.map((s) => pick(s, s === opts.size, sizeLabel(s), () => session.setOptions({ size: s }))),
       )}
       {row(
         "Chặn 2 đầu",

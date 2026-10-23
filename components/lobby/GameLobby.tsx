@@ -7,6 +7,7 @@ import {
   DEFAULT_OPTIONS as CARO_DEFAULTS,
   normOptions as caroOptions,
   SIZES as CARO_SIZES,
+  sizeLabel as caroSizeLabel,
   TURN_LIMITS as CARO_TURNS,
   type Size as CaroSize,
   type TurnLimit as CaroTurn,
@@ -393,7 +394,7 @@ function CaroChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
-        ▦ {size}×{size}
+        ▦ {caroSizeLabel(size)}
       </span>
       {blockTwoEnds && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🚧 Chặn 2 đầu</span>}
       {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}
@@ -1303,10 +1304,10 @@ function CreateForm({ slug }: { slug: string }) {
           <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Kích thước bàn</legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {CARO_SIZES.map((s) => (
                 <button key={s} type="button" onClick={() => setSize(s)} aria-pressed={size === s} className={`btn ${size === s ? "btn-sun" : ""}`}>
-                  {s}×{s}
+                  {caroSizeLabel(s)}
                 </button>
               ))}
             </div>
@@ -1320,7 +1321,7 @@ function CreateForm({ slug }: { slug: string }) {
           </fieldset>
           <fieldset>
             <legend className="mb-2 text-sm font-bold">Thời gian mỗi lượt</legend>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-4 gap-2">
               {CARO_TURNS.map((t) => (
                 <button
                   key={t}
@@ -1334,10 +1335,7 @@ function CreateForm({ slug }: { slug: string }) {
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-[13px] text-ink-3">
-              {caroTurn ? `Hết ${dbTurnLabel(caroTurn).toLowerCase()} mà chưa đánh thì bị xử thua ván đó.` : "Nghĩ bao lâu cũng được."} Cỡ bàn, luật và thời gian
-              đều đổi được trong phòng trước mỗi ván.
-            </p>
+            {caroTurn > 0 && <p className="mt-1 text-[13px] text-ink-3">Hết thời gian sẽ bị xử thua.</p>}
           </fieldset>
         </>
       )}

@@ -57,3 +57,12 @@ test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời g
   assert.equal(normOptions({ turn: 15 }).turn, 15);
   assert.equal(normOptions({ turn: 45 }).turn, 45);
 });
+
+test("bàn gần vô hạn 200×200: nhận cỡ bàn, thắng giữa bàn, chặn nước ra ngoài mép", () => {
+  assert.equal(normOptions({ size: 200 }).size, 200);
+  const big = { size: 200, blockTwoEnds: true } as const;
+  const s = replay(interleave([[100, 100], [101, 101], [102, 102], [103, 103], [104, 104]], [[100, 101], [100, 102], [100, 103], [100, 104]]), big);
+  assert.equal(s.winner, 1);
+  assert.equal(s.line[0], 100 * 200 + 100);
+  assert.equal(replay([[199, 199], [200, 0]], big).count, 1);
+});
