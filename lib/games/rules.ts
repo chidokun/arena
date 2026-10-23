@@ -602,12 +602,20 @@ export const RULES: Record<string, GameRules> = {
     sections: [
       {
         emoji: "🚢",
-        title: "Bày hạm đội",
+        title: "Chế độ Cơ bản",
         items: [
-          "Có 11 loại tàu, mỗi người tự chọn từ 1 tới 5 loại (mỗi loại một chiếc) rồi bí mật đặt trên hải đồ 10×10. Hai bên không cần chọn giống nhau.",
-          "Tàu thẳng: Tàu sân bay (5 ô), Thiết giáp hạm (4), Tuần dương hạm (3), Tàu ngầm (3), Khu trục hạm (2).",
-          "Tàu hình đặc biệt: Pháo đài nổi (dấu cộng, 5 ô), Tàu đổ bộ (chữ L, 4), Tàu tàng hình (3 ô nằm chéo), Tàu hộ tống (chữ T, 4), Tàu quét mìn (chữ Z, 4), Tàu hai thân (hai thân 2 ô cách nhau một cột).",
-          "Tàu xoay được 4 hướng, tàu chữ L và chữ Z lật được; không chồng lên nhau, không tràn ra ngoài hải đồ. Có thể bấm bày ngẫu nhiên cho nhanh.",
+          "Mỗi người bí mật đặt 5 tàu thẳng trên hải đồ 10×10: Tàu sân bay (5 ô), Thiết giáp hạm (4), Tuần dương hạm (3), Tàu ngầm (3), Khu trục hạm (2).",
+          "Tàu nằm ngang hoặc dọc, không chồng lên nhau, không tràn ra ngoài hải đồ. Có thể bấm bày ngẫu nhiên cho nhanh.",
+          "Đội hình hai bên hiện suốt ván dưới mỗi hải đồ, kèm số ô đã trúng của từng tàu.",
+        ],
+      },
+      {
+        emoji: "🧩",
+        title: "Chế độ Nâng cao",
+        items: [
+          "Có 11 loại tàu, mỗi người tự chọn từ 1 tới 5 loại (mỗi loại một chiếc). Hai bên không cần chọn giống nhau; bày ngẫu nhiên thì chọn ngẫu nhiên cả loại lẫn số lượng.",
+          "Ngoài 5 tàu thẳng còn có tàu hình đặc biệt: Pháo đài nổi (dấu cộng, 5 ô), Tàu đổ bộ (chữ L, 4), Tàu tàng hình (3 ô nằm chéo), Tàu hộ tống (chữ T, 4), Tàu quét mìn (chữ Z, 4), Tàu hai thân (hai thân 2 ô cách nhau một cột).",
+          "Tàu xoay được 4 hướng, tàu chữ L và chữ Z lật được.",
           "Trong ván, hải đồ chỉ hiện số tàu còn lại của mỗi bên. Tàu nào chìm thì lộ loại và vị trí của tàu đó; hết ván mới hiện đủ đội hình hai bên.",
         ],
       },
@@ -618,13 +626,13 @@ export const RULES: Record<string, GameRules> = {
           "Hai bên thay phiên chọn một ô (vd. C7) trên hải đồ đối phương để bắn.",
           "Kết quả được báo ngay: trượt 💧, trúng 💥, hoặc chìm tàu — khi chìm thì lộ luôn vị trí con tàu đó.",
           "Nếu chủ phòng bật “Trúng bắn tiếp”: bắn trúng được bắn thêm phát nữa; tắt thì mỗi phát lại đổi lượt.",
-          "Chủ phòng chọn thời gian tối đa cho mỗi phát bắn (15, 30, 45 giây hoặc không giới hạn) lúc tạo phòng. Luật bắn và thời gian đều đổi được trước mỗi ván. Hết giờ mà chưa bắn thì mất lượt, đối phương được bắn.",
+          "Chủ phòng chọn chế độ và thời gian tối đa cho mỗi phát bắn (15, 30, 45 giây hoặc không giới hạn) lúc tạo phòng. Chế độ, luật bắn và thời gian đều đổi được trước mỗi ván. Hết giờ mà chưa bắn thì mất lượt, đối phương được bắn.",
         ],
       },
       {
         emoji: "🏆",
         title: "Thắng thua",
-        items: ["Ai đánh chìm toàn bộ hạm đội đối phương trước thì thắng (hạm đội ít tàu thì khó tìm hơn nhưng bị tìm ra là chìm hết nhanh hơn).", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
+        items: ["Ai đánh chìm toàn bộ hạm đội đối phương trước thì thắng (ở chế độ Nâng cao, hạm đội ít tàu thì khó tìm hơn nhưng bị tìm ra là chìm hết nhanh hơn).", "Xin thua, rời bàn hoặc mất kết nối quá lâu khi đang chơi đều tính là thua."],
       },
       {
         emoji: "🔒",

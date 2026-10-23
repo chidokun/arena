@@ -13,8 +13,10 @@ import {
 } from "@/lib/games/caro";
 import {
   DEFAULT_OPTIONS as BS_DEFAULTS,
+  CLASSIC as BS_CLASSIC,
   MAX_SHIPS as BS_MAX_SHIPS,
   MIN_SHIPS as BS_MIN_SHIPS,
+  modeLabel as bsModeLabel,
   normOptions as bsOptions,
   SIZE as BS_SIZE,
   TURN_LIMITS as BS_TURNS,
@@ -508,7 +510,7 @@ function OAnQuanChips({ room }: { room: RoomAd }) {
 }
 
 function BattleshipChips({ room }: { room: RoomAd }) {
-  const { chain, turn } = bsOptions(room.opts);
+  const { chain, turn, mode } = bsOptions(room.opts);
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">
@@ -518,7 +520,7 @@ function BattleshipChips({ room }: { room: RoomAd }) {
         👥 {room.members}/{room.cap} người
       </span>
       <span className="rounded-lg bg-lime-soft px-2.5 py-1">
-        ▦ {BS_SIZE}×{BS_SIZE} · {BS_MIN_SHIPS}–{BS_MAX_SHIPS} tàu tự chọn
+        ▦ {BS_SIZE}×{BS_SIZE} · {bsModeLabel(mode)} · {mode === "basic" ? `${BS_CLASSIC.length} tàu` : `${BS_MIN_SHIPS}–${BS_MAX_SHIPS} tàu tự chọn`}
       </span>
       {chain && <span className="rounded-lg bg-sun-soft px-2.5 py-1">🎯 Trúng bắn tiếp</span>}
       {turn > 0 && <span className="rounded-lg bg-sun-soft px-2.5 py-1">⏱ {dbTurnLabel(turn)}/lượt</span>}
@@ -753,6 +755,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
   const [chain, setChain] = useState(BS_DEFAULTS.chain);
   const [bsTurn, setBsTurn] = useState<BsTurn>(BS_DEFAULTS.turn);
+  const [bsMode, setBsMode] = useState(BS_DEFAULTS.mode);
   const [rounds, setRounds] = useState(DW_DEFAULTS.rounds);
   const [drawTime, setDrawTime] = useState(DW_DEFAULTS.time);
   const [quanNon, setQuanNon] = useState(OAQ_DEFAULTS.quanNon);
@@ -819,7 +822,7 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
-        else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain, turn: bsTurn } });
+        else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain, turn: bsTurn, mode: bsMode } });
         else if (oaq) stashCreate(id, { name: clean, cap, seats, opts: { quanNon } });
         else if (dots) stashCreate(id, { name: clean, cap, seats, opts: { size: dotsSize, turn: dotsTurn } });
         else if (coChep) stashCreate(id, { name: clean, cap, seats: game.seats.max, opts: {} });
@@ -1006,10 +1009,25 @@ function CreateForm({ slug }: { slug: string }) {
         <>
           <CapacityField cap={cap} setCap={setCap} min={Math.max(game.capacity.min, seats)} max={game.capacity.max} seats={seats} />
           <fieldset>
-            <legend className="mb-2 text-sm font-bold">Luật bắn</legend>
+            <legend className="mb-2 text-sm font-bold">Chế độ</legend>
             <div className="grid gap-2">
-              <Choice on={chain} onClick={() => setChain(true)} title="Trúng được bắn tiếp" text="Bắn trúng (kể cả làm chìm tàu) thì được bắn thêm phát nữa; trượt mới đổi lượt." />
-              <Choice on={!chain} onClick={() => setChain(false)} title="Mỗi phát một lượt" text="Trúng hay trượt cũng đổi lượt — luật cổ điển." />
+              <Choice on={bsMode === "basic"} onClick={() => setBsMode("basic")} title="🚢 Cơ bản" text="Mỗi bên 5 tàu thẳng cổ điển, đội hình hai bên hiện suốt ván." />
+              <Choice
+                on={bsMode === "advanced"}
+                onClick={() => setBsMode("advanced")}
+                title="🧩 Nâng cao"
+                text="Mỗi bên tự chọn 1–5 trong 11 loại tàu (có tàu chữ L, chữ T, tàu chéo…), đội hình giấu tới hết ván."
+              />
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Luật bắn</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {[true, false].map((b) => (
+                <button key={String(b)} type="button" onClick={() => setChain(b)} aria-pressed={chain === b} className={`btn !px-2 ${chain === b ? "btn-sun" : ""}`}>
+                  {b ? "🎯 Trúng bắn tiếp" : "Mỗi phát một lượt"}
+                </button>
+              ))}
             </div>
           </fieldset>
           <fieldset>

@@ -8,7 +8,7 @@ import {
   newSalt,
   normOptions,
   parseFleet,
-  parseKinds,
+  kindsFor,
   replay,
   shotsAt,
   type BsOptions,
@@ -95,7 +95,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
   // Đã chốt hạm đội: có cam kết kèm danh sách loại tàu hợp lệ.
   private kindsIn(m: Meta, uid: string) {
     const rec = this.recordOf(m, uid);
-    return isCommit(rec?.commit) ? parseKinds(rec.kinds) : null;
+    return isCommit(rec?.commit) ? kindsFor(this.rulesOf(m).mode, rec.kinds) : null;
   }
 
   private secret(round: number): Secret | null {
@@ -116,7 +116,8 @@ export class BattleshipRoom extends RoomSession<BsView> {
   }
 
   private rulesOf(m: Meta) {
-    return m.bs ?? normOptions(m.opts);
+    // Ván bắt đầu trước khi có chế độ thì `m.bs` thiếu `mode`: chuẩn hoá lại để coi là cơ bản.
+    return normOptions(m.bs ?? m.opts);
   }
 
   // Phát đầu tính cả lúc đếm ngược khai hoả; đang chờ bên bị bắn báo kết quả thì người bắn đã đi xong nên không bấm giờ.
@@ -225,7 +226,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   private check(m: Meta, uid: string, rec: FleetRecord, answered: Shot[]): boolean | undefined {
     const fleet = parseFleet(rec.fleet);
-    const kinds = parseKinds(rec.kinds);
+    const kinds = kindsFor(this.rulesOf(m).mode, rec.kinds);
     if (!fleet || !kinds || kindsOf(fleet).join() !== kinds.join() || typeof rec.salt !== "string" || !isCommit(rec.commit)) return false;
     const key = JSON.stringify([m.round, uid, rec, answered.length]);
     const known = this.checks.get(key);
@@ -333,7 +334,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
 
   async lockFleet(fleet: Fleet) {
     const m = this.meta();
-    if (!m || this.committing || !this.store.get().game?.match?.placing || !fleetGrid(fleet)) return;
+    if (!m || this.committing || !this.store.get().game?.match?.placing || !fleetGrid(fleet) || !kindsFor(this.rulesOf(m).mode, kindsOf(fleet))) return;
     this.committing = true;
     try {
       const salt = newSalt();
@@ -367,7 +368,7 @@ export class BattleshipRoom extends RoomSession<BsView> {
       if (m.status === "playing") return false;
       const cur = normOptions(m.opts);
       const opts = normOptions({ ...cur, ...next });
-      if (opts.chain === cur.chain && opts.turn === cur.turn) return false;
+      if (opts.chain === cur.chain && opts.turn === cur.turn && opts.mode === cur.mode) return false;
       m.opts = { ...m.opts, ...opts };
     });
   }

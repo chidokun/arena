@@ -60,19 +60,27 @@ export const TURN_LIMITS = [15, 30, 45, 0] as const;
 export type TurnLimit = (typeof TURN_LIMITS)[number];
 export const turnLabel = (t: number) => (!t ? "Không giới hạn" : t < 60 ? `${t} giây` : `${t / 60} phút`);
 
+// Cơ bản: ai cũng 5 tàu thẳng cổ điển, đội hình hai bên hiện suốt ván. Nâng cao: tự chọn 1–5 trong 11 loại tàu, đội
+// hình giấu tới hết ván.
+export const MODES = ["basic", "advanced"] as const;
+export type BsMode = (typeof MODES)[number];
+export const modeLabel = (m: BsMode) => (m === "basic" ? "Cơ bản" : "Nâng cao");
+
 export type BsOptions = {
   chain: boolean;
   turn: TurnLimit;
+  mode: BsMode;
 };
 
-export const DEFAULT_OPTIONS: BsOptions = { chain: true, turn: 0 };
+export const DEFAULT_OPTIONS: BsOptions = { chain: true, turn: 0, mode: "basic" };
 
-// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn.
+// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn; trước khi có chế độ thì là cơ bản.
 export function normOptions(raw: unknown): BsOptions {
   const o = (raw ?? {}) as Partial<BsOptions>;
   return {
     chain: typeof o.chain === "boolean" ? o.chain : DEFAULT_OPTIONS.chain,
     turn: TURN_LIMITS.find((t) => t === o.turn) ?? DEFAULT_OPTIONS.turn,
+    mode: MODES.find((m) => m === o.mode) ?? DEFAULT_OPTIONS.mode,
   };
 }
 
@@ -107,6 +115,12 @@ export function shipCells(s: Ship): number[] | null {
 
 /** Loại tàu của hạm đội (đã sắp xếp) — công bố cùng cam kết để đối phương biết phải đánh chìm những tàu nào. */
 export const kindsOf = (fleet: readonly Ship[]) => fleet.map((s) => s.k).sort((a, b) => a - b);
+
+/** Loại tàu hợp lệ theo chế độ: cơ bản thì phải đúng 5 tàu thẳng cổ điển. */
+export function kindsFor(mode: BsMode, raw: unknown): number[] | null {
+  const kinds = parseKinds(raw);
+  return kinds && (mode === "advanced" || kinds.join() === CLASSIC.join()) ? kinds : null;
+}
 
 export function parseKinds(raw: unknown): number[] | null {
   if (!Array.isArray(raw) || raw.length < MIN_SHIPS || raw.length > MAX_SHIPS) return null;

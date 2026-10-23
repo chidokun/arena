@@ -9,6 +9,7 @@ import {
   FLEET,
   fleetGrid,
   honest,
+  kindsFor,
   kindsOf,
   normOptions,
   orients,
@@ -94,6 +95,15 @@ test("hạm đội: 1–5 loại tàu khác nhau, không chồng nhau", () => {
   assert.deepEqual(parseFleet(ROWS), ROWS);
   // Hai thân chừa cột giữa: tàu khác nằm lọt vào đó vẫn được.
   assert.ok(fleetGrid([{ k: 10, at: 0, o: 0 }, { k: 4, at: 1, o: 1 }]));
+});
+
+test("chế độ cơ bản chỉ nhận đúng 5 tàu thẳng, nâng cao nhận mọi đội hình 1–5 tàu", () => {
+  assert.deepEqual(kindsFor("basic", [4, 3, 2, 1, 0]), [...CLASSIC]);
+  assert.equal(kindsFor("basic", [0, 1, 2, 3]), null);
+  assert.equal(kindsFor("basic", [0, 1, 2, 3, 5]), null);
+  assert.deepEqual(kindsFor("advanced", [0, 1, 2, 3, 5]), [0, 1, 2, 3, 5]);
+  assert.deepEqual(kindsFor("advanced", [7]), [7]);
+  assert.equal(kindsFor("advanced", []), null);
 });
 
 test("loại tàu công bố", () => {
@@ -282,8 +292,10 @@ test("toạ độ hải đồ", () => {
 });
 
 test("tuỳ chọn lạ hoặc thiếu thì về mặc định, thiếu thời gian thì không giới hạn", () => {
-  assert.deepEqual(normOptions({ chain: false, turn: 30 }), { chain: false, turn: 30 });
-  assert.deepEqual(normOptions({ chain: "có", turn: 20 }), { chain: true, turn: 0 });
+  assert.deepEqual(normOptions({ chain: false, turn: 30, mode: "advanced" }), { chain: false, turn: 30, mode: "advanced" });
+  assert.deepEqual(normOptions({ chain: "có", turn: 20, mode: "khó" }), { chain: true, turn: 0, mode: "basic" });
+  // Phòng tạo trước khi có chế độ thì là cơ bản.
+  assert.equal(normOptions({ chain: false, turn: 30 }).mode, "basic");
   assert.equal(normOptions({ chain: true }).turn, 0);
   assert.equal(normOptions({ turn: 15 }).turn, 15);
   assert.equal(normOptions({ turn: 45 }).turn, 45);

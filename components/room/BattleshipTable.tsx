@@ -2,13 +2,18 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  CLASSIC,
   coord,
   FLEET,
   fleetGrid,
+  kindsFor,
+  kindsOf,
   flippable,
   flipped,
   MAX_SHIPS,
   MIN_SHIPS,
+  MODES,
+  modeLabel,
   normOptions,
   randomFleet,
   rotated,
@@ -17,6 +22,7 @@ import {
   SIZE,
   TURN_LIMITS,
   turnLabel,
+  type BsMode,
   type Ship,
 } from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
@@ -64,7 +70,7 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
       <RoomHeader name={head.name} status={head.status} round={head.round} playing={setup ? "đang bày tàu" : "đang giao chiến"}>
         <span className="chip text-ink-2">
-          ▦ {SIZE}×{SIZE} · {MIN_SHIPS}–{MAX_SHIPS} tàu tự chọn
+          ▦ {SIZE}×{SIZE} · {fleetLabel(head.mode)}
         </span>
         <span className="chip" style={{ color: head.chain ? "var(--sun)" : "var(--ink-3)" }}>
           {head.chain ? "🎯 Trúng được bắn tiếp" : "Mỗi phát một lượt"}
@@ -85,10 +91,12 @@ export function BattleshipTable({ id, slug, session }: { id: string; slug: strin
 }
 
 // Bàn còn đang hiện ván đã chơi thì ghi luật của ván đó; luật ván tới nằm ở khung cài đặt bên dưới.
+const fleetLabel = (mode: BsMode) => (mode === "basic" ? `${modeLabel(mode)} · ${CLASSIC.length} tàu` : `${modeLabel(mode)} · ${MIN_SHIPS}–${MAX_SHIPS} tàu tự chọn`);
+
 const headOf = (r: RoomState) => {
   const m = r.meta!;
   const opts = m.status !== "waiting" && m.bs ? m.bs : normOptions(m.opts);
-  return { name: m.name, status: m.status, round: m.round, chain: opts.chain, turn: opts.turn };
+  return { name: m.name, status: m.status, round: m.round, chain: opts.chain, turn: opts.turn, mode: opts.mode };
 };
 
 const SeatRowPart = memo(function SeatRowPart({ session }: { session: BattleshipRoom }) {
@@ -172,7 +180,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
         scroll
       >
         <div ref={boardRef} className="relative landscape:h-full">
-          {g?.placing ? <FleetEditor key={g.round} round={g.round} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} timed={timed} />}
+          {g?.placing ? <FleetEditor key={g.round} round={g.round} mode={g.opts.mode} session={session} foe={g.sides[1 - g.me]} /> : <Waters view={view} session={session} locked={count > 0} timed={timed} />}
           <Flyers flyers={flyers} />
         </div>
       </StageArea>
@@ -450,8 +458,8 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
             </div>
           </div>
           <div className={fit ? "bs-fit-info" : undefined}>
-            {/* Đang chơi chỉ hiện số tàu còn lại; đội hình hai bên chỉ lộ khi hết ván. */}
-            {ended && <FleetList side={side} />}
+            {/* Nâng cao: đang chơi chỉ hiện số tàu còn lại, đội hình hai bên chỉ lộ khi hết ván. */}
+            {(ended || g.opts.mode === "basic") && <FleetList side={side} />}
             {ended && <Honesty side={side} />}
           </div>
         </div>
@@ -526,8 +534,14 @@ function fits(slots: Slots, ship: Ship) {
   return cells.every((c) => !taken.has(c));
 }
 
-function FleetEditor({ round, session, foe }: { round: number; session: BattleshipRoom; foe: BsSide }) {
-  const [slots, setSlots] = useState<Slots>(() => slotsOf(session.draft(round) ?? randomFleet()));
+function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMode; session: BattleshipRoom; foe: BsSide }) {
+  const basic = mode === "basic";
+  // Cơ bản luôn là 5 tàu thẳng; nâng cao bày ngẫu nhiên thì chọn ngẫu nhiên cả loại lẫn số lượng.
+  const shuffle = () => randomFleet(basic ? CLASSIC : undefined);
+  const [slots, setSlots] = useState<Slots>(() => {
+    const draft = session.draft(round);
+    return slotsOf(draft && kindsFor(mode, kindsOf(draft)) ? draft : shuffle());
+  });
   const [held, setHeld] = useState<Held | null>(null);
   const [hover, setHover] = useState(-1);
   const [sending, setSending] = useState(false);
@@ -641,7 +655,7 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
             type="button"
             className="btn btn-sm"
             onClick={() => {
-              setSlots(slotsOf(randomFleet()));
+              setSlots(slotsOf(shuffle()));
               setHeld(null);
             }}
           >
@@ -667,31 +681,32 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
 
       <aside className="card flex h-max flex-col gap-3 p-3">
         <div className="flex items-baseline justify-between px-0.5">
-          <h3 className="font-display text-[15px] font-extrabold">
-            Chọn {MIN_SHIPS}–{MAX_SHIPS} tàu
-          </h3>
-          <span className={`text-[12.5px] font-bold ${full ? "text-coral" : "text-ink-3"}`}>
-            {picked.length}/{MAX_SHIPS}
+          <h3 className="font-display text-[15px] font-extrabold">{basic ? "Hạm đội" : `Chọn ${MIN_SHIPS}–${MAX_SHIPS} tàu`}</h3>
+          <span className={`text-[12.5px] font-bold ${full && !basic ? "text-coral" : "text-ink-3"}`}>
+            {basic ? `${CLASSIC.length} tàu` : `${picked.length}/${MAX_SHIPS}`}
           </span>
         </div>
         <ul className="grid grid-cols-[minmax(0,1fr)] gap-1">
-          {FLEET.map((s, k) => {
+          {(basic ? CLASSIC : FLEET.map((_, k) => k)).map((k) => {
+            const s = FLEET[k];
             const on = slots[k] !== undefined;
             const isHeld = held?.k === k;
             const locked = !on && full;
             return (
               <li key={k} className={`flex min-w-0 items-center gap-1.5 ${locked ? "opacity-50" : ""}`}>
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={on}
-                  aria-label={`Chọn ${s.name}`}
-                  disabled={locked}
-                  onClick={() => toggle(k)}
-                  className={`grid h-5 w-5 flex-none place-items-center rounded-md border-2 text-[12px] font-extrabold ${on ? "border-lime bg-lime text-ink" : "border-rule"}`}
-                >
-                  {on ? "✓" : ""}
-                </button>
+                {!basic && (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    aria-label={`Chọn ${s.name}`}
+                    disabled={locked}
+                    onClick={() => toggle(k)}
+                    className={`grid h-5 w-5 flex-none place-items-center rounded-md border-2 text-[12px] font-extrabold ${on ? "border-lime bg-lime text-ink" : "border-rule"}`}
+                  >
+                    {on ? "✓" : ""}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => (isHeld ? cancel() : lift(k, 0))}
@@ -719,7 +734,12 @@ function FleetEditor({ round, session, foe }: { round: number; session: Battlesh
           ✅ Sẵn sàng
         </button>
         <p className="text-[12px] text-ink-3">
-          {picked.length < MIN_SHIPS ? (
+          {basic ? (
+            <>
+              Đối thủ biết bạn có 5 tàu như trên nhưng không biết vị trí. Bấm Sẵn sàng là chốt: máy bạn giữ sơ đồ và chỉ gửi đi <b>mã niêm phong</b> (SHA-256). Hết ván sơ đồ
+              được công bố để mọi người đối chiếu.
+            </>
+          ) : picked.length < MIN_SHIPS ? (
             <>Chọn ít nhất {MIN_SHIPS} tàu để bày.</>
           ) : (
             <>
@@ -751,6 +771,10 @@ function Settings({ session }: { session: BattleshipRoom }) {
   return (
     <section className="card mt-4 grid gap-3 p-4" aria-label="Luật ván tới">
       {row(
+        "Chế độ",
+        MODES.map((md) => pick(md, md === opts.mode, md === "basic" ? "🚢 Cơ bản" : "🧩 Nâng cao", () => session.setOptions({ mode: md }), fleetLabel(md))),
+      )}
+      {row(
         "Luật bắn",
         [true, false].map((b) => pick(String(b), b === opts.chain, b ? "🎯 Trúng bắn tiếp" : "Mỗi phát một lượt", () => session.setOptions({ chain: b }))),
       )}
@@ -758,7 +782,7 @@ function Settings({ session }: { session: BattleshipRoom }) {
         "Mỗi lượt",
         TURN_LIMITS.map((t) => pick(t, t === opts.turn, `⏱ ${t ? turnLabel(t) : "Vô hạn"}`, () => session.setOptions({ turn: t }), turnLabel(t))),
       )}
-      {!host && <p className="text-[13.5px] text-ink-2">Chủ phòng chọn luật bắn và thời gian mỗi lượt cho ván tới.</p>}
+      {!host && <p className="text-[13.5px] text-ink-2">Chủ phòng chọn chế độ, luật bắn và thời gian mỗi lượt cho ván tới.</p>}
     </section>
   );
 }
