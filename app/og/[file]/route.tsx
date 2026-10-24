@@ -20,7 +20,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ file: stri
       title: game.name,
       subtitle: game.tagline,
       cta: "Vào phòng chơi ngay →",
-      tiles: [{ emoji: game.emoji, hue: game.hue }],
+      tiles: [game],
     });
   }
   const live = games.filter((g) => g.status === "LIVE");
@@ -29,6 +29,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ file: stri
     title: "Đấu trường mini cho hội bạn",
     subtitle: `${live.length} trò chơi: Caro, Cờ tướng, Ma Sói, Lô Tô… chơi ngay trên trình duyệt.`,
     cta: "Vào chơi ngay →",
-    tiles: live.slice(0, 4).map((g) => ({ emoji: g.emoji, hue: g.hue })),
+    tiles: live.slice(0, 4),
   });
 }

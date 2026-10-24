@@ -1,5 +1,7 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
-import type { GameDef } from "@/lib/games/registry";
+import { hasPage, type GameDef } from "@/lib/games/registry";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 const C = {
@@ -31,7 +33,13 @@ async function googleFont(family: string, weight: number, text: string) {
   return (await fetch(src)).arrayBuffer();
 }
 
-type Tile = { emoji: string; hue: GameDef["hue"] };
+type Tile = Pick<GameDef, "slug" | "emoji" | "hue">;
+
+// Satori không đọc được WebP nên logo có thêm bản PNG riêng ở app/og/logos/, chỉ dùng lúc build.
+async function logoData(slug: string) {
+  if (!hasPage(slug)) return null;
+  return `data:image/png;base64,${(await readFile(path.join(process.cwd(), "app/og/logos", `${slug}.png`))).toString("base64")}`;
+}
 
 export type OgCardProps = {
   kicker: string;
@@ -51,6 +59,7 @@ export async function renderOgImage({ kicker, title, subtitle, cta, tiles }: OgC
     googleFont("Be Vietnam Pro", 700, body),
   ]);
   const big = tiles.length === 1;
+  const logos = await Promise.all(tiles.map((t) => logoData(t.slug)));
 
   return new ImageResponse(
     (
@@ -133,7 +142,8 @@ export async function renderOgImage({ kicker, title, subtitle, cta, tiles }: OgC
                 fontSize: big ? 180 : 92,
               }}
             >
-              {t.emoji}
+              {/* eslint-disable-next-line @next/next/no-img-element -- Satori chỉ hiểu <img> */}
+              {logos[i] ? <img src={logos[i]} alt="" width={big ? 250 : 130} height={big ? 250 : 130} /> : t.emoji}
             </div>
           ))}
         </div>

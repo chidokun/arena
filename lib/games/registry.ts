@@ -54,6 +54,9 @@ export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "unde
 
 export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
 
+// Logo nằm trong bản build (public/games/<slug>.webp) nên chỉ game có trang mới có; game "sắp ra mắt" từ API vẫn dùng emoji.
+export const gameLogo = (slug: string) => (hasPage(slug) ? `/games/${slug}.webp` : null);
+
 // Game chưa có code trong bản build luôn là "sắp ra mắt" dù API ghi gì, vì không có trang để vào.
 export const withPages = (games: GameDef[]) => games.map((g): GameDef => (hasPage(g.slug) ? g : { ...g, status: "DEVELOPMENT" }));
 

@@ -117,6 +117,7 @@ import type { RoomAd } from "@/lib/net/lobby";
 import { stashCreate } from "@/lib/net/room";
 import { Avatar } from "../Avatar";
 import { Dialog } from "../Dialog";
+import { GameIcon } from "../GameIcon";
 import { HUE } from "../home/hue";
 import { useLobbyView, useNet, useWhere } from "../NetProvider";
 import { Spinner } from "../Spinner";
@@ -144,8 +145,8 @@ export function GameLobby({ slug }: { slug: string }) {
       </nav>
 
       <header className="card flex flex-col gap-5 overflow-hidden p-6 sm:flex-row sm:items-center sm:p-8" style={{ background: hue.soft }}>
-        <span className="grid h-24 w-24 flex-none place-items-center rounded-3xl border-2 border-edge bg-surface text-6xl" style={{ boxShadow: "var(--shadow-sm)" }} aria-hidden="true">
-          {game.emoji}
+        <span className="grid h-24 w-24 flex-none place-items-center rounded-3xl border-2 border-edge bg-surface" style={{ boxShadow: "var(--shadow-sm)" }} aria-hidden="true">
+          <GameIcon game={game} size={76} />
         </span>
         <div className="flex-1">
           <h1 className="font-display text-4xl font-extrabold tracking-tight">{game.name}</h1>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { GameDef } from "@/lib/games/registry";
 import { RULES } from "@/lib/games/rules";
 import { Dialog } from "../Dialog";
+import { GameIcon } from "../GameIcon";
 
 const hideKey = (slug: string) => `arena:rules:${slug}:hide`;
 const HINT_MS = 8000;
@@ -80,9 +81,7 @@ export function RulesButton({ game, compact = false }: { game: GameDef; compact?
       <Dialog open={open !== null} onClose={close} title={open === "auto" ? `Chào mừng bạn đến với ${game.name}!` : `Luật chơi ${game.name}`} className="is-wide">
         <div className="-mx-5 max-h-[calc(100dvh-230px)] overflow-x-hidden overflow-y-auto px-5 sm:-mx-6 sm:px-6">
           <p className="flex items-start gap-3 rounded-2xl bg-sunken p-3.5 text-[15px] text-ink-2">
-            <span className="text-3xl leading-none" aria-hidden="true">
-              {game.emoji}
-            </span>
+            <GameIcon game={game} size={44} className="flex-none" />
             <span>{rules?.intro ?? game.description}</span>
           </p>
           {rules?.sections.map((s) => (

@@ -4,6 +4,7 @@ import { GameGrid, LiveStats } from "@/components/home/GameGrid";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { TOURNAMENT_PERKS, TournamentArt } from "@/components/home/TournamentArt";
 import { HUE } from "@/components/home/hue";
+import { GameIcon } from "@/components/GameIcon";
 import { StickerArt } from "@/components/room/Sticker";
 import { loadGames, type GameDef } from "@/lib/games/registry";
 import { shareMeta, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
@@ -240,7 +241,7 @@ function GamesArt({ games }: { games: GameDef[] }) {
         {tiles.map((g, i) => (
           <li
             key={g.slug}
-            className="card grid aspect-square place-items-center text-[34px] sm:text-[40px]"
+            className="card grid aspect-square place-items-center"
             style={{
               background: HUE[g.hue].soft,
               rotate: `${[-4, 3, -2, 5][i % 4]}deg`,
@@ -248,7 +249,7 @@ function GamesArt({ games }: { games: GameDef[] }) {
             }}
             title={g.name}
           >
-            {g.emoji}
+            <GameIcon game={g} size={72} className="h-[74%] w-[74%]" />
           </li>
         ))}
       </ul>

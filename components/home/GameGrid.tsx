@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CATEGORIES, gameHref, type GameDef } from "@/lib/games/registry";
 import { countFor } from "@/lib/net/lobby";
+import { GameIcon } from "../GameIcon";
 import { useGames } from "../GamesProvider";
 import { showMaintenance } from "../Maintenance";
 import { useLobbyView, useWhere } from "../NetProvider";
@@ -68,9 +69,7 @@ function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; pl
   const body = (
     <>
       <div className="relative grid h-36 place-items-center overflow-hidden border-b-2 border-edge" style={{ background: hue.soft }}>
-        <span className="text-[68px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6" aria-hidden="true">
-          {game.emoji}
-        </span>
+        <GameIcon game={game} size={112} lazy className="transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6" />
         {game.status === "LIVE" && (
           <span className="chip absolute top-3 right-3 bg-surface" style={{ color: "var(--lime)" }}>
             <span className="live-dot" aria-hidden="true" /> Trực tuyến
