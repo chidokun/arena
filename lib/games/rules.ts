@@ -15,7 +15,7 @@ export const RULES: Record<string, GameRules> = {
         emoji: "📋",
         title: "Đề bài",
         items: [
-          "Chủ phòng soạn đề trước mỗi ván (hoặc bấm tự sinh): tiêu đề, mô tả, thời gian thiết kế (2 phút, 5 phút hoặc không giới hạn), component được dùng, các luồng nghiệp vụ, sự cố, traffic mục tiêu và budget tối đa.",
+          "Chủ phòng soạn đề trước mỗi ván (hoặc bấm tự sinh): tiêu đề, mô tả, thời gian thiết kế (2, 5, 10 phút hoặc không giới hạn), component được dùng, các luồng nghiệp vụ, sự cố, traffic mục tiêu và budget tối đa.",
           "Mỗi luồng nghiệp vụ có loại request, tỷ lệ trong tổng traffic (cộng lại đúng 100%) và điều kiện hoàn thành — có thể bắt buộc đi qua API Gateway, CDN hoặc Cache.",
           "Mọi người nhận cùng đề, cùng bảng thông số component và cùng kịch bản giả lập; đề giữ nguyên suốt ván.",
           "Ván mở đầu bằng bước đọc đề: màn hình chỉ có đề, ai cũng phải bấm “Xác nhận đã đọc kỹ đề”. Đủ mọi người thì sau 3 giây chuẩn bị bàn thiết kế mới mở và đồng hồ thiết kế mới bắt đầu chạy.",
@@ -23,10 +23,25 @@ export const RULES: Record<string, GameRules> = {
         ],
       },
       {
+        emoji: "🧠",
+        title: "Mode Cơ bản & Chuyên gia",
+        items: [
+          "Chủ phòng chọn mode khi tạo phòng hoặc trước mỗi ván. Cơ bản dành cho người mới: 11 component quen thuộc, đề vừa sức, 0–2 sự cố, budget dư 20% so với thiết kế tham khảo của máy.",
+          "Chuyên gia dành cho senior: thêm WAF, NoSQL, Standby DB và Search Index; luồng Tìm kiếm; luồng ghi có thể bắt buộc giao dịch ACID; sự cố bot tấn công, Database chính sập, traffic tăng đột biến. Đề tự sinh luôn có 2–3 sự cố (ít nhất một sự cố nâng cao), traffic lớn hơn và budget chỉ dư 10%.",
+          "WAF đặt ngay sau Users ở cửa request động, chặn hết request rác của bot nhưng vẫn gánh tải của chúng; không có WAF thì rác đi khắp hệ thống.",
+          "NoSQL đọc ghi rất nhanh và không bị sự cố Database sập, nhưng không nhận ghi cần ACID. App gửi ghi không cần ACID ưu tiên vào NoSQL, ghi cần ACID vào Database.",
+          "Mỗi Database giữ phần dữ liệu riêng (như shard): một Database sập thì phần dữ liệu đó mất, không chuyển sang Database khác — trừ khi nó có Standby DB (nối nhân bản từ nó) để failover. Standby lúc thường chỉ nhận tải nhân bản, khi được nâng lên thì gánh toàn bộ tải nên cần cỡ ngang Database chính.",
+          "Search Index phải được nối đồng bộ (CDC) từ Database hoặc NoSQL; mỗi thao tác ghi vào nguồn thành 2 lượt đánh chỉ mục trên mỗi index nối từ nguồn đó — muốn scale thì chia nguồn cho từng index.",
+          "Hạ tầng AI / ML: luồng Gọi mô hình AI đi App → Semantic Cache → Vector DB → mô hình (LLM API của nhà cung cấp hoặc GPU Inference tự host), bỏ qua được chặng không có. Luồng có yêu cầu RAG bắt buộc qua Vector DB; Semantic Cache hit trả lời ngay (câu trả lời đã cache vốn có ngữ cảnh).",
+          "Luồng AI Agent đi qua Agent Orchestrator: mỗi tác vụ gọi mô hình 3 lần và gọi tool (External Service) 1 lần — tải lên mô hình nhân ba. Worker có thể ghi embedding mới vào Vector DB.",
+          "Sự cố riêng cho AI: nhà cung cấp LLM gián đoạn (LLM API nhận nhiều traffic nhất sập — cần LLM / GPU dự phòng) và prompt dài đột biến (mọi mô hình còn 50% TPS).",
+        ],
+      },
+      {
         emoji: "🧰",
         title: "Component",
         items: [
-          "11 loại: Load Balancer, API Gateway, Application Server, Cache, Database, Read Replica, Message Queue, Worker, Object Storage, CDN, External Service — mỗi loại 3 variant khác nhau về TPS, giá và thuộc tính riêng (tỷ lệ cache hit, sức chứa hàng chờ).",
+          "Cơ bản có 11 loại: Load Balancer, API Gateway, Application Server, Cache, Database, Read Replica, Message Queue, Worker, Object Storage, CDN, External Service — mỗi loại 3 variant khác nhau về TPS, giá và thuộc tính riêng (tỷ lệ cache hit, sức chứa hàng chờ).",
           "Đặt bao nhiêu bản cũng được, trộn variant thoải mái, đổi variant trước khi chốt. Tổng chi phí là tổng giá mọi bản đã đặt, kể cả cái không nối hay không nhận traffic.",
           "Users chỉ có một cửa vào cho request (LB, Gateway hoặc App) và một cho tệp tĩnh (CDN hoặc Object Storage) — muốn nhiều App thì phải chia qua LB / Gateway.",
         ],
@@ -75,7 +90,7 @@ export const RULES: Record<string, GameRules> = {
         emoji: "⚡",
         title: "Sự cố",
         items: [
-          "Chủ phòng chọn không có hoặc một vài sự cố: App Server sập, Database giảm 40% TPS, đứt đường vào App, Cache bị xoá, Cache hit giảm, traffic lệch nhánh, tăng gấp đôi tỷ lệ ghi, Worker sập, External Service gián đoạn.",
+          "Chủ phòng chọn không có hoặc một vài sự cố: App Server sập, Database giảm 40% TPS, đứt đường vào App, Cache bị xoá, Cache hit giảm, traffic lệch nhánh, tăng gấp đôi tỷ lệ ghi, Worker sập, External Service gián đoạn — mode Chuyên gia thêm bot tấn công, Database chính sập, traffic tăng đột biến 50%, nhà cung cấp LLM gián đoạn, prompt dài đột biến.",
           "Ở mọi mức tải, các sự cố đã chọn cùng xảy ra từ giây 4 tới giây 7. Đối tượng bị nhắm là component / đường nối nhận nhiều traffic nhất lúc yên ổn (bằng nhau thì cái đặt sớm hơn).",
           "Component sập không tự khiến bạn thua nếu hệ thống vẫn gánh được tải bằng các đường còn lại.",
         ],

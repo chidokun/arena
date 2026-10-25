@@ -4,6 +4,9 @@ import {
   autoDesign,
   CATALOG,
   designCost,
+  EXPERT_INCIDENTS,
+  EXPERT_KINDS,
+  EXPERT_PRESETS,
   inspect,
   KINDS,
   linkIssue,
@@ -477,4 +480,318 @@ test("đề tự sinh luôn có thiết kế tham khảo đạt mục tiêu tron
     assert.ok(sim.cost <= p.budget, `${seed}: ${p.title} ${sim.cost} > ${p.budget}`);
   }
   for (const preset of PRESETS) assert.equal(makeProblem(1, preset.key).title, preset.title);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Mode Chuyên gia.
+
+const expert = (flows: Flow[], extra: Partial<Problem> = {}) => problem(flows, { mode: "expert", ...extra });
+
+test("mode Cơ bản không có component, luồng, sự cố nâng cao; mode Chuyên gia thì có", () => {
+  const raw = { kinds: KINDS, flows: [{ kind: "search", name: "Tìm", pct: 60 }, { kind: "write", name: "Ghi", pct: 40, acid: true }], incidents: ["bot", "app-down"] };
+  const basic = normProblem(raw);
+  assert.equal(basic.mode, "basic");
+  assert.deepEqual(basic.flows, PRESETS[0].flows, "luồng tìm kiếm không hợp lệ ở Cơ bản → về đề mặc định");
+  assert.ok(!basic.kinds.some((k) => EXPERT_KINDS.includes(k)));
+  assert.deepEqual(basic.incidents, ["app-down"]);
+  assert.equal(normProblem({ ...raw, flows: [{ kind: "write", name: "Ghi", pct: 100, acid: true }] }).flows[0].acid, undefined, "ACID chỉ có ở Chuyên gia");
+
+  const pro = normProblem({ ...raw, mode: "expert" });
+  assert.equal(pro.mode, "expert");
+  assert.deepEqual(pro.flows.map((f) => [f.kind, !!f.acid]), [["search", false], ["write", true]]);
+  assert.ok(EXPERT_KINDS.every((k) => pro.kinds.includes(k)));
+  assert.ok(pro.kinds.includes("search") && pro.kinds.includes("db"), "luồng tìm kiếm cần Search Index và nguồn dữ liệu");
+  assert.deepEqual(pro.incidents, ["app-down", "bot"]);
+});
+
+test("NoSQL không nhận ghi cần ACID; ghi không cần ACID ưu tiên vào NoSQL", () => {
+  const p = expert([
+    { kind: "write", name: "Đặt hàng", pct: 50, acid: true },
+    { kind: "write", name: "Thả tim", pct: 50 },
+  ]);
+  const onlyNosql = design(
+    [
+      [1, "app", 2],
+      [3, "nosql", 0],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 3],
+    ],
+  );
+  const r = inspect(p, onlyNosql);
+  assert.equal(r.ok, false);
+  assert.match(r.errors[0].text, /ACID/);
+
+  const both = design(
+    [
+      [1, "app", 2],
+      [2, "db", 0],
+      [3, "nosql", 0],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+      [1, 3],
+    ],
+  );
+  const sim = simulate(p, both);
+  // Database Small (400) chỉ nhận nửa ACID; nửa còn lại vào NoSQL.
+  assert.equal(sim.maxTps, 800);
+  assert.equal(sim.fail?.node, 2);
+});
+
+test("Database chính sập: không có Standby thì mất dữ liệu, có Standby thì failover và Standby phải đủ cỡ", () => {
+  const p = expert([{ kind: "write", name: "Chuyển khoản", pct: 100, acid: true }], { incidents: ["db-down"] });
+  const bare = design(
+    [
+      [1, "app", 2],
+      [2, "db", 1],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+    ],
+  );
+  const lost = simulate(p, bare);
+  assert.equal(lost.fail?.why, "path");
+  assert.equal(lost.maxTps, 0);
+  assert.match(lost.fail!.text, /Standby/);
+
+  // Hai Database là hai shard giữ dữ liệu riêng: một cái sập thì không chuyển sang cái kia được.
+  const shards = design(
+    [
+      [1, "app", 2],
+      [2, "db", 1],
+      [3, "db", 1],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+      [1, 3],
+    ],
+  );
+  assert.equal(simulate(p, shards).fail?.why, "path");
+
+  const ha = (v: number) =>
+    design(
+      [
+        [1, "app", 2],
+        [2, "db", 1],
+        [3, "standby", v],
+      ],
+      [
+        [USERS_ID, 1],
+        [1, 2],
+        [2, 3],
+      ],
+    );
+  const r = inspect(p, ha(1));
+  assert.ok(r.ok);
+  assert.deepEqual(r.idle, [], "Standby đã nối nhân bản không bị coi là thừa");
+  assert.equal(simulate(p, ha(1)).maxTps, 1000);
+  assert.equal(simulate(p, ha(0)).maxTps, 400, "Standby Small vừa không kịp nhân bản vừa không gánh nổi khi được nâng lên");
+});
+
+test("bot tấn công: không có WAF thì rác đi khắp hệ thống, WAF chặn rác nhưng vẫn gánh tải", () => {
+  const p = expert(READ, { incidents: ["bot"] });
+  const open = design(
+    [
+      [1, "app", 1],
+      [2, "db", 2],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+    ],
+  );
+  assert.equal(simulate(p, open).maxTps, 600, "App Medium 1.200 gánh gấp đôi traffic");
+  const guarded = design(
+    [
+      [1, "app", 1],
+      [2, "db", 2],
+      [3, "waf", 0],
+    ],
+    [
+      [USERS_ID, 3],
+      [3, 1],
+      [1, 2],
+    ],
+  );
+  const sim = simulate(p, guarded);
+  assert.equal(sim.maxTps, 1200);
+  assert.equal(sim.levels[0].peak[2], 2 * sim.levels[0].tps, "WAF chịu cả traffic thật lẫn rác");
+});
+
+test("Search Index cần CDC từ nguồn, mỗi thao tác ghi thành 2 lượt đánh chỉ mục; chia nguồn để shard", () => {
+  const p = expert([
+    { kind: "search", name: "Tìm", pct: 50 },
+    { kind: "write", name: "Ghi", pct: 50 },
+  ]);
+  const nodes: [number, Kind, number][] = [
+    [1, "app", 2],
+    [2, "nosql", 2],
+    [3, "search", 1],
+  ];
+  const noCdc = inspect(
+    p,
+    design(nodes, [
+      [USERS_ID, 1],
+      [1, 2],
+      [1, 3],
+    ]),
+  );
+  assert.equal(noCdc.ok, false);
+  assert.match(noCdc.errors[0].text, /CDC/);
+  const one = design(nodes, [
+    [USERS_ID, 1],
+    [1, 2],
+    [1, 3],
+    [2, 3],
+  ]);
+  // Tải index = tìm kiếm T/2 + 2 × ghi T/2 = 1,5T ≤ 1.500.
+  assert.equal(simulate(p, one).maxTps, 1000);
+
+  const pair = (edges: [number, number][]) =>
+    design(
+      [
+        [1, "app", 2],
+        [2, "nosql", 2],
+        [3, "search", 1],
+        [4, "nosql", 2],
+        [5, "search", 1],
+      ],
+      [[USERS_ID, 1], [1, 2], [1, 3], [1, 4], [1, 5], ...edges],
+    );
+  // Mỗi index đánh chỉ mục mọi nguồn nối tới nó: nối chéo thì không giảm tải ghi, mỗi nguồn một index mới thật sự shard.
+  assert.equal(simulate(p, pair([[2, 3], [2, 5], [4, 3], [4, 5]])).maxTps, 1200);
+  assert.equal(simulate(p, pair([[2, 3], [4, 5]])).maxTps, 2000);
+});
+
+test("đề Chuyên gia tự sinh: có sự cố nâng cao, thiết kế tham khảo đạt mục tiêu trong budget", () => {
+  for (const [n, preset] of EXPERT_PRESETS.entries()) {
+    for (const seed of [n * 31 + 1, n * 31 + 7]) {
+      const p = makeProblem(seed * 7919, preset.key, 300, "expert");
+      assert.equal(p.mode, "expert");
+      assert.equal(p.title, preset.title);
+      assert.ok(p.incidents.length >= 2 && p.incidents.some((k) => EXPERT_INCIDENTS.includes(k)), `${preset.key}: ${p.incidents}`);
+      const { sim } = autoDesign(p);
+      assert.ok(sim.valid && sim.maxTps >= p.target, `${preset.key}: ${sim.maxTps} < ${p.target}`);
+      assert.ok(sim.cost <= p.budget, `${preset.key}: ${sim.cost} > ${p.budget}`);
+      assert.ok(p.budget < Math.ceil(sim.cost * 1.2), "budget Chuyên gia sát hơn Cơ bản");
+    }
+  }
+});
+
+test("AI: luồng RAG bắt buộc qua Vector DB; Semantic Cache hit giảm tải lên mô hình", () => {
+  const p = expert([{ kind: "infer", name: "Hỏi đáp", pct: 100, rag: true }]);
+  const direct = design(
+    [
+      [1, "app", 2],
+      [2, "llm", 2],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+    ],
+  );
+  const r = inspect(p, direct);
+  assert.equal(r.ok, false);
+  assert.match(r.errors[0].text, /Vector DB/);
+
+  const rag = (withCache: boolean) =>
+    design(
+      [
+        [1, "app", 2],
+        [2, "llm", 1],
+        [3, "vector", 2],
+        ...(withCache ? ([[4, "semcache", 0]] as [number, Kind, number][]) : []),
+      ],
+      withCache
+        ? [
+            [USERS_ID, 1],
+            [1, 4],
+            [4, 3],
+            [3, 2],
+          ]
+        : [
+            [USERS_ID, 1],
+            [1, 3],
+            [3, 2],
+          ],
+    );
+  assert.equal(simulate(p, rag(false)).maxTps, 500, "LLM Tier 2 = 500 TPS");
+  // Semantic Cache Small hit 30%: mô hình chỉ nhận 70% → 500 / 0,7 ≈ 714 → mức 700.
+  assert.equal(simulate(p, rag(true)).maxTps, 700);
+});
+
+test("AI Agent gọi mô hình 3 lần và tool 1 lần cho mỗi tác vụ; thiếu tool là không hợp lệ", () => {
+  const p = expert([{ kind: "agent", name: "Agent", pct: 100 }]);
+  const noTool = design(
+    [
+      [1, "app", 2],
+      [2, "agent", 2],
+      [3, "gpu", 2],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+      [2, 3],
+    ],
+  );
+  const r = inspect(p, noTool);
+  assert.equal(r.ok, false);
+  assert.match(r.errors[0].text, /tool/);
+
+  const full = design(
+    [
+      [1, "app", 2],
+      [2, "agent", 2],
+      [3, "gpu", 2],
+      [4, "external", 2],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+      [2, 3],
+      [2, 4],
+    ],
+  );
+  const sim = simulate(p, full);
+  // GPU 8× = 1.100 TPS nhận 3 lượt mỗi tác vụ → tối đa ~366 → mức 350 (bước 50).
+  assert.equal(sim.maxTps, 350);
+  const lv = sim.levels[0];
+  assert.equal(lv.peak[2], 3 * lv.tps);
+  assert.equal(lv.peak[3], lv.tps);
+});
+
+test("AI: nhà cung cấp LLM sập thì cần mô hình dự phòng; prompt dài làm mô hình còn nửa TPS", () => {
+  const p = expert([{ kind: "infer", name: "Chat", pct: 100 }], { incidents: ["llm-down"] });
+  const one = design(
+    [
+      [1, "app", 2],
+      [2, "llm", 2],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+    ],
+  );
+  assert.equal(simulate(p, one).fail?.why, "path");
+  const backup = design(
+    [
+      [1, "app", 2],
+      [2, "llm", 2],
+      [3, "gpu", 1],
+    ],
+    [
+      [USERS_ID, 1],
+      [1, 2],
+      [1, 3],
+    ],
+  );
+  // Lúc sự cố GPU 4× (500) gánh toàn bộ.
+  assert.equal(simulate(p, backup).maxTps, 500);
+  const long = expert([{ kind: "infer", name: "Chat", pct: 100 }], { incidents: ["long-prompt"] });
+  assert.equal(simulate(long, one).maxTps, 750, "LLM Tier 3 1.500 TPS còn 750");
 });

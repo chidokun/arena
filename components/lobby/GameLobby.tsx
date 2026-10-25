@@ -103,7 +103,16 @@ import {
   type Level,
   type Mode,
 } from "@/lib/games/sudoku";
-import { fmt as sxFmt, makeProblem as sxProblem, PRESETS as SX_PRESETS, timeLabel as sxTime, TIMES as SX_TIMES, type DesignTime as SxTime } from "@/lib/games/system-design";
+import {
+  fmt as sxFmt,
+  makeProblem as sxProblem,
+  MODES as SX_MODE,
+  presetsOf as sxPresets,
+  timeLabel as sxTime,
+  TIMES as SX_TIMES,
+  type DesignTime as SxTime,
+  type Mode as SxMode,
+} from "@/lib/games/system-design";
 import {
   DEFAULT_OPTIONS as UC_DEFAULTS,
   MAX_PLAYERS as UC_MAX,
@@ -692,11 +701,16 @@ function SudokuChips({ room }: { room: RoomAd }) {
 }
 
 function SystemDesignChips({ room }: { room: RoomAd }) {
-  const { target, budget, time } = room.opts as { target?: number; budget?: number; time?: SxTime };
+  const { mode, target, budget, time } = room.opts as { mode?: SxMode; target?: number; budget?: number; time?: SxTime };
   return (
     <>
       <span className="rounded-lg bg-sunken px-2.5 py-1">🙋 {room.players} người chơi</span>
       <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      {mode === "expert" && (
+        <span className="rounded-lg bg-grape-soft px-2.5 py-1">
+          {SX_MODE.expert.emoji} {SX_MODE.expert.name}
+        </span>
+      )}
       {typeof target === "number" && <span className="rounded-lg bg-sky-soft px-2.5 py-1">🎯 {sxFmt(target)} TPS</span>}
       {typeof budget === "number" && <span className="rounded-lg bg-sun-soft px-2.5 py-1">💰 {sxFmt(budget)}</span>}
       {SX_TIMES.includes(time as SxTime) && <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ {sxTime(time as SxTime)}</span>}
@@ -773,6 +787,7 @@ function CreateForm({ slug }: { slug: string }) {
   const [msMines, setMsMines] = useState(MS_DEFAULTS.mines);
   const [cdSetup, setCdSetup] = useState<CdSetup>(CD_DEFAULTS.setup);
   const [sxPreset, setSxPreset] = useState("");
+  const [sxMode, setSxMode] = useState<SxMode>("basic");
   const [sxTimeLimit, setSxTimeLimit] = useState<SxTime>(300);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
@@ -820,7 +835,7 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (ms) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: msOptions({ size: msSize, mines: msMines }) });
         } else if (sx) {
-          const problem = sxProblem(crypto.getRandomValues(new Uint32Array(1))[0], sxPreset || undefined, sxTimeLimit);
+          const problem = sxProblem(crypto.getRandomValues(new Uint32Array(1))[0], sxPreset || undefined, sxTimeLimit, sxMode);
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
@@ -1136,21 +1151,38 @@ function CreateForm({ slug }: { slug: string }) {
       ) : sx ? (
         <>
           <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chế độ</legend>
+            <div className="grid gap-2">
+              {(Object.keys(SX_MODE) as SxMode[]).map((k) => (
+                <Choice
+                  key={k}
+                  on={sxMode === k}
+                  onClick={() => {
+                    setSxMode(k);
+                    setSxPreset("");
+                  }}
+                  title={`${SX_MODE[k].emoji} ${SX_MODE[k].name}`}
+                  text={SX_MODE[k].text}
+                />
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
             <legend className="mb-2 text-sm font-bold">Thời gian thiết kế</legend>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {SX_TIMES.map((t) => (
                 <button key={t} type="button" onClick={() => setSxTimeLimit(t)} aria-pressed={sxTimeLimit === t} className={`btn !px-2 ${sxTimeLimit === t ? "btn-sun" : ""}`}>
                   {sxTime(t)}
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-[13px] text-ink-3">Không tính thời gian chạy giả lập. Hết giờ thì thiết kế của ai chưa chốt được tự chốt.</p>
+            <p className="mt-1 text-[13px] text-ink-3">Thiết kế tự chốt khi hết giờ.</p>
           </fieldset>
           <label className="block">
             <span className="mb-1.5 block text-sm font-bold">Đề bài</span>
             <select className="field" value={sxPreset} onChange={(e) => setSxPreset(e.target.value)}>
               <option value="">🎲 Tự sinh ngẫu nhiên</option>
-              {SX_PRESETS.map((x) => (
+              {sxPresets(sxMode).map((x) => (
                 <option key={x.key} value={x.key}>
                   {x.title}
                 </option>
@@ -1158,11 +1190,6 @@ function CreateForm({ slug }: { slug: string }) {
             </select>
             <span className="mt-1 block text-[13px] text-ink-3">Traffic mục tiêu, sự cố và budget được sinh kèm; trong phòng bạn soạn lại được toàn bộ đề trước mỗi ván.</span>
           </label>
-          <p className="rounded-xl bg-sky-soft p-3 text-[13.5px] text-ink-2">
-            🏗️ Không giới hạn người chơi, một mình cũng chơi được. Cả phòng nhận cùng một đề, mỗi người tự đặt và nối Load Balancer, App Server, Cache,
-            Database, Queue… rồi chốt. Khi tất cả đã chốt, load test giả lập tăng tải tới khi từng hệ thống gục: thiết kế đạt traffic mục tiêu trong budget,
-            chịu được TPS cao nhất (bằng nhau thì rẻ hơn) thắng.
-          </p>
         </>
       ) : ms ? (
         <>

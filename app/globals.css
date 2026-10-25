@@ -3540,13 +3540,44 @@
   .sx-node.k-cache,
   .sx-node.k-db,
   .sx-node.k-replica,
+  .sx-node.k-standby,
+  .sx-node.k-nosql,
+  .sx-node.k-search,
   .sx-kind.k-cache,
   .sx-kind.k-db,
   .sx-kind.k-replica,
+  .sx-kind.k-standby,
+  .sx-kind.k-nosql,
+  .sx-kind.k-search,
   .sx-add.k-cache,
   .sx-add.k-db,
-  .sx-add.k-replica {
+  .sx-add.k-replica,
+  .sx-add.k-standby,
+  .sx-add.k-nosql,
+  .sx-add.k-search {
     --sx-tint: var(--sun-soft);
+  }
+  .sx-node.k-waf,
+  .sx-kind.k-waf,
+  .sx-add.k-waf {
+    --sx-tint: var(--coral-soft);
+  }
+  .sx-node.k-agent,
+  .sx-node.k-semcache,
+  .sx-node.k-vector,
+  .sx-node.k-llm,
+  .sx-node.k-gpu,
+  .sx-kind.k-agent,
+  .sx-kind.k-semcache,
+  .sx-kind.k-vector,
+  .sx-kind.k-llm,
+  .sx-kind.k-gpu,
+  .sx-add.k-agent,
+  .sx-add.k-semcache,
+  .sx-add.k-vector,
+  .sx-add.k-llm,
+  .sx-add.k-gpu {
+    --sx-tint: var(--pen-soft);
   }
   .sx-node.k-queue,
   .sx-node.k-storage,
@@ -3693,6 +3724,32 @@
   .sx-variant.is-on {
     border-color: var(--pen);
     background: var(--pen-soft);
+  }
+  .sx-mode {
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 2px solid var(--rule);
+    border-radius: 14px;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .sx-mode b {
+    font-size: 15px;
+  }
+  .sx-mode span {
+    color: var(--ink-2);
+  }
+  .sx-mode.is-on {
+    border-color: var(--pen);
+    background: var(--pen-soft);
+  }
+  .sx-mode-expert {
+    background: var(--grape-soft);
+    color: var(--grape);
+    font-weight: 800;
   }
   .sx-kind {
     padding: 10px 12px;

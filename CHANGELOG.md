@@ -7,6 +7,7 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
-## 2026.10.25.1
+## 2026.10.25.2
 - Mỗi game bây giờ đã có icon xịn xò 😉
 - Cờ Caro đã có bàn chơi gần như vô cực, giúp anh em sát phạt nhau tốt hơn.
+- Thiết kế hệ thống có thêm mode 🧠 Chuyên gia dành cho senior 10, 20, 30 năm kinh nghiệm cùng nhau thử sức với loạt đề và sự cố khó nhằn hơn.

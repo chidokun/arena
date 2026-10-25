@@ -1,17 +1,86 @@
 // Thiết kế hệ thống: cả phòng nhận cùng một đề, mỗi người tự dựng sơ đồ từ các component có sẵn rồi chốt. Hết giờ (hoặc
 // mọi người đã chốt) thì mọi máy tự chạy load test giả lập — tất định từ đề + thiết kế nên máy nào cũng ra cùng kết quả,
 // không phải gửi kết quả qua mạng.
+//
+// Hai mode: Cơ bản (người mới làm quen) và Chuyên gia — thêm component nâng cao (WAF, NoSQL, Standby DB, Search Index,
+// và hạ tầng AI: LLM API, GPU Inference, Vector DB, Semantic Cache, Agent Orchestrator), luồng tìm kiếm / gọi mô hình AI /
+// AI Agent, ghi cần giao dịch ACID, RAG và các sự cố khó (bot tấn công, Database chính sập, traffic tăng đột biến, LLM sập…).
 
-export type Kind = "lb" | "gateway" | "app" | "cache" | "db" | "replica" | "queue" | "worker" | "storage" | "cdn" | "external";
+export type Kind =
+  | "waf"
+  | "lb"
+  | "gateway"
+  | "app"
+  | "agent"
+  | "cache"
+  | "semcache"
+  | "db"
+  | "replica"
+  | "standby"
+  | "nosql"
+  | "search"
+  | "vector"
+  | "llm"
+  | "gpu"
+  | "queue"
+  | "worker"
+  | "storage"
+  | "cdn"
+  | "external";
 export type NodeKind = Kind | "users";
 
-export const KINDS: readonly Kind[] = ["lb", "gateway", "app", "cache", "db", "replica", "queue", "worker", "storage", "cdn", "external"];
+export const KINDS: readonly Kind[] = [
+  "waf",
+  "lb",
+  "gateway",
+  "app",
+  "cache",
+  "db",
+  "replica",
+  "standby",
+  "nosql",
+  "search",
+  "agent",
+  "semcache",
+  "vector",
+  "llm",
+  "gpu",
+  "queue",
+  "worker",
+  "storage",
+  "cdn",
+  "external",
+];
+
+export type Mode = "basic" | "expert";
+export const MODES: Record<Mode, { name: string; emoji: string; text: string }> = {
+  basic: { name: "Cơ bản", emoji: "🌱", text: "Dành cho người mới: component quen thuộc, đề vừa sức." },
+  expert: { name: "Chuyên gia", emoji: "🧠", text: "Dành cho senior có nhiều năm kinh nghiệm, nhiều tình huống nâng cao hơn." },
+};
+export const EXPERT_KINDS: readonly Kind[] = ["waf", "standby", "nosql", "search", "agent", "semcache", "vector", "llm", "gpu"];
+// Mô hình AI: mỗi lượt gọi tới đây là xong. Agent gọi mô hình AGENT_CALLS lần và tool (External Service) AGENT_TOOLS lần.
+const MODELS: readonly Kind[] = ["llm", "gpu"];
+export const AGENT_CALLS = 3;
+export const AGENT_TOOLS = 1;
 
 export type Variant = { name: string; tps: number; price: number; hit?: number; cap?: number };
 
-export type KindInfo = { name: string; short: string; emoji: string; role: string; rule: string; variants: readonly [Variant, Variant, Variant] };
+// `pro`: luật bổ sung chỉ hiện ở mode Chuyên gia (liên quan tới component nâng cao).
+export type KindInfo = { name: string; short: string; emoji: string; role: string; rule: string; pro?: string; variants: readonly [Variant, Variant, Variant] };
 
 export const CATALOG: Record<Kind, KindInfo> = {
+  waf: {
+    name: "WAF",
+    short: "WAF",
+    emoji: "🛡️",
+    role: "Lọc request độc hại trước cửa vào",
+    rule: "Đặt ngay sau Users ở cửa request động. Chặn toàn bộ request rác của bot nhưng vẫn phải gánh tải của chúng. Chia đều phần còn lại cho các nhánh phía sau như Load Balancer.",
+    variants: [
+      { name: "Basic", tps: 6000, price: 8 },
+      { name: "Pro", tps: 15000, price: 18 },
+      { name: "Enterprise", tps: 40000, price: 40 },
+    ],
+  },
   lb: {
     name: "Load Balancer",
     short: "LB",
@@ -42,6 +111,7 @@ export const CATALOG: Record<Kind, KindInfo> = {
     emoji: "🖥️",
     role: "Xử lý nghiệp vụ",
     rule: "Đọc: ưu tiên Cache, rồi Read Replica, rồi Database. Ghi: Database. Xử lý nền: Message Queue. Tải tệp lên: Object Storage. Gọi ngoài: External Service. Nhiều đích cùng loại thì chia đều.",
+    pro: "Đọc chia đều giữa Database và NoSQL. Ghi không cần ACID ưu tiên vào NoSQL, ghi cần ACID chỉ vào Database. Tìm kiếm: Search Index.",
     variants: [
       { name: "Small", tps: 500, price: 10 },
       { name: "Medium", tps: 1200, price: 22 },
@@ -54,6 +124,7 @@ export const CATALOG: Record<Kind, KindInfo> = {
     emoji: "⚡",
     role: "Phục vụ dữ liệu đã lưu, giảm tải phía sau",
     rule: "Chỉ nhận thao tác đọc. Phần trúng cache (hit) trả về ngay; phần trượt (miss) đi tiếp — ưu tiên Read Replica rồi tới Database. Cache nào cũng phải có đường cho cache miss.",
+    pro: "Cache miss cũng đi được tới NoSQL.",
     variants: [
       { name: "Small", tps: 2000, price: 6, hit: 0.6 },
       { name: "Medium", tps: 5000, price: 12, hit: 0.75 },
@@ -66,6 +137,7 @@ export const CATALOG: Record<Kind, KindInfo> = {
     emoji: "🗄️",
     role: "Xử lý thao tác đọc và ghi",
     rule: "Database chính: nhận cả đọc lẫn ghi. Nối sang Read Replica để nhân bản dữ liệu — mỗi thao tác ghi vào Database cũng thành một lượt tải trên mỗi Replica của nó.",
+    pro: "Hỗ trợ giao dịch ACID. Nối sang Standby DB để có failover, sang Search Index để đồng bộ chỉ mục (CDC).",
     variants: [
       { name: "Small", tps: 400, price: 15 },
       { name: "Medium", tps: 1000, price: 32 },
@@ -82,6 +154,102 @@ export const CATALOG: Record<Kind, KindInfo> = {
       { name: "Small", tps: 400, price: 9 },
       { name: "Medium", tps: 1000, price: 19 },
       { name: "Large", tps: 2500, price: 42 },
+    ],
+  },
+  standby: {
+    name: "Standby DB",
+    short: "Standby",
+    emoji: "🛟",
+    role: "Bản dự phòng nóng của Database chính",
+    rule: "Nối nhân bản từ một Database chính; lúc thường chỉ nhận tải nhân bản (mỗi thao tác ghi = 1 lượt), không phục vụ request. Database chính sập thì Standby được nâng lên thay (failover) và gánh toàn bộ tải của nó — nên cần cỡ ngang Database chính.",
+    variants: [
+      { name: "Small", tps: 400, price: 12 },
+      { name: "Medium", tps: 1000, price: 26 },
+      { name: "Large", tps: 2500, price: 56 },
+    ],
+  },
+  nosql: {
+    name: "NoSQL",
+    short: "NoSQL",
+    emoji: "🧮",
+    role: "Kho dữ liệu phân tán, đọc ghi rất nhanh",
+    rule: "Xử lý đọc và ghi với TPS cao, tự nhân bản nội bộ nên không bị sự cố Database chính sập. Không hỗ trợ giao dịch ACID: luồng ghi cần ACID phải vào Database. Không dùng Read Replica / Standby; nối được sang Search Index để đồng bộ chỉ mục.",
+    variants: [
+      { name: "Small", tps: 1500, price: 20 },
+      { name: "Medium", tps: 4000, price: 44 },
+      { name: "Large", tps: 10000, price: 95 },
+    ],
+  },
+  search: {
+    name: "Search Index",
+    short: "Search",
+    emoji: "🔎",
+    role: "Phục vụ truy vấn tìm kiếm full-text",
+    rule: "Chỉ phục vụ luồng Tìm kiếm. Phải được nối đồng bộ dữ liệu (CDC) từ Database hoặc NoSQL; đánh chỉ mục tốn kém nên mỗi thao tác ghi vào nguồn thành 2 lượt tải trên Search Index.",
+    variants: [
+      { name: "Small", tps: 600, price: 14 },
+      { name: "Medium", tps: 1500, price: 30 },
+      { name: "Large", tps: 4000, price: 66 },
+    ],
+  },
+  agent: {
+    name: "Agent Orchestrator",
+    short: "Agent",
+    emoji: "🕹️",
+    role: "Điều phối vòng lặp suy luận của AI Agent",
+    rule: `Chỉ chạy luồng AI Agent. Mỗi tác vụ agent gọi mô hình ${AGENT_CALLS} lần (qua Semantic Cache / Vector DB nếu nối) và gọi tool ${AGENT_TOOLS} lần tới External Service — nên tải dồn xuống mô hình gấp ${AGENT_CALLS}. Phải nối cả tới mô hình lẫn External Service.`,
+    variants: [
+      { name: "Small", tps: 300, price: 10 },
+      { name: "Medium", tps: 800, price: 22 },
+      { name: "Large", tps: 2000, price: 48 },
+    ],
+  },
+  semcache: {
+    name: "Semantic Cache",
+    short: "SemCache",
+    emoji: "💭",
+    role: "Trả lại câu trả lời AI cho câu hỏi tương tự",
+    rule: "Chỉ phục vụ luồng gọi mô hình AI / AI Agent. Câu hỏi giống ngữ nghĩa câu đã trả lời (hit) trả về ngay; phần miss đi tiếp — ưu tiên Vector DB rồi tới mô hình. Hit có thể bỏ qua bước RAG vì câu trả lời đã có ngữ cảnh.",
+    variants: [
+      { name: "Small", tps: 2000, price: 8, hit: 0.3 },
+      { name: "Medium", tps: 5000, price: 16, hit: 0.45 },
+      { name: "Large", tps: 12000, price: 34, hit: 0.6 },
+    ],
+  },
+  vector: {
+    name: "Vector DB",
+    short: "Vector",
+    emoji: "🧭",
+    role: "Tìm ngữ cảnh theo embedding (RAG)",
+    rule: "Với luồng AI: tìm đoạn tài liệu liên quan rồi chuyển request kèm ngữ cảnh tới mô hình (LLM API / GPU Inference) — luồng có yêu cầu RAG bắt buộc đi qua đây. Worker ghi embedding mới vào được.",
+    variants: [
+      { name: "Small", tps: 800, price: 12 },
+      { name: "Medium", tps: 2000, price: 26 },
+      { name: "Large", tps: 5000, price: 55 },
+    ],
+  },
+  llm: {
+    name: "LLM API",
+    short: "LLM",
+    emoji: "🧠",
+    role: "Mô hình ngôn ngữ của nhà cung cấp ngoài",
+    rule: "Gọi mô hình của nhà cung cấp (trả theo hạn mức). TPS là rate limit theo gói; nhiều bản thì chia đều. Có thể bị nhà cung cấp gián đoạn.",
+    variants: [
+      { name: "Tier 1", tps: 150, price: 12 },
+      { name: "Tier 2", tps: 500, price: 34 },
+      { name: "Tier 3", tps: 1500, price: 90 },
+    ],
+  },
+  gpu: {
+    name: "GPU Inference",
+    short: "GPU",
+    emoji: "🎮",
+    role: "Tự host mô hình AI / ML trên GPU",
+    rule: "Chạy mô hình tự host (LLM mã nguồn mở, mô hình gợi ý, chấm điểm gian lận…). Đắt hơn LLM API trên mỗi TPS nhưng không phụ thuộc nhà cung cấp ngoài.",
+    variants: [
+      { name: "1×GPU", tps: 120, price: 15 },
+      { name: "4×GPU", tps: 500, price: 55 },
+      { name: "8×GPU", tps: 1100, price: 110 },
     ],
   },
   queue: {
@@ -102,6 +270,7 @@ export const CATALOG: Record<Kind, KindInfo> = {
     emoji: "👷",
     role: "Lấy tác vụ từ queue và xử lý",
     rule: "Lấy tác vụ từ Message Queue, xử lý tối đa bằng TPS (không bao giờ quá tải — tác vụ chưa kịp xử lý nằm lại trong queue). Tác vụ cần ghi tiếp thì Worker phải nối tới đích tương ứng; đích gián đoạn thì Worker tạm dừng.",
+    pro: "Tác vụ ghi vào Database cũng có thể ghi vào NoSQL.",
     variants: [
       { name: "Small", tps: 200, price: 5 },
       { name: "Medium", tps: 500, price: 11 },
@@ -146,34 +315,52 @@ export const CATALOG: Record<Kind, KindInfo> = {
   },
 };
 
+export const ruleOf = (k: Kind, mode: Mode) => (mode === "expert" && CATALOG[k].pro ? `${CATALOG[k].rule} ${CATALOG[k].pro}` : CATALOG[k].rule);
+
 export const USERS = { name: "Users", short: "Users", emoji: "👥", role: "Người dùng gửi request vào hệ thống" } as const;
 
 // Ai nối được tới ai. DB → Replica là đường nhân bản, không phải đường đi của request.
 export const LINKS: Record<NodeKind, readonly Kind[]> = {
-  users: ["lb", "gateway", "app", "cdn", "storage"],
+  users: ["waf", "lb", "gateway", "app", "cdn", "storage"],
+  waf: ["lb", "gateway", "app"],
   lb: ["lb", "gateway", "app"],
   gateway: ["lb", "app", "storage"],
-  app: ["cache", "replica", "db", "queue", "storage", "external"],
-  cache: ["replica", "db"],
-  db: ["replica"],
+  app: ["cache", "replica", "db", "nosql", "search", "agent", "semcache", "vector", "llm", "gpu", "queue", "storage", "external"],
+  agent: ["semcache", "vector", "llm", "gpu", "external"],
+  cache: ["replica", "db", "nosql"],
+  semcache: ["vector", "llm", "gpu"],
+  vector: ["llm", "gpu"],
+  llm: [],
+  gpu: [],
+  db: ["replica", "standby", "search"],
   replica: [],
+  standby: [],
+  nosql: ["search"],
+  search: [],
   queue: ["worker"],
-  worker: ["db", "storage", "external"],
+  worker: ["db", "nosql", "vector", "storage", "external"],
   storage: [],
   cdn: ["storage"],
   external: [],
 };
 
 // Users có một cửa vào cho request động và một cho tệp tĩnh (như api.… và cdn.…): muốn nhiều App thì phải có LB / Gateway.
-const FRONT_DYNAMIC: readonly Kind[] = ["lb", "gateway", "app"];
+const FRONT_DYNAMIC: readonly Kind[] = ["waf", "lb", "gateway", "app"];
 const FRONT_STATIC: readonly Kind[] = ["cdn", "storage"];
 
-export const isReplication = (from: NodeKind, to: NodeKind) => from === "db" && to === "replica";
+// Đường nhân bản / đồng bộ dữ liệu, không phải đường đi của request.
+export const isReplication = (from: NodeKind, to: NodeKind) => (from === "db" && (to === "replica" || to === "standby")) || ((from === "db" || from === "nosql") && to === "search");
 
-export type FlowKind = "read" | "write" | "job" | "static" | "upload" | "call";
-export const FLOW_KINDS: readonly FlowKind[] = ["read", "write", "job", "static", "upload", "call"];
-export type Sink = "db" | "storage" | "external";
-export const SINKS: readonly Sink[] = ["db", "storage", "external"];
+// Nơi lưu dữ liệu nghiệp vụ: Database chính, Standby đang thay nó, hoặc NoSQL.
+const STORES: readonly NodeKind[] = ["db", "standby", "nosql"];
+
+export type FlowKind = "read" | "write" | "job" | "static" | "upload" | "call" | "search" | "infer" | "agent";
+export const FLOW_KINDS: readonly FlowKind[] = ["read", "write", "job", "static", "upload", "call", "search", "infer", "agent"];
+export const EXPERT_FLOWS: readonly FlowKind[] = ["search", "infer", "agent"];
+const AI_FLOWS: readonly FlowKind[] = ["infer", "agent"];
+export type Sink = "db" | "storage" | "external" | "vector";
+export const SINKS: readonly Sink[] = ["db", "storage", "external", "vector"];
+export const modeSinks = (mode: Mode): readonly Sink[] => (mode === "expert" ? SINKS : SINKS.filter((x) => x !== "vector"));
 
 export const FLOWS: Record<FlowKind, { name: string; emoji: string; path: string; done: string }> = {
   read: { name: "Đọc dữ liệu", emoji: "📖", path: "App Server → Cache / Read Replica / Database", done: "nhận dữ liệu từ Cache (hit), Read Replica hoặc Database" },
@@ -182,9 +369,26 @@ export const FLOWS: Record<FlowKind, { name: string; emoji: string; path: string
   static: { name: "Tải tệp tĩnh", emoji: "🖼️", path: "CDN / Object Storage", done: "CDN (hit) hoặc Object Storage trả tệp" },
   upload: { name: "Tải tệp lên", emoji: "📤", path: "App Server → Object Storage", done: "lưu thành công vào Object Storage" },
   call: { name: "Gọi dịch vụ ngoài", emoji: "🔌", path: "App Server → External Service", done: "External Service xử lý xong" },
+  search: { name: "Tìm kiếm", emoji: "🔍", path: "App Server → Search Index", done: "Search Index trả kết quả" },
+  infer: { name: "Gọi mô hình AI", emoji: "🤖", path: "App Server → (Semantic Cache) → (Vector DB) → LLM API / GPU Inference", done: "mô hình trả kết quả (hoặc Semantic Cache hit)" },
+  agent: {
+    name: "Tác vụ AI Agent",
+    emoji: "🕹️",
+    path: `App Server → Agent Orchestrator → mô hình ×${AGENT_CALLS} + tool ×${AGENT_TOOLS} (External Service)`,
+    done: `Agent xong ${AGENT_CALLS} lượt gọi mô hình và ${AGENT_TOOLS} lượt gọi tool`,
+  },
 };
 
-export const SINK_NAMES: Record<Sink, string> = { db: "Database", storage: "Object Storage", external: "External Service" };
+export const SINK_NAMES: Record<Sink, string> = { db: "Database", storage: "Object Storage", external: "External Service", vector: "Vector DB" };
+
+/** Đường đi của luồng như đề mô tả; mode Chuyên gia có thêm NoSQL cho đọc và ghi không cần ACID. */
+export function flowPath(f: Pick<Flow, "kind" | "sink" | "acid">, mode: Mode) {
+  let path = FLOWS[f.kind].path;
+  if (mode === "expert" && f.kind === "read") path = "App Server → Cache / Read Replica / Database / NoSQL";
+  if (mode === "expert" && f.kind === "write" && !f.acid) path = "App Server → NoSQL / Database";
+  const sink = f.kind === "job" && f.sink ? SINK_NAMES[f.sink] + (mode === "expert" && f.sink === "db" ? " / NoSQL" : "") : "";
+  return sink ? `${path} → ${sink}` : path;
+}
 
 export type Flow = {
   kind: FlowKind;
@@ -196,30 +400,67 @@ export type Flow = {
   cdn?: boolean;
   // Thao tác đọc bắt buộc đi qua Cache.
   cache?: boolean;
-  // Tác vụ nền: Worker phải ghi / gửi tiếp tới đây mới xong; không có thì xong ngay tại Worker.
+  // Tác vụ nền: Worker phải ghi / gửi tiếp tới đây mới xong; không có thì xong ngay tại Worker. "db" nhận cả NoSQL.
   sink?: Sink;
+  // Ghi cần giao dịch ACID: chỉ Database (quan hệ) nhận, NoSQL thì không (chỉ có ở mode Chuyên gia).
+  acid?: boolean;
+  // Luồng AI bắt buộc truy xuất ngữ cảnh qua Vector DB trước khi tới mô hình (RAG).
+  rag?: boolean;
 };
 
-export type Incident = "app-down" | "db-slow" | "link-cut" | "cache-flush" | "cache-drop" | "skew" | "write-surge" | "worker-down" | "ext-down";
+// Component kiểu `k` có hoàn thành được tác vụ nền cần ghi / gửi tới `s` không.
+const sinkFits = (k: NodeKind, s: Sink) => k === s || (s === "db" && k === "nosql");
+
+export type Incident =
+  | "app-down"
+  | "db-slow"
+  | "link-cut"
+  | "cache-flush"
+  | "cache-drop"
+  | "skew"
+  | "write-surge"
+  | "worker-down"
+  | "ext-down"
+  | "bot"
+  | "db-down"
+  | "spike"
+  | "llm-down"
+  | "long-prompt";
 
 export const INCIDENTS: Record<Incident, { name: string; emoji: string; text: string }> = {
   "app-down": { name: "App Server ngừng hoạt động", emoji: "💥", text: "App Server đang nhận nhiều traffic nhất ngừng hoạt động; LB và Gateway tự chuyển traffic sang các App còn lại." },
   "db-slow": { name: "Giảm năng lực xử lý", emoji: "🐢", text: "Mọi Database chính giảm 40% TPS (như đang chạy backup)." },
   "link-cut": { name: "Mất kết nối", emoji: "✂️", text: "Đường nối vào App Server mang nhiều traffic nhất bị đứt; traffic phải đi đường khác." },
   "cache-flush": { name: "Cache bị xoá", emoji: "🧹", text: "Mọi Cache mất sạch dữ liệu: hit rate về 0 rồi hồi dần lại trong 4 giây." },
-  "cache-drop": { name: "Cache hit giảm", emoji: "📉", text: "Hit rate của mọi Cache và CDN giảm 30 điểm phần trăm." },
+  "cache-drop": { name: "Cache hit giảm", emoji: "📉", text: "Hit rate của mọi Cache, CDN (và Semantic Cache) giảm 30 điểm phần trăm." },
   skew: { name: "Traffic lệch nhánh", emoji: "↗️", text: "LB và API Gateway dồn gấp đôi traffic vào nhánh được đặt sớm nhất." },
   "write-surge": { name: "Tăng tỷ lệ ghi", emoji: "📝", text: "Tỷ lệ các luồng Ghi dữ liệu tăng gấp đôi, các luồng khác giảm tương ứng." },
   "worker-down": { name: "Worker ngừng hoạt động", emoji: "😴", text: "Mỗi Queue mất Worker có TPS lớn nhất; tác vụ dồn lại trong hàng chờ." },
   "ext-down": { name: "External Service gián đoạn", emoji: "🔥", text: "External Service đang nhận nhiều traffic nhất ngừng phản hồi; Worker gọi nó phải tạm dừng." },
+  bot: { name: "Bot tấn công", emoji: "🤖", text: "Botnet dội thêm request rác bằng toàn bộ traffic thật vào cửa request động (tệp tĩnh không bị). WAF chặn hết request rác nhưng vẫn gánh tải của chúng; không có WAF thì rác đi khắp hệ thống." },
+  "db-down": {
+    name: "Database chính sập",
+    emoji: "💀",
+    text: "Database chính nhận nhiều traffic nhất ngừng hoạt động. Mỗi Database giữ phần dữ liệu riêng nên không chuyển sang Database khác được — chỉ Standby của nó được nâng lên thay (failover). Read Replica vẫn phục vụ đọc.",
+  },
+  spike: { name: "Traffic tăng đột biến", emoji: "🚀", text: "Nội dung lan truyền mạnh: toàn bộ traffic tăng thêm 50% trong lúc sự cố." },
+  "llm-down": { name: "Nhà cung cấp LLM gián đoạn", emoji: "🧯", text: "LLM API đang nhận nhiều traffic nhất ngừng phản hồi; request phải chuyển sang LLM API / GPU Inference còn lại." },
+  "long-prompt": { name: "Prompt dài đột biến", emoji: "📜", text: "Người dùng dán tài liệu dài: mọi LLM API và GPU Inference chỉ còn 50% TPS." },
 };
 export const INCIDENT_KEYS = Object.keys(INCIDENTS) as Incident[];
+export const EXPERT_INCIDENTS: readonly Incident[] = ["bot", "db-down", "spike", "llm-down", "long-prompt"];
 
-export type DesignTime = 0 | 120 | 300;
-export const TIMES: readonly DesignTime[] = [120, 300, 0];
+/** Component / luồng / sự cố mà mode này được dùng. */
+export const modeKinds = (mode: Mode) => (mode === "expert" ? KINDS : KINDS.filter((k) => !EXPERT_KINDS.includes(k)));
+export const modeFlows = (mode: Mode) => (mode === "expert" ? FLOW_KINDS : FLOW_KINDS.filter((k) => !EXPERT_FLOWS.includes(k)));
+export const modeIncidents = (mode: Mode) => (mode === "expert" ? INCIDENT_KEYS : INCIDENT_KEYS.filter((k) => !EXPERT_INCIDENTS.includes(k)));
+
+export type DesignTime = 0 | 120 | 300 | 600;
+export const TIMES: readonly DesignTime[] = [120, 300, 600, 0];
 export const timeLabel = (t: DesignTime) => (t ? `${t / 60} phút` : "Không giới hạn");
 
 export type Problem = {
+  mode: Mode;
   title: string;
   desc: string;
   time: DesignTime;
@@ -324,7 +565,7 @@ export const BUDGET_MIN = 10;
 export const BUDGET_MAX = 5000;
 
 export function needMask(f: Flow) {
-  return (f.gate ? 1 : 0) | (f.cdn ? 2 : 0) | (f.cache ? 4 : 0);
+  return (f.gate ? 1 : 0) | (f.cdn ? 2 : 0) | (f.cache ? 4 : 0) | (f.rag ? 8 : 0);
 }
 
 /** Các loại component đề bắt buộc phải cho phép để mọi luồng có đường đi. */
@@ -350,19 +591,34 @@ export function neededKinds(flows: readonly Flow[]): Set<Kind> {
     }
     if (f.kind === "upload") s.add("storage");
     if (f.kind === "call") s.add("external");
+    if (f.kind === "search") {
+      s.add("search");
+      s.add("db");
+    }
+    if (AI_FLOWS.includes(f.kind)) {
+      s.add("llm");
+      s.add("gpu");
+      if (f.rag) s.add("vector");
+    }
+    if (f.kind === "agent") {
+      s.add("agent");
+      s.add("external");
+    }
   }
   return s;
 }
 
-function normFlow(raw: unknown): Flow | null {
+function normFlow(raw: unknown, mode: Mode): Flow | null {
   const o = (raw ?? {}) as Partial<Flow>;
-  if (!FLOW_KINDS.includes(o.kind as FlowKind)) return null;
+  if (!modeFlows(mode).includes(o.kind as FlowKind)) return null;
   const kind = o.kind as FlowKind;
   const f: Flow = { kind, name: str(o.name, 40) || FLOWS[kind].name, pct: int(o.pct, 0, 100, 0) };
   if (o.gate === true && kind !== "static") f.gate = true;
   if (o.cdn === true && kind === "static") f.cdn = true;
   if (o.cache === true && kind === "read") f.cache = true;
-  if (kind === "job" && SINKS.includes(o.sink as Sink)) f.sink = o.sink;
+  if (kind === "job" && modeSinks(mode).includes(o.sink as Sink)) f.sink = o.sink;
+  if (o.acid === true && kind === "write" && mode === "expert") f.acid = true;
+  if (o.rag === true && AI_FLOWS.includes(kind)) f.rag = true;
   return f;
 }
 
@@ -379,13 +635,15 @@ export function flowIssues(flows: readonly Flow[]): string[] {
 
 export function normProblem(raw: unknown): Problem {
   const o = (raw ?? {}) as Partial<Record<keyof Problem, unknown>>;
-  const parsed = Array.isArray(o.flows) ? o.flows.slice(0, MAX_FLOWS).map(normFlow) : [];
-  const flows = parsed.length && parsed.every((f) => f) && !flowIssues(parsed as Flow[]).length ? (parsed as Flow[]) : PRESETS[0].flows.map((f) => ({ ...f }));
+  const mode: Mode = o.mode === "expert" ? "expert" : "basic";
+  const parsed = Array.isArray(o.flows) ? o.flows.slice(0, MAX_FLOWS).map((f) => normFlow(f, mode)) : [];
+  const flows = parsed.length && parsed.every((f) => f) && !flowIssues(parsed as Flow[]).length ? (parsed as Flow[]) : presetsOf(mode)[0].flows.map((f) => ({ ...f }));
   const need = neededKinds(flows);
   const asked = Array.isArray(o.kinds) ? o.kinds : KINDS;
-  const kinds = KINDS.filter((k) => need.has(k) || asked.includes(k));
-  const incidents = Array.isArray(o.incidents) ? INCIDENT_KEYS.filter((k) => (o.incidents as unknown[]).includes(k)) : [];
+  const kinds = modeKinds(mode).filter((k) => need.has(k) || asked.includes(k));
+  const incidents = Array.isArray(o.incidents) ? modeIncidents(mode).filter((k) => (o.incidents as unknown[]).includes(k)) : [];
   return {
+    mode,
     title: str(o.title, 60) || "Đề chưa đặt tên",
     desc: text(o.desc, 600),
     time: TIMES.includes(o.time as DesignTime) ? (o.time as DesignTime) : 300,
@@ -430,6 +688,8 @@ type Net = {
   src: number[][];
   feeds: number[][];
   label: string[];
+  // Standby của từng Database chính (-1 nếu không có).
+  spare: number[];
 };
 
 const EDGE = 4096;
@@ -447,6 +707,7 @@ function compile(d: Design): Net {
     src: ids.map(() => []),
     feeds: ids.map(() => []),
     label: ids.map((id) => labels.get(id) ?? "?"),
+    spare: ids.map(() => -1),
   };
   for (const [a, b] of d.edges) {
     const i = at.get(a);
@@ -459,26 +720,38 @@ function compile(d: Design): Net {
     }
   }
   for (const l of [...net.out, ...net.src, ...net.feeds]) l.sort((a, b) => a - b);
+  net.kind.forEach((k, s) => {
+    if (k === "standby") for (const db of net.src[s]) if (net.spare[db] < 0) net.spare[db] = s;
+  });
   return net;
 }
 
-const VIA: Partial<Record<NodeKind, number>> = { gateway: 1, cdn: 2, cache: 4 };
+const VIA: Partial<Record<NodeKind, number>> = { gateway: 1, cdn: 2, cache: 4, vector: 8 };
+// Vai trò mà Semantic Cache hit được bỏ qua: câu trả lời đã cache vốn có ngữ cảnh RAG.
+const SEMCACHE_SKIP = 8;
 const viaBit = (k: NodeKind) => VIA[k] ?? 0;
 
 const APP_TIERS: Record<FlowKind, readonly (readonly Kind[])[]> = {
-  read: [["cache"], ["replica"], ["db"]],
-  write: [["db"]],
+  read: [["cache"], ["replica"], ["db", "nosql"]],
+  // Ghi không cần ACID ưu tiên vào NoSQL; ghi cần ACID bỏ qua NoSQL, vào Database.
+  write: [["nosql"], ["db"]],
   job: [["queue"]],
   static: [],
   upload: [["storage"]],
   call: [["external"]],
+  search: [["search"]],
+  infer: [["semcache"], ["vector"], MODELS],
+  agent: [["agent"]],
 };
 
 function tiersOf(k: NodeKind, fk: FlowKind): readonly (readonly Kind[])[] {
   if (k === "users") return fk === "static" ? [["cdn"], ["gateway", "lb", "storage"]] : [FRONT_DYNAMIC];
   if (k === "app") return APP_TIERS[fk];
-  if (k === "cache") return [["replica"], ["db"]];
+  if (k === "cache") return [["replica"], ["db", "nosql"]];
   if (k === "cdn") return [["storage"]];
+  if (k === "agent") return APP_TIERS.infer;
+  if (k === "semcache") return [["vector"], MODELS];
+  if (k === "vector") return [MODELS];
   return [];
 }
 
@@ -486,14 +759,27 @@ type Ctx = {
   down: Set<number>;
   cut: Set<number>;
   skew: boolean;
+  // Hệ số request rác của bot trong traffic request động (1 = không có bot); WAF lọc bỏ phần rác.
+  junk: number;
   hit: (i: number) => number;
   mul: (i: number) => number;
 };
 
 function workersFit(net: Net, q: number, f: Flow) {
   const ws = net.out[q];
-  return ws.length > 0 && (!f.sink || ws.every((w) => net.out[w].some((j) => net.kind[j] === f.sink)));
+  return ws.length > 0 && (!f.sink || ws.every((w) => net.out[w].some((j) => sinkFits(net.kind[j], f.sink!))));
 }
+
+// Đích thật khi request tới j: component đang sập thì không tới được — trừ Database chính có Standby còn sống, khi đó
+// Standby được nâng lên thay (failover). -1 nếu không tới được.
+function reach(net: Net, ctx: Ctx, j: number) {
+  if (!ctx.down.has(j)) return j;
+  const s = net.spare[j];
+  return s >= 0 && !ctx.down.has(s) ? s : -1;
+}
+
+// Database chính sập mà không có Standby: phần dữ liệu trên nó mất, không chuyển sang Database khác được.
+const lost = (net: Net, ctx: Ctx, j: number) => net.kind[j] === "db" && reach(net, ctx, j) < 0;
 
 type Why = { path: number[]; text: string };
 
@@ -511,18 +797,33 @@ class Router {
     this.ctx = ctx;
   }
 
-  pass(i: number, j: number) {
-    return !this.ctx.down.has(j) && !this.ctx.cut.has(i * EDGE + j);
+  // Các đích còn đi được trong `ts` từ i (đường nối không bị đứt; Database chính sập thì đã chuyển sang Standby).
+  live(i: number, ts: readonly number[]) {
+    const out: number[] = [];
+    for (const j of ts) {
+      if (this.ctx.cut.has(i * EDGE + j)) continue;
+      const t = reach(this.net, this.ctx, j);
+      if (t >= 0 && !out.includes(t)) out.push(t);
+    }
+    return out;
   }
 
-  // Các đích request của luồng f rời khỏi i được gửi tới. LB không nhìn loại request: gửi cho mọi nhánh còn sống.
+  // Tool mà Agent Orchestrator i gọi được: các External Service còn hoạt động.
+  tools(i: number) {
+    return this.live(i, this.net.out[i].filter((j) => this.net.kind[j] === "external"));
+  }
+
+  // Các đích request của luồng f rời khỏi i được gửi tới. LB / WAF không nhìn loại request: gửi cho mọi nhánh còn sống.
   next(i: number, f: number, mask: number): number[] {
     const { kind, out } = this.net;
     const k = kind[i];
-    if (k === "lb") return out[i].filter((j) => this.pass(i, j));
-    if (k === "gateway") return out[i].filter((j) => this.pass(i, j) && this.ok(j, f, mask | viaBit(kind[j])));
+    const fits = (j: number) => this.ok(j, f, mask | viaBit(kind[j]));
+    if (k === "lb" || k === "waf") return this.live(i, out[i]);
+    if (k === "gateway") return this.live(i, out[i]).filter(fits);
     for (const tier of tiersOf(k, this.flows[f].kind)) {
-      const hit = out[i].filter((j) => tier.includes(kind[j] as Kind) && this.pass(i, j) && this.ok(j, f, mask | viaBit(kind[j])));
+      const ts = out[i].filter((j) => tier.includes(kind[j] as Kind));
+      if (ts.some((j) => lost(this.net, this.ctx, j))) continue;
+      const hit = this.live(i, ts).filter(fits);
       if (hit.length) return hit;
     }
     return [];
@@ -531,7 +832,7 @@ class Router {
   /** Mọi request luồng f tới i (đã qua các vai trò trong `mask`) đều tới được điểm hoàn thành hợp lệ. */
   ok(i: number, f: number, mask: number): boolean {
     if (this.ctx.down.has(i)) return false;
-    const key = (i * 8 + f) * 8 + mask;
+    const key = (i * 8 + f) * 16 + mask;
     const seen = this.memo.get(key);
     if (seen !== undefined) return seen;
     const r = this.check(i, f, mask);
@@ -548,7 +849,17 @@ class Router {
       case "gateway":
       case "app":
         return this.next(i, f, mask).length > 0;
-      case "lb": {
+      case "agent":
+        return fk === "agent" && this.tools(i).length > 0 && this.next(i, f, mask).length > 0;
+      case "semcache":
+        return AI_FLOWS.includes(fk) && ((mask | SEMCACHE_SKIP) & this.need[f]) === this.need[f] && this.next(i, f, mask).length > 0;
+      case "vector":
+        return AI_FLOWS.includes(fk) && this.next(i, f, mask).length > 0;
+      case "llm":
+      case "gpu":
+        return AI_FLOWS.includes(fk) && done;
+      case "lb":
+      case "waf": {
         const live = this.next(i, f, mask);
         return live.length > 0 && live.every((j) => this.ok(j, f, mask | viaBit(this.net.kind[j])));
       }
@@ -557,7 +868,12 @@ class Router {
       case "cdn":
         return fk === "static" && done && this.next(i, f, mask).length > 0;
       case "db":
+      case "standby":
         return (fk === "read" || fk === "write") && done;
+      case "nosql":
+        return (fk === "read" || (fk === "write" && !this.flows[f].acid)) && done;
+      case "search":
+        return fk === "search" && done && this.net.src[i].length > 0;
       case "replica":
         return fk === "read" && done && this.net.src[i].length > 0;
       case "storage":
@@ -575,7 +891,8 @@ class Router {
     const lack = this.need[f] & ~mask;
     if (lack & 1) return "đường đi chưa qua API Gateway (bắt buộc với luồng này)";
     if (lack & 2) return "tệp chưa được phục vụ qua CDN (bắt buộc với luồng này)";
-    return "thao tác đọc chưa đi qua Cache (bắt buộc với luồng này)";
+    if (lack & 4) return "thao tác đọc chưa đi qua Cache (bắt buộc với luồng này)";
+    return "chưa truy xuất ngữ cảnh qua Vector DB (RAG bắt buộc với luồng này)";
   }
 
   /** Giải thích vì sao luồng f không đi trọn từ i: lần theo nhánh hỏng đầu tiên tới chỗ gãy. */
@@ -590,25 +907,35 @@ class Router {
       const stop = (text: string): Why => ({ path, text });
       if (this.ctx.down.has(i)) return stop("đang ngừng hoạt động do sự cố");
       let cand: number[];
-      if (k === "lb") {
+      if (k === "lb" || k === "waf") {
         if (!out[i].length) return stop("chưa nối tới nhánh nào");
-        cand = out[i].filter((j) => this.pass(i, j));
+        cand = this.live(i, out[i]);
         if (!cand.length) return stop("không còn nhánh nào hoạt động");
         cand = cand.filter((j) => !this.ok(j, f, m | viaBit(kind[j])));
-      } else if (k === "users" || k === "gateway" || k === "app" || k === "cache" || k === "cdn") {
+      } else if (k === "users" || k === "gateway" || k === "app" || k === "cache" || k === "cdn" || k === "agent" || k === "semcache" || k === "vector") {
         if (k === "cache" && fl.kind !== "read") return stop("Cache chỉ phục vụ thao tác đọc");
         if (k === "cdn" && fl.kind !== "static") return stop("CDN chỉ phục vụ tệp tĩnh");
+        if (k === "agent" && fl.kind !== "agent") return stop("Agent Orchestrator chỉ chạy luồng AI Agent");
+        if ((k === "semcache" || k === "vector") && !AI_FLOWS.includes(fl.kind)) return stop(`${CATALOG[k].name} chỉ phục vụ luồng gọi mô hình AI / AI Agent`);
         if ((k === "cache" || k === "cdn") && !done) return stop(this.missing(f, m));
+        if (k === "semcache" && ((m | SEMCACHE_SKIP) & this.need[f]) !== this.need[f]) return stop(this.missing(f, m));
+        if (k === "agent" && !this.tools(i).length)
+          return stop(out[i].some((j) => kind[j] === "external") ? "mọi External Service (tool) đang gián đoạn do sự cố" : "chưa nối tới External Service để gọi tool");
         const tiers = k === "gateway" ? [LINKS.gateway] : tiersOf(k, fl.kind);
         cand = tiers.flatMap((t) => out[i].filter((j) => t.includes(kind[j] as Kind)));
         if (!cand.length) return stop(noRoute(k, fl));
-        cand = cand.filter((j) => this.pass(i, j));
+        const gone = cand.find((j) => lost(this.net, this.ctx, j));
+        if (gone !== undefined) {
+          path.push(gone);
+          return stop("đang sập và không có Standby để chuyển sang — phần dữ liệu trên Database này không truy cập được");
+        }
+        cand = this.live(i, cand);
         if (!cand.length) return stop("mọi đường đi tiếp đang bị gián đoạn do sự cố");
       } else if (k === "queue") {
         if (fl.kind !== "job") return stop("Message Queue chỉ nhận tác vụ nền");
         if (!done) return stop(this.missing(f, m));
         if (!out[i].length) return stop("chưa có Worker lấy tác vụ");
-        const w = out[i].find((x) => !out[x].some((j) => kind[j] === fl.sink));
+        const w = out[i].find((x) => !out[x].some((j) => sinkFits(kind[j], fl.sink!)));
         if (w !== undefined && fl.sink) {
           path.push(w);
           return stop(`chưa nối tới ${SINK_NAMES[fl.sink]} để xử lý xong tác vụ`);
@@ -619,6 +946,12 @@ class Router {
         if (fl.kind !== "read") return stop("Read Replica chỉ xử lý thao tác đọc");
         if (!done) return stop(this.missing(f, m));
         return stop("chưa được nối nhân bản từ Database chính");
+      } else if (k === "search") {
+        if (fl.kind !== "search") return stop("Search Index chỉ phục vụ luồng Tìm kiếm");
+        if (!done) return stop(this.missing(f, m));
+        return stop("chưa được nối đồng bộ dữ liệu (CDC) từ Database hoặc NoSQL");
+      } else if (k === "nosql" && fl.kind === "write" && fl.acid) {
+        return stop("NoSQL không hỗ trợ giao dịch ACID — luồng ghi này phải vào Database");
       } else {
         if (!done) return stop(this.missing(f, m));
         return stop(`${CATALOG[k].name} không xử lý loại request này`);
@@ -637,6 +970,8 @@ function noRoute(k: NodeKind, f: Flow) {
   if (k === "gateway") return f.kind === "static" ? "chưa nối tới Object Storage" : "chưa nối tới nhánh nào xử lý được luồng này";
   if (k === "cache") return "cache miss chưa có đường tới Read Replica hoặc Database";
   if (k === "cdn") return "cache miss chưa có đường tới Object Storage";
+  if (k === "semcache") return "cache miss chưa có đường tới Vector DB hoặc mô hình (LLM API / GPU Inference)";
+  if (k === "vector" || k === "agent") return "chưa nối tới mô hình (LLM API / GPU Inference)";
   const what: Record<FlowKind, string> = {
     read: "chưa nối tới Cache, Read Replica hoặc Database",
     write: "chưa nối tới Database để ghi",
@@ -644,13 +979,17 @@ function noRoute(k: NodeKind, f: Flow) {
     static: "App Server không phục vụ tệp tĩnh — dùng CDN hoặc Object Storage",
     upload: "chưa nối tới Object Storage",
     call: "chưa nối tới External Service",
+    search: "chưa nối tới Search Index",
+    infer: "chưa nối tới mô hình AI (LLM API / GPU Inference)",
+    agent: "chưa nối tới Agent Orchestrator",
   };
   return what[f.kind];
 }
 
 function whyText(net: Net, w: Why) {
-  const lb = w.path.slice(0, -1).some((i) => net.kind[i] === "lb");
-  return `${w.path.map((i) => net.label[i]).join(" → ")}: ${w.text}${lb ? " (LB chia đều mọi loại request nên mọi nhánh sau LB đều phải xử lý được)" : ""}`;
+  const blind = w.path.slice(0, -1).find((i) => net.kind[i] === "lb" || net.kind[i] === "waf");
+  const by = blind === undefined ? "" : CATALOG[net.kind[blind] as Kind].short;
+  return `${w.path.map((i) => net.label[i]).join(" → ")}: ${w.text}${by ? ` (${by} chia đều mọi loại request nên mọi nhánh sau ${by} đều phải xử lý được)` : ""}`;
 }
 
 type Acc = { load: Float64Array; edge: Map<number, number>; writes: Float64Array; enq: Map<number, Float64Array> };
@@ -678,8 +1017,14 @@ function propagate(net: Net, flows: readonly Flow[], router: Router, ctx: Ctx, r
     if (i) acc.load[i] += rate;
     const k = net.kind[i];
     if (k === "users" || k === "app" || k === "lb" || k === "gateway") split(i, router.next(i, f, mask), f, mask, rate, ctx.skew && (k === "lb" || k === "gateway"));
-    else if (k === "cache" || k === "cdn") split(i, router.next(i, f, mask), f, mask, rate * (1 - ctx.hit(i)), false);
-    else if (k === "db" && flows[f].kind === "write") acc.writes[i] += rate;
+    else if (k === "waf") split(i, router.next(i, f, mask), f, mask, rate / ctx.junk, false);
+    else if (k === "cache" || k === "cdn" || k === "semcache") split(i, router.next(i, f, mask), f, mask, rate * (1 - ctx.hit(i)), false);
+    else if (k === "vector" && AI_FLOWS.includes(flows[f].kind)) split(i, router.next(i, f, mask), f, mask, rate, false);
+    else if (k === "agent") {
+      split(i, router.next(i, f, mask), f, mask, rate * AGENT_CALLS, false);
+      split(i, router.tools(i), f, mask, rate * AGENT_TOOLS, false);
+    }
+    else if (STORES.includes(k) && flows[f].kind === "write") acc.writes[i] += rate;
     else if (k === "queue") {
       let q = acc.enq.get(i);
       if (!q) acc.enq.set(i, (q = new Float64Array(flows.length)));
@@ -692,7 +1037,7 @@ function propagate(net: Net, flows: readonly Flow[], router: Router, ctx: Ctx, r
 const EPS = 1e-6;
 
 // Worker kéo tác vụ khỏi Queue theo sức của mình; nối nhiều Queue thì chia đều sức cho từng Queue. Đích phía sau gián đoạn
-// thì Worker tạm dừng, tác vụ nằm lại trong hàng.
+// (hoặc một Database đích sập mà không có Standby) thì Worker tạm dừng, tác vụ nằm lại trong hàng.
 function drainQueues(net: Net, flows: readonly Flow[], ctx: Ctx, acc: Acc, backlog: Map<number, Float64Array>) {
   net.kind.forEach((k, q) => {
     if (k !== "queue") return;
@@ -706,7 +1051,12 @@ function drainQueues(net: Net, flows: readonly Flow[], ctx: Ctx, acc: Acc, backl
       return;
     }
     const sinks = new Set(flows.flatMap((fl, f) => (b[f] > EPS && fl.sink ? [fl.sink] : [])));
-    const live = net.out[q].filter((w) => !ctx.down.has(w) && [...sinks].every((s) => net.out[w].some((j) => net.kind[j] === s && !ctx.down.has(j))));
+    const dests = (w: number, s: Sink) => net.out[w].filter((j) => sinkFits(net.kind[j], s));
+    const reachable = (w: number, s: Sink) => {
+      const ts = dests(w, s);
+      return !ts.some((j) => lost(net, ctx, j)) && ts.some((j) => reach(net, ctx, j) >= 0);
+    };
+    const live = net.out[q].filter((w) => !ctx.down.has(w) && [...sinks].every((s) => reachable(w, s)));
     const capOf = (w: number) => (net.spec[w]!.tps * ctx.mul(w)) / net.feeds[w].filter((x) => net.kind[x] === "queue").length;
     const mu = live.reduce((s, w) => s + capOf(w), 0);
     const done = Math.min(total, mu);
@@ -718,7 +1068,7 @@ function drainQueues(net: Net, flows: readonly Flow[], ctx: Ctx, acc: Acc, backl
       bump(acc.edge, q * EDGE + w, done * share);
       flows.forEach((fl, f) => {
         if (b[f] <= EPS || !fl.sink) return;
-        const ts = net.out[w].filter((j) => net.kind[j] === fl.sink && !ctx.down.has(j));
+        const ts = [...new Set(dests(w, fl.sink).map((j) => reach(net, ctx, j)))].filter((j) => j >= 0);
         const amt = (b[f] * ratio * share) / ts.length;
         for (const j of ts) {
           acc.load[j] += amt;
@@ -732,18 +1082,23 @@ function drainQueues(net: Net, flows: readonly Flow[], ctx: Ctx, acc: Acc, backl
   });
 }
 
-function replicate(net: Net, acc: Acc) {
+// Mỗi thao tác ghi vào nguồn thành tải nhân bản trên Replica / Standby, và 2 lượt đánh chỉ mục trên Search Index. Nguồn
+// sập thì Replica / Search Index nhận nhân bản từ Standby đang thay nó.
+function replicate(net: Net, ctx: Ctx, acc: Acc) {
   net.kind.forEach((k, r) => {
-    if (k !== "replica") return;
-    for (const db of net.src[r]) {
-      acc.load[r] += acc.writes[db];
-      bump(acc.edge, db * EDGE + r, acc.writes[db]);
+    if (k !== "replica" && k !== "standby" && k !== "search") return;
+    for (const src of net.src[r]) {
+      const from = reach(net, ctx, src);
+      if (from < 0 || from === r) continue;
+      const w = acc.writes[from] * (k === "search" ? 2 : 1);
+      acc.load[r] += w;
+      bump(acc.edge, src * EDGE + r, w);
     }
   });
 }
 
 function calmCtx(net: Net): Ctx {
-  return { down: new Set(), cut: new Set(), skew: false, hit: (i) => net.spec[i]?.hit ?? 0, mul: () => 1 };
+  return { down: new Set(), cut: new Set(), skew: false, junk: 1, hit: (i) => net.spec[i]?.hit ?? 0, mul: () => 1 };
 }
 
 function hasCycle(d: Design) {
@@ -787,9 +1142,12 @@ export function inspect(p: Pick<Problem, "flows">, d: Design): Report {
     drainQueues(net, p.flows, ctx, acc, new Map());
     net.kind.forEach((k, i) => {
       if (!i || acc.load[i] > EPS) return;
+      // Standby đã nối nhân bản là bản dự phòng: lúc thường không nhận request là đúng.
+      if (k === "standby" && net.src[i].length) return;
       let hint = "không nằm trên đường đi của luồng nào";
       if (!net.feeds[i].length && !net.src[i].length) hint = "chưa được nối vào hệ thống";
-      else if (k === "replica" && !net.src[i].length) hint = "chưa được nối nhân bản từ Database chính";
+      else if ((k === "replica" || k === "standby") && !net.src[i].length) hint = "chưa được nối nhân bản từ Database chính";
+      else if (k === "search" && !net.src[i].length) hint = "chưa được nối đồng bộ dữ liệu từ Database / NoSQL";
       else if (k === "cache" && !net.out[i].length) hint = "chưa có đường cho cache miss";
       else if (k === "queue" && !net.out[i].length) hint = "chưa có Worker";
       idle.push({ nodes: [net.ids[i]], text: `${net.label[i]} ${hint} — không nhận traffic nhưng vẫn tính tiền` });
@@ -835,6 +1193,14 @@ function runLevel(net: Net, p: Problem, tps: number, calm: Router): { load: Leve
     const e = argmax(all("external"), (i) => ref.load[i]);
     if (e >= 0) down.add(e);
   }
+  if (inc.has("db-down")) {
+    const d = argmax(all("db"), (i) => ref.load[i]);
+    if (d >= 0) down.add(d);
+  }
+  if (inc.has("llm-down")) {
+    const l = argmax(all("llm"), (i) => ref.load[i]);
+    if (l >= 0) down.add(l);
+  }
   if (inc.has("worker-down"))
     for (const q of all("queue")) {
       const w = argmax(net.out[q], (i) => net.spec[i]!.tps);
@@ -850,20 +1216,23 @@ function runLevel(net: Net, p: Problem, tps: number, calm: Router): { load: Leve
   const flush = inc.has("cache-flush");
   const drop = inc.has("cache-drop");
   const slow = inc.has("db-slow");
+  const long = inc.has("long-prompt");
   const stormCx: Ctx = {
     down,
     cut,
     skew: inc.has("skew"),
+    junk: inc.has("bot") ? 2 : 1,
     hit: (i) => {
       let h = net.spec[i]?.hit ?? 0;
       if (flush && net.kind[i] === "cache") h *= (t - SIM.incFrom) / (SIM.incTo - SIM.incFrom + 1);
       if (drop) h = Math.max(0, h - 0.3);
       return h;
     },
-    mul: (i) => (slow && net.kind[i] === "db" ? 0.6 : 1),
+    mul: (i) => (slow && net.kind[i] === "db" ? 0.6 : long && MODELS.includes(net.kind[i] as Kind) ? 0.5 : 1),
   };
   const storm = new Router(net, p.flows, stormCx);
-  const surged = inc.has("write-surge") ? surge(p, base) : base;
+  const boost = (inc.has("spike") ? 1.5 : 1);
+  const surged = (inc.has("write-surge") ? surge(p, base) : base).map((s, f) => s * boost * (p.flows[f].kind !== "static" ? stormCx.junk : 1));
 
   const peak = new Float64Array(n);
   const edges = new Map<number, number>();
@@ -895,7 +1264,7 @@ function runLevel(net: Net, p: Problem, tps: number, calm: Router): { load: Leve
     const acc = newAcc(net);
     propagate(net, p.flows, router, ctx, shares.map((s) => (on ? s * tps : 0)), acc);
     drainQueues(net, p.flows, ctx, acc, backlog);
-    replicate(net, acc);
+    replicate(net, ctx, acc);
     for (let i = 1; i < n; i++) peak[i] = Math.max(peak[i], acc.load[i]);
     for (const [key, v] of acc.edge) edges.set(key, Math.max(edges.get(key) ?? 0, v));
     const queued = [...backlog.values()].reduce((s, b) => s + b.reduce((x, y) => x + y, 0), 0);
@@ -915,7 +1284,12 @@ function runLevel(net: Net, p: Problem, tps: number, calm: Router): { load: Leve
     if (worst >= 0) {
       const lim = net.spec[worst]!.tps * ctx.mul(worst);
       const queue = net.kind[worst] === "queue";
-      const slowed = ctx.mul(worst) < 1 ? " (đang bị giảm 40% TPS do sự cố)" : "";
+      const slowed =
+        ctx.mul(worst) < 1
+          ? ` (đang bị giảm ${Math.round((1 - ctx.mul(worst)) * 100)}% TPS do sự cố)`
+          : net.kind[worst] === "standby" && net.src[worst].some((d) => ctx.down.has(d))
+            ? " (đang thay Database chính bị sập)"
+            : "";
       return fail({
         t,
         why: "overload",
@@ -1108,18 +1482,230 @@ export const PRESETS: readonly Preset[] = [
   },
 ];
 
-type Pool = [v: number, n: number];
-type Plan = { front: "lb" | "gateway" | null; fv: number; app: Pool; cache: Pool; db: Pool; rep: Pool; queue: Pool; worker: Pool; storage: Pool; cdn: Pool; ext: Pool };
+// Đề cho senior: traffic lớn, nhiều loại dữ liệu khác nhau (ghi cần ACID lẫn ghi khối lượng lớn), có tìm kiếm, và phải
+// tính tới bot, sập Database, traffic đột biến.
+export const EXPERT_PRESETS: readonly Preset[] = [
+  {
+    key: "mega-sale",
+    title: "Siêu sale 11.11 toàn quốc",
+    desc: "Sàn thương mại điện tử hàng chục triệu người dùng mở sale nửa đêm. Danh mục sản phẩm đọc qua cache, tìm kiếm full-text, đơn hàng bắt buộc giao dịch ACID (không được bán quá tồn kho), thanh toán qua cổng ngoài và email xác nhận gửi ở nền. Bot săn sale và đối thủ thường dội traffic đúng giờ G.",
+    target: 4000,
+    flows: [
+      { kind: "read", name: "Xem sản phẩm", pct: 38, cache: true },
+      { kind: "search", name: "Tìm sản phẩm", pct: 30 },
+      { kind: "write", name: "Đặt hàng", pct: 12, acid: true },
+      { kind: "call", name: "Thanh toán", pct: 8 },
+      { kind: "job", name: "Email xác nhận", pct: 12, sink: "external" },
+    ],
+  },
+  {
+    key: "core-banking",
+    title: "Ngân hàng số",
+    desc: "App ngân hàng: mọi request phải qua API Gateway (xác thực, hạn mức). Chuyển khoản là giao dịch ACID tuyệt đối không được mất; lịch sử giao dịch ghi ở nền vào kho dữ liệu, thông báo biến động số dư đẩy qua dịch vụ ngoài. Ngân hàng nhà nước yêu cầu chịu được sự cố mất Database chính.",
+    target: 2500,
+    flows: [
+      { kind: "read", name: "Xem số dư", pct: 45, gate: true },
+      { kind: "write", name: "Chuyển khoản", pct: 20, gate: true, acid: true },
+      { kind: "job", name: "Ghi lịch sử giao dịch", pct: 20, gate: true, sink: "db" },
+      { kind: "job", name: "Thông báo biến động", pct: 15, gate: true, sink: "external" },
+    ],
+  },
+  {
+    key: "chat",
+    title: "Ứng dụng chat thời gian thực",
+    desc: "Nhắn tin cho hàng trăm triệu người: tin nhắn ghi với khối lượng khổng lồ nhưng không cần giao dịch, lịch sử hội thoại đọc liên tục, ảnh / video gửi kèm tải lên kho và phát lại qua CDN, người nhận offline thì đẩy thông báo ở nền.",
+    target: 6000,
+    flows: [
+      { kind: "read", name: "Tải hội thoại", pct: 35 },
+      { kind: "write", name: "Gửi tin nhắn", pct: 30 },
+      { kind: "static", name: "Xem ảnh / video", pct: 20, cdn: true },
+      { kind: "upload", name: "Gửi tệp", pct: 5 },
+      { kind: "job", name: "Đẩy thông báo", pct: 10, sink: "external" },
+    ],
+  },
+  {
+    key: "streaming",
+    title: "Nền tảng streaming phim",
+    desc: "Tối thứ Bảy, phim bom tấn vừa phát hành: video bắt buộc phát qua CDN, trang gợi ý đọc qua cache, người xem tìm phim theo tên / diễn viên, lịch sử xem ghi liên tục để gợi ý, phim mới được chuyển mã ở nền rồi lưu vào kho.",
+    target: 10000,
+    flows: [
+      { kind: "static", name: "Xem phim", pct: 60, cdn: true },
+      { kind: "read", name: "Trang gợi ý", pct: 20, cache: true },
+      { kind: "search", name: "Tìm phim", pct: 8 },
+      { kind: "write", name: "Ghi lịch sử xem", pct: 8 },
+      { kind: "job", name: "Chuyển mã video", pct: 4, sink: "storage" },
+    ],
+  },
+  {
+    key: "feed",
+    title: "Mạng xã hội — news feed",
+    desc: "Bài đăng mới được fan-out ở nền vào feed của từng người theo dõi (ghi nhiều gấp bội lượt đăng). Bảng tin đọc qua cache, ảnh qua CDN, tìm người / hashtag qua Search. Một bài của người nổi tiếng có thể khiến traffic tăng đột biến.",
+    target: 5000,
+    flows: [
+      { kind: "read", name: "Lướt bảng tin", pct: 45, cache: true },
+      { kind: "static", name: "Xem ảnh", pct: 25, cdn: true },
+      { kind: "search", name: "Tìm người / hashtag", pct: 10 },
+      { kind: "write", name: "Đăng bài", pct: 5 },
+      { kind: "job", name: "Fan-out vào feed", pct: 15, sink: "db" },
+    ],
+  },
+  {
+    key: "booking",
+    title: "Đặt phòng khách sạn toàn cầu",
+    desc: "Mùa du lịch cao điểm: khách tìm phòng trống theo địa điểm và ngày (qua API Gateway để giới hạn đối tác crawl), xem chi tiết khách sạn qua cache, giữ phòng là giao dịch ACID chống đặt trùng, thanh toán qua cổng ngoài, email xác nhận gửi ở nền.",
+    target: 3000,
+    flows: [
+      { kind: "search", name: "Tìm phòng trống", pct: 40, gate: true },
+      { kind: "read", name: "Xem khách sạn", pct: 30, cache: true },
+      { kind: "write", name: "Giữ phòng", pct: 10, acid: true },
+      { kind: "call", name: "Thanh toán", pct: 8 },
+      { kind: "job", name: "Email xác nhận", pct: 12, sink: "external" },
+    ],
+  },
+  {
+    key: "payments",
+    title: "Cổng thanh toán cho doanh nghiệp",
+    desc: "Nền tảng thanh toán kiểu Stripe: merchant gọi API qua Gateway, mỗi giao dịch ghi ACID và gọi sang mạng thẻ / ngân hàng, merchant tra trạng thái liên tục, webhook báo kết quả gửi ở nền. Mất Database chính là mất tiền thật.",
+    target: 3000,
+    flows: [
+      { kind: "write", name: "Tạo giao dịch", pct: 25, gate: true, acid: true },
+      { kind: "call", name: "Gọi mạng thẻ", pct: 25, gate: true },
+      { kind: "read", name: "Tra trạng thái", pct: 35, gate: true },
+      { kind: "job", name: "Gửi webhook", pct: 15, gate: true, sink: "external" },
+    ],
+  },
+  {
+    key: "observability",
+    title: "Hệ thống thu thập log & giám sát",
+    desc: "Hàng nghìn server đẩy log / metric liên tục (ghi khối lượng cực lớn, không cần giao dịch), kỹ sư tìm log full-text khi có sự cố, dashboard đọc qua cache, cảnh báo gửi ở nền qua dịch vụ ngoài. Đúng lúc hệ thống khách hàng gặp sự cố thì lượng log tăng vọt.",
+    target: 8000,
+    flows: [
+      { kind: "write", name: "Ghi log / metric", pct: 60 },
+      { kind: "search", name: "Tìm log", pct: 15 },
+      { kind: "read", name: "Xem dashboard", pct: 20, cache: true },
+      { kind: "job", name: "Gửi cảnh báo", pct: 5, sink: "external" },
+    ],
+  },
+  {
+    key: "ride-pro",
+    title: "Gọi xe toàn quốc giờ cao điểm",
+    desc: "Tài xế gửi vị trí vài giây một lần (ghi rất nhiều, không cần giao dịch), khách tìm xe gần qua cache, tạo chuyến là giao dịch ACID (không ghép một tài xế cho hai khách), thanh toán qua ví ngoài, báo tài xế qua dịch vụ đẩy tin ở nền.",
+    target: 5000,
+    flows: [
+      { kind: "write", name: "Cập nhật vị trí tài xế", pct: 35 },
+      { kind: "read", name: "Tìm xe gần", pct: 40, cache: true },
+      { kind: "write", name: "Tạo chuyến", pct: 10, acid: true },
+      { kind: "call", name: "Thanh toán", pct: 5 },
+      { kind: "job", name: "Báo tài xế", pct: 10, sink: "external" },
+    ],
+  },
+  {
+    key: "rag-support",
+    title: "Chatbot chăm sóc khách hàng (RAG)",
+    desc: "Trợ lý AI trả lời khách dựa trên kho tài liệu sản phẩm: mỗi câu hỏi phải truy xuất ngữ cảnh từ Vector DB (RAG) rồi mới gọi LLM, câu hỏi lặp lại nhiều nên đáng cache theo ngữ nghĩa. Lịch sử hội thoại đọc / ghi liên tục, tài liệu mới được tạo embedding ở nền. Nhà cung cấp LLM thỉnh thoảng gián đoạn.",
+    target: 1500,
+    flows: [
+      { kind: "infer", name: "Hỏi đáp tài liệu", pct: 45, rag: true },
+      { kind: "read", name: "Xem lịch sử chat", pct: 30, cache: true },
+      { kind: "write", name: "Lưu hội thoại", pct: 15 },
+      { kind: "job", name: "Tạo embedding tài liệu", pct: 10, sink: "vector" },
+    ],
+  },
+  {
+    key: "travel-agent",
+    title: "AI Agent đặt chuyến du lịch",
+    desc: "Người dùng giao việc cho AI Agent: tự lên lịch trình, tra chuyến bay / khách sạn qua API đối tác (tool) và giữ chỗ. Mỗi tác vụ agent gọi mô hình nhiều lượt nên tải lên mô hình nhân lên gấp bội. Xác nhận đặt chỗ là giao dịch ACID, thanh toán qua cổng ngoài.",
+    target: 800,
+    flows: [
+      { kind: "agent", name: "Agent lên kế hoạch & đặt chỗ", pct: 30 },
+      { kind: "infer", name: "Chat hỏi nhanh", pct: 30 },
+      { kind: "read", name: "Xem chuyến đi", pct: 25, cache: true },
+      { kind: "write", name: "Xác nhận đặt chỗ", pct: 10, acid: true },
+      { kind: "call", name: "Thanh toán", pct: 5 },
+    ],
+  },
+  {
+    key: "recsys",
+    title: "Hệ thống gợi ý sản phẩm bằng ML",
+    desc: "Trang chủ sàn TMĐT cá nhân hoá cho từng người: mỗi lượt mở trang gọi mô hình gợi ý (tự host trên GPU hoặc dịch vụ ngoài), hành vi người dùng (clickstream) ghi liên tục để huấn luyện lại, embedding sản phẩm cập nhật ở nền vào Vector DB, chi tiết sản phẩm đọc qua cache.",
+    target: 3000,
+    flows: [
+      { kind: "infer", name: "Gợi ý cá nhân hoá", pct: 35 },
+      { kind: "read", name: "Xem sản phẩm", pct: 35, cache: true },
+      { kind: "write", name: "Ghi clickstream", pct: 20 },
+      { kind: "job", name: "Cập nhật embedding sản phẩm", pct: 10, sink: "vector" },
+    ],
+  },
+  {
+    key: "fraud",
+    title: "Chấm điểm gian lận thanh toán realtime",
+    desc: "Mỗi giao dịch thẻ phải qua API Gateway, được mô hình ML chấm điểm gian lận trong vài chục mili-giây trước khi gọi sang mạng thẻ; giao dịch ghi ACID; feature và nhãn được ghi ở nền để huấn luyện lại mô hình. Mùa sale traffic tăng đột biến.",
+    target: 2000,
+    flows: [
+      { kind: "infer", name: "Chấm điểm gian lận", pct: 30, gate: true },
+      { kind: "write", name: "Ghi giao dịch", pct: 25, gate: true, acid: true },
+      { kind: "call", name: "Gọi mạng thẻ", pct: 25, gate: true },
+      { kind: "job", name: "Lưu feature huấn luyện", pct: 20, gate: true, sink: "db" },
+    ],
+  },
+  {
+    key: "copilot",
+    title: "Trợ lý lập trình AI (Copilot)",
+    desc: "Gợi ý code theo từng phím gõ (rất nhiều request, prompt hay lặp lại — nên cache), agent tự sửa bug có RAG trên codebase và chạy test qua sandbox ngoài (tool), editor tải ngữ cảnh repo, repo mới được index embedding ở nền. Dev dán file dài làm prompt phình to.",
+    target: 1200,
+    flows: [
+      { kind: "infer", name: "Gợi ý code", pct: 50 },
+      { kind: "agent", name: "Agent sửa bug", pct: 10, rag: true },
+      { kind: "read", name: "Tải ngữ cảnh repo", pct: 30 },
+      { kind: "job", name: "Index repo", pct: 10, sink: "vector" },
+    ],
+  },
+];
 
-// Thiết kế tham khảo xếp theo cột từ trái sang phải: cửa vào, App, Cache / Queue, Database / Worker, phần đuôi.
-const COLUMNS: readonly (readonly Kind[])[] = [["lb", "gateway", "cdn"], ["app"], ["cache", "queue"], ["db", "worker"], ["replica", "storage", "external"]];
-const COLUMN_X = [168, 320, 472, 624, 776];
+export const presetsOf = (mode: Mode) => (mode === "expert" ? EXPERT_PRESETS : PRESETS);
+
+type Pool = [v: number, n: number];
+// Có NoSQL thì NoSQL giữ mọi dữ liệu, Database chỉ nhận ghi cần ACID. `standby`: mỗi Database có một Standby cùng cỡ.
+type Plan = {
+  front: "lb" | "gateway" | null;
+  fv: number;
+  waf: Pool;
+  app: Pool;
+  cache: Pool;
+  db: Pool;
+  nosql: Pool;
+  standby: boolean;
+  rep: Pool;
+  search: Pool;
+  queue: Pool;
+  worker: Pool;
+  storage: Pool;
+  cdn: Pool;
+  ext: Pool;
+  agent: Pool;
+  semcache: Pool;
+  vector: Pool;
+  // Mô hình AI: LLM API (rẻ hơn trên mỗi TPS) nếu đề cho dùng, không thì GPU Inference.
+  model: Pool;
+  mk: "llm" | "gpu";
+};
+
+// Thiết kế tham khảo xếp theo cột từ trái sang phải: WAF, cửa vào, App / Agent, Cache / Queue, Database / Worker, phần đuôi.
+const COLUMNS: readonly (readonly Kind[])[] = [
+  ["waf"],
+  ["lb", "gateway", "cdn"],
+  ["app", "agent"],
+  ["cache", "queue", "search", "semcache"],
+  ["db", "nosql", "worker", "vector"],
+  ["replica", "standby", "storage", "external", "llm", "gpu"],
+];
 
 function build(p: Problem, plan: Plan): Design {
   const has = (k: FlowKind) => p.flows.some((f) => f.kind === k);
   const sinks = new Set(p.flows.flatMap((f) => (f.kind === "job" && f.sink ? [f.sink] : [])));
   const writes = has("write") || sinks.has("db");
   const reads = has("read");
+  const acid = p.flows.some((f) => f.acid);
   const d = emptyDesign();
   const add = (k: Kind, [v, n]: Pool) => {
     const list: number[] = [];
@@ -1133,18 +1719,29 @@ function build(p: Problem, plan: Plan): Design {
   const link = (a: number[], b: number[]) => {
     for (const x of a) for (const y of b) if (!linkIssue(d, x, y)) d.edges.push([x, y]);
   };
+  const waf = add("waf", plan.waf);
   const front = plan.front ? add(plan.front, [plan.fv, 1]) : [];
   const cdn = add("cdn", plan.cdn);
   const apps = add("app", plan.app);
   const cache = add("cache", plan.cache);
   const queue = add("queue", plan.queue);
+  const search = add("search", plan.search);
   const dbs = add("db", plan.db);
+  const nosql = add("nosql", plan.nosql);
+  const stores = nosql.length ? nosql : dbs;
   const workers = add("worker", plan.worker);
   const reps = add("replica", plan.rep);
+  const spares = plan.standby ? dbs.map(() => add("standby", [plan.db[0], 1])[0]) : [];
   const storage = add("storage", plan.storage);
   const ext = add("external", plan.ext);
+  const agents = add("agent", plan.agent);
+  const semc = add("semcache", plan.semcache);
+  const vectors = add("vector", plan.vector);
+  const models = add(plan.mk, plan.model);
 
-  link([USERS_ID], front.length ? front : apps.slice(0, 1));
+  const door = front.length ? front : apps;
+  link([USERS_ID], waf.length ? waf : door.slice(0, front.length ? door.length : 1));
+  link(waf, door);
   link(front, apps);
   if (has("static")) {
     if (cdn.length) {
@@ -1154,22 +1751,42 @@ function build(p: Problem, plan: Plan): Design {
   }
   if (reads && cache.length) {
     link(apps, cache);
-    link(cache, reps.length ? reps : dbs);
+    link(cache, reps.length ? reps : stores);
   } else if (reads && reps.length) link(apps, reps);
-  if (writes || (reads && !cache.length && !reps.length)) link(apps, dbs);
+  if (writes || (reads && !cache.length && !reps.length)) link(apps, stores);
+  if (nosql.length && acid) link(apps, dbs);
   link(dbs, reps);
+  dbs.forEach((db, n) => spares[n] && link([db], [spares[n]]));
+  if (has("search")) {
+    link(apps, search);
+    // Mỗi Search Index đánh chỉ mục dữ liệu của nguồn nối tới nó: chia nguồn cho các index như shard.
+    for (let i = 0; i < Math.max(stores.length, search.length); i++) link([stores[i % stores.length]], [search[i % search.length]]);
+  }
   link(apps, queue);
   link(queue, workers);
-  for (const s of sinks) link(workers, s === "db" ? dbs : s === "storage" ? storage : ext);
+  for (const s of sinks) link(workers, s === "db" ? stores : s === "storage" ? storage : s === "vector" ? vectors : ext);
   if (has("upload")) link(apps, storage);
   if (has("call")) link(apps, ext);
+  // Chuỗi AI: Semantic Cache → Vector DB → mô hình (chặng nào không có thì bỏ qua).
+  if (has("infer") || has("agent")) {
+    const entry = semc.length ? semc : vectors.length ? vectors : models;
+    link(semc, vectors.length ? vectors : models);
+    link(vectors, models);
+    if (has("infer")) link(apps, entry);
+    if (has("agent")) {
+      link(apps, agents);
+      link(agents, entry);
+      link(agents, ext);
+    }
+  }
 
-  COLUMNS.forEach((ks, c) => {
-    const list = d.nodes.filter((n) => ks.includes(n.k));
+  const cols = COLUMNS.map((ks) => d.nodes.filter((n) => ks.includes(n.k))).filter((l) => l.length);
+  const step = Math.min(152, (CANVAS.w - NODE.w - 172) / Math.max(1, cols.length - 1));
+  cols.forEach((list, c) => {
     const gap = Math.min(16, Math.max(2, (CANVAS.h - list.length * NODE.h) / (list.length + 1)));
     const top = Math.max(4, (CANVAS.h - list.length * NODE.h - (list.length - 1) * gap) / 2);
     list.forEach((n, r) => {
-      n.x = COLUMN_X[c];
+      n.x = Math.round(168 + c * step);
       n.y = Math.min(CANVAS.h - NODE.h, Math.round(top + r * (NODE.h + gap)));
     });
   });
@@ -1191,22 +1808,38 @@ export function autoDesign(p: Problem): { design: Design; sim: SimResult } {
   const inc = new Set(p.incidents);
   const dynamic = p.flows.some((f) => f.kind !== "static");
   const reads = has("read");
+  const ai = has("infer") || has("agent");
   const spare = (k: Incident) => (inc.has(k) ? 2 : 1);
   const plan: Plan = {
     front: p.flows.some((f) => f.gate) ? "gateway" : null,
     fv: 0,
+    waf: [0, dynamic && inc.has("bot") && allowed("waf") ? 1 : 0],
     app: [0, dynamic ? Math.max(spare("app-down"), spare("link-cut")) : 0],
     cache: [0, reads && allowed("cache") ? 1 : 0],
-    db: [0, reads || has("write") || sinks.has("db") ? 1 : 0],
+    // Có NoSQL (rẻ hơn trên mỗi TPS) thì dùng cho mọi dữ liệu, Database chỉ còn cho ghi cần ACID.
+    db: [0, (allowed("nosql") ? p.flows.some((f) => f.acid) : reads || has("write") || sinks.has("db") || has("search")) ? 1 : 0],
+    nosql: [0, allowed("nosql") && (reads || p.flows.some((f) => f.kind === "write" && !f.acid) || sinks.has("db") || has("search")) ? 1 : 0],
+    standby: false,
     rep: [1, 0],
+    search: [0, has("search") ? 1 : 0],
     queue: [0, has("job") ? 1 : 0],
     worker: [0, has("job") ? spare("worker-down") : 0],
     storage: [0, has("static") || has("upload") || sinks.has("storage") ? 1 : 0],
     cdn: [0, has("static") && allowed("cdn") ? 1 : 0],
-    ext: [0, has("call") || sinks.has("external") ? spare("ext-down") : 0],
+    ext: [0, has("call") || has("agent") || sinks.has("external") ? spare("ext-down") : 0],
+    agent: [0, has("agent") ? 1 : 0],
+    semcache: [0, ai && allowed("semcache") ? 1 : 0],
+    vector: [0, p.flows.some((f) => f.rag) || sinks.has("vector") ? 1 : 0],
+    model: [0, ai ? spare("llm-down") : 0],
+    mk: allowed("llm") ? "llm" : "gpu",
+  };
+  // Database chính có thể sập mà chưa có Standby: thêm Standby cho mọi Database.
+  const failover = () => {
+    if (!inc.has("db-down") || !plan.db[1] || plan.standby || !allowed("standby")) return false;
+    return (plan.standby = true);
   };
   const ensureFront = () => {
-    if (plan.front || plan.app[1] <= 1) return true;
+    if (plan.front || plan.app[1] <= 1 || plan.waf[1]) return true;
     plan.front = allowed("lb") ? "lb" : allowed("gateway") ? "gateway" : null;
     if (!plan.front) plan.app[1] = 1;
     return !!plan.front;
@@ -1220,27 +1853,41 @@ export function autoDesign(p: Problem): { design: Design; sim: SimResult } {
     let moved = false;
     if (f.why === "path") {
       const fk = f.flow !== undefined ? p.flows[f.flow].kind : undefined;
-      if (inc.has("ext-down") && fk === "call") moved = grow(plan.ext);
+      if (inc.has("ext-down") && (fk === "call" || fk === "agent")) moved = grow(plan.ext);
+      else if (inc.has("llm-down") && (fk === "infer" || fk === "agent") && plan.model[1] < 10) moved = !!++plan.model[1];
+      else if (failover()) moved = true;
       else if (plan.app[1] < 8) {
         plan.app[1]++;
         moved = ensureFront();
       }
-    } else if (f.why === "drain") moved = grow(plan.worker);
-    else if (f.why === "backlog") moved = grow(plan.worker) || grow(plan.queue, 1);
+    } else if (f.why === "drain") moved = failover() || grow(plan.worker);
+    else if (f.why === "backlog") moved = failover() || grow(plan.worker) || grow(plan.queue, 1);
     else if (k === "queue") moved = grow(plan.queue, 1);
+    else if (k === "waf") moved = grow(plan.waf, 1);
     else if (k === "lb" || k === "gateway") moved = plan.fv < 2 && !!++plan.fv;
     else if (k === "app") {
       moved = grow(plan.app);
       if (plan.app[1] > 1) moved = ensureFront() && moved;
-    } else if (k === "db") {
+    } else if (k === "db" || k === "standby") {
       if (plan.db[0] < 2) moved = !!++plan.db[0];
-      else if (reads && allowed("replica") && plan.rep[1] < 4) moved = !!++plan.rep[1];
+      else if (reads && !plan.nosql[1] && allowed("replica") && plan.rep[1] < 4) moved = !!++plan.rep[1];
       else moved = grow(plan.db, 4);
-    } else if (k === "replica") moved = grow(plan.rep, 6);
+    } else if (k === "nosql") moved = grow(plan.nosql, 6);
+    else if (k === "search") {
+      // Search Index nào cũng đánh chỉ mục mọi thao tác ghi của nguồn nó: thêm index thì thêm nguồn để chia nhỏ (shard).
+      moved = grow(plan.search, 6);
+      const src = plan.nosql[1] ? plan.nosql : plan.db;
+      if (moved && plan.search[1] > src[1] && src[1] < 6) src[1]++;
+    }
+    else if (k === "replica") moved = grow(plan.rep, 6);
     else if (k === "cache") moved = grow(plan.cache, 3);
     else if (k === "cdn") moved = grow(plan.cdn, 1);
     else if (k === "storage") moved = grow(plan.storage, plan.cdn[1] ? 6 : 1);
     else if (k === "external") moved = grow(plan.ext, 6);
+    else if (k === "agent") moved = grow(plan.agent, 6);
+    else if (k === "semcache") moved = grow(plan.semcache, 3);
+    else if (k === "vector") moved = grow(plan.vector, 6);
+    else if (k === "llm" || k === "gpu") moved = grow(plan.model, 10);
     if (!moved) break;
     design = build(p, plan);
     sim = simulate(p, design, { stopAt: p.target });
@@ -1248,12 +1895,14 @@ export function autoDesign(p: Problem): { design: Design; sim: SimResult } {
   return { design, sim };
 }
 
-export const budgetFor = (cost: number) => Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.ceil((cost * 1.2) / 5) * 5));
+// Mode Chuyên gia chỉ dư 10% so với thiết kế tham khảo của máy (Cơ bản dư 20%).
+export const BUDGET_SLACK: Record<Mode, number> = { basic: 0.2, expert: 0.1 };
+export const budgetFor = (cost: number, mode: Mode = "basic") => Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.ceil((cost * (1 + BUDGET_SLACK[mode])) / 5) * 5));
 
-/** Budget gợi ý: chi phí thiết kế tham khảo của máy cộng 20%; `null` nếu máy không dựng được thiết kế đạt mục tiêu. */
+/** Budget gợi ý: chi phí thiết kế tham khảo của máy cộng phần dư theo mode; `null` nếu máy không dựng được thiết kế đạt mục tiêu. */
 export function suggestBudget(p: Problem): number | null {
   const { sim } = autoDesign(p);
-  return sim.valid && sim.maxTps >= p.target ? budgetFor(sim.cost) : null;
+  return sim.valid && sim.maxTps >= p.target ? budgetFor(sim.cost, p.mode) : null;
 }
 
 function rng(seed: number) {
@@ -1267,15 +1916,20 @@ function rng(seed: number) {
   };
 }
 
-/** Đề tự sinh: một đề mẫu, traffic mục tiêu nhân hệ số ngẫu nhiên, 0–2 sự cố hợp với các luồng, budget = gợi ý của máy. */
-export function makeProblem(seed: number, presetKey?: string, time: DesignTime = 300): Problem {
+/**
+ * Đề tự sinh: một đề mẫu, traffic mục tiêu nhân hệ số ngẫu nhiên, sự cố hợp với các luồng (Cơ bản 0–2; Chuyên gia 2–3,
+ * luôn có ít nhất một sự cố nâng cao), budget = gợi ý của máy.
+ */
+export function makeProblem(seed: number, presetKey?: string, time: DesignTime = 300, mode: Mode = "basic"): Problem {
   const rand = rng(seed);
-  const preset = PRESETS.find((x) => x.key === presetKey) ?? PRESETS[Math.floor(rand() * PRESETS.length)];
+  const presets = presetsOf(mode);
+  const preset = presets.find((x) => x.key === presetKey) ?? presets[Math.floor(rand() * presets.length)];
   const flows = preset.flows.map((f) => ({ ...f }));
   const kinds = new Set(flows.map((f) => f.kind));
+  const dynamic = flows.some((f) => f.kind !== "static");
   const fits: Record<Incident, boolean> = {
     "app-down": kinds.size > 1 || !kinds.has("static"),
-    "db-slow": kinds.has("read") || kinds.has("write"),
+    "db-slow": kinds.has("read") || kinds.has("write") || kinds.has("search"),
     "link-cut": kinds.size > 1 || !kinds.has("static"),
     "cache-flush": kinds.has("read"),
     "cache-drop": kinds.has("read") || kinds.has("static"),
@@ -1283,23 +1937,32 @@ export function makeProblem(seed: number, presetKey?: string, time: DesignTime =
     "write-surge": kinds.has("write"),
     "worker-down": kinds.has("job"),
     "ext-down": flows.some((f) => f.kind === "call" || f.sink === "external"),
+    bot: dynamic,
+    // Chỉ khi chắc chắn có Database (ghi cần ACID); không thì NoSQL làm sự cố này vô nghĩa.
+    "db-down": flows.some((f) => f.acid),
+    spike: true,
+    "llm-down": flows.some((f) => AI_FLOWS.includes(f.kind)),
+    "long-prompt": flows.some((f) => AI_FLOWS.includes(f.kind)),
   };
-  const pool = INCIDENT_KEYS.filter((k) => fits[k]);
+  const pool = modeIncidents(mode).filter((k) => fits[k]);
   const roll = rand();
-  const count = roll < 0.35 ? 0 : roll < 0.8 ? 1 : 2;
+  const count = mode === "expert" ? (roll < 0.5 ? 2 : 3) : roll < 0.35 ? 0 : roll < 0.8 ? 1 : 2;
   const incidents: Incident[] = [];
+  const pick = (from: readonly Incident[]) => from[Math.floor(rand() * from.length)];
+  const hard = pool.filter((k) => EXPERT_INCIDENTS.includes(k));
+  if (mode === "expert" && hard.length) incidents.push(pick(hard));
   while (incidents.length < count && incidents.length < pool.length) {
-    const k = pool[Math.floor(rand() * pool.length)];
+    const k = pick(pool);
     if (!incidents.includes(k)) incidents.push(k);
   }
-  const factor = [0.5, 1, 1, 1.5, 2][Math.floor(rand() * 5)];
-  let target = Math.max(TARGET_MIN, Math.round((preset.target * factor) / 100) * 100);
-  const p = normProblem({ title: preset.title, desc: preset.desc, time, target, budget: 100, kinds: KINDS, flows, incidents });
+  const factor = mode === "expert" ? [1, 1, 1.5, 2][Math.floor(rand() * 4)] : [0.5, 1, 1, 1.5, 2][Math.floor(rand() * 5)];
+  let target = Math.min(TARGET_MAX, Math.max(TARGET_MIN, Math.round((preset.target * factor) / 100) * 100));
+  const p = normProblem({ mode, title: preset.title, desc: preset.desc, time, target, budget: 100, kinds: KINDS, flows, incidents });
   for (let tries = 0; tries < 4; tries++) {
     const { sim } = autoDesign(p);
-    if (sim.valid && sim.maxTps >= p.target) return { ...p, budget: budgetFor(sim.cost) };
+    if (sim.valid && sim.maxTps >= p.target) return { ...p, budget: budgetFor(sim.cost, mode) };
     target = Math.max(TARGET_MIN, Math.floor((sim.maxTps * 0.9) / 100) * 100);
     p.target = target;
   }
-  return { ...p, budget: budgetFor(autoDesign(p).sim.cost) };
+  return { ...p, budget: budgetFor(autoDesign(p).sim.cost, mode) };
 }

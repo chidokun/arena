@@ -140,8 +140,8 @@ export class SystemDesignRoom extends RoomSession<SxView> {
     const raw = (m.opts as { problem?: unknown }).problem;
     if (raw !== undefined) m.sxq = normProblem(raw);
     else if (!m.sxq) m.sxq = makeProblem(crypto.getRandomValues(new Uint32Array(1))[0]);
-    const { time, target, budget } = m.sxq;
-    const opts = { time, target, budget };
+    const { mode, time, target, budget } = m.sxq;
+    const opts = { mode, time, target, budget };
     if (JSON.stringify(m.opts) !== JSON.stringify(opts)) m.opts = opts;
   }
 

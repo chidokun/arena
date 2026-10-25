@@ -9,29 +9,32 @@ import {
   CATALOG,
   COUNTDOWN_MS,
   designCost,
-  FLOW_KINDS,
   flowIssues,
+  flowPath,
   FLOWS,
   fmt,
-  INCIDENT_KEYS,
   INCIDENTS,
   inspect,
-  KINDS,
   levelStep,
   linkIssue,
   makeProblem,
   MAX_FLOWS,
   MAX_NODES,
+  modeFlows,
+  modeIncidents,
+  modeKinds,
+  MODES,
   NODE,
   neededKinds,
   nodeLabels,
   normProblem,
   pct,
-  PRESETS,
+  presetsOf,
+  ruleOf,
   SIM,
   simulate,
   SINK_NAMES,
-  SINKS,
+  modeSinks,
   suggestBudget,
   TARGET_MAX,
   TARGET_MIN,
@@ -47,6 +50,7 @@ import {
   type Incident,
   type Kind,
   type LevelLoad,
+  type Mode,
   type Problem,
   type SimResult,
   type Sink,
@@ -140,13 +144,14 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
     session,
     (v) => {
       const p = live && v?.match ? v.match.problem : v!.problem;
-      return { target: p.target, budget: p.budget, time: p.time };
+      return { mode: p.mode, target: p.target, budget: p.budget, time: p.time };
     },
     shallowEqual,
   );
   return (
     <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<ChatPanel session={session} />}>
       <RoomHeader name={head.name} status={head.status} round={head.round} playing="đang thiết kế">
+        <ModeChip mode={chips.mode} />
         <span className="chip text-ink-2">🎯 {fmt(chips.target)} TPS</span>
         <span className="chip text-ink-2">💰 Budget {fmt(chips.budget)}</span>
         <span className="chip text-ink-2">⏱ {timeLabel(chips.time)}</span>
@@ -380,18 +385,22 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
 // ---------------------------------------------------------------------------------------------------------------------
 // Đề bài.
 
-function flowPath(f: Flow) {
-  const parts = [FLOWS[f.kind].path];
-  if (f.kind === "job" && f.sink) parts.push(`→ ${SINK_NAMES[f.sink]}`);
-  return parts.join(" ");
-}
-
 function flowNeeds(f: Flow) {
   const out: string[] = [];
   if (f.gate) out.push("bắt buộc qua API Gateway");
   if (f.cdn) out.push("bắt buộc qua CDN");
   if (f.cache) out.push("bắt buộc đọc qua Cache");
+  if (f.acid) out.push("cần giao dịch ACID (chỉ Database)");
+  if (f.rag) out.push("bắt buộc truy xuất ngữ cảnh qua Vector DB (RAG)");
   return out;
+}
+
+function ModeChip({ mode }: { mode: Mode }) {
+  return (
+    <span className={`chip ${mode === "expert" ? "sx-mode-expert" : "text-ink-2"}`} title={MODES[mode].text}>
+      {MODES[mode].emoji} {MODES[mode].name}
+    </span>
+  );
 }
 
 function ProblemCard({ p, title = "📋 Đề bài", children }: { p: Problem; title?: string; children?: React.ReactNode }) {
@@ -399,17 +408,26 @@ function ProblemCard({ p, title = "📋 Đề bài", children }: { p: Problem; t
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">{title}</p>
+          <p className="flex flex-wrap items-center gap-2 text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">
+            {title} <ModeChip mode={p.mode} />
+          </p>
           <h2 className="font-display text-2xl font-extrabold">{p.title}</h2>
         </div>
         {children}
       </div>
       {p.desc && <p className="text-[14.5px] whitespace-pre-line text-ink-2">{p.desc}</p>}
-      <div className="flex flex-wrap gap-2 text-[13px] font-bold">
-        <span className="rounded-lg bg-lime-soft px-2.5 py-1">🎯 Traffic mục tiêu {fmt(p.target)} TPS</span>
-        <span className="rounded-lg bg-sun-soft px-2.5 py-1">💰 Budget tối đa {fmt(p.budget)}</span>
-        <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ {timeLabel(p.time)}</span>
-      </div>
+      <p className="rounded-xl bg-lime-soft px-3 py-2.5 text-[14.5px]">
+        🎯 Bạn cần dựng hệ thống đáp ứng traffic <b className="tabular-nums">≥ {fmt(p.target)} TPS</b> với budget tối đa{" "}
+        <b className="tabular-nums">{fmt(p.budget)}</b>
+        {p.time ? (
+          <>
+            {" "}
+            trong vòng <b>{timeLabel(p.time)}</b>.
+          </>
+        ) : (
+          " — không giới hạn thời gian."
+        )}
+      </p>
       <div>
         <p className="mb-2 text-sm font-bold">Luồng nghiệp vụ</p>
         <ul className="grid gap-2">
@@ -422,7 +440,7 @@ function ProblemCard({ p, title = "📋 Đề bài", children }: { p: Problem; t
                 </b>{" "}
                 <span className="text-ink-3">· {FLOWS[f.kind].name}</span>
                 <span className="block text-[13px] text-ink-2">
-                  {flowPath(f)}
+                  {flowPath(f, p.mode)}
                   {flowNeeds(f).length ? ` · ${flowNeeds(f).join(", ")}` : ""}
                 </span>
               </span>
@@ -459,6 +477,24 @@ function ProblemCard({ p, title = "📋 Đề bài", children }: { p: Problem; t
   );
 }
 
+const MODE_KEYS = Object.keys(MODES) as Mode[];
+
+// Chọn mode cho đề: đổi mode thì sinh đề ngẫu nhiên mới của mode đó (đề cũ có thể dùng thứ mode kia không có).
+function ModePicker({ mode, onPick }: { mode: Mode; onPick: (m: Mode) => void }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Mode">
+      {MODE_KEYS.map((m) => (
+        <button key={m} type="button" role="radio" aria-checked={mode === m} className={`sx-mode ${mode === m ? "is-on" : ""}`} onClick={() => mode !== m && onPick(m)}>
+          <b>
+            {MODES[m].emoji} {MODES[m].name}
+          </b>
+          <span>{MODES[m].text}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SimRules({ p }: { p: Problem }) {
   const step = levelStep(p);
   return (
@@ -480,6 +516,7 @@ const MatchProblemPart = memo(function MatchProblemPart({ session, compact }: { 
         <span className="font-display text-lg font-extrabold">📋 Đề bài: {p.title}</span>
         {compact && (
           <span className="mt-1.5 flex flex-wrap gap-1.5 text-[12.5px] font-bold">
+            {p.mode === "expert" && <span className="sx-mode-expert rounded-lg px-2 py-0.5">{MODES.expert.emoji} Chuyên gia</span>}
             <span className="rounded-lg bg-lime-soft px-2 py-0.5">🎯 {fmt(p.target)} TPS</span>
             <span className="rounded-lg bg-sun-soft px-2 py-0.5">💰 {fmt(p.budget)}</span>
             {p.flows.map((f, i) => (
@@ -509,15 +546,17 @@ const NextProblemPart = memo(function NextProblemPart({ session }: { session: Sy
   const round = useRoomState(session, (r) => r.meta!.round);
   const [editing, setEditing] = useState(false);
   const label = round ? "📋 Đề ván tới" : "📋 Đề bài";
+  const roll = (mode: Mode) => session.setProblem(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], undefined, p.time, mode));
   return (
-    <section className="card mt-4 p-4 sm:p-5" aria-label="Đề ván tới">
+    <section className="card mt-4 grid gap-4 p-4 sm:p-5" aria-label="Đề ván tới">
+      {host && !editing && <ModePicker mode={p.mode} onPick={roll} />}
       {host && editing ? (
         <ProblemEditor session={session} problem={p} onDone={() => setEditing(false)} />
       ) : (
         <ProblemCard p={p} title={label}>
           {host ? (
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-sm" onClick={() => session.setProblem(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], undefined, p.time))}>
+              <button type="button" className="btn btn-sm" onClick={() => roll(p.mode)}>
                 🎲 Đề ngẫu nhiên
               </button>
               <button type="button" className="btn btn-sm btn-pen" onClick={() => setEditing(true)}>
@@ -533,7 +572,7 @@ const NextProblemPart = memo(function NextProblemPart({ session }: { session: Sy
   );
 });
 
-type Draft = { title: string; desc: string; time: DesignTime; target: string; budget: string; kinds: Kind[]; flows: Flow[]; incidents: Incident[] };
+type Draft = { mode: Mode; title: string; desc: string; time: DesignTime; target: string; budget: string; kinds: Kind[]; flows: Flow[]; incidents: Incident[] };
 
 const toDraft = (p: Problem): Draft => ({ ...p, target: String(p.target), budget: String(p.budget), flows: p.flows.map((f) => ({ ...f })) });
 
@@ -568,9 +607,9 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` là dạng chuỗi của `next`
   }, [key, session]);
 
-  const reroll = (preset?: string) => {
+  const reroll = (preset?: string, mode = draft.mode) => {
     setHint("");
-    setDraft(toDraft(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], preset, draft.time)));
+    setDraft(toDraft(makeProblem(crypto.getRandomValues(new Uint32Array(1))[0], preset, draft.time, mode)));
   };
 
   return (
@@ -580,7 +619,7 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
         <div className="flex flex-wrap gap-2">
           <select className="field !min-h-[34px] !w-auto !py-0 text-sm" value="" onChange={(e) => e.target.value && reroll(e.target.value)} aria-label="Lấy đề mẫu">
             <option value="">📚 Đề mẫu…</option>
-            {PRESETS.map((x) => (
+            {presetsOf(draft.mode).map((x) => (
               <option key={x.key} value={x.key}>
                 {x.title}
               </option>
@@ -594,6 +633,8 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
           </button>
         </div>
       </div>
+
+      <ModePicker mode={draft.mode} onPick={(m) => reroll(undefined, m)} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5 sm:col-span-2">
@@ -643,7 +684,7 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
 
       <fieldset>
         <legend className="mb-2 text-sm font-bold">⏱ Thời gian thiết kế</legend>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {TIMES.map((t) => (
             <button key={t} type="button" className={`btn !px-2 ${draft.time === t ? "btn-sun" : ""}`} aria-pressed={draft.time === t} onClick={() => set({ time: t })}>
               {timeLabel(t)}
@@ -663,7 +704,7 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
           <div key={i} className="grid gap-2 rounded-xl border-2 border-rule p-3">
             <div className="flex flex-wrap gap-2">
               <select className="field !w-auto" value={f.kind} aria-label="Loại request" onChange={(e) => setFlow(i, { kind: e.target.value as FlowKind })}>
-                {FLOW_KINDS.map((k) => (
+                {modeFlows(draft.mode).map((k) => (
                   <option key={k} value={k}>
                     {FLOWS[k].emoji} {FLOWS[k].name}
                   </option>
@@ -694,14 +735,16 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
               {f.kind !== "static" && <Check on={!!f.gate} onChange={(gate) => setFlow(i, { gate })} label="Bắt buộc qua API Gateway" />}
               {f.kind === "static" && <Check on={!!f.cdn} onChange={(cdn) => setFlow(i, { cdn })} label="Bắt buộc qua CDN" />}
               {f.kind === "read" && <Check on={!!f.cache} onChange={(cache) => setFlow(i, { cache })} label="Bắt buộc đọc qua Cache" />}
+              {f.kind === "write" && draft.mode === "expert" && <Check on={!!f.acid} onChange={(acid) => setFlow(i, { acid })} label="Cần giao dịch ACID (NoSQL không nhận)" />}
+              {(f.kind === "infer" || f.kind === "agent") && <Check on={!!f.rag} onChange={(rag) => setFlow(i, { rag })} label="Bắt buộc RAG (truy xuất qua Vector DB)" />}
               {f.kind === "job" && (
                 <label className="flex items-center gap-2">
                   <span className="font-semibold">Worker xử lý xong khi</span>
                   <select className="field !min-h-[32px] !w-auto !py-0 text-sm" value={f.sink ?? ""} onChange={(e) => setFlow(i, { sink: (e.target.value || undefined) as Sink | undefined })}>
                     <option value="">xử lý tại Worker</option>
-                    {SINKS.map((s) => (
+                    {modeSinks(draft.mode).map((s) => (
                       <option key={s} value={s}>
-                        đã {s === "db" ? "ghi vào" : s === "storage" ? "lưu vào" : "gọi"} {SINK_NAMES[s]}
+                        đã {s === "db" ? "ghi vào" : s === "storage" ? "lưu vào" : s === "vector" ? "ghi embedding vào" : "gọi"} {SINK_NAMES[s]}
                       </option>
                     ))}
                   </select>
@@ -723,7 +766,7 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
       <fieldset>
         <legend className="mb-2 text-sm font-bold">Component được dùng</legend>
         <div className="flex flex-wrap gap-2">
-          {KINDS.map((k) => {
+          {modeKinds(draft.mode).map((k) => {
             const locked = need.has(k);
             const on = locked || draft.kinds.includes(k);
             return (
@@ -746,7 +789,7 @@ function ProblemEditor({ session, problem, onDone }: { session: SystemDesignRoom
       <fieldset>
         <legend className="mb-2 text-sm font-bold">Sự cố</legend>
         <div className="grid gap-2 sm:grid-cols-2">
-          {INCIDENT_KEYS.map((k) => (
+          {modeIncidents(draft.mode).map((k) => (
             <label key={k} className={`flex gap-2.5 rounded-xl border-2 p-2.5 text-[13.5px] ${draft.incidents.includes(k) ? "border-pen bg-pen-soft" : "border-rule"}`}>
               <input
                 type="checkbox"
@@ -784,6 +827,8 @@ function cleanFlow(f: Flow): Flow {
   if (f.cdn && f.kind === "static") out.cdn = true;
   if (f.cache && f.kind === "read") out.cache = true;
   if (f.sink && f.kind === "job") out.sink = f.sink;
+  if (f.acid && f.kind === "write") out.acid = true;
+  if (f.rag && (f.kind === "infer" || f.kind === "agent")) out.rag = true;
   return out;
 }
 
@@ -799,7 +844,14 @@ function Check({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =>
 const CatalogPart = memo(function CatalogPart({ session }: { session: SystemDesignRoom }) {
   const staged = useStaged();
   const live = useSxLive(session);
-  const kinds = useGame(session, (v) => (live && v?.match ? v.match.problem.kinds : v!.problem.kinds));
+  const { kinds, mode } = useGame(
+    session,
+    (v) => {
+      const p = live && v?.match ? v.match.problem : v!.problem;
+      return { kinds: p.kinds, mode: p.mode };
+    },
+    shallowEqual,
+  );
   if (staged) return null;
   return (
     <details className="card mt-4 p-4 sm:p-5">
@@ -807,7 +859,7 @@ const CatalogPart = memo(function CatalogPart({ session }: { session: SystemDesi
       <p className="mt-2 text-[13px] text-ink-2">Thông số cố định, như nhau cho mọi người. Tổng chi phí là tổng giá mọi component đã đặt, kể cả cái không nối hay không nhận traffic.</p>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {kinds.map((k) => (
-          <KindCard key={k} k={k} />
+          <KindCard key={k} k={k} mode={mode} />
         ))}
       </div>
     </details>
@@ -821,7 +873,7 @@ function extra(k: Kind, v: number) {
   return "";
 }
 
-function KindCard({ k }: { k: Kind }) {
+function KindCard({ k, mode }: { k: Kind; mode: Mode }) {
   const info = CATALOG[k];
   return (
     <div className={`sx-kind k-${k}`}>
@@ -840,7 +892,7 @@ function KindCard({ k }: { k: Kind }) {
           ))}
         </tbody>
       </table>
-      <p className="mt-1.5 text-[12.5px] text-ink-2">{info.rule}</p>
+      <p className="mt-1.5 text-[12.5px] text-ink-2">{ruleOf(k, mode)}</p>
     </div>
   );
 }
@@ -848,7 +900,28 @@ function KindCard({ k }: { k: Kind }) {
 // ---------------------------------------------------------------------------------------------------------------------
 // Thiết kế.
 
-const COLUMN: Record<Kind, number> = { lb: 168, gateway: 168, cdn: 168, app: 320, cache: 472, queue: 472, db: 624, worker: 624, replica: 776, storage: 776, external: 776 };
+const COLUMN: Record<Kind, number> = {
+  waf: 168,
+  lb: 168,
+  gateway: 168,
+  cdn: 168,
+  app: 320,
+  agent: 320,
+  cache: 472,
+  queue: 472,
+  search: 472,
+  semcache: 472,
+  db: 624,
+  nosql: 624,
+  worker: 624,
+  vector: 624,
+  replica: 776,
+  standby: 776,
+  storage: 776,
+  external: 776,
+  llm: 776,
+  gpu: 776,
+};
 
 function freeSpot(d: Design, k: Kind) {
   const taken = (x: number, y: number) => d.nodes.some((n) => Math.abs(n.x - x) < NODE.w + 8 && Math.abs(n.y - y) < NODE.h + 8);
@@ -1006,7 +1079,7 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Inspector design={design} labels={labels} sel={sel} onSel={setSel} change={change} remove={remove} clone={clone} />
+        <Inspector mode={p.mode} design={design} labels={labels} sel={sel} onSel={setSel} change={change} remove={remove} clone={clone} />
         <Checklist p={p} report={report} />
       </div>
     </section>
@@ -1014,6 +1087,7 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
 }
 
 function Inspector({
+  mode,
   design,
   labels,
   sel,
@@ -1022,6 +1096,7 @@ function Inspector({
   remove,
   clone,
 }: {
+  mode: Mode;
   design: Design;
   labels: Map<number, string>;
   sel: Sel;
@@ -1038,7 +1113,11 @@ function Inspector({
           <li>Bấm component ở thanh trên để đặt, kéo để xếp chỗ.</li>
           <li>Kéo từ chấm tròn bên phải một component sang component khác để nối — hoặc chạm chấm rồi chạm đích. Ô viền xanh là đích nối được.</li>
           <li>Chọn component để đổi variant, nhân bản, nối nhanh hoặc xoá. Chọn đường nối để xoá.</li>
-          <li>Đường nét đứt tím là nhân bản Database → Read Replica.</li>
+          <li>
+            {mode === "expert"
+              ? "Đường nét đứt tím là nhân bản / đồng bộ dữ liệu: Database → Read Replica / Standby, Database / NoSQL → Search Index."
+              : "Đường nét đứt tím là nhân bản Database → Read Replica."}
+          </li>
         </ul>
       </div>
     );
@@ -1068,7 +1147,7 @@ function Inspector({
         <p className="font-bold">
           {info.emoji} {labels.get(id)} <span className="text-[13px] font-semibold text-ink-3">· {n ? CATALOG[n.k].name : USERS.role}</span>
         </p>
-        {n && <p className="mt-1 text-[12.5px] text-ink-2">{CATALOG[n.k].rule}</p>}
+        {n && <p className="mt-1 text-[12.5px] text-ink-2">{ruleOf(n.k, mode)}</p>}
       </div>
       {n && (
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Variant">
@@ -1445,7 +1524,10 @@ function incidentBalloons(p: Problem, d: Design, lv: LevelLoad, labels: Map<numb
   const inc = new Set(p.incidents);
   for (const id of lv.down) {
     const k = d.nodes.find((n) => n.id === id)?.k;
-    add(id, `${INCIDENTS[k === "app" ? "app-down" : k === "external" ? "ext-down" : "worker-down"].emoji} ${labels.get(id)} ngừng hoạt động`, true);
+    const why: Incident = k === "app" ? "app-down" : k === "external" ? "ext-down" : k === "db" ? "db-down" : k === "llm" ? "llm-down" : "worker-down";
+    const spare = k === "db" ? d.nodes.find((n) => n.k === "standby" && d.edges.some(([a, b]) => a === id && b === n.id)) : undefined;
+    add(id, `${INCIDENTS[why].emoji} ${labels.get(id)} ${k === "db" ? "sập" : "ngừng hoạt động"}`, true);
+    if (spare) add(spare.id, `🛟 ${labels.get(spare.id)} lên thay`);
   }
   if (lv.cut) {
     const a = centerOf(d, lv.cut[0]);
@@ -1453,10 +1535,17 @@ function incidentBalloons(p: Problem, d: Design, lv: LevelLoad, labels: Map<numb
     if (a && b) out.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, text: `✂️ Đứt ${labels.get(lv.cut[0])} → ${labels.get(lv.cut[1])}`, alert: true });
   }
   if (inc.has("db-slow")) for (const n of on(["db"])) add(n.id, `🐢 ${labels.get(n.id)} −40% TPS`);
+  if (inc.has("long-prompt")) for (const n of on(["llm", "gpu"])) add(n.id, `📜 ${labels.get(n.id)} −50% TPS`);
   if (inc.has("cache-flush")) for (const n of on(["cache"])) add(n.id, `🧹 ${labels.get(n.id)} bị xoá sạch`);
-  if (inc.has("cache-drop")) for (const n of on(["cache", "cdn"])) add(n.id, `📉 ${labels.get(n.id)} hit −30%`);
+  if (inc.has("cache-drop")) for (const n of on(["cache", "cdn", "semcache"])) add(n.id, `📉 ${labels.get(n.id)} hit −30%`);
   if (inc.has("skew")) for (const n of on(["lb", "gateway"])) if (d.edges.filter(([a]) => a === n.id).length > 1) add(n.id, `↗️ ${labels.get(n.id)} lệch nhánh`);
   if (inc.has("write-surge")) add(USERS_ID, "📝 Tỷ lệ ghi tăng ×2");
+  if (inc.has("spike")) add(USERS_ID, "🚀 Traffic +50%");
+  if (inc.has("bot")) {
+    const waf = on(["waf"]);
+    if (waf.length) for (const n of waf) add(n.id, `🤖 ${labels.get(n.id)} chặn bot`);
+    else add(USERS_ID, "🤖 Bot tràn vào ×2", true);
+  }
   return out.slice(0, 6);
 }
 
@@ -1597,7 +1686,7 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
 }
 
 // Sự cố nhắm vào một component / đường nối cụ thể (hiện tên đối tượng); các sự cố còn lại tác động chung.
-const TARGETED: readonly Incident[] = ["app-down", "link-cut", "ext-down", "worker-down"];
+const TARGETED: readonly Incident[] = ["app-down", "link-cut", "ext-down", "worker-down", "db-down", "llm-down"];
 
 function heatOf(sim: SimResult, level: number): Heat | undefined {
   const lv = sim.levels[level - 1];
