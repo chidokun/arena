@@ -457,7 +457,7 @@ export const modeIncidents = (mode: Mode) => (mode === "expert" ? INCIDENT_KEYS 
 
 export type DesignTime = 0 | 120 | 300 | 600;
 export const TIMES: readonly DesignTime[] = [120, 300, 600, 0];
-export const timeLabel = (t: DesignTime) => (t ? `${t / 60} phút` : "Không giới hạn");
+export const timeLabel = (t: DesignTime) => (t ? `${t / 60} phút` : "Vô hạn");
 
 export type Problem = {
   mode: Mode;
@@ -476,12 +476,33 @@ export type Problem = {
 export type SxRound = { p: Problem; t0: number; end: number; read?: string[]; go?: number };
 
 export type Node = { id: number; k: Kind; v: number; x: number; y: number };
-export type Design = { nodes: Node[]; edges: [number, number][] };
+// `u`: chỗ đặt Users nếu người chơi đã kéo đi (không có là chỗ mặc định `USERS_POS`).
+export type Design = { nodes: Node[]; edges: [number, number][]; u?: { x: number; y: number } };
 
 export const USERS_ID = 0;
 export const CANVAS = { w: 960, h: 600 } as const;
 export const NODE = { w: 120, h: 56 } as const;
 export const USERS_POS = { x: 16, y: (CANVAS.h - NODE.h) / 2 } as const;
+export const usersPos = (d: Design) => d.u ?? USERS_POS;
+// Component đặt được bất kỳ đâu (bàn phóng to dời / thu phóng được); chỉ chặn toạ độ vô lý.
+export const POS_MAX = 20000;
+
+export type Extent = { x: number; y: number; w: number; h: number };
+
+/** Khung bao sơ đồ: khung vẽ chuẩn, nới ra cho component đặt ngoài khung (kèm lề `pad`). */
+export function extentOf(d: Design, pad = 16): Extent {
+  let x0 = 0;
+  let y0 = 0;
+  let x1: number = CANVAS.w;
+  let y1: number = CANVAS.h;
+  for (const b of [usersPos(d), ...d.nodes]) {
+    x0 = Math.min(x0, b.x - pad);
+    y0 = Math.min(y0, b.y - pad);
+    x1 = Math.max(x1, b.x + NODE.w + pad);
+    y1 = Math.max(y1, b.y + NODE.h + pad);
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
 export const MAX_NODES = 40;
 export const MAX_EDGES = 120;
 export const MAX_FLOWS = 5;
@@ -657,8 +678,10 @@ export function normProblem(raw: unknown): Problem {
 
 /** Thiết kế nhận từ mạng: bỏ component đề không cho dùng, đường nối sai luật, trùng, tạo vòng lặp. */
 export function normDesign(raw: unknown, p: Pick<Problem, "kinds">): Design {
-  const o = (raw ?? {}) as { nodes?: unknown; edges?: unknown };
+  const o = (raw ?? {}) as { nodes?: unknown; edges?: unknown; u?: unknown };
   const d = emptyDesign();
+  const u = (o.u ?? null) as { x?: unknown; y?: unknown } | null;
+  if (u && typeof u.x === "number" && typeof u.y === "number") d.u = { x: int(u.x, -POS_MAX, POS_MAX, 0), y: int(u.y, -POS_MAX, POS_MAX, 0) };
   const ids = new Set<number>();
   for (const r of Array.isArray(o.nodes) ? o.nodes : []) {
     if (d.nodes.length >= MAX_NODES) break;
@@ -667,7 +690,7 @@ export function normDesign(raw: unknown, p: Pick<Problem, "kinds">): Design {
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1 || id > 99999 || ids.has(id)) continue;
     if (!p.kinds.includes(n.k as Kind) || !(n.v === 0 || n.v === 1 || n.v === 2)) continue;
     ids.add(id);
-    d.nodes.push({ id, k: n.k as Kind, v: n.v, x: int(n.x, 0, CANVAS.w - NODE.w, 0), y: int(n.y, 0, CANVAS.h - NODE.h, 0) });
+    d.nodes.push({ id, k: n.k as Kind, v: n.v, x: int(n.x, -POS_MAX, POS_MAX, 0), y: int(n.y, -POS_MAX, POS_MAX, 0) });
   }
   for (const e of Array.isArray(o.edges) ? o.edges : []) {
     if (d.edges.length >= MAX_EDGES) break;

@@ -36,6 +36,7 @@ function toMsg(entry: ChangelogEntry): ChatMsg {
     id: `whatsnew-${entry.version}`,
     uid: "arena:whatsnew",
     name: "Arena",
+    // Khung chat vẽ logo Arena cho tin `news`; emoji chỉ để dự phòng.
     avatar: "✨",
     color: "#6c47ff",
     at: Date.now(),

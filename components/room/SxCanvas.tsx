@@ -1,7 +1,25 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { CANVAS, CATALOG, fmt, isReplication, LINKS, linkIssue, NODE, nodeLabels, USERS, USERS_ID, USERS_POS, variantOf, type Design, type NodeKind } from "@/lib/games/system-design";
+import {
+  CANVAS,
+  CATALOG,
+  extentOf,
+  fmt,
+  isReplication,
+  LINKS,
+  linkIssue,
+  NODE,
+  nodeLabels,
+  POS_MAX,
+  USERS,
+  USERS_ID,
+  usersPos,
+  variantOf,
+  type Design,
+  type Extent,
+  type NodeKind,
+} from "@/lib/games/system-design";
 
 export type Sel = { node: number } | { edge: [number, number] } | null;
 
@@ -20,6 +38,10 @@ type Edit = {
 export type Balloon = { key: string; x: number; y: number; text: string; delay: number; alert?: boolean };
 export type Blast = { key: string; x: number; y: number };
 export type Fx = { balloons: Balloon[]; blasts: Blast[]; smolder?: number };
+
+// Khung nhìn do ngoài điều khiển (bàn phóng to): `box` là viewBox, kéo nền thì báo từng đoạn dời (px màn hình, so với lần
+// báo trước) để ngoài dời khung nhìn theo.
+export type Pan = { box: string; onPan: (dx: number, dy: number) => void };
 
 // Cố định (không random lúc vẽ) để vụ nổ trông như nhau mỗi lần.
 const DEBRIS = Array.from({ length: 12 }, (_, i) => {
@@ -69,8 +91,7 @@ type Wire = { from: number; x: number; y: number; tap: boolean; sx: number; sy: 
 
 const GRID = 4;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
-const clampX = (x: number) => Math.min(CANVAS.w - NODE.w, Math.max(0, x));
-const clampY = (y: number) => Math.min(CANVAS.h - NODE.h, Math.max(0, y));
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 const outOf = (b: Box) => ({ x: b.x + NODE.w, y: b.y + NODE.h / 2 });
 const inOf = (b: Box) => ({ x: b.x, y: b.y + NODE.h / 2 });
@@ -86,12 +107,35 @@ const pace = (flow: number, input: number) => Math.round((1.3 - 0.95 * Math.min(
 const tone = (u: number) => (u > 1 + 1e-9 ? "is-over" : u >= 0.85 ? "is-hot" : u >= 0.6 ? "is-warm" : u > 0 ? "is-cool" : "is-idle");
 
 // `live`: đang phát lại load test — traffic chạy trên đường nối, component căng tải rung lên.
-export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { design: Design; edit?: Edit; heat?: Heat; live?: boolean; fx?: Fx; marks?: number[]; label: string }) {
+export function SxCanvas({
+  design,
+  edit,
+  heat,
+  live,
+  fx,
+  marks,
+  view,
+  label,
+}: {
+  design: Design;
+  edit?: Edit;
+  heat?: Heat;
+  live?: boolean;
+  fx?: Fx;
+  marks?: number[];
+  view?: Pan;
+  label: string;
+}) {
   const svg = useRef<SVGSVGElement>(null);
   const labels = useMemo(() => nodeLabels(design), [design]);
-  const boxes = useMemo<Box[]>(() => [{ id: USERS_ID, k: "users", ...USERS_POS }, ...design.nodes], [design.nodes]);
+  const boxes = useMemo<Box[]>(() => [{ id: USERS_ID, k: "users", ...usersPos(design) }, ...design.nodes], [design]);
   const byId = useMemo(() => new Map(boxes.map((b) => [b.id, b])), [boxes]);
-  const drag = useRef<{ id: number; dx: number; dy: number; sx: number; sy: number; moved?: Design } | null>(null);
+  // `lim`: khung kéo được — khung bao lúc bắt đầu kéo (sơ đồ cỡ cố định), hoặc không giới hạn khi khung nhìn dời được.
+  const drag = useRef<{ id: number; dx: number; dy: number; sx: number; sy: number; lim: Extent; moved?: Design } | null>(null);
+  const ext = useMemo(() => extentOf(design), [design]);
+  // Đang kéo trên sơ đồ cỡ cố định: giữ khung nhìn như lúc bắt đầu, không co giãn theo component đang kéo.
+  const [hold, setHold] = useState<Extent | null>(null);
+  const panning = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   // Giữ cả trong ref: kéo nhanh thì pointermove / pointerup tới trước khi React kịp vẽ lại với state mới.
   const [wire, setWireState] = useState<Wire | null>(null);
   const wireRef = useRef<Wire | null>(null);
@@ -140,7 +184,9 @@ export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { desig
     }
     capture(e);
     const p = point(e);
-    drag.current = { id: b.id, dx: p.x - b.x, dy: p.y - b.y, sx: p.x, sy: p.y };
+    const lim = view ? { x: -POS_MAX, y: -POS_MAX, w: POS_MAX * 2, h: POS_MAX * 2 } : ext;
+    drag.current = { id: b.id, dx: p.x - b.x, dy: p.y - b.y, sx: p.x, sy: p.y, lim };
+    if (!view) setHold(ext);
     edit.onSel({ node: b.id });
   };
 
@@ -153,21 +199,44 @@ export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { desig
     setWire({ from: b.id, x: p.x, y: p.y, tap: false, sx: p.x, sy: p.y });
   };
 
+  // Có khung nhìn: kéo nền là dời khung nhìn, chạm nền (không kéo) mới là bỏ chọn.
+  const onBgDown = (e: React.PointerEvent) => {
+    if (!view) return onBlank();
+    capture(e);
+    panning.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+
   const onMove = (e: React.PointerEvent) => {
+    const pn = panning.current;
+    if (pn) {
+      const dx = e.clientX - pn.x;
+      const dy = e.clientY - pn.y;
+      if (!pn.moved && Math.hypot(dx, dy) < 4) return;
+      panning.current = { x: e.clientX, y: e.clientY, moved: true };
+      view?.onPan(dx, dy);
+      return;
+    }
     const p = point(e);
     const d = drag.current;
-    if (d && edit && d.id !== USERS_ID) {
+    if (d && edit) {
       if (!d.moved && Math.hypot(p.x - d.sx, p.y - d.sy) < 4) return;
-      const x = clampX(snap(p.x - d.dx));
-      const y = clampY(snap(p.y - d.dy));
-      d.moved = { ...design, nodes: design.nodes.map((n) => (n.id === d.id ? { ...n, x, y } : n)) };
+      const x = clamp(snap(p.x - d.dx), d.lim.x, d.lim.x + d.lim.w - NODE.w);
+      const y = clamp(snap(p.y - d.dy), d.lim.y, d.lim.y + d.lim.h - NODE.h);
+      d.moved = d.id === USERS_ID ? { ...design, u: { x, y } } : { ...design, nodes: design.nodes.map((n) => (n.id === d.id ? { ...n, x, y } : n)) };
       edit.onChange(d.moved, false);
     } else if (wireRef.current) setWire({ ...wireRef.current, x: p.x, y: p.y });
   };
 
   const onUp = (e: React.PointerEvent) => {
+    const pn = panning.current;
+    if (pn) {
+      panning.current = null;
+      if (!pn.moved) onBlank();
+      return;
+    }
     const d = drag.current;
     drag.current = null;
+    setHold(null);
     if (d?.moved && edit) edit.onChange(d.moved, true);
     const wire = wireRef.current;
     if (!wire || wire.tap) return;
@@ -190,20 +259,26 @@ export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { desig
   return (
     <svg
       ref={svg}
-      viewBox={`0 0 ${CANVAS.w} ${CANVAS.h}`}
-      className={`sx-canvas ${edit ? "is-edit" : ""} ${wire ? "is-wiring" : ""} ${live ? "is-live" : ""}`}
+      viewBox={view?.box ?? (({ x, y, w, h }) => `${x} ${y} ${w} ${h}`)(hold ?? ext)}
+      className={`sx-canvas ${edit ? "is-edit" : ""} ${wire ? "is-wiring" : ""} ${live ? "is-live" : ""} ${view ? "is-pan" : ""}`}
       role="application"
       aria-label={label}
       tabIndex={edit ? 0 : undefined}
-      onPointerMove={edit ? onMove : undefined}
-      onPointerUp={edit ? onUp : undefined}
+      onPointerMove={edit || view ? onMove : undefined}
+      onPointerUp={edit || view ? onUp : undefined}
       onPointerCancel={() => {
+        panning.current = null;
         drag.current = null;
+        setHold(null);
         setWire(null);
       }}
       onKeyDown={(e) => {
         if (!edit) return;
-        if (e.key === "Escape") onBlank();
+        if (e.key === "Escape") {
+          // Đang nối / đang chọn thì Esc chỉ bỏ thao tác đó, không thoát trình chiếu (phóng to).
+          if (wire || sel) e.stopPropagation();
+          onBlank();
+        }
         if ((e.key === "Delete" || e.key === "Backspace") && sel) {
           e.preventDefault();
           edit.onDelete();
@@ -219,7 +294,17 @@ export function SxCanvas({ design, edit, heat, live, fx, marks, label }: { desig
           <path d="M0 0 L10 5 L0 10 z" className="sx-arrow" />
         </marker>
       </defs>
-      <rect width={CANVAS.w} height={CANVAS.h} fill="url(#sx-dots)" onPointerDown={edit ? onBlank : undefined} />
+      {/* Trải rộng hơn khung vẽ: lúc phóng to khung nhìn dời / thu nhỏ ra ngoài khung vẽ thì vẫn là nền chấm (kéo để dời,
+          bấm để bỏ chọn). */}
+      <rect
+        x={ext.x - CANVAS.w * 10}
+        y={ext.y - CANVAS.h * 10}
+        width={ext.w + CANVAS.w * 20}
+        height={ext.h + CANVAS.h * 20}
+        fill="url(#sx-dots)"
+        className="sx-bg"
+        onPointerDown={edit || view ? onBgDown : undefined}
+      />
 
       {design.edges.map(([a, b]) => {
         const from = byId.get(a);

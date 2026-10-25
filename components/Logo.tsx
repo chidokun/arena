@@ -1,6 +1,6 @@
-export function LogoMark({ className = "h-9 w-9" }: { className?: string }) {
+export function LogoMark({ className = "h-9 w-9", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 36 36" className={className} aria-hidden="true">
+    <svg viewBox="0 0 36 36" className={className} style={style} aria-hidden="true">
       <rect x="2" y="3" width="31" height="31" rx="9" fill="var(--edge)" />
       <rect x="2" y="1.5" width="31" height="30" rx="9" fill="var(--pen)" stroke="var(--edge)" strokeWidth="2" />
       <path d="M9.5 9.5l7 7M16.5 9.5l-7 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" />

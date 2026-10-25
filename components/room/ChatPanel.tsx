@@ -6,6 +6,7 @@ import { TEXT_MAX } from "@/lib/net/chat";
 import type { ChatMsg, GuessMark, RoomSession } from "@/lib/net/room";
 import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
+import { LogoMark } from "../Logo";
 import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
 import { useWhatsNew } from "../WhatsNew";
@@ -25,6 +26,12 @@ const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional
 const PICTO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 const isIcon = (m: ChatMsg) => !m.system && !m.shout && !m.clue && !m.guess && (!!m.sticker || (!!m.text && m.text.length <= 32 && EMOJI_ONLY.test(m.text) && PICTO.test(m.text)));
+
+// Tin của chính Arena (nhật ký thay đổi) mang logo Arena; cờ `news` chỉ có ở tin tại chỗ, tin qua mạng bị gỡ nên không giả được.
+function ChatAvatar({ m, size }: { m: ChatMsg; size: number }) {
+  if (m.news) return <LogoMark className="flex-none" style={{ width: size, height: size }} />;
+  return <Avatar p={m} size={size} />;
+}
 
 type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
 
@@ -64,7 +71,7 @@ const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: 
         </li>
       ) : (
         <li key={r.m.id} className={`flex items-end gap-2 ${r.m.uid === me ? "flex-row-reverse" : ""}`}>
-          <Avatar p={r.m} size={28} />
+          <ChatAvatar m={r.m} size={28} />
           <div className={`${r.kind === "icons" ? "max-w-[86%]" : "max-w-[78%]"} ${r.m.uid === me ? "text-right" : ""}`}>
             <p className="px-1 text-[11.5px] font-semibold text-ink-3">
               {r.m.uid === me ? "Bạn" : r.m.name} · {time(r.m.at)}
@@ -178,7 +185,7 @@ function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: 
         return (
           <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""} ${tone}`}>
             <button type="button" tabIndex={m.news ? 0 : -1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
-              <Avatar p={m} size={30} />
+              <ChatAvatar m={m} size={30} />
               <span className="min-w-0">
                 <span className={`block truncate text-[11.5px] font-bold ${m.shout ? "opacity-70" : "text-ink-3"}`}>{m.name}</span>
                 {tag && <span className="chat-bubble-tag block text-[11px] font-extrabold tracking-wide uppercase">{tag}</span>}

@@ -12,6 +12,7 @@ import {
   linkIssue,
   makeProblem,
   normDesign,
+  POS_MAX,
   normProblem,
   PRESETS,
   simulate,
@@ -76,7 +77,7 @@ test("chuẩn hoá thiết kế từ mạng: bỏ component đề không cho, đ
   const d = normDesign(
     {
       nodes: [
-        { id: 1, k: "lb", v: 0, x: -50, y: 9999 },
+        { id: 1, k: "lb", v: 0, x: -50, y: 1e9 },
         { id: 2, k: "app", v: 1, x: 10, y: 10 },
         { id: 2, k: "db", v: 0, x: 0, y: 0 },
         { id: 3, k: "cache", v: 0, x: 0, y: 0 },
@@ -99,8 +100,9 @@ test("chuẩn hoá thiết kế từ mạng: bỏ component đề không cho, đ
     d.nodes.map((n) => n.id),
     [1, 2, 5],
   );
-  assert.equal(d.nodes[0].x, 0);
-  assert.ok(d.nodes[0].y < 600);
+  // Đặt được bất kỳ đâu (kể cả ngoài khung vẽ chuẩn), chỉ chặn toạ độ vô lý.
+  assert.equal(d.nodes[0].x, -50);
+  assert.equal(d.nodes[0].y, POS_MAX);
   assert.deepEqual(d.edges, [
     [0, 1],
     [1, 5],

@@ -3452,6 +3452,163 @@
       min-width: 0;
     }
   }
+  /* Bàn thiết kế phóng to (trình chiếu): sơ đồ phủ kín màn hình — bỏ lề của `.stage`, bỏ ô đầu (bàn tự mang thanh trạng
+     thái) — còn thanh trạng thái, cột bảng góc phải nổi đè lên. Bỏ `fit` của khối bàn để bàn (và bàn chạy tải ngay sau
+     đó) trải hết bề ngang — `fit` là class tiện ích nên cần !important. */
+  .stage-cell > :has(.sx-zoom, .sx-live.is-staged) {
+    max-width: none !important;
+  }
+  .stage:has(.sx-zoom) {
+    padding: 0;
+  }
+  .stage-body:has(.sx-zoom) {
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+  .stage-body:has(.sx-zoom) > .stage-head {
+    display: none;
+  }
+  .sx-zoom {
+    --sx-side: clamp(260px, 26vw, 340px);
+    position: relative;
+    height: 100cqh;
+  }
+  .sx-zoom-board {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--board);
+  }
+  .sx-zoom-board .sx-canvas {
+    height: 100%;
+    min-width: 0;
+  }
+  /* Khung nhìn dời được: kéo nền (cả trên màn cảm ứng) là dời sơ đồ, không cuộn trang. */
+  .sx-canvas.is-pan {
+    touch-action: none;
+  }
+  .sx-canvas.is-pan .sx-bg {
+    cursor: grab;
+  }
+  .sx-canvas.is-pan .sx-bg:active {
+    cursor: grabbing;
+  }
+  /* Thanh thu phóng: giữa đáy (góc trái / phải đã có nút của trang và nút chat). Nút phẳng như thanh công cụ trình chiếu. */
+  .sx-zoom-ctl {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 2px solid var(--edge);
+    border-radius: 13px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transform: translateX(-50%);
+  }
+  .sx-zoom-ctl .btn,
+  .sx-zoom-ctl .btn:hover:not(:disabled),
+  .sx-zoom-ctl .btn:active:not(:disabled) {
+    box-shadow: none;
+    transform: none;
+  }
+  .sx-zoom-ctl .btn {
+    min-height: 32px;
+    padding: 0 10px;
+    border-color: transparent;
+    border-radius: 9px;
+    background: transparent;
+    font-size: 13.5px;
+  }
+  .sx-zoom-ctl .btn:hover:not(:disabled) {
+    background: var(--sunken);
+  }
+  .sx-zoom-pct {
+    min-width: 3.2em;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+  }
+  /* Lớp nổi không nhận con trỏ (để kéo thả trên sơ đồ bên dưới), chỉ các thẻ trong nó nhận. Thanh trạng thái góc trái
+     (chừa chỗ nút quay lại của trình chiếu), co theo nội dung; cột bảng góc phải. Màn hẹp thì cột xuống dưới thanh. Đáy
+     chừa cho nút chat nổi. */
+  .sx-zoom-ui {
+    position: absolute;
+    inset: 10px 10px 78px;
+    display: grid;
+    grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+    gap: 10px;
+    pointer-events: none;
+  }
+  .sx-zoom-top {
+    justify-self: start;
+    align-self: start;
+    max-width: calc(100% - 58px);
+    margin-left: 58px;
+    pointer-events: auto;
+  }
+  .sx-zoom-top > .card {
+    gap: 8px 10px;
+    padding: 6px 8px 6px 14px;
+    box-shadow: var(--shadow);
+  }
+  /* Lời ngắn (đồng hồ, số đã chốt): giữ nguyên một dòng, hẹp thì nút xuống dòng — `flex-1 min-w-0` là class tiện ích. */
+  .sx-zoom-top > .card > p {
+    flex: none !important;
+    max-width: 100%;
+    font-size: 14.5px;
+  }
+  .sx-zoom-side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-self: stretch;
+    align-self: start;
+    max-height: 100%;
+    min-height: 0;
+    padding: 2px 2px 6px;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+  }
+  .sx-zoom-side > * {
+    flex: none;
+    margin-top: 0 !important;
+  }
+  .sx-zoom-side .sx-panel {
+    border-color: var(--edge);
+    box-shadow: var(--shadow-sm);
+  }
+  @media (min-width: 760px) {
+    .sx-zoom-ui {
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr) var(--sx-side);
+    }
+  }
+  /* Bảng thu gọn được: bấm tiêu đề. Mũi tên tự vẽ để đứng cuối dòng, xoay khi mở. */
+  .sx-fold > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .sx-fold > summary::-webkit-details-marker {
+    display: none;
+  }
+  .sx-fold > summary::after {
+    content: "›";
+    margin-left: auto;
+    color: var(--ink-3);
+    font-size: 18px;
+    line-height: 1;
+    transition: transform 200ms ease;
+  }
+  .sx-fold[open] > summary::after {
+    transform: rotate(90deg);
+  }
   /* Thiết kế vừa nổ thì đợi vụ nổ xong mới phủ lời báo gục. */
   .sx-run-veil.is-late {
     animation: sx-fade-in 300ms ease-out 1.5s both;

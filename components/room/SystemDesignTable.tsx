@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, memo, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createContext, memo, useContext, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   autoDesign,
   BUDGET_MAX,
   BUDGET_MIN,
   CANVAS,
   CATALOG,
+  extentOf,
   COUNTDOWN_MS,
   designCost,
   flowIssues,
@@ -42,9 +43,10 @@ import {
   TIMES,
   USERS,
   USERS_ID,
-  USERS_POS,
+  usersPos,
   type Design,
   type DesignTime,
+  type Extent,
   type Flow,
   type FlowKind,
   type Incident,
@@ -66,8 +68,8 @@ import { PeoplePanel } from "./People";
 import { ResultCard, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { StageArea, useStaged } from "./stage";
-import { SxCanvas, type Balloon, type Blast, type Fx, type Heat, type Sel } from "./SxCanvas";
+import { StageArea, StageCtx, useStaged } from "./stage";
+import { SxCanvas, type Balloon, type Blast, type Fx, type Heat, type Pan, type Sel } from "./SxCanvas";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<SxView>, "chat">;
@@ -159,8 +161,8 @@ export function SystemDesignTable({ id, slug, session }: { id: string; slug: str
       <ActionPart session={session} />
       <PlaybackHost session={session}>
         {/* Trình chiếu: thanh trạng thái (kèm nút xác nhận đọc đề / bắt đầu…) lên đầu, phần thân cuộn được; lúc chạy tải thì
-            bàn chạy tải tự xếp vừa một màn hình. */}
-        <StageArea scroll fit="w-full max-w-[1240px]" head={<ActionPart session={session} />}>
+            bàn chạy tải tự xếp vừa một màn hình. Lúc thiết kế (phóng to) bàn thiết kế lấp cả màn hình, tự mang thanh trạng thái. */}
+        <StageArea scroll fit="w-full max-w-[1240px]" head={<HeadPart session={session} />}>
           <div ref={areaRef} className="relative">
             <BodyPart session={session} />
             <FlyersPart session={session} areaRef={areaRef} />
@@ -238,12 +240,21 @@ function useSxLive(session: SystemDesignRoom) {
   return room.status === "playing" && round === room.round;
 }
 
-const ActionPart = memo(function ActionPart({ session }: { session: SystemDesignRoom }) {
+// `extra`: nút đặt trước các nút của thanh trạng thái (bàn thiết kế phóng to gắn chi phí, hoàn tác, chốt thiết kế vào đây).
+// `compact`: bàn phóng to — lúc thiết kế / đã chốt chỉ hiện đồng hồ và số người đã chốt thay cho câu hướng dẫn.
+const ActionPart = memo(function ActionPart({ session, extra, compact }: { session: SystemDesignRoom; extra?: React.ReactNode; compact?: boolean }) {
   const view = useSxView(session);
-  return <ActionBar view={view} session={session} />;
+  return <ActionBar view={view} session={session} extra={extra} compact={compact} />;
 });
 
-function ActionBar({ view, session }: { view: View; session: SystemDesignRoom }) {
+// Bàn phóng to (thiết kế / đã chốt) tự đặt thanh trạng thái trong khung của nó.
+function HeadPart({ session }: { session: SystemDesignRoom }) {
+  const stage = useSxStage(session);
+  if (stage === "design" || stage === "locked") return null;
+  return <ActionPart session={session} />;
+}
+
+function ActionBar({ view, session, extra, compact }: { view: View; session: SystemDesignRoom; extra?: React.ReactNode; compact?: boolean }) {
   const g = view.game?.match;
   const live = isLive(view);
   const shown = useReached(g?.readAt);
@@ -274,7 +285,18 @@ function ActionBar({ view, session }: { view: View; session: SystemDesignRoom })
       }
     } else if (!opened) {
       tone = TONE.hot;
-      message = <>⏳ Mọi người đã đọc đề — chuẩn bị thiết kế!</>;
+      message = compact ? <>⏳ Chuẩn bị thiết kế…</> : <>⏳ Mọi người đã đọc đề — chuẩn bị thiết kế!</>;
+    } else if (compact && g.me >= 0) {
+      tone = g.locked ? TONE.info : tone;
+      message = (
+        <span className="whitespace-nowrap" title={g.locked ? "Bạn đã chốt thiết kế — chờ mọi người chốt" : "Dựng hệ thống của bạn rồi chốt"}>
+          {g.locked && "✅ Đã chốt · "}⏱ {g.endsAt ? <Countdown until={g.endsAt} /> : <b>Vô hạn</b>} · 🔒{" "}
+          <b className="tabular-nums">
+            {done}/{n}
+          </b>{" "}
+          đã chốt
+        </span>
+      );
     } else if (g.me >= 0 && !g.locked)
       message = (
         <>
@@ -306,6 +328,7 @@ function ActionBar({ view, session }: { view: View; session: SystemDesignRoom })
     }
     return (
       <StatusBar tone={tone} message={message}>
+        {extra}
         {action}
         {view.isHost && <StopButton onConfirm={() => session.stop()} />}
       </StatusBar>
@@ -337,9 +360,9 @@ function Countdown({ until }: { until: number }) {
 
 type Stage = "idle" | "read" | "design" | "locked" | "watch" | "result" | "tally" | "stopped";
 
-const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom }) {
+function useSxStage(session: SystemDesignRoom) {
   const live = useSxLive(session);
-  const stage = useGame(session, (v): Stage => {
+  return useGame(session, (v): Stage => {
     const g = v?.match;
     if (!g) return "idle";
     if (live) return g.me < 0 ? "watch" : !g.opensAt ? "read" : g.locked ? "locked" : "design";
@@ -347,10 +370,16 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
     if (g.final) return "result";
     return g.result ? "tally" : "idle";
   });
+}
+
+const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom }) {
+  const stage = useSxStage(session);
+  const staged = useStaged();
   const round = useGame(session, (v) => v?.match?.round ?? 0);
   const pb = useContext(PlaybackCtx);
   const running = pb.phase !== "done";
   if (stage === "design") return <DesignPart key={round} session={session} />;
+  if (stage === "locked" && staged) return <LockedZoomPart key={round} session={session} />;
   if (stage === "read")
     return (
       <>
@@ -924,7 +953,7 @@ const COLUMN: Record<Kind, number> = {
 };
 
 function freeSpot(d: Design, k: Kind) {
-  const taken = (x: number, y: number) => d.nodes.some((n) => Math.abs(n.x - x) < NODE.w + 8 && Math.abs(n.y - y) < NODE.h + 8);
+  const taken = (x: number, y: number) => [usersPos(d), ...d.nodes].some((n) => Math.abs(n.x - x) < NODE.w + 8 && Math.abs(n.y - y) < NODE.h + 8);
   const xs = [COLUMN[k], COLUMN[k] + 152, COLUMN[k] - 152, COLUMN[k] + 304, COLUMN[k] - 304].filter((x) => x >= 152 && x <= CANVAS.w - NODE.w);
   for (const x of xs) for (let y = 24; y <= CANVAS.h - NODE.h; y += 16) if (!taken(x, y)) return { x, y };
   return { x: COLUMN[k], y: (CANVAS.h - NODE.h) / 2 };
@@ -935,10 +964,12 @@ const nextId = (d: Design) => d.nodes.reduce((m, n) => Math.max(m, n.id), 0) + 1
 // Chỉ lấy đề và mốc lộ đề: bản nháp của mình lưu lên mạng cũng làm store đổi, không cần vẽ lại cả sơ đồ theo.
 const DesignPart = memo(function DesignPart({ session }: { session: SystemDesignRoom }) {
   const g = useGame(session, (v) => (v?.match ? { p: v.match.problem, opensAt: v.match.opensAt } : null), (a, b) => a?.p === b?.p && a?.opensAt === b?.opensAt);
+  // Phóng to: đề thu vào cột nổi trên bàn. Giữ nguyên chỗ của `Designer` trong cây để bật / tắt không mất bản nháp đang kéo.
+  const zoomed = useStaged();
   if (!g) return null;
   return (
     <>
-      <MatchProblemPart session={session} compact />
+      {!zoomed && <MatchProblemPart session={session} compact />}
       <Designer session={session} p={g.p} opensAt={g.opensAt} />
       <CatalogPart session={session} />
     </>
@@ -947,12 +978,18 @@ const DesignPart = memo(function DesignPart({ session }: { session: SystemDesign
 
 function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Problem; opensAt: number }) {
   const opened = useReached(opensAt);
+  const stage = useContext(StageCtx);
   const [design, setDesign] = useState<Design>(() => session.myDesign());
   const [sel, setSel] = useState<Sel>(null);
   const [past, setPast] = useState<Design[]>([]);
   const base = useRef<Design | null>(null);
   const report = useMemo(() => inspect(p, design), [p, design]);
   const labels = useMemo(() => nodeLabels(design), [design]);
+  // Phóng to: thông số nằm cuối cột nổi, chọn component thì cuộn tới cho thấy.
+  const spec = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (sel) spec.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [sel]);
 
   const change = (d: Design, commit: boolean) => {
     if (!commit) base.current ??= design;
@@ -1001,7 +1038,7 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
     if (!sel) return;
     if ("node" in sel) {
       if (sel.node === USERS_ID) return;
-      change({ nodes: design.nodes.filter((n) => n.id !== sel.node), edges: design.edges.filter(([a, b]) => a !== sel.node && b !== sel.node) }, true);
+      change({ ...design, nodes: design.nodes.filter((n) => n.id !== sel.node), edges: design.edges.filter(([a, b]) => a !== sel.node && b !== sel.node) }, true);
     } else change({ ...design, edges: design.edges.filter(([a, b]) => a !== sel.edge[0] || b !== sel.edge[1]) }, true);
     setSel(null);
   };
@@ -1009,7 +1046,7 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
     const n = design.nodes.find((x) => x.id === id);
     if (!n || design.nodes.length >= MAX_NODES) return;
     const copy = { ...n, id: nextId(design), ...freeSpot(design, n.k) };
-    const d: Design = { nodes: [...design.nodes, copy], edges: [...design.edges] };
+    const d: Design = { ...design, nodes: [...design.nodes, copy], edges: [...design.edges] };
     for (const [a, b] of design.edges) {
       if (b === id && !linkIssue(d, a, copy.id)) d.edges.push([a, copy.id]);
       if (a === id && !linkIssue(d, copy.id, b)) d.edges.push([copy.id, b]);
@@ -1019,70 +1056,286 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
   };
 
   const over = report.cost > p.budget;
+  const cost = (
+    <span className={`sx-cost ${over ? "is-over" : ""}`} title="Tổng chi phí / budget tối đa">
+      💰 <b className="tabular-nums">{fmt(report.cost)}</b> / {fmt(p.budget)}
+      <span className="sx-cost-bar" aria-hidden="true">
+        <span style={{ width: `${Math.min(100, (report.cost / p.budget) * 100)}%` }} />
+      </span>
+    </span>
+  );
+  const count = (
+    <span className="text-[13px] font-semibold text-ink-3 tabular-nums">
+      {design.nodes.length}/{MAX_NODES} component
+    </span>
+  );
+  const tools = (
+    <>
+      <button type="button" className="btn btn-sm" onClick={undo} disabled={!past.length} title="Hoàn tác (Ctrl/⌘ + Z)">
+        ↶ Hoàn tác
+      </button>
+      <ConfirmButton
+        className="btn btn-sm btn-ghost"
+        onConfirm={() => {
+          change({ nodes: [], edges: [] }, true);
+          setSel(null);
+        }}
+        confirmLabel="Bấm lần nữa để xoá hết"
+      >
+        🧹 Xoá hết
+      </ConfirmButton>
+      <ConfirmButton
+        className="btn btn-sm btn-pen"
+        onConfirm={() => {
+          session.edit(design);
+          session.lock();
+        }}
+        confirmLabel={report.ok ? "Bấm lần nữa để chốt — không sửa được nữa" : "Thiết kế chưa hợp lệ — vẫn chốt?"}
+      >
+        🔒 Chốt thiết kế
+      </ConfirmButton>
+    </>
+  );
+  const palette = p.kinds.map((k) => (
+    <button key={k} type="button" className={`sx-add flex-none k-${k}`} disabled={!opened || design.nodes.length >= MAX_NODES} onClick={() => add(k)} title={CATALOG[k].role}>
+      <span aria-hidden="true">{CATALOG[k].emoji}</span> {CATALOG[k].short}
+      <small>từ ${CATALOG[k].variants[0].price}</small>
+    </button>
+  ));
+  const canvas = (view?: Pan) => (
+    <SxCanvas
+      design={design}
+      label="Sơ đồ hệ thống — kéo để di chuyển, kéo từ chấm tròn để nối"
+      marks={report.errors.flatMap((e) => e.nodes?.slice(-1) ?? [])}
+      edit={opened ? { onChange: change, onDelete: remove, sel, onSel: setSel } : undefined}
+      view={view}
+    />
+  );
+  const zoomed = !!stage?.on;
+  const inspector = <Inspector mode={p.mode} design={design} labels={labels} sel={sel} onSel={setSel} change={change} remove={remove} clone={clone} fold={zoomed} />;
+  const checklist = <Checklist p={p} report={report} fold={zoomed} />;
+
+  // Phóng to: sơ đồ lấp màn hình; trên cùng là hướng dẫn và nút chốt, cột nổi góc phải gồm kiểm tra đường đi, danh sách
+  // component rồi thông số component đang chọn.
+  if (zoomed)
+    return (
+      <ZoomFrame
+        top={
+          <ActionPart
+            session={session}
+            compact
+            extra={
+              <>
+                {cost}
+                {tools}
+              </>
+            }
+          />
+        }
+        side={
+          <>
+            {checklist}
+            <Panel
+              title={
+                <>
+                  🧰 Thêm component{" "}
+                  <span className="text-[13px] font-semibold text-ink-3 tabular-nums">
+                    · {design.nodes.length}/{MAX_NODES}
+                  </span>
+                </>
+              }
+              fold
+            >
+              <div className="mt-2 flex flex-wrap gap-2" role="toolbar" aria-label="Thêm component">
+                {palette}
+              </div>
+            </Panel>
+            <div ref={spec}>{inspector}</div>
+            <MatchProblemPart session={session} compact />
+          </>
+        }
+        extent={extentOf(design)}
+        canvas={canvas}
+      />
+    );
+
   return (
     <section className="card mt-4 grid gap-4 p-4 sm:p-5" aria-label="Thiết kế của bạn">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="font-display text-xl font-extrabold">🏗️ Thiết kế của bạn</h2>
-        <span className={`sx-cost ${over ? "is-over" : ""}`} title="Tổng chi phí / budget tối đa">
-          💰 <b className="tabular-nums">{fmt(report.cost)}</b> / {fmt(p.budget)}
-          <span className="sx-cost-bar" aria-hidden="true">
-            <span style={{ width: `${Math.min(100, (report.cost / p.budget) * 100)}%` }} />
-          </span>
-        </span>
-        <span className="text-[13px] font-semibold text-ink-3 tabular-nums">
-          {design.nodes.length}/{MAX_NODES} component
-        </span>
+        {cost}
+        {count}
         <div className="ml-auto flex flex-wrap gap-2">
-          <button type="button" className="btn btn-sm" onClick={undo} disabled={!past.length} title="Hoàn tác (Ctrl/⌘ + Z)">
-            ↶ Hoàn tác
-          </button>
-          <ConfirmButton
-            className="btn btn-sm btn-ghost"
-            onConfirm={() => {
-              change({ nodes: [], edges: [] }, true);
-              setSel(null);
-            }}
-            confirmLabel="Bấm lần nữa để xoá hết"
-          >
-            🧹 Xoá hết
-          </ConfirmButton>
-          <ConfirmButton
-            className="btn btn-sm btn-pen"
-            onConfirm={() => {
-              session.edit(design);
-              session.lock();
-            }}
-            confirmLabel={report.ok ? "Bấm lần nữa để chốt — không sửa được nữa" : "Thiết kế chưa hợp lệ — vẫn chốt?"}
-          >
-            🔒 Chốt thiết kế
-          </ConfirmButton>
+          {stage && (
+            <button type="button" className="btn btn-sm" onClick={stage.enter} title="Mở bàn thiết kế tràn màn hình">
+              ⛶ Phóng to
+            </button>
+          )}
+          {tools}
         </div>
       </div>
 
       {/* Màn hẹp: một hàng cuộn ngang để sơ đồ không bị đẩy xuống quá xa. */}
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pt-0.5 pb-1.5 sm:flex-wrap sm:overflow-visible" role="toolbar" aria-label="Thêm component">
-        {p.kinds.map((k) => (
-          <button key={k} type="button" className={`sx-add flex-none k-${k}`} disabled={!opened || design.nodes.length >= MAX_NODES} onClick={() => add(k)} title={CATALOG[k].role}>
-            <span aria-hidden="true">{CATALOG[k].emoji}</span> {CATALOG[k].short}
-            <small>từ ${CATALOG[k].variants[0].price}</small>
-          </button>
-        ))}
+        {palette}
       </div>
 
-      <div className="sx-canvas-wrap">
-        <SxCanvas
-          design={design}
-          label="Sơ đồ hệ thống — kéo để di chuyển, kéo từ chấm tròn để nối"
-          marks={report.errors.flatMap((e) => e.nodes?.slice(-1) ?? [])}
-          edit={opened ? { onChange: change, onDelete: remove, sel, onSel: setSel } : undefined}
-        />
-      </div>
+      <div className="sx-canvas-wrap">{canvas()}</div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Inspector mode={p.mode} design={design} labels={labels} sel={sel} onSel={setSel} change={change} remove={remove} clone={clone} />
-        <Checklist p={p} report={report} />
+        {inspector}
+        {checklist}
       </div>
     </section>
+  );
+}
+
+// Bàn phóng to (trong trình chiếu): sơ đồ phủ kín màn hình, thanh trạng thái và cột bảng (góc phải) nổi đè lên trên; từng
+// bảng trong cột tự thu gọn được.
+// Khung nhìn dời / thu phóng được: kéo nền để dời, lăn chuột (hoặc vuốt hai ngón) để dời, Ctrl/⌘ + lăn (hoặc chụm hai ngón
+// trên touchpad) để thu phóng. Chưa động tới thì khung nhìn tự vừa khung vẽ vào phần không bị thanh / cột che.
+type Cam = { x: number; y: number; s: number };
+type Room = { w: number; h: number; top: number; right: number };
+
+const ZOOM_MIN = 0.3;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 1.25;
+// Chừa bấy nhiêu px của khung vẽ trong màn hình để không dời mất sơ đồ.
+const KEEP_PX = 80;
+
+const clampZoom = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s));
+
+function fitCam(r: Room, e: Extent): Cam {
+  const pad = 20;
+  const left = pad;
+  const top = r.top + pad;
+  // Chừa đáy cho thanh thu phóng.
+  const w = Math.max(80, r.w - left - r.right - pad);
+  const h = Math.max(80, r.h - top - 64);
+  const s = clampZoom(Math.min(w / e.w, h / e.h));
+  return { s, x: e.x - (left + (w - e.w * s) / 2) / s, y: e.y - (top + (h - e.h * s) / 2) / s };
+}
+
+// Không dời mất cả sơ đồ ra ngoài màn hình.
+function keepCam(c: Cam, r: Room, e: Extent): Cam {
+  const k = KEEP_PX / c.s;
+  return { s: c.s, x: Math.min(e.x + e.w - k, Math.max(e.x + k - r.w / c.s, c.x)), y: Math.min(e.y + e.h - k, Math.max(e.y + k - r.h / c.s, c.y)) };
+}
+
+// `extent`: khung bao sơ đồ. Vừa khung theo khung bao lúc mở (hoặc lúc bấm vừa khung), không theo từng lần kéo component.
+function ZoomFrame({ top, side, extent, canvas }: { top: React.ReactNode; side: React.ReactNode; extent: Extent; canvas: (view: Pan) => React.ReactNode }) {
+  const [base, setBase] = useState(extent);
+  const board = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const sideRef = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState<Room>({ w: 0, h: 0, top: 0, right: 0 });
+  // `null`: vừa khung (chưa dời / thu phóng, hoặc vừa bấm vừa khung).
+  const [cam, setCam] = useState<Cam | null>(null);
+
+  // Đo bàn và phần bị thanh trạng thái / cột bảng che (cột chỉ tính bề ngang, và chỉ khi không che quá nửa bàn).
+  useLayoutEffect(() => {
+    const el = board.current;
+    if (!el) return;
+    const measure = () => {
+      const b = el.getBoundingClientRect();
+      const t = topRef.current?.getBoundingClientRect();
+      const sd = sideRef.current?.getBoundingClientRect();
+      const right = sd && sd.width < b.width / 2 ? b.right - sd.left : 0;
+      const next = { w: b.width, h: b.height, top: t ? t.bottom - b.top : 0, right };
+      setRoom((r) => (r.w === next.w && r.h === next.h && r.top === next.top && r.right === next.right ? r : next));
+    };
+    const ro = new ResizeObserver(measure);
+    for (const x of [el, topRef.current, sideRef.current]) if (x) ro.observe(x);
+    return () => ro.disconnect();
+  }, []);
+
+  const c = cam ?? fitCam(room, base);
+  // Nhiều lần lăn / kéo có thể tới trước khi React kịp vẽ lại: luôn cộng dồn trên giá trị mới nhất.
+  const update = (fn: (c: Cam) => Cam) => setCam((prev) => keepCam(fn(prev ?? fitCam(room, base)), room, extent));
+  const zoomAt = (f: number, ax = room.w / 2, ay = room.h / 2) =>
+    update((c) => {
+      const s = clampZoom(c.s * f);
+      return { s, x: c.x + ax / c.s - ax / s, y: c.y + ay / c.s - ay / s };
+    });
+
+  const onWheel = useEffectEvent((e: WheelEvent) => {
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? room.h : 1;
+    const r = board.current!.getBoundingClientRect();
+    // Một nấc lăn chuột (~100px) ≈ ×1.22; chụm touchpad gửi nhiều nhịp nhỏ nên vẫn mượt.
+    const dz = Math.max(-50, Math.min(50, e.deltaY * unit));
+    if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-dz * 0.004), e.clientX - r.left, e.clientY - r.top);
+    else update((c) => ({ ...c, x: c.x + (e.deltaX * unit) / c.s, y: c.y + (e.deltaY * unit) / c.s }));
+  });
+  // Lắng nghe không thụ động để chặn trang tự cuộn / trình duyệt tự phóng to khi chụm touchpad.
+  useEffect(() => {
+    const el = board.current;
+    if (!el) return;
+    const fn = (e: WheelEvent) => onWheel(e);
+    el.addEventListener("wheel", fn, { passive: false });
+    return () => el.removeEventListener("wheel", fn);
+  }, []);
+
+  const view: Pan = {
+    box: room.w ? `${c.x} ${c.y} ${room.w / c.s} ${room.h / c.s}` : `0 0 ${CANVAS.w} ${CANVAS.h}`,
+    onPan: (dx, dy) => update((c) => ({ ...c, x: c.x - dx / c.s, y: c.y - dy / c.s })),
+  };
+
+  return (
+    <section className="sx-zoom" aria-label="Bàn thiết kế phóng to">
+      <div ref={board} className="sx-zoom-board">
+        {canvas(view)}
+      </div>
+      <div className="sx-zoom-ui">
+        <div ref={topRef} className="sx-zoom-top">
+          {top}
+        </div>
+        <div ref={sideRef} className="sx-zoom-side">
+          {side}
+        </div>
+      </div>
+      <div className="sx-zoom-ctl" role="toolbar" aria-label="Thu phóng sơ đồ" title="Kéo nền để dời sơ đồ · Ctrl/⌘ + lăn chuột để thu phóng">
+        <button type="button" className="btn btn-sm" onClick={() => zoomAt(1 / ZOOM_STEP)} disabled={c.s <= ZOOM_MIN} aria-label="Thu nhỏ">
+          −
+        </button>
+        <span className="sx-zoom-pct tabular-nums">{Math.round(c.s * 100)}%</span>
+        <button type="button" className="btn btn-sm" onClick={() => zoomAt(ZOOM_STEP)} disabled={c.s >= ZOOM_MAX} aria-label="Phóng to sơ đồ">
+          ＋
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => {
+            setBase(extent);
+            setCam(null);
+          }}
+        >
+          ⤢ Vừa khung
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// Bảng có tiêu đề; `fold`: bấm tiêu đề để thu gọn / mở (cột nổi của bàn phóng to). `body`: class của phần thân.
+// Màn hẹp thì cột bảng đè gần hết sơ đồ nên bảng mở ra ở dạng thu gọn (chỉ dựng ở máy, không có ở bản dựng sẵn).
+function Panel({ title, fold, body, children }: { title: React.ReactNode; fold?: boolean; body?: string; children: React.ReactNode }) {
+  const [wide] = useState(() => typeof matchMedia === "undefined" || matchMedia("(min-width: 760px)").matches);
+  const inner = <div className={body}>{children}</div>;
+  if (fold)
+    return (
+      <details open={wide} className="sx-panel sx-fold">
+        <summary className="font-bold">
+          <span className="min-w-0">{title}</span>
+        </summary>
+        {inner}
+      </details>
+    );
+  return (
+    <div className="sx-panel">
+      <p className="font-bold">{title}</p>
+      {inner}
+    </div>
   );
 }
 
@@ -1095,6 +1348,7 @@ function Inspector({
   change,
   remove,
   clone,
+  fold,
 }: {
   mode: Mode;
   design: Design;
@@ -1104,11 +1358,11 @@ function Inspector({
   change: (d: Design, commit: boolean) => void;
   remove: () => void;
   clone: (id: number) => void;
+  fold?: boolean;
 }) {
   if (!sel)
     return (
-      <div className="sx-panel">
-        <p className="font-bold">🧭 Cách dựng</p>
+      <Panel title="🧭 Cách dựng" fold={fold}>
         <ul className="mt-1.5 grid list-disc gap-1 pl-5 text-[13.5px] text-ink-2">
           <li>Bấm component ở thanh trên để đặt, kéo để xếp chỗ.</li>
           <li>Kéo từ chấm tròn bên phải một component sang component khác để nối — hoặc chạm chấm rồi chạm đích. Ô viền xanh là đích nối được.</li>
@@ -1119,19 +1373,23 @@ function Inspector({
               : "Đường nét đứt tím là nhân bản Database → Read Replica."}
           </li>
         </ul>
-      </div>
+      </Panel>
     );
   if ("edge" in sel) {
     const [a, b] = sel.edge;
     return (
-      <div className="sx-panel">
-        <p className="font-bold">
-          🔗 {labels.get(a)} → {labels.get(b)}
-        </p>
+      <Panel
+        title={
+          <>
+            🔗 {labels.get(a)} → {labels.get(b)}
+          </>
+        }
+        fold={fold}
+      >
         <button type="button" className="btn btn-sm btn-coral mt-3" onClick={remove}>
           ✕ Xoá đường nối
         </button>
-      </div>
+      </Panel>
     );
   }
   const id = sel.node;
@@ -1142,13 +1400,16 @@ function Inspector({
   const ins = design.edges.filter(([, b]) => b === id);
   const unlink = (a: number, b: number) => change({ ...design, edges: design.edges.filter(([x, y]) => x !== a || y !== b) }, true);
   return (
-    <div className="sx-panel grid content-start gap-3">
-      <div>
-        <p className="font-bold">
+    <Panel
+      title={
+        <>
           {info.emoji} {labels.get(id)} <span className="text-[13px] font-semibold text-ink-3">· {n ? CATALOG[n.k].name : USERS.role}</span>
-        </p>
-        {n && <p className="mt-1 text-[12.5px] text-ink-2">{ruleOf(n.k, mode)}</p>}
-      </div>
+        </>
+      }
+      fold={fold}
+      body="mt-1 grid content-start gap-3"
+    >
+      {n && <p className="text-[12.5px] text-ink-2">{ruleOf(n.k, mode)}</p>}
       {n && (
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Variant">
           {CATALOG[n.k].variants.map((x, v) => (
@@ -1204,7 +1465,7 @@ function Inspector({
           </button>
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -1224,12 +1485,23 @@ function Links({ title, items }: { title: string; items: { id: number; label: st
   );
 }
 
-function Checklist({ p, report }: { p: Problem; report: ReturnType<typeof inspect> }) {
+function Checklist({ p, report, fold }: { p: Problem; report: ReturnType<typeof inspect>; fold?: boolean }) {
   const bad = new Map(report.errors.filter((e) => e.flow !== undefined).map((e) => [e.flow!, e]));
   const loose = report.errors.filter((e) => e.flow === undefined);
+  // Thu gọn vẫn thấy ngay đường đi đã ổn chưa.
+  const ok = !report.errors.length;
   return (
-    <div className="sx-panel">
-      <p className="font-bold">✅ Kiểm tra đường đi</p>
+    <Panel
+      title={
+        <>
+          ✅ Kiểm tra đường đi{" "}
+          <span className={`text-[13px] font-semibold ${ok ? "text-ink-3" : "text-coral"}`}>
+            · {ok ? "ổn" : `${p.flows.filter((_, i) => bad.has(i) || loose.length).length} luồng lỗi`}
+          </span>
+        </>
+      }
+      fold={fold}
+    >
       <ul className="mt-2 grid gap-1.5 text-[13.5px]">
         {loose.map((e) => (
           <li key={e.text} className="text-coral">
@@ -1252,7 +1524,7 @@ function Checklist({ p, report }: { p: Problem; report: ReturnType<typeof inspec
         ))}
       </ul>
       <p className="mt-2 text-[12px] text-ink-3">Chỉ kiểm tra đường đi — không được chạy thử tải trước khi chốt.</p>
-    </div>
+    </Panel>
   );
 }
 
@@ -1271,6 +1543,24 @@ const MinePart = memo(function MinePart({ session }: { session: SystemDesignRoom
         <SxCanvas design={design} label="Thiết kế đã chốt" />
       </div>
     </section>
+  );
+});
+
+// Đã chốt lúc đang phóng to: vẫn ở trên bàn, sơ đồ đã chốt lấp màn hình, cột nổi là tiến độ mọi người và đề.
+const LockedZoomPart = memo(function LockedZoomPart({ session }: { session: SystemDesignRoom }) {
+  const design = useMemo(() => session.myDesign(), [session]);
+  return (
+    <ZoomFrame
+      top={<ActionPart session={session} compact />}
+      side={
+        <>
+          <ProgressPart session={session} />
+          <MatchProblemPart session={session} compact />
+        </>
+      }
+      extent={extentOf(design)}
+      canvas={(view) => <SxCanvas design={design} view={view} label="Thiết kế đã chốt" />}
+    />
   );
 });
 
@@ -1507,7 +1797,7 @@ const RunPart = memo(function RunPart({ session }: { session: SystemDesignRoom }
 const luck = (key: string) => [...key].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
 
 const centerOf = (d: Design, id: number) => {
-  const b = id === USERS_ID ? USERS_POS : d.nodes.find((n) => n.id === id);
+  const b = id === USERS_ID ? usersPos(d) : d.nodes.find((n) => n.id === id);
   return b ? { x: b.x + NODE.w / 2, y: b.y + NODE.h / 2 } : null;
 };
 

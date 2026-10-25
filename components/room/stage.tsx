@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 // Nút Trình chiếu chỉ hiện khi game bọc bàn trong `StageArea`: mỗi game phải tự chỉnh cỡ bàn lúc trình chiếu qua `fit`.
-type Stage = { on: boolean; exit: () => void; mount: () => () => void };
+// `enter` để game tự mở trình chiếu từ nút của mình (vd. phóng to bàn thiết kế).
+type Stage = { on: boolean; enter: () => void; exit: () => void; mount: () => () => void };
 
 export const StageCtx = createContext<Stage | null>(null);
 
@@ -14,6 +15,7 @@ export function useStageHost() {
     setCount((n) => n + 1);
     return () => setCount((n) => n - 1);
   }, []);
+  const enter = useCallback(() => setOn(true), []);
   const exit = useCallback(() => setOn(false), []);
   const available = count > 0;
   const active = on && available;
@@ -32,8 +34,8 @@ export function useStageHost() {
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, [active]);
-  const ctx = useMemo<Stage>(() => ({ on: active, exit, mount }), [active, exit, mount]);
-  return { ctx, available, enter: () => setOn(true) };
+  const ctx = useMemo<Stage>(() => ({ on: active, enter, exit, mount }), [active, enter, exit, mount]);
+  return { ctx, available, enter };
 }
 
 export const useStaged = () => !!useContext(StageCtx)?.on;
