@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Link from "next/link";
@@ -11,6 +13,7 @@ import { NetProvider } from "@/components/NetProvider";
 import { ProfileButton } from "@/components/ProfileButton";
 import { PublicChatDock } from "@/components/room/ChatPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CHANGELOG_FILE, latestEntry, parseChangelog } from "@/lib/changelog";
 import { body, display } from "@/lib/fonts";
 import { loadGames } from "@/lib/games/registry";
 import { ogImage, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
@@ -40,6 +43,8 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const games = await loadGames();
+  // Đọc lúc build; nhật ký sai định dạng thì build dừng. Chỉ mục mới nhất được gửi xuống trình duyệt.
+  const latest = latestEntry(parseChangelog(await readFile(join(process.cwd(), CHANGELOG_FILE), "utf8")));
   return (
     <html lang="vi" className={`${body.variable} ${display.variable}`} suppressHydrationWarning>
       <head>
@@ -84,7 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <main id="noi-dung" className="flex-1">
               {children}
             </main>
-            <PublicChatDock />
+            <PublicChatDock latest={latest} />
             <InviteToasts />
             <MaintenanceDialog />
             <AdblockWall />

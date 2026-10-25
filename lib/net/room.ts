@@ -118,6 +118,8 @@ export type ChatMsg = {
   guess?: GuessMark;
   // Không gửi lại cho người mới vào: vẽ đoán dùng cho lời đoán của chính mình, có thể là đáp án.
   local?: boolean;
+  // Tin "Có gì mới" do chính máy mình dựng (components/WhatsNew.tsx); không bao giờ gửi đi, nhận từ mạng thì bị bỏ.
+  news?: boolean;
 };
 
 export type GuessMark = "wrong" | "near" | "right";
@@ -854,7 +856,7 @@ export abstract class RoomSession<G = unknown> {
     if (!replayed && !this.chatRate.take(msg.uid)) return;
     // Id lạ (bản cũ/mới hơn, hoặc bị chế) thì bỏ: id sticker được dùng để dựng đường dẫn ảnh.
     if (msg.sticker !== undefined && !isStickerId(msg.sticker)) return;
-    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, TEXT_MAX), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined });
+    this.pushChat({ ...msg, id: r.id, text: msg.text?.slice(0, TEXT_MAX), guess: GUESS_MARKS.includes(msg.guess!) ? msg.guess : undefined, news: undefined });
   }
 
   private trackMutes() {

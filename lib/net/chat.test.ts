@@ -72,6 +72,13 @@ test("toPublicWire: gửi tuổi thay cho giờ tuyệt đối, khứ hồi gi�
   assert.equal(readPublicMsg({ id: msg.id, t: "chat", p: wire }, late)?.at, late - 30_000);
 });
 
+test("tin \"Có gì mới\" tại chỗ không mang cờ ra mạng, nhận cờ từ mạng cũng bị bỏ", () => {
+  const msg: ChatMsg = { ...who, id: "abc:1:0", at: 0, text: "• Caro vô cực", local: true, news: true };
+  const wire = toPublicWire(msg, 0);
+  assert.equal("news" in wire || "local" in wire, false);
+  assert.equal(readPublicMsg({ id: "abc:1:0", t: "chat", p: { ...wire, news: true } }, 0)?.news, undefined);
+});
+
 test("isFresh: còn hạn trong 1 giờ theo đồng hồ máy mình", () => {
   const msg: ChatMsg = { ...who, id: "x", at: 0, text: "hi" };
   assert.equal(isFresh(msg, PUBLIC_TTL_MS), true);

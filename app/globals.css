@@ -2487,6 +2487,10 @@
     --bb-edge: var(--lime);
     --bb-tag: color-mix(in srgb, var(--lime) 75%, var(--ink));
   }
+  /* "Có gì mới" của Arena: chỉ hiện lên rồi nằm yên tới khi người chơi bấm, không tự mờ như tin chat. */
+  .chat-bubble.is-news {
+    animation: chat-bubble-in 360ms ease both;
+  }
   .chat-bubble-tag {
     color: var(--bb-tag);
   }
@@ -5974,6 +5978,12 @@
   100% {
     opacity: 0;
     transform: translateY(-6px) scale(0.95);
+  }
+}
+@keyframes chat-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.6);
   }
 }
 @keyframes fly-heart {

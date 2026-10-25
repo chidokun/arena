@@ -1,12 +1,14 @@
 "use client";
 
 import { memo, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { ChangelogEntry } from "@/lib/changelog";
 import { TEXT_MAX } from "@/lib/net/chat";
 import type { ChatMsg, GuessMark, RoomSession } from "@/lib/net/room";
 import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
 import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
+import { useWhatsNew } from "../WhatsNew";
 import { Flyers } from "./RoomLayout";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { useStaged } from "./stage";
@@ -93,7 +95,7 @@ const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: 
                   r.m.uid === me ? "rounded-br-md bg-pen text-on-pen" : "rounded-bl-md bg-sunken"
                 }`}
               >
-                {r.m.text}
+                {r.m.news ? <NewsText text={r.m.text ?? ""} /> : r.m.text}
               </p>
             )}
           </div>
@@ -146,10 +148,26 @@ type Channel = {
 const unreadOf = (chat: ChatMsg[], me: string, since: number) => chat.filter((m) => !m.system && m.uid !== me && m.at > since).length;
 
 function bubbleKind(m: ChatMsg): { tone: string; tag?: string } {
+  if (m.news) return { tone: "is-news" };
   if (m.shout) return { tone: "is-shout" };
   if (m.guess) return { tone: `is-${m.guess}`, tag: GUESS_TAG[m.guess] };
   if (m.clue) return { tone: "is-clue", tag: "✍️ Mô tả" };
   return { tone: "" };
+}
+
+// Tin "Có gì mới": mỗi dòng một điểm, xuống hàng thì thụt vào thẳng chữ chứ không về dưới dấu chấm. Dùng span vì nằm
+// trong <p> / <button> (không chứa được <ul>).
+function NewsText({ text }: { text: string }) {
+  return (
+    <>
+      <b className="block font-extrabold">Có gì mới?</b>
+      {text.split("\n").map((line, i) => (
+        <span key={i} className="relative mt-0.5 block pl-3.5 before:absolute before:left-0 before:content-['•']">
+          {line}
+        </span>
+      ))}
+    </>
+  );
 }
 
 function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: string }) {
@@ -159,13 +177,17 @@ function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: 
         const { tone, tag } = bubbleKind(m);
         return (
           <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""} ${tone}`}>
-            <button type="button" tabIndex={-1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
+            <button type="button" tabIndex={m.news ? 0 : -1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
               <Avatar p={m} size={30} />
               <span className="min-w-0">
                 <span className={`block truncate text-[11.5px] font-bold ${m.shout ? "opacity-70" : "text-ink-3"}`}>{m.name}</span>
                 {tag && <span className="chat-bubble-tag block text-[11px] font-extrabold tracking-wide uppercase">{tag}</span>}
                 {m.sticker ? (
                   <StickerArt id={m.sticker} size={56} />
+                ) : m.news ? (
+                  <span className="block text-[14px] leading-snug font-semibold [overflow-wrap:anywhere]">
+                    <NewsText text={m.text ?? ""} />
+                  </span>
                 ) : (
                   <span className={`line-clamp-3 leading-snug [overflow-wrap:anywhere] ${m.shout ? "font-display text-[17px] font-extrabold" : "text-[14px] font-semibold"}`}>{m.text}</span>
                 )}
@@ -190,6 +212,7 @@ function ChatBox({
   storageKey,
   openByDefault,
   bubbles = [],
+  onRead,
   staged = false,
 }: {
   channels: Channel[];
@@ -203,6 +226,8 @@ function ChatBox({
   storageKey: string;
   openByDefault: () => boolean;
   bubbles?: ChatMsg[];
+  // Gọi khi khung đang mở ở một kênh chat — tức người chơi đã thấy tin trong đó.
+  onRead?: () => void;
   staged?: boolean;
 }) {
   const uid = useId();
@@ -291,6 +316,10 @@ function ChatBox({
   useEffect(() => () => {
     if (slowTimer.current) clearTimeout(slowTimer.current);
   }, []);
+
+  useEffect(() => {
+    if (open && !panel) onRead?.();
+  }, [open, panel, onRead]);
 
   // Theo id tin cuối chứ không theo số tin: đủ giới hạn tin rồi thì số tin không đổi nữa.
   const lastId = ch.chat.at(-1)?.id;
@@ -675,15 +704,27 @@ const roomChat = (() => {
   };
 })();
 
-export function PublicChatDock() {
+// "Có gì mới" chỉ nhắn vào khung chat công cộng — trong phòng thì để yên cho ván đấu, về sảnh mới báo.
+export function PublicChatDock({ latest }: { latest: ChangelogEntry | null }) {
   const inRoom = useSyncExternalStore(roomChat.subscribe, roomChat.shown, () => false);
   const { uid } = useNet();
   const pub = usePublicChannel();
-  if (inRoom || !pub || !uid) return null;
+  const news = useWhatsNew(latest, !inRoom && !!pub && !!uid);
+  const pubChat = pub?.chat;
+  const chat = useMemo(() => (pubChat && news.msg ? [...pubChat, news.msg].sort((a, b) => a.at - b.at) : pubChat), [pubChat, news.msg]);
+  if (inRoom || !pub || !chat || !uid) return null;
   return (
     <>
       <PublicFlyers />
-      <ChatBox channels={[pub]} me={uid} title="Chat công cộng" storageKey={PUBLIC_KEY} openByDefault={() => false} />
+      <ChatBox
+        channels={[{ ...pub, chat }]}
+        me={uid}
+        title="Chat công cộng"
+        storageKey={PUBLIC_KEY}
+        openByDefault={() => false}
+        bubbles={news.bubbles}
+        onRead={news.read}
+      />
     </>
   );
 }
