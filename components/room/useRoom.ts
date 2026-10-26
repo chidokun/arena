@@ -20,7 +20,7 @@ import { ReversiRoom } from "@/lib/net/reversi-room";
 import type { ChatMsg, PeopleView, RoomSession, RoomState, RoomView } from "@/lib/net/room";
 import { SudokuRoom } from "@/lib/net/sudoku-room";
 import { SystemDesignRoom } from "@/lib/net/system-design-room";
-import { TamDauRoom } from "@/lib/net/tam-dau-room";
+import { CittaChallengeRoom } from "@/lib/net/citta-challenge-room";
 import { TrucXanhRoom } from "@/lib/net/truc-xanh-room";
 import { UndercoverRoom } from "@/lib/net/undercover-room";
 import type { ViewStore } from "@/lib/net/view-store";
@@ -29,7 +29,7 @@ import { XiangqiRoleRoom } from "@/lib/net/xiangqi-role-room";
 import { XiangqiRoom } from "@/lib/net/xiangqi-room";
 import { useStickerFx } from "../stickerFx";
 
-export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom | ReversiRoom | CoChoRoom | SystemDesignRoom | TamDauRoom;
+export type GameRoom = CaroRoom | LotoRoom | WerewolfRoom | UndercoverRoom | SudokuRoom | XiangqiRoom | XiangqiRoleRoom | ConnectFourRoom | BattleshipRoom | DrawGuessRoom | OAnQuanRoom | ChessRoom | DotsBoxesRoom | CoChepRoom | MineControlRoom | KawaiiRoom | TrucXanhRoom | MinesweeperRoom | ReversiRoom | CoChoRoom | SystemDesignRoom | CittaChallengeRoom;
 
 /**
  * Giữ phiên phòng theo id, đếm tham chiếu và trì hoãn huỷ một nhịp: React Strict Mode (dev) gắn–gỡ–gắn
@@ -83,7 +83,7 @@ function acquire(game: string, id: string, uid: string, profile: Profile, lobby:
                                               : game === "system-design"
                                                 ? SystemDesignRoom.open(id, uid, profile, lobby)
                                                 : game === "citta-challenge"
-                                                  ? TamDauRoom.open(id, uid, profile, lobby)
+                                                  ? CittaChallengeRoom.open(id, uid, profile, lobby)
                                                   : CaroRoom.open(id, uid, profile, lobby);
     c = { promise, refs: 0, timer: null };
     cache.set(key, c);

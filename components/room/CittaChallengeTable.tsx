@@ -22,13 +22,12 @@ import {
   TOPICS,
   VERDICTS,
   type Answer,
-  type De,
   type Graded,
   type Topic,
-} from "@/lib/games/tam-dau";
-import { GLOSSARY } from "@/lib/games/tam-dau-glossary";
+} from "@/lib/games/citta-challenge";
+import { GLOSSARY } from "@/lib/games/citta-challenge-glossary";
 import type { RoomView } from "@/lib/net/room";
-import type { TamDauRoom, TdMatch, TdPast, TdView } from "@/lib/net/tam-dau-room";
+import type { CittaChallengeRoom, CtMatch, CtPast, CtView } from "@/lib/net/citta-challenge-room";
 import { Avatar } from "../Avatar";
 import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
@@ -39,9 +38,9 @@ import { RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { useGame, usePeople, useRoomState } from "./useRoom";
 
-type View = Omit<RoomView<TdView>, "chat">;
+type View = Omit<RoomView<CtView>, "chat">;
 
-function useTdView(session: TamDauRoom): View {
+function useTdView(session: CittaChallengeRoom): View {
   const room = useRoomState(session);
   const people = usePeople(session);
   const game = useGame(session);
@@ -82,25 +81,29 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.seat.uid === uid)?.seat.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-const basisLabel = (e: number, de: De) => (e === BASIS_PUBLIC || e === BASIS_MISSING ? `${BASIS[e].emoji} ${BASIS[e].name}` : e >= 0 ? `🃏 T${e + 1} — ${de.cards[e].label}` : "—");
+// Thẻ được gọi theo ô đang bày ("Dữ kiện 1–4"), không theo chỉ số gốc trong đề.
+const cardName = (g: CtMatch, card: number) => `Dữ kiện ${g.order.indexOf(card) + 1}`;
+
+const basisLabel = (e: number, g: CtMatch) =>
+  e === BASIS_PUBLIC || e === BASIS_MISSING ? `${BASIS[e].emoji} ${BASIS[e].name}` : e >= 0 ? `📄 ${cardName(g, e)} — ${g.de.cards[e].label}` : "—";
 
 const pts = (h: number) => `${fmtHalves(h)} điểm`;
 
-export function TamDauTable({ id, slug, session }: { id: string; slug: string; session: TamDauRoom }) {
+export function CittaChallengeTable({ id, slug, session }: { id: string; slug: string; session: CittaChallengeRoom }) {
   return (
-    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<TdChat session={session} />}>
-      <TamDauBody session={session} />
+    <RoomLayout id={id} slug={slug} people={<PeoplePanel session={session} roomId={id} />} chat={<CtChat session={session} />}>
+      <CittaChallengeBody session={session} />
     </RoomLayout>
   );
 }
 
-const TdChat = memo(function TdChat({ session }: { session: TamDauRoom }) {
+const CtChat = memo(function CtChat({ session }: { session: CittaChallengeRoom }) {
   const answering = useGame(session, (v) => v?.match?.stage === "answer" || v?.match?.stage === "judge");
   const live = useRoomState(session, (r) => r.meta!.status === "playing");
   return <ChatPanel session={session} placeholder={live && answering ? "Chỉ hỏi cách thao tác — đừng gợi ý đáp án nhé 🤫" : undefined} />;
 });
 
-const TamDauBody = memo(function TamDauBody({ session }: { session: TamDauRoom }) {
+const CittaChallengeBody = memo(function CittaChallengeBody({ session }: { session: CittaChallengeRoom }) {
   const view = useTdView(session);
   const m = view.meta!;
   const { opts, match: g } = view.game!;
@@ -145,7 +148,7 @@ const TamDauBody = memo(function TamDauBody({ session }: { session: TamDauRoom }
   );
 });
 
-function CountdownScene({ view, match: g, n }: { view: View; match: TdMatch; n: number }) {
+function CountdownScene({ view, match: g, n }: { view: View; match: CtMatch; n: number }) {
   const people = g.lineup.map((s, i) => ({ uid: s.seat.uid, p: s.seat.member, name: nameIn(view, s.seat.uid), ring: "#e9b949", badge: `${i + 1}` }));
   const first = g.lineup[0]?.seat.uid;
   return (
@@ -161,7 +164,7 @@ function CountdownScene({ view, match: g, n }: { view: View; match: TdMatch; n: 
   );
 }
 
-function WinScene({ view, match: g, onClose }: { view: View; match: TdMatch; onClose: () => void }) {
+function WinScene({ view, match: g, onClose }: { view: View; match: CtMatch; onClose: () => void }) {
   const w = g.result?.winners ?? [];
   const top = g.rows?.[0];
   if (!w.length) return null;
@@ -185,13 +188,13 @@ function Timer({ deadline, total }: { deadline: number; total: number }) {
   const now = useNow(deadline > 0);
   const left = deadline && now ? Math.max(0, Math.min(1, (deadline - now) / total)) : 0;
   return (
-    <div className="td-timer" aria-hidden="true">
-      <span style={{ width: `${left * 100}%`, background: left < 0.25 ? "var(--coral)" : "var(--td-gold)" }} />
+    <div className="ct-timer" aria-hidden="true">
+      <span style={{ width: `${left * 100}%`, background: left < 0.25 ? "var(--coral)" : "var(--ct-gold)" }} />
     </div>
   );
 }
 
-function ActionBar({ view, session }: { view: View; session: TamDauRoom }) {
+function ActionBar({ view, session }: { view: View; session: CittaChallengeRoom }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
@@ -289,7 +292,7 @@ function ActionBar({ view, session }: { view: View; session: TamDauRoom }) {
   );
 }
 
-function Setup({ view, session }: { view: View; session: TamDauRoom }) {
+function Setup({ view, session }: { view: View; session: CittaChallengeRoom }) {
   const { opts, pool, used } = view.game!;
   const host = view.isHost;
   const t = TIMES[opts.mode];
@@ -373,8 +376,8 @@ function Setup({ view, session }: { view: View; session: TamDauRoom }) {
 function Welcome({ view }: { view: View }) {
   const m = view.meta!;
   return (
-    <div className="td-welcome card grid place-items-center gap-3 p-8 text-center">
-      <span className="td-lotus" aria-hidden="true">
+    <div className="ct-welcome card grid place-items-center gap-3 p-8 text-center">
+      <span className="ct-lotus" aria-hidden="true">
         🪷
       </span>
       <p className="font-display text-xl font-extrabold">{!m.players.length ? "Đang chờ người vào ghế…" : view.isHost ? "Sẵn sàng thì bấm “Bắt đầu” nhé" : "Đang chờ chủ phòng bắt đầu…"}</p>
@@ -383,7 +386,7 @@ function Welcome({ view }: { view: View }) {
   );
 }
 
-function Outcome({ view, match: g }: { view: View; match: TdMatch }) {
+function Outcome({ view, match: g }: { view: View; match: CtMatch }) {
   const r = g.result!;
   if (r.reason === "cheat") return <StoppedCard round={g.round} sub={`Ván ${g.round} dừng — người chơi bị xử thua vì gian lận.`} />;
   if (r.reason !== "points") return <StoppedCard round={g.round} />;
@@ -414,7 +417,7 @@ function Outcome({ view, match: g }: { view: View; match: TdMatch }) {
 }
 
 // Tổng kết cuối ván của một người: điểm từng vòng, khái niệm còn nhầm và lỗi lập luận hay gặp.
-function Summary({ view, match: g, uid }: { view: View; match: TdMatch; uid: string }) {
+function Summary({ view, match: g, uid }: { view: View; match: CtMatch; uid: string }) {
   const marks = useMarks();
   if (!uid) return null;
   const rounds = g.past.filter((p) => p.graded[uid]);
@@ -441,7 +444,7 @@ function Summary({ view, match: g, uid }: { view: View; match: TdMatch; uid: str
           const h = p.graded[uid].halves;
           return (
             <li key={p.v} className="flex items-center gap-2 text-[13.5px]">
-              <span className={`td-dot ${h === ROUND_HALVES ? "is-full" : h ? "is-part" : "is-zero"}`}>{fmtHalves(h)}</span>
+              <span className={`ct-dot ${h === ROUND_HALVES ? "is-full" : h ? "is-part" : "is-zero"}`}>{fmtHalves(h)}</span>
               <span className="min-w-0 flex-1 truncate">
                 <b>V{p.v + 1}</b> · {p.de?.title ?? p.de?.id ?? "…"}
               </span>
@@ -513,13 +516,13 @@ function useMarks() {
   return marks;
 }
 
-function Play({ view, session, match: g }: { view: View; session: TamDauRoom; match: TdMatch }) {
+function Play({ view, session, match: g }: { view: View; session: CittaChallengeRoom; match: CtMatch }) {
   const live = isLive(view);
   const meIn = g.me >= 0 && !g.lineup[g.me].out;
   const opened = useReached(g.opensAt);
   const review = g.stage === "review" || g.stage === "done" || !!g.graded;
   const marks = useMarks();
-  if (live && !opened) return <div className="td-welcome card grid min-h-[320px] place-items-center p-8 font-display text-xl font-extrabold">🪷 Chuẩn bị đề…</div>;
+  if (live && !opened) return <div className="ct-welcome card grid min-h-[320px] place-items-center p-8 font-display text-xl font-extrabold">🪷 Chuẩn bị đề…</div>;
   const myPick = live && meIn && g.stage === "pick" && g.lineup[g.picker]?.seat.uid === view.me;
   const editAns = live && meIn && g.stage === "answer" && !g.mine.la;
   const showClaim = g.stage === "judge" || review || (!live && !!g.verdicts);
@@ -530,9 +533,9 @@ function Play({ view, session, match: g }: { view: View; session: TamDauRoom; ma
   return (
     <div className="grid gap-4">
       {live && g.deadline > 0 && g.stage !== "review" && <Timer deadline={g.deadline} total={g.stageMs} />}
-      <article className="td-sheet card p-4 sm:p-5">
+      <article className="ct-sheet card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="td-round">
+          <span className="ct-round">
             Vòng {g.v + 1}/{ROUNDS}
           </span>
           <span className="font-mono text-[12px] font-bold text-ink-3">{de.id}</span>
@@ -555,15 +558,16 @@ function Play({ view, session, match: g }: { view: View; session: TamDauRoom; ma
         </div>
         <h2 className="mt-2 font-display text-2xl font-extrabold tracking-tight">{de.title}</h2>
         <p className="mt-0.5 text-[13px] font-semibold text-ink-3">{de.topic}</p>
-        <p className="td-story mt-3">{de.story}</p>
+        <p className="ct-story mt-3">{de.story}</p>
       </article>
 
       <section aria-label="Bốn thẻ dữ kiện">
         <p className="mb-2 text-[13px] font-bold text-ink-3">
           🃏 Bốn thẻ dữ kiện — cả bàn chỉ mở 2 thẻ{g.cards.length ? ` · đã mở ${g.cards.length}/2` : ""}
         </p>
-        <div className="td-cards">
-          {de.cards.map((c, i) => {
+        <div className="ct-cards">
+          {g.order.map((i, slot) => {
+            const c = de.cards[i];
             const open = g.cards.includes(i);
             const shown = open || review;
             const can = myPick && !open && g.mine.pick < 0;
@@ -572,26 +576,30 @@ function Play({ view, session, match: g }: { view: View; session: TamDauRoom; ma
               <button
                 key={i}
                 type="button"
-                className={`td-card ${shown ? "is-open" : ""} ${review && !open ? "is-late" : ""} ${can ? "is-pickable" : ""} ${pending ? "is-pending" : ""}`}
+                className={`ct-card ${shown ? "is-open" : ""} ${review && !open ? "is-late" : ""} ${can ? "is-pickable" : ""} ${pending ? "is-pending" : ""}`}
                 disabled={!can}
                 onClick={() => session.pick(i)}
-                aria-label={shown ? `Thẻ T${i + 1} — ${c.label}: ${c.text}` : `Thẻ T${i + 1} — ${c.label} (đang úp)`}
+                aria-label={shown ? `Dữ kiện ${slot + 1} — ${c.label}: ${c.text}` : `Dữ kiện ${slot + 1} (đang úp)`}
               >
-                <span className="td-card-inner">
-                  <span className="td-card-back">
-                    <span className="td-card-n">T{i + 1}</span>
-                    <span className="td-card-lotus" aria-hidden="true">
+                <span className="ct-card-inner">
+                  <span className="ct-card-back">
+                    <span className="ct-card-lotus" aria-hidden="true">
                       🪷
                     </span>
-                    <span className="td-card-label">{c.label}</span>
+                    <span className="ct-card-label">Dữ kiện {slot + 1}</span>
                     {pending && <span className="text-[12px] font-bold">Đang mở…</span>}
                   </span>
-                  <span className="td-card-face">
-                    <span className="td-card-tag">
-                      T{i + 1} · {c.label}
-                      {review && !open && <em> · mở sau khi chấm</em>}
-                    </span>
-                    <span className="td-card-text">{c.text}</span>
+                  {/* Thẻ còn úp thì chưa dựng mặt sau: nội dung không nằm sẵn trong trang (Ctrl+F, bôi đen sẽ lộ). */}
+                  <span className="ct-card-face">
+                    {shown && (
+                      <>
+                        <span className="ct-card-tag">
+                          Dữ kiện {slot + 1} · {c.label}
+                          {review && !open && <em> · mở sau khi chấm</em>}
+                        </span>
+                        <span className="ct-card-text">{c.text}</span>
+                      </>
+                    )}
                   </span>
                 </span>
               </button>
@@ -600,7 +608,7 @@ function Play({ view, session, match: g }: { view: View; session: TamDauRoom; ma
         </div>
       </section>
 
-      <section className="td-sheet card grid gap-5 p-4 sm:p-5" aria-label="Phần nhận diện">
+      <section className="ct-sheet card grid gap-5 p-4 sm:p-5" aria-label="Phần nhận diện">
         <h3 className="font-display text-lg font-extrabold">✍️ Phần nhận diện</h3>
         {de.items.map((it, i) => (
           <ItemBlock key={i} view={view} session={session} match={g} i={i} edit={editAns} review={review} />
@@ -628,7 +636,7 @@ function Play({ view, session, match: g }: { view: View; session: TamDauRoom; ma
 }
 
 // Ai đã chọn phương án / căn cứ này (chỉ hiện khi câu trả lời của cả bàn đã lộ).
-function Pickers({ view, match: g, uids }: { view: View; match: TdMatch; uids: string[] }) {
+function Pickers({ view, match: g, uids }: { view: View; match: CtMatch; uids: string[] }) {
   if (!uids.length || g.lineup.length < 2) return null;
   return (
     <span className="flex -space-x-1.5" aria-label={`Đã chọn: ${uids.map((u) => nameIn(view, u)).join(", ")}`}>
@@ -650,14 +658,14 @@ function BasisRow({
   chosenBy,
 }: {
   view: View;
-  match: TdMatch;
+  match: CtMatch;
   value: number;
   onPick: (e: number) => void;
   edit: boolean;
   correct: number[] | null;
   chosenBy: (e: number) => string[];
 }) {
-  const options = [...[...g.cards].sort((a, b) => a - b), BASIS_PUBLIC, BASIS_MISSING];
+  const options = [...[...g.cards].sort((a, b) => g.order.indexOf(a) - g.order.indexOf(b)), BASIS_PUBLIC, BASIS_MISSING];
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="mr-1 text-[12.5px] font-bold text-ink-3">Căn cứ:</span>
@@ -668,12 +676,12 @@ function BasisRow({
           <button
             key={e}
             type="button"
-            className={`td-basis ${on ? "is-on" : ""} ${correct ? (right ? "is-right" : on ? "is-wrong" : "") : ""}`}
+            className={`ct-basis ${on ? "is-on" : ""} ${correct ? (right ? "is-right" : on ? "is-wrong" : "") : ""}`}
             aria-pressed={on}
             disabled={!edit}
             onClick={() => onPick(e)}
           >
-            {e === BASIS_PUBLIC || e === BASIS_MISSING ? `${BASIS[e].emoji} ${BASIS[e].name}` : `🃏 T${e + 1} · ${g.de.cards[e].label}`}
+            {e === BASIS_PUBLIC || e === BASIS_MISSING ? `${BASIS[e].emoji} ${BASIS[e].name}` : `📄 ${cardName(g, e)} · ${g.de.cards[e].label}`}
             <Pickers view={view} match={g} uids={chosenBy(e)} />
           </button>
         );
@@ -682,7 +690,7 @@ function BasisRow({
   );
 }
 
-function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; session: TamDauRoom; match: TdMatch; i: number; edit: boolean; review: boolean }) {
+function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; session: CittaChallengeRoom; match: CtMatch; i: number; edit: boolean; review: boolean }) {
   const it = g.de.items[i];
   const mine = g.mine.answers[i];
   const c = g.cards.length >= 2 ? comboOf(g.cards) : -1;
@@ -704,12 +712,12 @@ function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; s
             <button
               key={k}
               type="button"
-              className={`td-opt ${on ? "is-on" : ""} ${right >= 0 ? (k === right ? "is-right" : on ? "is-wrong" : "") : ""} ${isNone(it, k) ? "is-none" : ""}`}
+              className={`ct-opt ${on ? "is-on" : ""} ${right >= 0 ? (k === right ? "is-right" : on ? "is-wrong" : "") : ""} ${isNone(it, k) ? "is-none" : ""}`}
               aria-pressed={on}
               disabled={!edit}
               onClick={() => session.setAnswer(i, { a: k })}
             >
-              <span className="td-opt-letter">{LETTERS[k]}</span>
+              <span className="ct-opt-letter">{LETTERS[k]}</span>
               <span className="min-w-0 flex-1">{o}</span>
               <Pickers view={view} match={g} uids={by((a) => a.a === k)} />
             </button>
@@ -729,7 +737,7 @@ function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; s
       )}
       {mark && <MarkLine mark={mark} full={g.opts.mode === "nm" ? 6 : g.opts.mode === "ud" ? 3 : 2} />}
       {review && c >= 0 && (
-        <div className="td-explain">
+        <div className="ct-explain">
           <p>
             <b>Theo 2 thẻ đã mở:</b> {it.options[it.key[c]]}
             {isNone(it, it.key[c]) ? ` — ${it.missing}` : ""}
@@ -738,7 +746,7 @@ function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; s
             <b>Khi biết đủ 4 thẻ:</b> {it.options[it.full]}. {it.why}
           </p>
           <p>
-            <b>Bằng chứng:</b> {it.proof.length ? it.proof.map((t) => `T${t + 1}`).join(" hoặc ") : "câu chuyện công khai và bảng kiến thức"}. {it.ground}
+            <b>Bằng chứng:</b> {it.proof.length ? it.proof.map((t) => cardName(g, t)).join(" hoặc ") : "câu chuyện công khai và bảng kiến thức"}. {it.ground}
           </p>
         </div>
       )}
@@ -749,13 +757,13 @@ function ItemBlock({ view, session, match: g, i, edit, review }: { view: View; s
 function MarkLine({ mark, full }: { mark: Graded["claim"]; full: number }) {
   const text = !mark.ok ? "Chưa đúng đáp án" : mark.proof ? "Đúng cả đáp án và căn cứ" : "Đúng đáp án, căn cứ chưa đúng";
   return (
-    <p className={`td-mark ${mark.ok ? (mark.halves === full ? "is-full" : "is-part") : "is-zero"}`}>
+    <p className={`ct-mark ${mark.ok ? (mark.halves === full ? "is-full" : "is-part") : "is-zero"}`}>
       {mark.ok ? (mark.proof ? "🌸" : "🌗") : "🍂"} {text} · +{pts(mark.halves)}
     </p>
   );
 }
 
-function ClaimBlock({ view, session, match: g, edit, review }: { view: View; session: TamDauRoom; match: TdMatch; edit: boolean; review: boolean }) {
+function ClaimBlock({ view, session, match: g, edit, review }: { view: View; session: CittaChallengeRoom; match: CtMatch; edit: boolean; review: boolean }) {
   const de = g.de;
   const c = g.cards.length >= 2 ? comboOf(g.cards) : -1;
   const right = review && c >= 0 ? de.verdicts[c] : -1;
@@ -764,9 +772,9 @@ function ClaimBlock({ view, session, match: g, edit, review }: { view: View; ses
   const by = (f: (v: { v: number; e: number }) => boolean) => (vs ? Object.entries(vs).flatMap(([u, x]) => (f(x) ? [u] : [])) : []);
   const mark = review && g.graded && g.me >= 0 ? g.graded[view.me]?.claim : undefined;
   return (
-    <section className="td-sheet card grid gap-3 p-4 sm:p-5" aria-label="Kiểm tra nhận định">
+    <section className="ct-sheet card grid gap-3 p-4 sm:p-5" aria-label="Kiểm tra nhận định">
       <h3 className="font-display text-lg font-extrabold">⚖️ Kiểm tra nhận định</h3>
-      <blockquote className="td-claim">“{de.claim}”</blockquote>
+      <blockquote className="ct-claim">“{de.claim}”</blockquote>
       <div className="grid gap-1.5 sm:grid-cols-2">
         {VERDICTS.map((x, k) => {
           const on = mine.v === k;
@@ -774,12 +782,12 @@ function ClaimBlock({ view, session, match: g, edit, review }: { view: View; ses
             <button
               key={k}
               type="button"
-              className={`td-opt ${on ? "is-on" : ""} ${right >= 0 ? (k === right ? "is-right" : on ? "is-wrong" : "") : ""}`}
+              className={`ct-opt ${on ? "is-on" : ""} ${right >= 0 ? (k === right ? "is-right" : on ? "is-wrong" : "") : ""}`}
               aria-pressed={on}
               disabled={!edit}
               onClick={() => session.setVerdict({ v: k })}
             >
-              <span className="td-opt-letter">{x.emoji}</span>
+              <span className="ct-opt-letter">{x.emoji}</span>
               <span className="min-w-0 flex-1">
                 <b className="block">{x.name}</b>
                 <span className="text-[12.5px] text-ink-3">{x.text}</span>
@@ -805,10 +813,10 @@ function ClaimBlock({ view, session, match: g, edit, review }: { view: View; ses
       )}
       {mark && <MarkLine mark={mark} full={4} />}
       {review && c >= 0 && (
-        <div className="td-explain">
+        <div className="ct-explain">
           <p>
             <b>Đánh giá đúng:</b> {VERDICTS[de.verdicts[c]].emoji} {VERDICTS[de.verdicts[c]].name}
-            {g.me >= 0 && mine.e >= 0 && <> · bạn chọn căn cứ {basisLabel(mine.e, de)}</>}
+            {g.me >= 0 && mine.e >= 0 && <> · bạn chọn căn cứ {basisLabel(mine.e, g)}</>}
           </p>
           <p>
             <b>Lý do:</b> {de.reason}
@@ -824,11 +832,11 @@ function ClaimBlock({ view, session, match: g, edit, review }: { view: View; ses
   );
 }
 
-function Scoreboard({ view, match: g }: { view: View; match: TdMatch }) {
+function Scoreboard({ view, match: g }: { view: View; match: CtMatch }) {
   const live = isLive(view);
   return (
-    <section className="card p-4" aria-labelledby="td-score-h">
-      <h2 id="td-score-h" className="font-display text-lg font-extrabold">
+    <section className="card p-4" aria-labelledby="ct-score-h">
+      <h2 id="ct-score-h" className="font-display text-lg font-extrabold">
         🪷 Bàn tĩnh tâm
       </h2>
       <p className="text-[12.5px] font-semibold text-ink-3">
@@ -856,7 +864,7 @@ function Scoreboard({ view, match: g }: { view: View; match: TdMatch }) {
                         : "📖 Đang đọc lời giải"
                       : "";
           return (
-            <li key={s.seat.uid} className={`td-player ${picking ? "is-turn" : ""} ${s.out ? "is-out" : ""}`}>
+            <li key={s.seat.uid} className={`ct-player ${picking ? "is-turn" : ""} ${s.out ? "is-out" : ""}`}>
               <span className="w-4 shrink-0 text-center text-[12px] font-extrabold text-ink-3">{k + 1}</span>
               {p ? <Avatar p={p} size={32} className={s.seat.online && !s.out ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[32px] w-[32px] bg-sunken" />}
               <div className="min-w-0 flex-1">
@@ -868,7 +876,7 @@ function Scoreboard({ view, match: g }: { view: View; match: TdMatch }) {
                     return (
                       <span
                         key={v}
-                        className={`td-pip ${h == null ? (v === g.v && live ? "is-now" : "") : h === ROUND_HALVES ? "is-full" : h ? "is-part" : "is-zero"}`}
+                        className={`ct-pip ${h == null ? (v === g.v && live ? "is-now" : "") : h === ROUND_HALVES ? "is-full" : h ? "is-part" : "is-zero"}`}
                         title={h == null ? `Vòng ${v + 1}` : `Vòng ${v + 1}: ${pts(h)}`}
                       />
                     );
@@ -888,7 +896,7 @@ function Scoreboard({ view, match: g }: { view: View; match: TdMatch }) {
   );
 }
 
-function PastList({ view, past }: { view: View; past: TdPast[] }) {
+function PastList({ view, past }: { view: View; past: CtPast[] }) {
   return (
     <details className="mt-3">
       <summary className="cursor-pointer text-[13px] font-bold text-ink-2">Các vòng đã qua</summary>

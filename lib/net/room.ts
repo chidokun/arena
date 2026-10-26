@@ -9,7 +9,7 @@ import type { McPublic } from "../games/mine-control";
 import type { MsRound } from "../games/minesweeper";
 import type { SudokuRound } from "../games/sudoku";
 import type { Problem as SxProblem, SxRound } from "../games/system-design";
-import type { TdRound } from "../games/tam-dau";
+import type { CtRound } from "../games/citta-challenge";
 import type { TxRound } from "../games/truc-xanh";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
@@ -75,9 +75,9 @@ export type Meta = {
   sx?: SxRound;
   // Đề đang soạn cho ván tới (opts chỉ giữ phần tóm tắt cho thẻ phòng ở sảnh).
   sxq?: SxProblem;
-  td?: TdRound;
+  ct?: CtRound;
   // Mã các đề Tâm Đấu phòng đã chơi, để ván sau ưu tiên đề mới.
-  tdUsed?: string[];
+  ctUsed?: string[];
   ack: Record<string, number>;
   kicked: string[];
   cheats?: string[];

@@ -22,8 +22,8 @@ import {
   ROUNDS,
   standings,
   type De,
-} from "./tam-dau.ts";
-import { GLOSSARY } from "./tam-dau-glossary.ts";
+} from "./citta-challenge.ts";
+import { GLOSSARY } from "./citta-challenge-glossary.ts";
 
 const banks = Object.fromEntries(await Promise.all(MODE_KEYS.map(async (m) => [m, await loadBank(m)] as const)));
 
@@ -141,6 +141,12 @@ test("xếp hạng theo tổng điểm rồi số vòng trọn điểm, còn b�
       ["a", 4],
     ],
   );
+});
+
+test("thẻ dữ kiện không chép nguyên định nghĩa trong bảng kiến thức", () => {
+  const defs = GLOSSARY.flatMap((t) => [t.plain, t.trait]).filter((x): x is string => !!x && x.length > 20).map((x) => x.replace(/\.$/, ""));
+  for (const m of ["nm", "ud"] as const)
+    for (const de of banks[m]) for (const c of de.cards) assert.ok(!defs.some((d) => c.text.includes(d)), `${de.id} ${c.label}: ${c.text}`);
 });
 
 test("bảng kiến thức có đủ nhóm và đặc tính", () => {

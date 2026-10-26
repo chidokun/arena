@@ -1,5 +1,5 @@
-// Sinh bởi scripts/tam-dau.ts từ bộ đề biên soạn — đừng sửa tay.
-import type { Term } from "./tam-dau.ts";
+// Sinh bởi scripts/citta-challenge.ts từ bộ đề biên soạn — đừng sửa tay.
+import type { Term } from "./citta-challenge.ts";
 
 export const GLOSSARY: Term[] = [
  {

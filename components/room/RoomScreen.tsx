@@ -23,7 +23,7 @@ import { ReversiTable } from "./ReversiTable";
 import { Notice } from "./RoomLayout";
 import { SudokuTable } from "./SudokuTable";
 import { SystemDesignTable } from "./SystemDesignTable";
-import { TamDauTable } from "./TamDauTable";
+import { CittaChallengeTable } from "./CittaChallengeTable";
 import { TrucXanhTable } from "./TrucXanhTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
@@ -135,6 +135,6 @@ function GameTable({ id, slug, session }: { id: string; slug: string; session: G
   if (session.game === "reversi") return <ReversiTable id={id} slug={slug} session={session} />;
   if (session.game === "co-cho") return <CoChoTable id={id} slug={slug} session={session} />;
   if (session.game === "system-design") return <SystemDesignTable id={id} slug={slug} session={session} />;
-  if (session.game === "citta-challenge") return <TamDauTable id={id} slug={slug} session={session} />;
+  if (session.game === "citta-challenge") return <CittaChallengeTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

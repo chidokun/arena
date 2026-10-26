@@ -25,7 +25,7 @@ export const RULES: Record<string, GameRules> = {
         emoji: "🃏",
         title: "Mở thẻ",
         items: [
-          "Mỗi đề có bốn thẻ dữ kiện úp, thấy trước tên thẻ (Nội dung ở A, Mốc B, Bối cảnh…). Mỗi vòng cả bàn chỉ mở đúng 2 thẻ, ai cũng thấy thẻ đã mở.",
+          "Mỗi đề có bốn thẻ dữ kiện úp, chỉ ghi Dữ kiện 1–4 và xáo thứ tự mỗi vòng — mở ra mới biết đó là thẻ gì (Nội dung ở A, Mốc B, Bối cảnh…). Mỗi vòng cả bàn chỉ mở đúng 2 thẻ, ai cũng thấy thẻ đã mở.",
           "Quyền mở luân phiên theo chỗ ngồi và nối tiếp qua các vòng: một người thì tự mở cả hai, hai người mỗi người một thẻ, ba – bốn người thì hai người kế tiếp. Sáu vòng ai cũng mở bằng nhau.",
           "Người tới lượt mất kết nối hoặc hết giờ thì máy mở ngẫu nhiên một thẻ còn úp.",
         ],
@@ -34,7 +34,7 @@ export const RULES: Record<string, GameRules> = {
         emoji: "✍️",
         title: "Nhận diện & kiểm tra nhận định",
         items: [
-          "Mỗi mục chọn một đáp án và một căn cứ: thẻ đã mở, “Đề công khai & bảng kiến thức”, hoặc “Còn thiếu thông tin”. Thiếu thẻ chứa bằng chứng thì “Chưa đủ dữ kiện” mới là đáp án đúng.",
+          "Mỗi mục chọn một đáp án và một căn cứ: thẻ đã mở, “Đề công khai & bảng kiến thức”, hoặc “Còn thiếu thông tin”. Thiếu thẻ chứa bằng chứng thì “Chưa đủ dữ kiện” mới là đáp án đúng — trả lời vậy kèm căn cứ “Còn thiếu thông tin” vẫn được trọn điểm, nên mở trượt cũng không thiệt.",
           "Khoá xong thì chờ cả bàn; mọi người khoá rồi mới lộ câu trả lời của nhau (chưa lộ đáp án).",
           "Sau đó hiện một nhận định: chọn Hợp lý, Thiếu bằng chứng/điều kiện, Nhầm khái niệm/quy tắc hoặc Nhầm khoảnh khắc/đối tượng, kèm căn cứ, rồi khoá.",
           "Trong lúc trả lời chỉ hỏi nhau cách thao tác, không gợi ý đáp án; chấm xong thì thảo luận thoải mái.",

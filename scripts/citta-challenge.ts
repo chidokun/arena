@@ -1,9 +1,10 @@
-// Dựng bộ đề Tâm Đấu từ ba file markdown biên soạn (Nhập môn, Ứng dụng, Chuyên sâu) thành `lib/games/tam-dau-<mode>.ts`
-// và bảng kiến thức `lib/games/tam-dau-glossary.ts`.
-//   node scripts/tam-dau.ts <Nhap-Mon.md> <Ung-Dung.md> <Chuyen-Sau.md>
+// Dựng bộ đề Tâm Đấu từ ba file markdown biên soạn (Nhập môn, Ứng dụng, Chuyên sâu) thành `lib/games/citta-challenge-<mode>.ts`
+// và bảng kiến thức `lib/games/citta-challenge-glossary.ts`.
+//   node scripts/citta-challenge.ts <Nhap-Mon.md> <Ung-Dung.md> <Chuyen-Sau.md>
 // Kiểm tra luôn bảng chấm sáu tổ hợp: mọi đáp án phải nằm trong phương án, mọi đáp án cụ thể phải có bằng chứng đã mở.
 // Chủ đề của đề suy từ nhóm tâm sở mà bộ Chuyên sâu xếp cho khái niệm đó (hồ sơ "Tâm C cần kiểm tra").
 import { readFileSync, writeFileSync } from "node:fs";
+import { CLUES, PARTNERS, SCENES } from "./citta-challenge-edits.ts";
 
 const MODES = ["nm", "ud", "cs"] as const;
 const VERDICTS = ["Hợp lý", "Thiếu bằng chứng/điều kiện", "Nhầm khái niệm/quy tắc", "Nhầm khoảnh khắc/đối tượng"];
@@ -123,7 +124,7 @@ function audit(de: De) {
 
 const files = process.argv.slice(2);
 if (files.length !== 3) {
-  console.error("Cách dùng: node scripts/tam-dau.ts <Nhap-Mon.md> <Ung-Dung.md> <Chuyen-Sau.md>");
+  console.error("Cách dùng: node scripts/citta-challenge.ts <Nhap-Mon.md> <Ung-Dung.md> <Chuyen-Sau.md>");
   process.exit(1);
 }
 
@@ -155,6 +156,63 @@ function topicOf(id: string, term: string) {
   if (!hit) fail(id, `không xếp được chủ đề cho "${term}"`);
   return hit[1];
 }
+// Biên tập thẻ dữ kiện và phương án nhiễu theo scripts/citta-challenge-edits.ts. Chỉ đổi lời văn: thẻ nào là bằng chứng vẫn
+// giữ nguyên nên bảng chấm không đổi.
+const named = (tpl: string, name: string) => {
+  const s = tpl.replaceAll("{name}", name);
+  return s[0].toUpperCase() + s.slice(1);
+};
+const conceptOfDef = new Map(nm.map((d) => [d.items[0].why.replace(/\.$/, ""), answerOf(d.items[0])]));
+const nth = new Map<string, number>();
+// Lời văn cũ của thẻ nội dung đã viết lại → mã đề Nhập môn, để thay cả bản chép ở Ứng dụng.
+const rewritten = new Map<string, string>();
+for (const d of nm) {
+  const it = d.items[0];
+  const concept = answerOf(it);
+  const clues = CLUES[concept] ?? fail(d.id, `thiếu dấu hiệu cho "${concept}"`);
+  const k = nth.get(concept) ?? 0;
+  nth.set(concept, k + 1);
+  const name = d.story.split(" ")[0];
+  let atB = "";
+  for (const c of d.cards) {
+    if (c.label === "Làm rõ ở A") c.text = named(clues[k % clues.length], name);
+    else if (c.label === "Mốc B — không phải A") {
+      const def = c.text.match(/Khía cạnh được mô tả ở B là: (.+)$/)?.[1].replace(/\.$/, "") ?? fail(d.id, "không đọc được thẻ mốc B");
+      atB = conceptOfDef.get(def) ?? fail(d.id, `không nhận ra khái niệm ở mốc B: "${def}"`);
+      c.text = `Sau A có một mốc B khác. Ở B: ${named(CLUES[atB][(k + 2) % CLUES[atB].length], name)}`;
+    } else if (c.label === "Nội dung ở A" && SCENES[d.id]) {
+      const text = named(SCENES[d.id], name);
+      rewritten.set(c.text, d.id);
+      for (const x of d.items) if (x.ground === c.text) x.ground = text;
+      c.text = text;
+    }
+  }
+  // Phương án nhiễu không phải khái niệm ở mốc B (và không xuất hiện trong khoá chấm) đổi thành khái niệm dễ nhầm.
+  const partners = PARTNERS[concept] ?? fail(d.id, `thiếu khái niệm dễ nhầm cho "${concept}"`);
+  if (it.options.includes(partners[0])) continue;
+  const locked = new Set([it.full, it.options.length - 1, ...it.key]);
+  const slot = it.options.findIndex((o, i) => !locked.has(i) && o !== atB);
+  const partner = partners.find((p) => !it.options.includes(p));
+  if (slot >= 0 && partner) it.options[slot] = partner;
+}
+for (const d of ud) {
+  const two = /hai nhân vật độc lập/.test(d.story);
+  for (const c of d.cards) {
+    const at = c.label.match(/^Nội dung mục tiêu ([AB])$/)?.[1];
+    const id = at && rewritten.get(c.text);
+    if (!id) continue;
+    const text = named(SCENES[id], two ? (at === "A" ? "P" : "Q") : "nhân vật");
+    for (const it of d.items) if (it.ground === c.text) it.ground = text;
+    c.text = text;
+  }
+}
+// Còn thẻ nào chép nguyên định nghĩa đáp án thì báo để biên tập tiếp.
+for (const d of [...nm, ...ud])
+  for (const it of d.items) {
+    const def = it.why.replace(/\.$/, "");
+    if (def.length > 20 && d.cards.some((c) => c.text.includes(def))) console.warn(`⚠️  ${d.id}: thẻ dữ kiện vẫn chép định nghĩa “${def}”`);
+  }
+
 for (const d of nm) d.topics = [topicOf(d.id, answerOf(d.items[0]))];
 for (const d of ud) d.topics = [...new Set(d.items.map((it) => topicOf(d.id, answerOf(it))))];
 for (const d of cs) {
@@ -171,8 +229,8 @@ banks.forEach((list, m) => {
       console.warn(`⚠️  ${de.id}: ${issues.join("; ")}`);
     }
   }
-  const out = `lib/games/tam-dau-${MODES[m]}.ts`;
-  writeFileSync(out, `// Sinh bởi scripts/tam-dau.ts từ bộ đề biên soạn — đừng sửa tay.\nimport type { De } from "./tam-dau.ts";\n\nexport const DE: De[] = ${JSON.stringify(list)};\n`);
+  const out = `lib/games/citta-challenge-${MODES[m]}.ts`;
+  writeFileSync(out, `// Sinh bởi scripts/citta-challenge.ts từ bộ đề biên soạn — đừng sửa tay.\nimport type { De } from "./citta-challenge.ts";\n\nexport const DE: De[] = ${JSON.stringify(list)};\n`);
   console.log(`${out}: ${list.length} đề${bad ? `, ${bad} đề có cảnh báo` : ""}`);
 });
 
@@ -190,7 +248,7 @@ const glossary = profiles.map((d) => ({
   note: noteCount.get(d.note)! > 2 ? "" : d.note,
 }));
 writeFileSync(
-  "lib/games/tam-dau-glossary.ts",
-  `// Sinh bởi scripts/tam-dau.ts từ bộ đề biên soạn — đừng sửa tay.\nimport type { Term } from "./tam-dau.ts";\n\nexport const GLOSSARY: Term[] = ${JSON.stringify(glossary, null, 1)};\n`,
+  "lib/games/citta-challenge-glossary.ts",
+  `// Sinh bởi scripts/citta-challenge.ts từ bộ đề biên soạn — đừng sửa tay.\nimport type { Term } from "./citta-challenge.ts";\n\nexport const GLOSSARY: Term[] = ${JSON.stringify(glossary, null, 1)};\n`,
 );
-console.log(`lib/games/tam-dau-glossary.ts: ${glossary.length} khái niệm, ${plain.size} có cách hiểu phổ thông`);
+console.log(`lib/games/citta-challenge-glossary.ts: ${glossary.length} khái niệm, ${plain.size} có cách hiểu phổ thông`);

@@ -90,11 +90,11 @@ export const TIMES: Record<Mode, { pick: number; answer: number; judge: number }
   cs: { pick: 30, answer: 120, judge: 60 },
 };
 
-export type TdOptions = { mode: Mode; topics: Topic[]; timer: boolean };
-export const DEFAULT_OPTIONS: TdOptions = { mode: "nm", topics: [...MODE_TOPICS.nm], timer: false };
+export type CtOptions = { mode: Mode; topics: Topic[]; timer: boolean };
+export const DEFAULT_OPTIONS: CtOptions = { mode: "nm", topics: [...MODE_TOPICS.nm], timer: false };
 
-export function normOptions(o: unknown): TdOptions {
-  const x = (o ?? {}) as Partial<TdOptions>;
+export function normOptions(o: unknown): CtOptions {
+  const x = (o ?? {}) as Partial<CtOptions>;
   const mode = MODE_KEYS.find((k) => k === x.mode) ?? DEFAULT_OPTIONS.mode;
   const allowed = MODE_TOPICS[mode];
   const picked = Array.isArray(x.topics) ? allowed.filter((t) => (x.topics as unknown[]).includes(t)) : [];
@@ -103,9 +103,9 @@ export function normOptions(o: unknown): TdOptions {
 
 // Bộ đề mỗi mode vài trăm KB nên tách riêng, chỉ tải khi cần.
 const loaders: Record<Mode, () => Promise<{ DE: De[] }>> = {
-  nm: () => import("./tam-dau-nm.ts"),
-  ud: () => import("./tam-dau-ud.ts"),
-  cs: () => import("./tam-dau-cs.ts"),
+  nm: () => import("./citta-challenge-nm.ts"),
+  ud: () => import("./citta-challenge-ud.ts"),
+  cs: () => import("./citta-challenge-cs.ts"),
 };
 export const loadBank = (mode: Mode) => loaders[mode]().then((m) => m.DE);
 
@@ -231,10 +231,12 @@ export function normVerdict(raw: unknown): Verdict {
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
+export const cardOrder = (rand: () => number) => shuffle([0, 1, 2, 3], rand);
+
 // Giai đoạn của một vòng: mở thẻ (cả bàn vừa đọc đề) → nhận diện → kiểm tra nhận định → xem lời giải; hết vòng 6 là xong ván.
 export type Stage = "pick" | "answer" | "judge" | "review" | "done";
 
-export type TdRound = TdOptions & {
+export type CtRound = CtOptions & {
   ids: string[];
   // Vòng đang chơi (0–5) và đề của vòng đó, chép sẵn để không phải chờ tải bộ đề mới vẽ được bàn.
   v: number;
@@ -243,6 +245,9 @@ export type TdRound = TdOptions & {
   cards: number[];
   // Thẻ đã mở của các vòng trước, để chấm lại cả ván.
   hist: number[][];
+  // Thứ tự bày thẻ vòng này: ô thứ i là thẻ nào. Thẻ úp chỉ ghi "Dữ kiện i+1", xáo mỗi vòng để không đoán được thẻ nào là
+  // bằng chứng qua vị trí.
+  order?: number[];
   // Lúc vào giai đoạn hiện tại và lúc mở bàn sau đếm ngược (giờ chủ phòng).
   at: number;
   t0: number;
