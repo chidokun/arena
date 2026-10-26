@@ -1353,12 +1353,12 @@ function ZoomFrame({
 
 // Bảng có tiêu đề; `fold`: bấm tiêu đề để thu gọn / mở (cột nổi của bàn phóng to). `body`: class của phần thân.
 // Màn hẹp thì cột bảng đè gần hết sơ đồ nên bảng mở ra ở dạng thu gọn (chỉ dựng ở máy, không có ở bản dựng sẵn).
-function Panel({ title, fold, body, children }: { title: React.ReactNode; fold?: boolean; body?: string; children: React.ReactNode }) {
+function Panel({ title, fold, body, className = "", children }: { title: React.ReactNode; fold?: boolean; body?: string; className?: string; children: React.ReactNode }) {
   const [wide] = useState(() => typeof matchMedia === "undefined" || matchMedia("(min-width: 760px)").matches);
   const inner = <div className={body}>{children}</div>;
   if (fold)
     return (
-      <details open={wide} className="sx-panel sx-fold">
+      <details open={wide} className={`sx-panel sx-fold ${className}`}>
         <summary className="font-bold">
           <span className="min-w-0">{title}</span>
         </summary>
@@ -1366,7 +1366,7 @@ function Panel({ title, fold, body, children }: { title: React.ReactNode; fold?:
       </details>
     );
   return (
-    <div className="sx-panel">
+    <div className={`sx-panel ${className}`}>
       <p className="font-bold">{title}</p>
       {inner}
     </div>
@@ -2245,7 +2245,7 @@ function ResultZoom({ session, view, match: g, final }: { session: SystemDesignR
       top={<ActionPart session={session} compact extra={<ProblemButton p={p} />} />}
       side={
         <>
-          <Panel title={verdict.title} fold>
+          <Panel title={verdict.title} fold className="is-result">
             <p className="mt-1 text-[13px] text-ink-2">{verdict.sub}</p>
             <RankRows view={view} p={p} final={final} pick={pick} onPick={choose} />
             <div className="mt-3 flex flex-wrap gap-2">

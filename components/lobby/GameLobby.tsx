@@ -114,6 +114,17 @@ import {
   type Mode as SxMode,
 } from "@/lib/games/system-design";
 import {
+  DEFAULT_OPTIONS as TD_DEFAULTS,
+  MAX_PLAYERS as TD_MAX,
+  MODE_KEYS as TD_MODES,
+  MODES as TD_MODE,
+  normOptions as tdOptions,
+  ROUNDS as TD_ROUNDS,
+  TIMES as TD_TIMES,
+  TOPICS as TD_TOPICS,
+  type Mode as TdMode,
+} from "@/lib/games/tam-dau";
+import {
   DEFAULT_OPTIONS as UC_DEFAULTS,
   MAX_PLAYERS as UC_MAX,
   MIN_PLAYERS as UC_MIN,
@@ -265,6 +276,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const rv = room.game === "reversi";
   const cd = room.game === "co-cho";
   const sx = room.game === "system-design";
+  const td = room.game === "citta-challenge";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
@@ -308,7 +320,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                               ? "Đang chặn chó"
                                               : sx
                                                 ? "Đang thiết kế"
-                                                : "Đang đấu",
+                                                : td
+                                                  ? "Đang tĩnh tâm"
+                                                  : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -367,6 +381,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <CoChoChips room={room} />
         ) : sx ? (
           <SystemDesignChips room={room} />
+        ) : td ? (
+          <TamDauChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -718,6 +734,25 @@ function SystemDesignChips({ room }: { room: RoomAd }) {
   );
 }
 
+function TamDauChips({ room }: { room: RoomAd }) {
+  const { mode, topics, timer } = tdOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sun-soft px-2.5 py-1">
+        {TD_MODE[mode].emoji} {TD_MODE[mode].name}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1" title={topics.map((t) => TD_TOPICS[t].name).join(", ")}>
+        {topics.map((t) => TD_TOPICS[t].emoji).join("")} {topics.length} chủ đề
+      </span>
+      {timer && <span className="rounded-lg bg-sunken px-2.5 py-1">⏱ Giới hạn giờ</span>}
+    </>
+  );
+}
+
 function XiangqiRoleChips({ room }: { room: RoomAd }) {
   const opts = xqOptions(room.opts);
   return (
@@ -788,6 +823,8 @@ function CreateForm({ slug }: { slug: string }) {
   const [cdSetup, setCdSetup] = useState<CdSetup>(CD_DEFAULTS.setup);
   const [sxPreset, setSxPreset] = useState("");
   const [sxMode, setSxMode] = useState<SxMode>("basic");
+  const [tdMode, setTdMode] = useState<TdMode>(TD_DEFAULTS.mode);
+  const [tdTimer, setTdTimer] = useState(TD_DEFAULTS.timer);
   const [sxTimeLimit, setSxTimeLimit] = useState<SxTime>(300);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
@@ -809,6 +846,7 @@ function CreateForm({ slug }: { slug: string }) {
   const rv = slug === "reversi";
   const cd = slug === "co-cho";
   const sx = slug === "system-design";
+  const td = slug === "citta-challenge";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -837,6 +875,8 @@ function CreateForm({ slug }: { slug: string }) {
         } else if (sx) {
           const problem = sxProblem(crypto.getRandomValues(new Uint32Array(1))[0], sxPreset || undefined, sxTimeLimit, sxMode);
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
+        } else if (td) {
+          stashCreate(id, { name: clean, cap: 0, seats: TD_MAX, opts: tdOptions({ mode: tdMode, timer: tdTimer }) });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain, turn: bsTurn, mode: bsMode } });
@@ -1190,6 +1230,37 @@ function CreateForm({ slug }: { slug: string }) {
             </select>
             <span className="mt-1 block text-[13px] text-ink-3">Traffic mục tiêu, sự cố và budget được sinh kèm; trong phòng bạn soạn lại được toàn bộ đề trước mỗi ván.</span>
           </label>
+        </>
+      ) : td ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Mode</legend>
+            <div className="grid gap-2">
+              {TD_MODES.map((k) => (
+                <Choice key={k} on={tdMode === k} onClick={() => setTdMode(k)} title={`${TD_MODE[k].emoji} ${TD_MODE[k].name}`} text={`${TD_MODE[k].text} ${TD_MODE[k].minutes}.`} />
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">Chủ đề trong mode chọn trong phòng trước mỗi ván.</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thời gian</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {[false, true].map((on) => (
+                <button key={String(on)} type="button" onClick={() => setTdTimer(on)} aria-pressed={tdTimer === on} className={`btn !px-2 ${tdTimer === on ? "btn-sun" : ""}`}>
+                  {on ? "⏱ Có giới hạn" : "🍃 Thong thả"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {tdTimer
+                ? `Mở thẻ ${TD_TIMES[tdMode].pick}s, nhận diện ${TD_TIMES[tdMode].answer}s, kiểm tra nhận định ${TD_TIMES[tdMode].judge}s — hết giờ tự khoá phần đã chọn.`
+                : "Không giới hạn — nghĩ bao lâu cũng được."}
+            </p>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            🪷 Từ 1 đến {TD_MAX} người, {TD_ROUNDS} vòng. Cả bàn đọc chung một tình huống, mở chung 2 trong 4 thẻ dữ kiện, rồi ai nấy trả lời kèm căn cứ và kiểm tra một nhận định
+            theo Vi Diệu Pháp. Chấm theo đúng thông tin đã mở — tối đa 5 điểm mỗi vòng.
+          </p>
         </>
       ) : ms ? (
         <>

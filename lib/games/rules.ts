@@ -7,6 +7,68 @@ export type GameRules = {
 };
 
 export const RULES: Record<string, GameRules> = {
+  "citta-challenge": {
+    intro:
+      "Trò chơi kiến thức Vi Diệu Pháp Theravāda cho 1–4 người: cả bàn đọc chung một tình huống, mở chung hai thẻ dữ kiện, rồi ai nấy nhận diện trạng thái tâm kèm căn cứ và kiểm tra một nhận định. Điểm chỉ phản ánh kết quả giải đề, không đánh giá phẩm chất hay mức tu tập của ai.",
+    sections: [
+      {
+        emoji: "🪷",
+        title: "Ván chơi",
+        items: [
+          "Mỗi ván 6 vòng, mỗi vòng một đề khác nhau rút từ bộ 300 đề (100 đề mỗi mode); phòng ưu tiên đề chưa chơi.",
+          "Chủ phòng chọn mode, chủ đề và có giới hạn giờ hay không trước mỗi ván. 🌱 Nhập môn: một mục nhận diện. 🪷 Ứng dụng: hai mục (hai mốc hoặc hai nhân vật). ☸️ Chuyên sâu: ba mục (phân loại, quan hệ tâm–tâm sở, giới hạn kết luận).",
+          "Chủ đề: 🌀 Tợ tha, 🔥 Bất thiện, 🌸 Tịnh hảo; Chuyên sâu có thêm 🧭 Phân loại tâm và 📐 Tổng hợp quy tắc. Phải đủ 6 đề trong các chủ đề đã chọn mới bắt đầu được.",
+          "Thứ tự chỗ ngồi xáo ngẫu nhiên đầu ván. Được mở 📖 Bảng kiến thức bất cứ lúc nào.",
+        ],
+      },
+      {
+        emoji: "🃏",
+        title: "Mở thẻ",
+        items: [
+          "Mỗi đề có bốn thẻ dữ kiện úp, thấy trước tên thẻ (Nội dung ở A, Mốc B, Bối cảnh…). Mỗi vòng cả bàn chỉ mở đúng 2 thẻ, ai cũng thấy thẻ đã mở.",
+          "Quyền mở luân phiên theo chỗ ngồi và nối tiếp qua các vòng: một người thì tự mở cả hai, hai người mỗi người một thẻ, ba – bốn người thì hai người kế tiếp. Sáu vòng ai cũng mở bằng nhau.",
+          "Người tới lượt mất kết nối hoặc hết giờ thì máy mở ngẫu nhiên một thẻ còn úp.",
+        ],
+      },
+      {
+        emoji: "✍️",
+        title: "Nhận diện & kiểm tra nhận định",
+        items: [
+          "Mỗi mục chọn một đáp án và một căn cứ: thẻ đã mở, “Đề công khai & bảng kiến thức”, hoặc “Còn thiếu thông tin”. Thiếu thẻ chứa bằng chứng thì “Chưa đủ dữ kiện” mới là đáp án đúng.",
+          "Khoá xong thì chờ cả bàn; mọi người khoá rồi mới lộ câu trả lời của nhau (chưa lộ đáp án).",
+          "Sau đó hiện một nhận định: chọn Hợp lý, Thiếu bằng chứng/điều kiện, Nhầm khái niệm/quy tắc hoặc Nhầm khoảnh khắc/đối tượng, kèm căn cứ, rồi khoá.",
+          "Trong lúc trả lời chỉ hỏi nhau cách thao tác, không gợi ý đáp án; chấm xong thì thảo luận thoải mái.",
+        ],
+      },
+      {
+        emoji: "🌸",
+        title: "Tính điểm",
+        items: [
+          "Chấm theo đúng hai thẻ đã mở (bảng chấm sáu tổ hợp của đề), không chấm ngược bằng thẻ mở sau. Chấm xong mới lật nốt hai thẻ còn lại và hiện lời giải đầy đủ.",
+          "Nhận diện tối đa 3 điểm: Nhập môn đúng cả đáp án và căn cứ +3, chỉ đúng đáp án +1; Ứng dụng mỗi mục +1,5 / +0,5; Chuyên sâu mỗi mục +1 / +0,5.",
+          "Kiểm tra nhận định tối đa 2 điểm: đúng đánh giá và căn cứ +2, chỉ đúng đánh giá +1. Sai hay bỏ trống được 0, không bị trừ; không thưởng tốc độ.",
+          "Đọc lời giải bao lâu cũng được: ai cũng bấm “Tiếp tục” thì sang vòng sau (chủ phòng có thể cho sang luôn). Đánh dấu ⭐ đề muốn xem lại.",
+          "Hết 6 vòng: tổng điểm cao nhất thắng; bằng điểm thì ai nhiều vòng trọn 5 điểm hơn, vẫn bằng thì đồng hạng. Chơi một mình thì xem điểm, khái niệm cần ôn và các lỗi nhận định hay gặp.",
+        ],
+      },
+      {
+        emoji: "⏱",
+        title: "Giới hạn thời gian",
+        items: [
+          "Mặc định không giới hạn. Khi bật: mở thẻ 20 giây (Chuyên sâu 30), nhận diện 45 / 75 / 120 giây, kiểm tra nhận định 30 / 45 / 60 giây theo mode.",
+          "Hết giờ thì tự khoá phần đã chọn, mục bỏ trống được 0 điểm. Người mất kết nối lâu thì cả bàn thôi chờ, phần đã chọn được khoá hộ.",
+        ],
+      },
+      {
+        emoji: "📚",
+        title: "Nguồn",
+        items: [
+          "Bộ đề biên soạn theo Abhidhammattha-saṅgaha chương I–III, tình huống hư cấu và diễn đạt lại bằng tiếng Việt; phục vụ ôn học, chưa qua thẩm định giáo lý độc lập. Thuật ngữ có thể khác giữa các bản dịch, tên Pāli dùng để đối chiếu.",
+        ],
+      },
+    ],
+  },
+
   "system-design": {
     intro:
       "Cả phòng nhận cùng một đề, mỗi người tự đặt và nối các component có sẵn thành hệ thống của mình rồi chốt. Khi mọi người đã chốt, load test giả lập tăng tải tới khi từng thiết kế gục: thiết kế vượt quality gate, chịu TPS cao nhất thì thắng.",

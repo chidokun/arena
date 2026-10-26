@@ -22,7 +22,7 @@ Mã phòng nằm ở query string vì site tĩnh không sinh trước được t
 npm install
 npm run dev     # http://localhost:3000 — mở hai tab để thử chơi với chính mình
                 # TURN khi chạy local: đặt NEXT_PUBLIC_TURN_* trong .env.local
-npm test        # unit test gossip + lưới sảnh + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, cờ vua, thả cờ 4, bắn tàu, vẽ đoán, cò chẹp, dò mìn chiến thuật, nối thú kawaii, trúc xanh, dò mìn cổ điển, cờ lật, cờ chó, thiết kế hệ thống (node --test)
+npm test        # unit test gossip + lưới sảnh + niêm phong + luật caro, lô tô, ma sói, undercover, sudoku, cờ tướng, cờ vua, thả cờ 4, bắn tàu, vẽ đoán, cò chẹp, dò mìn chiến thuật, nối thú kawaii, trúc xanh, dò mìn cổ điển, cờ lật, cờ chó, thiết kế hệ thống, tâm đấu (node --test)
 npm run lint
 npm run build   # xuất trang tĩnh ra out/
 ```

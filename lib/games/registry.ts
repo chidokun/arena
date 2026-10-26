@@ -50,7 +50,7 @@ export function parseGames(json: unknown): GameDef[] {
 }
 
 // Thêm game mới thì thêm slug vào đây (và nhánh tương ứng trong `RoomScreen` / `useRoom`).
-export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "undercover", "sudoku", "xiangqi", "xiangqi-role", "connect-four", "battleship", "draw-guess", "oanquan", "chess", "dots-boxes", "co-chep", "mine-control", "kawaii", "truc-xanh", "minesweeper", "reversi", "co-cho", "system-design"];
+export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "undercover", "sudoku", "xiangqi", "xiangqi-role", "connect-four", "battleship", "draw-guess", "oanquan", "chess", "dots-boxes", "co-chep", "mine-control", "kawaii", "truc-xanh", "minesweeper", "reversi", "co-cho", "system-design", "citta-challenge"];
 
 export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
 

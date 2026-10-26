@@ -7,6 +7,10 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.10.26.1
+- Ra mắt game mới 🪷 Tâm Đấu — trò chơi kiến thức Vi Diệu Pháp nhẹ nhàng cho 1–4 người: cùng mở thẻ dữ kiện, nhận diện tâm và kiểm tra nhận định qua 300 đề ở ba mode Nhập môn, Ứng dụng, Chuyên sâu.
+- Cải tiến Thiết kế hệ thống: Giờ đây màn thiết kế rộng hơn, thân thiện hơn cho người dùng.
+
 ## 2026.10.25.2
 - Mỗi game bây giờ đã có icon xịn xò 😉
 - Cờ Caro đã có bàn chơi gần như vô cực, giúp anh em sát phạt nhau tốt hơn.
