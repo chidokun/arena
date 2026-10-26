@@ -13,6 +13,7 @@ import { NetProvider } from "@/components/NetProvider";
 import { ProfileButton } from "@/components/ProfileButton";
 import { PublicChatDock } from "@/components/room/ChatPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UpdateWatcher } from "@/components/UpdateWatcher";
 import { CHANGELOG_FILE, latestEntry, parseChangelog } from "@/lib/changelog";
 import { body, display } from "@/lib/fonts";
 import { loadGames } from "@/lib/games/registry";
@@ -93,6 +94,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <InviteToasts />
             <MaintenanceDialog />
             <AdblockWall />
+            <UpdateWatcher />
           </NetProvider>
         </GamesProvider>
 
