@@ -10,6 +10,7 @@ import {
   extentOf,
   COUNTDOWN_MS,
   designCost,
+  emptyDesign,
   flowIssues,
   flowPath,
   FLOWS,
@@ -62,6 +63,7 @@ import type { RoomState, RoomView } from "@/lib/net/room";
 import { playbackOf, PREP_MS, type SxFinal, type SxMatch, type SxSeat, type SxView, type SystemDesignRoom } from "@/lib/net/system-design-room";
 import { Avatar } from "../Avatar";
 import { ConfirmButton } from "../ConfirmButton";
+import { Dialog } from "../Dialog";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, LoseCine, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
@@ -192,8 +194,8 @@ function FlyersPart({ session, areaRef }: { session: SystemDesignRoom; areaRef: 
 // Kết quả đã tính sẵn — đây chỉ là phần trình diễn, máy nào tự chạy theo đồng hồ của mình.
 type Phase = "intro" | "run" | "done";
 // `run` đếm số lần phát (0 = lần tự phát khi ván vừa xong, tăng mỗi lần bấm "Chạy lại") để bàn chạy tải và cảnh kết thúc
-// diễn lại từ đầu.
-type Playback = { phase: Phase; level: number; n: number; fresh: boolean; run: number; skip: () => void; replay: () => void };
+// diễn lại từ đầu. `who`: lần chạy lại này mở sơ đồ của ai (người được chọn trên bảng xếp hạng).
+type Playback = { phase: Phase; level: number; n: number; fresh: boolean; run: number; who?: string; skip: () => void; replay: (who?: string) => void };
 
 const PlaybackCtx = createContext<Playback>({ phase: "done", level: 0, n: 0, fresh: false, run: 0, skip: () => {}, replay: () => {} });
 
@@ -205,11 +207,12 @@ function PlaybackHost({ session, children }: { session: SystemDesignRoom; childr
   );
   const round = g?.round ?? 0;
   const [skipped, setSkipped] = useState("");
-  const [again, setAgain] = useState({ round: -1, at: 0, run: 0 });
+  const [again, setAgain] = useState<{ round: number; at: number; run: number; who?: string }>({ round: -1, at: 0, run: 0 });
   const timing = g ? playbackOf(g.final) : null;
   const replayed = again.round === round;
   const at = replayed ? again.at : (g?.at ?? 0);
   const run = replayed ? again.run : 0;
+  const who = replayed ? again.who : undefined;
   const playing = !!at && !!timing && skipped !== `${round}:${run}`;
   const now = useClock(playing ? at : 0, playing ? at + timing!.total : 0);
   const elapsed = now ? Math.max(0, now - at) : 0;
@@ -223,13 +226,14 @@ function PlaybackHost({ session, children }: { session: SystemDesignRoom; childr
       n,
       fresh: !!at,
       run,
+      who,
       skip: () => setSkipped(`${round}:${run}`),
-      replay: () => {
-        setAgain({ round, at: Date.now(), run: run + 1 });
+      replay: (who?: string) => {
+        setAgain({ round, at: Date.now(), run: run + 1, who });
         scrollTo({ top: 0, behavior: "smooth" });
       },
     }),
-    [phase, level, n, at, run, round],
+    [phase, level, n, at, run, who, round],
   );
   return <PlaybackCtx value={value}>{children}</PlaybackCtx>;
 }
@@ -250,7 +254,7 @@ const ActionPart = memo(function ActionPart({ session, extra, compact }: { sessi
 // Bàn phóng to (thiết kế / đã chốt) tự đặt thanh trạng thái trong khung của nó.
 function HeadPart({ session }: { session: SystemDesignRoom }) {
   const stage = useSxStage(session);
-  if (stage === "design" || stage === "locked") return null;
+  if (stage === "design" || stage === "locked" || stage === "result") return null;
   return <ActionPart session={session} />;
 }
 
@@ -289,12 +293,18 @@ function ActionBar({ view, session, extra, compact }: { view: View; session: Sys
     } else if (compact && g.me >= 0) {
       tone = g.locked ? TONE.info : tone;
       message = (
-        <span className="whitespace-nowrap" title={g.locked ? "Bạn đã chốt thiết kế — chờ mọi người chốt" : "Dựng hệ thống của bạn rồi chốt"}>
-          {g.locked && "✅ Đã chốt · "}⏱ {g.endsAt ? <Countdown until={g.endsAt} /> : <b>Vô hạn</b>} · 🔒{" "}
-          <b className="tabular-nums">
-            {done}/{n}
-          </b>{" "}
-          đã chốt
+        <span className="flex items-center gap-2.5 whitespace-nowrap" title={g.locked ? "Bạn đã chốt thiết kế — chờ mọi người chốt" : "Dựng hệ thống của bạn rồi chốt"}>
+          {/* Đồng hồ nổi bật để liếc là thấy; không giới hạn giờ thì chỉ là chữ thường. */}
+          <span className={`sx-clock ${g.endsAt ? "" : "is-free"}`} title="Thời gian thiết kế còn lại">
+            ⏱ {g.endsAt ? <Countdown until={g.endsAt} /> : "Vô hạn"}
+          </span>
+          <span>
+            {g.locked && "✅ Đã chốt · "}🔒{" "}
+            <b className="tabular-nums">
+              {done}/{n}
+            </b>{" "}
+            đã chốt
+          </span>
         </span>
       );
     } else if (g.me >= 0 && !g.locked)
@@ -338,6 +348,7 @@ function ActionBar({ view, session, extra, compact }: { view: View; session: Sys
   const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
   return (
     <StatusBar message={seatMessage(view, { enough: true, startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng.", join: "Bấm “Vào chơi” để cùng thiết kế hệ thống." })}>
+      {extra}
       <SeatButtons view={view} session={session} blocked={blocked} />
     </StatusBar>
   );
@@ -389,6 +400,7 @@ const BodyPart = memo(function BodyPart({ session }: { session: SystemDesignRoom
       </>
     );
   if (stage === "result" && running) return <RunPart key={`${round}:${pb.run}`} session={session} />;
+  if (stage === "result" && staged) return <ResultZoomPart key={round} session={session} />;
   if (stage === "locked" || stage === "watch")
     return (
       <>
@@ -979,6 +991,9 @@ const DesignPart = memo(function DesignPart({ session }: { session: SystemDesign
 function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Problem; opensAt: number }) {
   const opened = useReached(opensAt);
   const stage = useContext(StageCtx);
+  // Vào vòng thiết kế là phóng to luôn (mỗi ván một lần: `Designer` dựng lại theo ván); thoát ra thì thôi, không ép lại.
+  const enter = stage?.enter;
+  useEffect(() => enter?.(), [enter]);
   const [design, setDesign] = useState<Design>(() => session.myDesign());
   const [sel, setSel] = useState<Sel>(null);
   const [past, setPast] = useState<Design[]>([]);
@@ -1126,6 +1141,7 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
             compact
             extra={
               <>
+                <ProblemButton p={p} />
                 {cost}
                 {tools}
               </>
@@ -1151,7 +1167,6 @@ function Designer({ session, p, opensAt }: { session: SystemDesignRoom; p: Probl
               </div>
             </Panel>
             <div ref={spec}>{inspector}</div>
-            <MatchProblemPart session={session} compact />
           </>
         }
         extent={extentOf(design)}
@@ -1223,14 +1238,33 @@ function keepCam(c: Cam, r: Room, e: Extent): Cam {
 }
 
 // `extent`: khung bao sơ đồ. Vừa khung theo khung bao lúc mở (hoặc lúc bấm vừa khung), không theo từng lần kéo component.
-function ZoomFrame({ top, side, extent, canvas }: { top: React.ReactNode; side: React.ReactNode; extent: Extent; canvas: (view: Pan) => React.ReactNode }) {
+// `fitKey`: đổi (vd. đổi sang xem sơ đồ người khác) thì vừa khung lại theo sơ đồ mới.
+function ZoomFrame({
+  top,
+  side,
+  extent,
+  fitKey,
+  canvas,
+}: {
+  top: React.ReactNode;
+  side: React.ReactNode;
+  extent: Extent;
+  fitKey?: string;
+  canvas: (view: Pan) => React.ReactNode;
+}) {
   const [base, setBase] = useState(extent);
+  const [fitFor, setFitFor] = useState(fitKey);
   const board = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const sideRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room>({ w: 0, h: 0, top: 0, right: 0 });
   // `null`: vừa khung (chưa dời / thu phóng, hoặc vừa bấm vừa khung).
   const [cam, setCam] = useState<Cam | null>(null);
+  if (fitKey !== fitFor) {
+    setFitFor(fitKey);
+    setBase(extent);
+    setCam(null);
+  }
 
   // Đo bàn và phần bị thanh trạng thái / cột bảng che (cột chỉ tính bề ngang, và chỉ khi không che quá nửa bàn).
   useLayoutEffect(() => {
@@ -1546,18 +1580,32 @@ const MinePart = memo(function MinePart({ session }: { session: SystemDesignRoom
   );
 });
 
+// Bàn phóng to: đề bài là một nút trên thanh trạng thái, bấm thì hiện đề đầy đủ ở giữa màn hình. Esc chỉ đóng đề, không
+// thoát trình chiếu (trình chiếu nghe Esc ở `window`).
+function ProblemButton({ p }: { p: Problem }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="btn btn-sm" onClick={() => setOpen(true)} aria-haspopup="dialog">
+        📋 Đề bài
+      </button>
+      <div className="contents" onKeyDown={(e) => e.key === "Escape" && e.stopPropagation()}>
+        <Dialog open={open} onClose={() => setOpen(false)} title="📋 Đề bài" className="is-wide">
+          <ProblemCard p={p} title="Đề ván này" />
+        </Dialog>
+      </div>
+    </>
+  );
+}
+
 // Đã chốt lúc đang phóng to: vẫn ở trên bàn, sơ đồ đã chốt lấp màn hình, cột nổi là tiến độ mọi người và đề.
 const LockedZoomPart = memo(function LockedZoomPart({ session }: { session: SystemDesignRoom }) {
   const design = useMemo(() => session.myDesign(), [session]);
+  const p = useGame(session, (v) => v?.match?.problem);
   return (
     <ZoomFrame
-      top={<ActionPart session={session} compact />}
-      side={
-        <>
-          <ProgressPart session={session} />
-          <MatchProblemPart session={session} compact />
-        </>
-      }
+      top={<ActionPart session={session} compact extra={p && <ProblemButton p={p} />} />}
+      side={<ProgressPart session={session} />}
       extent={extentOf(design)}
       canvas={(view) => <SxCanvas design={design} view={view} label="Thiết kế đã chốt" />}
     />
@@ -1647,73 +1695,95 @@ const ResultPart = memo(function ResultPart({ session }: { session: SystemDesign
   return <Results view={view} match={g} final={g.final} />;
 });
 
-function Results({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
-  const p = g.problem;
-  const rows = final.rows;
-  const winners = rows.filter((r) => r.rank === 1);
+// Kết luận ván (tiêu đề + dòng phụ của thẻ kết quả).
+function verdictOf(view: View, final: SxFinal, p: Problem) {
+  const winners = final.rows.filter((r) => r.rank === 1);
   const iWon = winners.some((r) => r.uid === view.me);
   const names = winners.map((r) => nameIn(view, r.uid)).join(", ");
   const top = winners[0];
+  return {
+    title: !winners.length ? "🤷 Không ai vượt quality gate" : winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`,
+    sub: top
+      ? `${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)} — vượt mục tiêu ${fmt(p.target)} TPS trong budget ${fmt(p.budget)}.`
+      : `Cần đạt ít nhất ${fmt(p.target)} TPS với chi phí không quá ${fmt(p.budget)}.`,
+  };
+}
+
+// Mặc định xem thiết kế của mình, không có thì của người đứng đầu, không ai có thì của máy tham khảo.
+const firstPick = (view: View, final: SxFinal) =>
+  final.designs[view.me] ? view.me : (final.rows.find((r) => r.rank === 1)?.uid ?? final.rows.find((r) => final.designs[r.uid])?.uid ?? "@ref");
+
+// Nút chạy lại load test cho người đang chọn (máy tham khảo không có trong load test của ván).
+function ReplayButton({ view, final, pick }: { view: View; final: SxFinal; pick: string }) {
   const { replay } = useContext(PlaybackCtx);
-  const [pick, setPick] = useState<string>(() => (final.designs[view.me] ? view.me : (top?.uid ?? rows.find((r) => final.designs[r.uid])?.uid ?? "@ref")));
+  const again = final.designs[pick] ? pick : undefined;
+  return (
+    <button type="button" className="btn btn-sm" onClick={() => replay(again)}>
+      ↻ {again ? `Chạy lại cho ${again === view.me ? "bạn" : nameIn(view, again)}` : "Chạy lại load test"}
+    </button>
+  );
+}
+
+// Bảng xếp hạng: mỗi người một dòng kèm thanh tải đạt được (vạch đen là mục tiêu); bấm dòng để xem thiết kế.
+function RankRows({ view, p, final, pick, onPick }: { view: View; p: Problem; final: SxFinal; pick: string; onPick: (uid: string) => void }) {
+  const rows = final.rows;
   const step = levelStep(p);
   const scale = Math.max(p.target * 1.25, Math.max(0, ...rows.map((r) => r.tps)) + step * 2);
   return (
+    <ol className="mt-3 grid gap-2.5" aria-label="Bảng xếp hạng">
+      {rows.map((r) => {
+        const s = r.sim;
+        const dead = !!s?.valid && !!s.fail;
+        return (
+          <li key={r.uid}>
+            <button type="button" className={`sx-row ${pick === r.uid ? "is-on" : ""}`} onClick={() => final.designs[r.uid] && onPick(r.uid)} disabled={!final.designs[r.uid]}>
+              <span className="sx-row-rank">{r.rank ? (["🥇", "🥈", "🥉"][r.rank - 1] ?? r.rank) : "–"}</span>
+              <span className="grid min-w-0 flex-1 gap-1.5">
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <b className="min-w-0 truncate">{nameIn(view, r.uid)}</b>
+                  <span className={`rounded-lg px-2 py-0.5 text-[12px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
+                  {r.auto && <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[12px] font-bold">⏱ Tự chốt khi hết giờ</span>}
+                  {r.status !== "out" && (
+                    <span className="ml-auto text-[13px] tabular-nums">
+                      💰 <b>{fmt(r.cost)}</b> / {fmt(p.budget)} {r.budget ? "✓" : "✗"}
+                    </span>
+                  )}
+                </span>
+                {s?.valid && (
+                  <span className="sx-race">
+                    <span className={`sx-race-bar ${dead && !r.traffic ? "is-dead" : r.traffic ? "is-met" : ""}`} style={{ width: `${(r.tps / scale) * 100}%` }} />
+                    <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
+                    <span className="sx-race-tag tabular-nums">
+                      📈 {fmt(r.tps)} TPS {r.traffic ? "✓" : "✗"}
+                      {dead ? ` · 💥 gục ở ${fmt(s.fail!.tps)}` : ""}
+                    </span>
+                  </span>
+                )}
+                {stopText(r) && <span className="text-[12.5px] text-ink-2">{stopText(r)}</span>}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function Results({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
+  const p = g.problem;
+  const verdict = verdictOf(view, final, p);
+  const [pick, setPick] = useState<string>(() => firstPick(view, final));
+  return (
     <>
       {/* Một thẻ duy nhất: kết luận ván, rồi mỗi người một dòng kèm thanh tải đạt được (vạch đen là mục tiêu). */}
-      <ResultCard
-        round={g.round}
-        title={!winners.length ? "🤷 Không ai vượt quality gate" : winners.length > 1 ? (iWon ? "🤝 Bạn đồng hạng nhất!" : `🤝 ${names} đồng hạng nhất!`) : iWon ? "🏆 Bạn chiến thắng!" : `🏆 ${names} chiến thắng!`}
-        sub={
-          top
-            ? `${fmt(top.tps)} TPS · chi phí ${fmt(top.cost)} — vượt mục tiêu ${fmt(p.target)} TPS trong budget ${fmt(p.budget)}.`
-            : `Cần đạt ít nhất ${fmt(p.target)} TPS với chi phí không quá ${fmt(p.budget)}.`
-        }
-      >
+      <ResultCard round={g.round} title={verdict.title} sub={verdict.sub}>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[12.5px] font-semibold text-ink-3">
             Xếp hạng: TPS cao hơn đứng trên, bằng TPS thì rẻ hơn. Bấm một dòng để xem thiết kế.
           </p>
-          <button type="button" className="btn btn-sm" onClick={replay}>
-            ↻ Chạy lại load test
-          </button>
+          <ReplayButton view={view} final={final} pick={pick} />
         </div>
-        <ol className="mt-3 grid gap-2.5" aria-label="Bảng xếp hạng">
-          {rows.map((r) => {
-            const s = r.sim;
-            const dead = !!s?.valid && !!s.fail;
-            return (
-              <li key={r.uid}>
-                <button type="button" className={`sx-row ${pick === r.uid ? "is-on" : ""}`} onClick={() => final.designs[r.uid] && setPick(r.uid)} disabled={!final.designs[r.uid]}>
-                  <span className="sx-row-rank">{r.rank ? (["🥇", "🥈", "🥉"][r.rank - 1] ?? r.rank) : "–"}</span>
-                  <span className="grid min-w-0 flex-1 gap-1.5">
-                    <span className="flex min-w-0 flex-wrap items-center gap-2">
-                      <b className="min-w-0 truncate">{nameIn(view, r.uid)}</b>
-                      <span className={`rounded-lg px-2 py-0.5 text-[12px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
-                      {r.auto && <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[12px] font-bold">⏱ Tự chốt khi hết giờ</span>}
-                      {r.status !== "out" && (
-                        <span className="ml-auto text-[13px] tabular-nums">
-                          💰 <b>{fmt(r.cost)}</b> / {fmt(p.budget)} {r.budget ? "✓" : "✗"}
-                        </span>
-                      )}
-                    </span>
-                    {s?.valid && (
-                      <span className="sx-race">
-                        <span className={`sx-race-bar ${dead && !r.traffic ? "is-dead" : r.traffic ? "is-met" : ""}`} style={{ width: `${(r.tps / scale) * 100}%` }} />
-                        <span className="sx-race-goal" style={{ left: `${(p.target / scale) * 100}%` }} aria-hidden="true" />
-                        <span className="sx-race-tag tabular-nums">
-                          📈 {fmt(r.tps)} TPS {r.traffic ? "✓" : "✗"}
-                          {dead ? ` · 💥 gục ở ${fmt(s.fail!.tps)}` : ""}
-                        </span>
-                      </span>
-                    )}
-                    {stopText(r) && <span className="text-[12.5px] text-ink-2">{stopText(r)}</span>}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <RankRows view={view} p={p} final={final} pick={pick} onPick={setPick} />
       </ResultCard>
       <Viewer key={pick} view={view} p={p} final={final} pick={pick} setPick={setPick} />
     </>
@@ -1789,7 +1859,7 @@ const RunPart = memo(function RunPart({ session }: { session: SystemDesignRoom }
   const view = useSxView(session);
   const g = view.game?.match;
   if (!g?.final) return null;
-  return <LiveRun view={view} match={g} final={g.final} />;
+  return <LiveRun session={session} view={view} match={g} final={g.final} />;
 });
 
 // Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, gục thì báo nguyên nhân.
@@ -1847,7 +1917,7 @@ const BALLOON_EVERY_MS = 2400;
 // Load test chạy lại trên sơ đồ: tải từng component đổi theo mức, traffic chạy trên đường nối, sự cố hiện bóng bay lên, gục
 // thì nổ rồi mới báo nguyên nhân. Mặc định xem thiết kế của mình (người xem thì của người đứng đầu); bấm thanh tải của ai để
 // xem sơ đồ người đó.
-function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final: SxFinal }) {
+function LiveRun({ session, view, match: g, final }: { session: SystemDesignRoom; view: View; match: SxMatch; final: SxFinal }) {
   const pb = useContext(PlaybackCtx);
   const staged = useStaged();
   const p = g.problem;
@@ -1855,7 +1925,10 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
   const { tick } = playbackOf(final);
   const people = final.rows.filter((r) => final.designs[r.uid]);
   // Người chơi xem thiết kế của mình; khách xem ngẫu nhiên một người (mỗi khách một người, theo uid và ván).
-  const [pick, setPick] = useState(() => (final.designs[view.me] ? view.me : (people[luck(`${view.me}:${g.round}`) % Math.max(1, people.length)]?.uid ?? "")));
+  // Chạy lại cho một người cụ thể thì mở sơ đồ người đó.
+  const [pick, setPick] = useState(() =>
+    pb.who && final.designs[pb.who] ? pb.who : final.designs[view.me] ? view.me : (people[luck(`${view.me}:${g.round}`) % Math.max(1, people.length)]?.uid ?? ""),
+  );
   const row = final.rows.find((r) => r.uid === pick);
   const design = final.designs[pick];
   const sim = row?.sim;
@@ -1921,56 +1994,100 @@ function LiveRun({ view, match: g, final }: { view: View; match: SxMatch; final:
     blasts,
     smolder: dead && !pending && !blasts.length && sim?.fail?.why !== "path" ? sim?.fail?.node : undefined,
   };
-  return (
-    <section className={`sx-live card mt-4 grid gap-3 p-4 sm:p-5 ${staged ? "is-staged" : ""}`} aria-label="Load test đang chạy">
-      <div className="sx-live-head flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">📈 Load test đang chạy · mức {pb.level}</p>
-          <p className="sx-ticker" aria-live="off">
-            {fmt(tps)} <small className="text-lg">TPS</small>
-          </p>
-        </div>
-        <button type="button" className="btn btn-sm" onClick={pb.skip}>
-          ⏭ Xem kết quả luôn
-        </button>
+  const name = nameIn(view, pick);
+  // `eyebrow`: dòng "đang chạy · mức" phía trên (phóng to thì đã nằm ở tiêu đề bảng).
+  const ticker = (eyebrow: boolean) => (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        {eyebrow && <p className="text-[12.5px] font-bold tracking-wide text-ink-3 uppercase">📈 Load test đang chạy · mức {pb.level}</p>}
+        <p className="sx-ticker" aria-live="off">
+          {fmt(tps)} <small className="text-lg">TPS</small>
+        </p>
       </div>
-      <div className="sx-live-meter sx-meter" aria-hidden="true">
+      <button type="button" className="btn btn-sm" onClick={pb.skip}>
+        ⏭ Xem kết quả luôn
+      </button>
+    </div>
+  );
+  const meter = (
+    <>
+      <div className="sx-meter" aria-hidden="true">
         <span style={{ width: `${Math.min(100, (tps / p.target) * 100)}%` }} />
       </div>
-      <p className="sx-live-goal text-[13px] font-semibold text-ink-2">
+      <p className="text-[13px] font-semibold text-ink-2">
         🎯 Mục tiêu {fmt(p.target)} TPS{tps >= p.target ? " — đã vượt mục tiêu, tiếp tục tăng tải tới khi gục…" : pb.level ? ` — còn ${fmt(p.target - tps)} TPS` : ""}
       </p>
+    </>
+  );
+  const label = (
+    <p className="text-[13.5px] font-bold">
+      🔍 Sơ đồ của {name}
+      {hit.length > 0 && !dead && <span className="ml-2 font-semibold text-coral">⚡ Sự cố: {hit.join(", ")}</span>}
+    </p>
+  );
+  const veil = (dead || !sim?.valid) && (
+    <div className={`sx-run-veil ${late ? "is-late" : ""}`}>
+      {sim?.valid ? (
+        <p key="dead">
+          <b className="font-display text-xl">💥 Gục ở {fmt(sim.fail!.tps)} TPS</b>
+          <span className="mt-1 block text-[13.5px] text-ink-2">{sim.fail!.text}</span>
+        </p>
+      ) : (
+        <p key="invalid">
+          <b className="font-display text-xl">⛔ Không hợp lệ — không được chạy tải</b>
+          <span className="mt-1 block text-[13.5px] text-ink-2">{sim?.errors[0]?.text}</span>
+        </p>
+      )}
+    </div>
+  );
+  const canvas = (v?: Pan) => design && <SxCanvas design={design} heat={heat} live={!!heat && !dead} fx={shown} view={v} label={`Load test trên sơ đồ của ${name}`} />;
+
+  // Phóng to: chạy tải ngay trên sơ đồ phủ kín màn hình; bộ đếm, mục tiêu và thanh tải mọi người nổi ở cột phải.
+  if (staged)
+    return (
+      <ZoomFrame
+        fitKey={pick}
+        extent={extentOf(design ?? emptyDesign())}
+        top={<ActionPart session={session} compact extra={<ProblemButton p={p} />} />}
+        side={
+          <Panel
+            title={
+              <>
+                📈 Load test đang chạy <span className="text-[13px] font-semibold text-ink-3 tabular-nums">· mức {pb.level}</span>
+              </>
+            }
+            fold
+            body="mt-2 grid gap-3"
+          >
+            {ticker(false)}
+            {meter}
+            {design && label}
+            <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} stack />
+          </Panel>
+        }
+        canvas={(v) => (
+          <>
+            {canvas(v)}
+            {design && veil}
+          </>
+        )}
+      />
+    );
+
+  return (
+    <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Load test đang chạy">
+      {ticker(true)}
+      {meter}
       {design && (
         <>
-          <p className="sx-live-label text-[13.5px] font-bold">
-            🔍 Sơ đồ của {nameIn(view, pick)}
-            {hit.length > 0 && !dead && <span className="ml-2 font-semibold text-coral">⚡ Sự cố: {hit.join(", ")}</span>}
-          </p>
-          <div className="sx-live-board sx-run">
-            <div className="sx-canvas-wrap">
-              <SxCanvas design={design} heat={heat} live={!!heat && !dead} fx={shown} label={`Load test trên sơ đồ của ${nameIn(view, pick)}`} />
-            </div>
-            {(dead || !sim?.valid) && (
-              <div className={`sx-run-veil ${late ? "is-late" : ""}`}>
-                {sim?.valid ? (
-                  <p key="dead">
-                    <b className="font-display text-xl">💥 Gục ở {fmt(sim.fail!.tps)} TPS</b>
-                    <span className="mt-1 block text-[13.5px] text-ink-2">{sim.fail!.text}</span>
-                  </p>
-                ) : (
-                  <p key="invalid">
-                    <b className="font-display text-xl">⛔ Không hợp lệ — không được chạy tải</b>
-                    <span className="mt-1 block text-[13.5px] text-ink-2">{sim?.errors[0]?.text}</span>
-                  </p>
-                )}
-              </div>
-            )}
+          {label}
+          <div className="sx-run">
+            <div className="sx-canvas-wrap">{canvas()}</div>
+            {veil}
           </div>
         </>
       )}
-      <div className="sx-live-race">
-        <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} stack={staged} />
-      </div>
+      <LoadRace view={view} p={p} final={final} at={pb.level} pick={pick} onPick={setPick} />
     </section>
   );
 }
@@ -1991,19 +2108,86 @@ function heatOf(sim: SimResult, level: number): Heat | undefined {
   };
 }
 
-function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; final: SxFinal; pick: string; setPick: (u: string) => void }) {
-  const ref = useMemo(() => {
+// Thiết kế máy tự dựng để tham khảo (không tính vào xếp hạng).
+function useRefDesign(p: Problem) {
+  return useMemo(() => {
     const { design } = autoDesign(p);
     return { design, sim: simulate(p, design) };
   }, [p]);
+}
+
+// Mức tải mở sẵn khi xem một thiết kế: mức thất bại, không có thì mức cuối.
+const startLevel = (sim: SimResult | null | undefined) => {
+  const last = sim?.levels.length ?? 0;
+  return Math.max(1, Math.min(last, sim?.fail?.level ?? last));
+};
+
+// Phần chữ khi xem một thiết kế: thanh kéo chọn mức tải, sự cố ở mức đó, vì sao dừng và chú thích màu.
+function ViewDetails({
+  p,
+  design,
+  sim,
+  status,
+  level,
+  setLevel,
+  refNote,
+}: {
+  p: Problem;
+  design: Design;
+  sim: SimResult | null | undefined;
+  status: Standing["status"];
+  level: number;
+  setLevel: (n: number) => void;
+  refNote?: string;
+}) {
+  const last = sim?.levels.length ?? 0;
+  const lv = sim?.levels[level - 1];
+  const labels = useMemo(() => nodeLabels(design), [design]);
+  return (
+    <div className="grid gap-3">
+      {refNote && <p className="text-[13px] text-ink-2">{refNote}</p>}
+      {sim?.valid && last > 0 && (
+        <label className="grid gap-1.5">
+          <span className="flex flex-wrap justify-between gap-2 text-[13.5px] font-bold tabular-nums">
+            <span>
+              Mức {level}/{last} · {fmt(lv?.tps ?? 0)} TPS{sim.fail?.level === level ? " — 💥 thất bại ở mức này" : ""}
+            </span>
+            {lv && lv.backlog > 0 && <span className="text-ink-3">📬 Hàng chờ đỉnh {fmt(lv.backlog)} tác vụ</span>}
+          </span>
+          <input type="range" min={1} max={last} value={level} onChange={(e) => setLevel(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
+        </label>
+      )}
+      <div className="grid gap-1 text-[13px] text-ink-2">
+        {lv && p.incidents.length > 0 && (
+          <p>
+            ⚡ Sự cố giây {SIM.incFrom}–{SIM.incTo}:{" "}
+            {[
+              ...lv.down.map((id) => `${labels.get(id)} ngừng hoạt động`),
+              ...(lv.cut ? [`đứt ${labels.get(lv.cut[0])} → ${labels.get(lv.cut[1])}`] : []),
+              ...p.incidents.filter((k) => !TARGETED.includes(k)).map((k) => INCIDENTS[k].name.toLowerCase()),
+            ].join(", ") || "không trúng component nào"}
+            .
+          </p>
+        )}
+        {sim && <p>{stopText({ status, sim })}</p>}
+        {sim?.valid && <p className="text-[12px] text-ink-3">Màu theo mức sử dụng đỉnh trong mức tải: xanh &lt; 60%, vàng &lt; 85%, cam tới 100%, đỏ là quá tải. Số trên đường nối là TPS đi qua.</p>}
+      </div>
+    </div>
+  );
+}
+
+const refNoteOf = (sim: SimResult) =>
+  `Máy tự dựng bằng cách nâng dần chỗ nghẽn — không tối ưu chi phí và không tính vào xếp hạng: ${fmt(sim.maxTps)} TPS, chi phí ${fmt(sim.cost)}.`;
+
+const marksOf = (sim: SimResult | null | undefined) => (sim && !sim.valid ? sim.errors.flatMap((e) => e.nodes?.slice(-1) ?? []) : undefined);
+
+function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; final: SxFinal; pick: string; setPick: (u: string) => void }) {
+  const ref = useRefDesign(p);
   const row = final.rows.find((r) => r.uid === pick);
   const design = pick === "@ref" ? ref.design : final.designs[pick];
   const sim = pick === "@ref" ? ref.sim : row?.sim;
-  const last = sim?.levels.length ?? 0;
-  const [level, setLevel] = useState(() => Math.max(1, Math.min(last, sim?.fail?.level ?? last)));
+  const [level, setLevel] = useState(() => startLevel(sim));
   const heat = sim?.valid ? heatOf(sim, level) : undefined;
-  const lv = sim?.levels[level - 1];
-  const labels = useMemo(() => (design ? nodeLabels(design) : new Map<number, string>()), [design]);
   const people = final.rows.filter((r) => final.designs[r.uid]);
   return (
     <section className="card mt-4 grid gap-3 p-4 sm:p-5" aria-label="Xem thiết kế">
@@ -2018,45 +2202,68 @@ function Viewer({ view, p, final, pick, setPick }: { view: View; p: Problem; fin
           🤖 Máy tham khảo
         </button>
       </div>
-      {pick === "@ref" && (
-        <p className="text-[13px] text-ink-2">
-          Máy tự dựng bằng cách nâng dần chỗ nghẽn — không tối ưu chi phí và không tính vào xếp hạng: {fmt(ref.sim.maxTps)} TPS, chi phí {fmt(ref.sim.cost)}.
-        </p>
-      )}
       {design && (
         <>
-          {sim?.valid && last > 0 && (
-            <label className="grid gap-1.5">
-              <span className="flex flex-wrap justify-between gap-2 text-[13.5px] font-bold tabular-nums">
-                <span>
-                  Mức {level}/{last} · {fmt(lv?.tps ?? 0)} TPS{sim.fail?.level === level ? " — 💥 thất bại ở mức này" : ""}
-                </span>
-                {lv && lv.backlog > 0 && <span className="text-ink-3">📬 Hàng chờ đỉnh {fmt(lv.backlog)} tác vụ</span>}
-              </span>
-              <input type="range" min={1} max={last} value={level} onChange={(e) => setLevel(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
-            </label>
-          )}
           <div className="sx-canvas-wrap">
-            <SxCanvas design={design} heat={heat} marks={sim && !sim.valid ? sim.errors.flatMap((e) => e.nodes?.slice(-1) ?? []) : undefined} label="Thiết kế và tải từng component" />
+            <SxCanvas design={design} heat={heat} marks={marksOf(sim)} label="Thiết kế và tải từng component" />
           </div>
-          <div className="grid gap-1 text-[13px] text-ink-2">
-            {lv && p.incidents.length > 0 && (
-              <p>
-                ⚡ Sự cố giây {SIM.incFrom}–{SIM.incTo}:{" "}
-                {[
-                  ...lv.down.map((id) => `${labels.get(id)} ngừng hoạt động`),
-                  ...(lv.cut ? [`đứt ${labels.get(lv.cut[0])} → ${labels.get(lv.cut[1])}`] : []),
-                  ...p.incidents.filter((k) => !TARGETED.includes(k)).map((k) => INCIDENTS[k].name.toLowerCase()),
-                ].join(", ") || "không trúng component nào"}
-                .
-              </p>
-            )}
-            {sim && <p>{stopText({ status: row?.status ?? "fail", sim })}</p>}
-            {sim?.valid && <p className="text-[12px] text-ink-3">Màu theo mức sử dụng đỉnh trong mức tải: xanh &lt; 60%, vàng &lt; 85%, cam tới 100%, đỏ là quá tải. Số trên đường nối là TPS đi qua.</p>}
-          </div>
+          <ViewDetails p={p} design={design} sim={sim} status={row?.status ?? "fail"} level={level} setLevel={setLevel} refNote={pick === "@ref" ? refNoteOf(ref.sim) : undefined} />
         </>
       )}
     </section>
+  );
+}
+
+// Kết quả lúc đang phóng to: sơ đồ của người đang chọn phủ kín màn hình (tải theo mức đang chọn), cột nổi là bảng xếp hạng
+// (bấm một dòng để đổi sơ đồ) và chi tiết thiết kế đang xem.
+const ResultZoomPart = memo(function ResultZoomPart({ session }: { session: SystemDesignRoom }) {
+  const view = useSxView(session);
+  const g = view.game?.match;
+  if (!g?.final) return null;
+  return <ResultZoom session={session} view={view} match={g} final={g.final} />;
+});
+
+function ResultZoom({ session, view, match: g, final }: { session: SystemDesignRoom; view: View; match: SxMatch; final: SxFinal }) {
+  const p = g.problem;
+  const ref = useRefDesign(p);
+  const verdict = verdictOf(view, final, p);
+  const simOf = (uid: string) => (uid === "@ref" ? ref.sim : final.rows.find((r) => r.uid === uid)?.sim);
+  const [pick, setPick] = useState(() => firstPick(view, final));
+  const [level, setLevel] = useState(() => startLevel(simOf(pick)));
+  const choose = (uid: string) => {
+    setPick(uid);
+    setLevel(startLevel(simOf(uid)));
+  };
+  const row = final.rows.find((r) => r.uid === pick);
+  const design = pick === "@ref" ? ref.design : final.designs[pick];
+  const sim = simOf(pick);
+  const heat = sim?.valid ? heatOf(sim, level) : undefined;
+  return (
+    <ZoomFrame
+      fitKey={pick}
+      extent={extentOf(design ?? ref.design)}
+      top={<ActionPart session={session} compact extra={<ProblemButton p={p} />} />}
+      side={
+        <>
+          <Panel title={verdict.title} fold>
+            <p className="mt-1 text-[13px] text-ink-2">{verdict.sub}</p>
+            <RankRows view={view} p={p} final={final} pick={pick} onPick={choose} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <ReplayButton view={view} final={final} pick={pick} />
+              <button type="button" className={`btn btn-sm ${pick === "@ref" ? "btn-sun" : ""}`} aria-pressed={pick === "@ref"} onClick={() => choose("@ref")}>
+                🤖 Máy tham khảo
+              </button>
+            </div>
+          </Panel>
+          {design && (
+            <Panel title={<>🔍 Sơ đồ của {pick === "@ref" ? "máy tham khảo" : nameIn(view, pick)}</>} fold body="mt-2">
+              <ViewDetails p={p} design={design} sim={sim} status={row?.status ?? "fail"} level={level} setLevel={setLevel} refNote={pick === "@ref" ? refNoteOf(ref.sim) : undefined} />
+            </Panel>
+          )}
+        </>
+      }
+      canvas={(v) => design && <SxCanvas design={design} heat={heat} marks={marksOf(sim)} view={v} label={`Thiết kế và tải từng component — ${pick === "@ref" ? "máy tham khảo" : nameIn(view, pick)}`} />}
+    />
   );
 }
 

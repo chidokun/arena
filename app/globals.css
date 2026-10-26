@@ -3402,60 +3402,10 @@
   .sx-run {
     position: relative;
   }
-  /* Trình chiếu lúc chạy tải: sơ đồ lấp phần lớn màn hình, cột bên là bộ đếm TPS, mục tiêu và thanh tải của mọi người.
-     `cqh` tính theo ô giữa của `.stage`. Màn hình dọc thì giữ bố cục thường (cuộn). */
-  @container (min-aspect-ratio: 5 / 4) {
-    .sx-live.is-staged {
-      grid-template-columns: minmax(0, 1fr) clamp(240px, 27cqw, 360px);
-      grid-template-rows: auto auto auto minmax(0, 1fr);
-      height: calc(100cqh - 8px);
-      margin-top: 0;
-    }
-    .sx-live.is-staged > .sx-live-head,
-    .sx-live.is-staged > .sx-live-meter,
-    .sx-live.is-staged > .sx-live-goal,
-    .sx-live.is-staged > .sx-live-race {
-      grid-column: 2;
-    }
-    .sx-live.is-staged > .sx-live-head {
-      grid-row: 1;
-    }
-    .sx-live.is-staged > .sx-live-meter {
-      grid-row: 2;
-    }
-    .sx-live.is-staged > .sx-live-goal {
-      grid-row: 3;
-    }
-    .sx-live.is-staged > .sx-live-race {
-      grid-row: 4;
-      min-height: 0;
-      overflow: auto;
-    }
-    .sx-live.is-staged > .sx-live-race > div {
-      margin-top: 0;
-    }
-    .sx-live.is-staged > .sx-live-label {
-      grid-column: 1;
-      grid-row: 1;
-    }
-    .sx-live.is-staged > .sx-live-board {
-      grid-column: 1;
-      grid-row: 2 / -1;
-      min-height: 0;
-    }
-    .sx-live.is-staged .sx-live-board > .sx-canvas-wrap {
-      height: 100%;
-      overflow: hidden;
-    }
-    .sx-live.is-staged .sx-live-board .sx-canvas {
-      height: 100%;
-      min-width: 0;
-    }
-  }
   /* Bàn thiết kế phóng to (trình chiếu): sơ đồ phủ kín màn hình — bỏ lề của `.stage`, bỏ ô đầu (bàn tự mang thanh trạng
-     thái) — còn thanh trạng thái, cột bảng góc phải nổi đè lên. Bỏ `fit` của khối bàn để bàn (và bàn chạy tải ngay sau
-     đó) trải hết bề ngang — `fit` là class tiện ích nên cần !important. */
-  .stage-cell > :has(.sx-zoom, .sx-live.is-staged) {
+     thái) — còn thanh trạng thái, cột bảng góc phải nổi đè lên. Bỏ `fit` của khối bàn để bàn trải hết bề
+     ngang — `fit` là class tiện ích nên cần !important. */
+  .stage-cell > :has(.sx-zoom) {
     max-width: none !important;
   }
   .stage:has(.sx-zoom) {
@@ -3531,9 +3481,9 @@
     font-weight: 800;
     text-align: center;
   }
-  /* Lớp nổi không nhận con trỏ (để kéo thả trên sơ đồ bên dưới), chỉ các thẻ trong nó nhận. Thanh trạng thái góc trái
-     (chừa chỗ nút quay lại của trình chiếu), co theo nội dung; cột bảng góc phải. Màn hẹp thì cột xuống dưới thanh. Đáy
-     chừa cho nút chat nổi. */
+  /* Lớp nổi không nhận con trỏ (để kéo thả trên sơ đồ bên dưới), chỉ các thẻ trong nó nhận. Thanh trạng thái co theo nội
+     dung, canh giữa màn hình (hai bên chừa chỗ nút quay lại của trình chiếu); cột bảng góc phải ngay dưới thanh. Đáy chừa
+     cho nút chat nổi. */
   .sx-zoom-ui {
     position: absolute;
     inset: 10px 10px 78px;
@@ -3543,10 +3493,10 @@
     pointer-events: none;
   }
   .sx-zoom-top {
-    justify-self: start;
+    grid-column: 1 / -1;
+    justify-self: center;
     align-self: start;
-    max-width: calc(100% - 58px);
-    margin-left: 58px;
+    max-width: calc(100% - 116px);
     pointer-events: auto;
   }
   .sx-zoom-top > .card {
@@ -3559,6 +3509,27 @@
     flex: none !important;
     max-width: 100%;
     font-size: 14.5px;
+  }
+  .sx-clock {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 12px;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--surface);
+    font-family: var(--font-display), var(--font-body), sans-serif;
+    font-size: 22px;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+  }
+  .sx-clock > b {
+    font-weight: 800;
+  }
+  .sx-clock.is-free {
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 400;
   }
   .sx-zoom-side {
     display: flex;
@@ -3583,7 +3554,10 @@
   }
   @media (min-width: 760px) {
     .sx-zoom-ui {
-      grid-template: minmax(0, 1fr) / minmax(0, 1fr) var(--sx-side);
+      grid-template: auto minmax(0, 1fr) / minmax(0, 1fr) var(--sx-side);
+    }
+    .sx-zoom-side {
+      grid-column: 2;
     }
   }
   /* Bảng thu gọn được: bấm tiêu đề. Mũi tên tự vẽ để đứng cuối dòng, xoay khi mở. */
