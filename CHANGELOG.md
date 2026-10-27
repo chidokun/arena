@@ -7,6 +7,10 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.10.27.2
+- Tâm Đấu đã có sticker bay: thả tim, ném gạch cho bạn cùng bàn ngay khi đang đọc đề.
+- Cờ Caro: dễ dàng phóng to / thu nhỏ bàn chơi - máy tính thì lăn chuột trên bàn, kéo chuột để dời bàn; điện thoại thì chụm hai ngón, kéo hai ngón để dời bàn. Kéo, phóng giờ mượt hơn hẳn.
+
 ## 2026.10.26.1
 - Ra mắt game mới 🪷 Tâm Đấu — trò chơi kiến thức Vi Diệu Pháp nhẹ nhàng cho 1–4 người: cùng mở thẻ dữ kiện, nhận diện tâm và kiểm tra nhận định qua 300 đề ở ba mode Nhập môn, Ứng dụng, Chuyên sâu.
 - Cải tiến Thiết kế hệ thống: Giờ đây màn thiết kế rộng hơn, thân thiện hơn cho người dùng. Bạn cũng có thể chạy lại thiết kế của người khác ngay tại màn hình kết quả.

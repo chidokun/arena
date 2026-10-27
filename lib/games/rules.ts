@@ -326,6 +326,7 @@ export const RULES: Record<string, GameRules> = {
           "X đi trước, O đi sau, mỗi lượt đặt một quân vào một ô trống bất kỳ. Quân đã đặt không di chuyển được.",
           "Chủ phòng chọn cỡ bàn 15×15, 19×19 hoặc gần vô hạn (200×200 — bàn tự nở theo các nước đã đánh, kéo để xem chỗ khác) và thời gian tối đa mỗi lượt (15, 30, 45 giây hoặc không giới hạn) lúc tạo phòng, đổi được trước mỗi ván. Hết giờ mà chưa đánh thì bị xử thua.",
           "Người đi trước đổi luân phiên sau mỗi ván cho công bằng.",
+          "Phóng to / thu nhỏ bàn (50%–200%): trên máy tính để chuột trên bàn rồi lăn chuột (lăn lên phóng to, lăn xuống thu nhỏ), kéo chuột để dời bàn; trên điện thoại chụm hai ngón để phóng / thu, kéo hai ngón để dời bàn.",
         ],
       },
       {

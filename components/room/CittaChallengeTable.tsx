@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   BASIS,
   BASIS_MISSING,
@@ -34,9 +34,9 @@ import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from "./Cine";
 import { PeoplePanel } from "./People";
 import { ResultCard, Standings, StoppedCard } from "./ResultCard";
-import { RoomHeader, RoomLayout } from "./RoomLayout";
+import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
-import { useGame, usePeople, useRoomState } from "./useRoom";
+import { useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<CtView>, "chat">;
 
@@ -109,6 +109,7 @@ const CittaChallengeBody = memo(function CittaChallengeBody({ session }: { sessi
   const { opts, match: g } = view.game!;
   const live = isLive(view);
   const [glossary, setGlossary] = useState(false);
+  const areaRef = useRef<HTMLDivElement>(null);
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: COUNTDOWN_MS, onMount: true });
   const won = g?.result?.reason === "points" && g.lineup.length > 1 && !!g.result.winners?.length;
   const end = useEndScene(won ? g!.round : 0, { ms: WIN_SCENE_MS, emojis: CHEERS });
@@ -135,7 +136,7 @@ const CittaChallengeBody = memo(function CittaChallengeBody({ session }: { sessi
       {!live && <Setup view={view} session={session} />}
       {g?.result && <Outcome view={view} match={g} />}
 
-      <div className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         {g ? <Play key={g.round} view={view} session={session} match={g} /> : <Welcome view={view} />}
         {g && <Scoreboard view={view} match={g} />}
       </div>
@@ -144,7 +145,20 @@ const CittaChallengeBody = memo(function CittaChallengeBody({ session }: { sessi
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
       {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
       <Party bits={end.party} />
+      <StickerFlyers session={session} areaRef={areaRef} />
     </>
+  );
+});
+
+// Trang dài, người chơi cuộn suốt khi đọc đề nên sticker bay trên lớp phủ theo màn hình thay vì trong bàn chơi; gạch thì rung
+// vùng chơi. Tách riêng để mỗi đợt sticker không làm cả bàn vẽ lại.
+const StickerFlyers = memo(function StickerFlyers({ session, areaRef }: { session: CittaChallengeRoom; areaRef: React.RefObject<HTMLDivElement | null> }) {
+  const flyers = useFlyers(session, areaRef);
+  if (!flyers.length) return null;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-30 overflow-hidden" aria-hidden="true">
+      <Flyers flyers={flyers} />
+    </div>
   );
 });
 
