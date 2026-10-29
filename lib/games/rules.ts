@@ -7,6 +7,59 @@ export type GameRules = {
 };
 
 export const RULES: Record<string, GameRules> = {
+  "typing-race": {
+    intro: "Anh Hùng Bàn Phím: đua xe bằng cách gõ chữ — gõ càng nhanh và chính xác, xe càng tiến nhanh. Không có nút tăng tốc: khả năng gõ chính là động cơ của xe.",
+    sections: [
+      {
+        emoji: "🏁",
+        title: "Hai thể thức",
+        items: [
+          "Đua theo số ký tự: cả phòng gõ cùng một đoạn 500 / 1.000 / 2.000 ký tự (hoặc tự chọn). Ai gõ xong trước thắng; người đầu tiên về đích thì những người còn lại có thêm 60 giây để hoàn thành.",
+          "Xếp hạng theo ký tự: về đích trước đứng trên người chưa về đích (thời gian ít hơn đứng trên); chưa về đích thì nhiều ký tự hơn đứng trên; vẫn bằng thì chính xác hơn đứng trên, bằng nữa thì đồng hạng.",
+          "Đua theo thời gian: gõ liên tục trong 1 / 3 / 5 / 10 phút (hoặc tự chọn). Đường đua không có đích — hết giờ ai đi xa nhất thắng.",
+          "Xếp hạng theo thời gian: nhiều ký tự đúng hơn đứng trên; bằng nhau thì chính xác hơn; vẫn bằng thì ai đạt số ký tự đó sớm hơn; bằng nữa thì đồng hạng.",
+        ],
+      },
+      {
+        emoji: "⚙️",
+        title: "Thiết lập phòng",
+        items: [
+          "Chủ phòng chọn thể thức, độ dài / thời gian, ngôn ngữ (Tiếng Việt / Tiếng Anh), độ khó và nguồn văn bản (hệ thống chọn ngẫu nhiên hoặc chủ phòng tự nhập) trước mỗi ván.",
+          "🌱 Dễ: từ thông dụng viết thường, ít dấu câu, không số. 🌿 Trung bình: có chữ hoa, số và dấu câu thông dụng. 🔥 Khó: nhiều dấu câu, số, ký tự đặc biệt và từ ít gặp.",
+          "Văn bản được chốt trước khi đếm ngược, cả phòng nhận giống hệt nhau và chỉ hiện khi cuộc đua bắt đầu. Mỗi người tự chọn màu xe của mình.",
+        ],
+      },
+      {
+        emoji: "⌨️",
+        title: "Cách gõ",
+        items: [
+          "Gõ lần lượt từ đầu đến cuối. Gõ đúng thì ký tự được xác nhận và xe tiến lên; gõ đúng liên tục càng nhanh thì xe chạy càng nhanh.",
+          "Gõ sai thì ký tự bị tô đỏ, xe không tiến — phải nhấn Backspace xoá lỗi rồi gõ lại. Khi đang có lỗi, gõ thêm không được nối vào bài nhưng vẫn tính là lần gõ sai.",
+          "Phân biệt chữ hoa, chữ thường; chữ có dấu như “ế” tính là một ký tự. Dùng bộ gõ Telex / VNI thoải mái: các phím trung gian không bị tính lỗi, đặt dấu “hòa” hay “hoà” đều được.",
+          "Phần đã xác nhận đúng không xoá được. Không dán được văn bản, không dùng gợi ý tự điền hay công cụ tự gõ.",
+          "Ngừng gõ thì xe dừng dần, không bị lùi và không mất phần đã hoàn thành.",
+        ],
+      },
+      {
+        emoji: "📊",
+        title: "Chỉ số",
+        items: [
+          "Quãng đường = số ký tự đúng đã hoàn thành. Tốc độ xe phản ánh tốc độ gõ đúng trong vài giây gần nhất.",
+          "WPM = số ký tự đúng ÷ 5 ÷ số phút đã chơi (5 ký tự tính là 1 từ cho cả tiếng Việt lẫn tiếng Anh).",
+          "Độ chính xác = số ký tự đúng ÷ (số ký tự đúng + số lần gõ sai). Lỗi đã sửa vẫn được tính; Backspace không tính.",
+        ],
+      },
+      {
+        emoji: "🏳️",
+        title: "Bỏ cuộc & mất kết nối",
+        items: [
+          "Bỏ cuộc: thành tích giữ lại để tham khảo nhưng không tranh hạng.",
+          "Mất kết nối: đồng hồ vẫn chạy, xe dừng tiến; vào lại khi ván còn diễn ra thì gõ tiếp từ chỗ đã xác nhận.",
+          "Người vào phòng giữa ván được xem đua và chờ ván sau. Chơi một mình là chế độ luyện tập.",
+        ],
+      },
+    ],
+  },
   "citta-challenge": {
     intro:
       "Trò chơi kiến thức Vi Diệu Pháp Theravāda cho 1–4 người: cả bàn đọc chung một tình huống, mở chung hai thẻ dữ kiện, rồi ai nấy nhận diện trạng thái tâm kèm căn cứ và kiểm tra một nhận định. Điểm chỉ phản ánh kết quả giải đề, không đánh giá phẩm chất hay mức tu tập của ai.",

@@ -25,6 +25,7 @@ import { SudokuTable } from "./SudokuTable";
 import { SystemDesignTable } from "./SystemDesignTable";
 import { CittaChallengeTable } from "./CittaChallengeTable";
 import { TrucXanhTable } from "./TrucXanhTable";
+import { TypingRaceTable } from "./TypingRaceTable";
 import { UndercoverTable } from "./UndercoverTable";
 import { WerewolfTable } from "./WerewolfTable";
 import { XiangqiRoleTable } from "./XiangqiRoleTable";
@@ -136,5 +137,6 @@ function GameTable({ id, slug, session }: { id: string; slug: string; session: G
   if (session.game === "co-cho") return <CoChoTable id={id} slug={slug} session={session} />;
   if (session.game === "system-design") return <SystemDesignTable id={id} slug={slug} session={session} />;
   if (session.game === "citta-challenge") return <CittaChallengeTable id={id} slug={slug} session={session} />;
+  if (session.game === "typing-race") return <TypingRaceTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

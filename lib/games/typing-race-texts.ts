@@ -1,0 +1,218 @@
+// Kho chữ cho Anh Hùng Bàn Phím. Chỉ dùng ký tự gõ được trên bàn phím thường (không ngoặc kép cong, gạch dài, °…).
+// Dễ: từ thông dụng viết thường, không số; Trung bình: câu có hoa thường, số và dấu câu quen; Khó: nhiều số, ký hiệu
+// và từ ít gặp.
+
+export const VI_WORDS = `nhà cửa trời mây nước sông núi cây lá hoa quả chim cá mèo chó gà vịt trâu bò lúa gạo cơm canh rau bánh kẹo sữa trà
+bàn ghế sách vở bút mực giấy lớp học trường thầy cô bạn bè gia đình mẹ cha anh chị em ông bà con cháu làng xóm phố chợ
+đường xe đạp máy bay thuyền tàu biển gió mưa nắng sáng trưa chiều tối đêm ngày tháng năm tuần mùa xuân hạ thu đông
+vui buồn thương nhớ yêu ghét cười khóc nói nghe nhìn thấy đi chạy nhảy bơi ăn uống ngủ thức làm chơi đọc viết hát múa
+đẹp xinh tốt hay giỏi chăm ngoan hiền nhanh chậm cao thấp to nhỏ dài ngắn xa gần mới cũ nóng lạnh ấm mát sạch thơm
+xanh đỏ vàng tím trắng đen hồng nâu cam bầu trời mặt đất ánh trăng ngôi sao dòng sông cánh đồng con đường mái nhà
+khu vườn bờ biển quê hương đất nước buổi sáng hôm nay ngày mai tuổi thơ kỷ niệm ước mơ niềm vui nụ cười giấc mơ
+câu chuyện bài hát cuốn sách lá thư món quà bức tranh chiếc áo đôi giày cái nón chiếc ô tấm ảnh bông hoa trái tim
+học hành làm việc nghỉ ngơi đi chơi nấu ăn dọn dẹp tưới cây quét nhà rửa bát gấp quần áo đọc báo xem phim nghe nhạc
+cùng nhau mỗi ngày luôn luôn thật nhiều một chút rất vui khá xa đã đến sắp tới vẫn còn bỗng nhiên dần dần mãi mãi
+người bạn thầy giáo cô giáo bác sĩ nông dân công nhân kỹ sư ca sĩ họa sĩ nhà văn cầu thủ đầu bếp tài xế người lính
+hạt mưa giọt sương làn khói ngọn lửa cơn gió đám mây tia nắng vầng trăng bến đò cây đa giếng nước sân đình lũy tre`;
+
+export const EN_WORDS = `the of and to in is you that it he was for on are as with his they at be this have from or one had by word
+but not what all were we when your can said there use each which she do how their if will up other about out many then
+them these so some her would make like him into time has look two more write go see number no way could people my than
+first water been call who oil its now find long down day did get come made may part over new sound take only little work
+know place year live me back give most very after thing our just name good sentence man think say great where help
+through much before line right too mean old any same tell boy follow came want show also around form three small set put
+end does another well large must big even such because turn here why ask went men read need land different home us move
+try kind hand picture again change off play spell air away animal house point page letter mother answer found study
+still learn should world high every near add food between own below country plant last school father keep tree never
+start city earth eye light thought head under story saw left few while along might close something seem next hard open
+example begin life always those both paper together got group often run important until children side feet car mile
+night walk white sea began grow took river four carry state once book hear stop without second later miss idea enough
+eat face watch far really almost let above girl sometimes mountain cut young talk soon list song being leave family`;
+
+export const VI_MEDIUM = [
+  "Sáng nay trời trong xanh, gió nhẹ thổi qua hàng cây ven đường.",
+  "Có công mài sắt, có ngày nên kim.",
+  "Uống nước nhớ nguồn, ăn quả nhớ kẻ trồng cây.",
+  "Một cây làm chẳng nên non, ba cây chụm lại nên hòn núi cao.",
+  "Lớp tôi có 32 bạn, mỗi bạn một tính cách rất riêng.",
+  "Mỗi sáng, bà tôi dậy từ 5 giờ để tưới rau và cho gà ăn.",
+  "Hà Nội vào thu đẹp lắm: trời se lạnh, phố phường thơm mùi hoa sữa.",
+  "Muốn biết đường đi, hãy hỏi người đã từng đi qua con đường ấy.",
+  "Cuốn sách này có 245 trang, tôi đọc hết chỉ trong 3 buổi tối.",
+  "Bạn đã ăn sáng chưa? Nếu chưa thì mình cùng đi ăn phở nhé!",
+  "Thời gian là thứ quý giá nhất, vì đã trôi qua thì không bao giờ quay lại.",
+  "Chiếc xe đạp cũ của bố vẫn chạy tốt sau hơn 20 năm.",
+  "Đà Lạt có nhiều đồi thông, hồ nước và những vườn hoa rực rỡ quanh năm.",
+  "Đi một ngày đàng, học một sàng khôn.",
+  "Gõ phím nhanh là tốt, nhưng gõ đúng mới là điều quan trọng hơn cả.",
+  "Tết năm nay cả nhà tôi về quê, gói 12 chiếc bánh chưng thật đẹp.",
+  "Cơn mưa chiều tạt ngang qua phố, để lại mặt đường loang loáng ánh đèn.",
+  "Mẹ dặn: đi học về nhớ rửa tay, thay đồ rồi mới ăn cơm.",
+  "Trên cánh đồng lúa chín, từng đàn cò trắng bay về phía chân trời.",
+  "Đội bóng của trường thắng 3-1 trong trận chung kết chiều thứ Bảy.",
+  "Học thầy không tày học bạn.",
+  "Ai cũng có lúc vấp ngã, điều quan trọng là biết đứng dậy và bước tiếp.",
+  "Tiếng ve râm ran báo hiệu mùa hè đã về trên khắp các con phố.",
+  "Ông tôi năm nay 78 tuổi nhưng vẫn đi bộ đều đặn mỗi sáng.",
+  "Bờ biển Nha Trang dài và đẹp, nước trong xanh nhìn thấy cả đáy.",
+  "Một nụ cười bằng mười thang thuốc bổ.",
+  "Chúng ta hãy bắt đầu từ những việc nhỏ, rồi việc lớn sẽ đến sau.",
+  "Thư viện mở cửa từ 8 giờ sáng đến 9 giờ tối, kể cả cuối tuần.",
+  "Con mèo nhà tôi rất lười, suốt ngày chỉ nằm sưởi nắng bên cửa sổ.",
+  "Không có việc gì khó, chỉ sợ lòng không bền.",
+  "Buổi chiều, lũ trẻ trong xóm rủ nhau ra bãi cỏ thả diều.",
+  "Chuyến tàu đêm rời ga lúc 22 giờ và đến nơi vào sáng hôm sau.",
+  "Đọc sách giúp ta mở rộng tầm nhìn và hiểu thêm về thế giới xung quanh.",
+  "Mùa đông ở miền Bắc lạnh, có hôm nhiệt độ xuống dưới 10 độ.",
+  "Bạn hãy kiên nhẫn, mọi kỹ năng đều cần thời gian để luyện tập.",
+  "Chợ quê họp từ sáng sớm, người mua kẻ bán nói cười rộn ràng.",
+  "Tốt gỗ hơn tốt nước sơn.",
+  "Chiếc lá vàng cuối cùng rơi xuống, báo hiệu mùa thu sắp qua.",
+  "Em trai tôi đang học lớp 4, rất thích vẽ tranh và chơi cờ.",
+  "Mỗi người một tay, việc gì cũng xong nhanh chóng.",
+  "Cánh đồng hoa cải vàng rực cả một vùng ven sông.",
+  "Hôm qua tôi đi bộ được 8 cây số, mỏi chân nhưng rất vui.",
+  "Ăn chậm nhai kỹ thì no lâu, đi chậm nhìn kỹ thì ít vấp.",
+  "Đêm trung thu, trăng tròn vằng vặc soi sáng khắp sân đình.",
+  "Gần mực thì đen, gần đèn thì sáng.",
+  "Nếu bạn muốn đi nhanh, hãy đi một mình; muốn đi xa, hãy đi cùng nhau.",
+  "Quán cà phê nhỏ đầu ngõ lúc nào cũng thơm mùi bánh mì mới nướng.",
+  "Ngày đầu tiên đi học, tôi nắm chặt tay mẹ và không muốn buông ra.",
+  "Phía xa, dãy núi mờ sương như một bức tranh thủy mặc.",
+  "Hãy sống sao cho mỗi ngày trôi qua đều là một ngày đáng nhớ.",
+  "Cả lớp đã sẵn sàng: bút, thước, máy tính và 2 tờ giấy nháp.",
+  "Đường lên đỉnh núi quanh co, nhưng cảnh trên đó thật đáng công leo.",
+  "Bé Na hỏi: Tại sao bầu trời lại có màu xanh hả mẹ?",
+  "Tháng 9 về, sân trường lại rộn rã tiếng cười của học trò.",
+  "Muốn làm tốt việc gì, trước hết phải thật sự yêu thích việc ấy.",
+  "Mưa dầm thấm lâu, nước chảy đá mòn.",
+];
+
+export const EN_MEDIUM = [
+  "The morning sky was clear, and a gentle breeze moved through the trees.",
+  "Practice does not make perfect; good practice makes progress.",
+  "There are 24 hours in a day, but only a few of them feel truly free.",
+  "She opened the window and let the smell of fresh rain fill the room.",
+  "Every great journey begins with a single, slightly nervous step.",
+  "Our class has 30 students, and each one has a different dream.",
+  "The library opens at 8 in the morning and closes at 9 at night.",
+  "If you want to type fast, first learn to type without looking down.",
+  "He read the whole book in 3 evenings and then started it again.",
+  "Have you had breakfast yet? If not, let us grab something warm.",
+  "The old bicycle still runs well after more than 20 years of use.",
+  "Small steps every day will carry you farther than one giant leap.",
+  "The cat slept on the windowsill all afternoon, warm and happy.",
+  "A good friend listens first and gives advice only when asked.",
+  "The train leaves the station at 10 and arrives early the next day.",
+  "Reading opens doors to places you may never visit in person.",
+  "Winter nights are long, but they make the morning sun feel special.",
+  "Keep your eyes on the screen and your fingers on the home row.",
+  "The team won 3 to 1 in the final match on Saturday afternoon.",
+  "My grandfather is 78 years old, yet he still walks every morning.",
+  "Bright yellow flowers covered the hills along the quiet river.",
+  "Mistakes are proof that you are trying something new.",
+  "We packed 2 bags, a map, some snacks, and plenty of water.",
+  "The road to the top was steep, but the view was worth every step.",
+  "Kindness costs nothing, yet it can change someone's whole day.",
+  "Turn off the lights when you leave, and lock the door behind you.",
+  "The market opens early, full of voices, colors, and fresh bread.",
+  "A clear plan saves time, but a calm mind saves even more.",
+  "Under the full moon, the children ran around with paper lanterns.",
+  "Patience is not waiting; it is keeping a good attitude while you wait.",
+  "The coffee shop on the corner always smells of warm toast.",
+  "On the first day of school, I held my mother's hand very tightly.",
+  "Far away, the mountains looked soft and blue in the morning mist.",
+  "Do not count the days; make the days count.",
+  "Every skill takes time, so be gentle and keep going.",
+  "In September, the school yard is loud with laughter again.",
+  "Water dripping day by day wears even the hardest stone.",
+  "The best time to plant a tree was long ago; the next best time is now.",
+  "She asked: Why is the sky blue, and where does the wind come from?",
+  "He walked 8 kilometers yesterday, tired but very proud.",
+  "Good habits are hard to build, but they are easy to live with.",
+  "The kite climbed higher and higher until it was a tiny dot.",
+  "Write it down, check it twice, and then press the button.",
+  "Rain tapped on the roof, and the whole house felt cozy and still.",
+  "If you never ask, the answer will always be no.",
+  "The bakery sells 150 loaves of bread before noon every day.",
+  "Learn the rules well, so you know when it is fine to break them.",
+  "A smile is the shortest distance between two people.",
+  "The river bends gently around the village and flows into the sea.",
+  "Fast fingers are fun, but accurate fingers win the race.",
+];
+
+export const VI_HARD = [
+  "Đơn hàng #A-2047 (giá 1.250.000 đồng) sẽ được giao trước 17:30 thứ Sáu; nếu trễ, vui lòng gọi 1900-6868.",
+  "Con đường khúc khuỷu, ngoằn ngoèo men theo vách đá chênh vênh bên vực sâu thăm thẳm.",
+  "Tỉ lệ thắng tăng từ 42,5% lên 67,8% chỉ sau 3 tháng (tức khoảng 90 ngày) luyện tập.",
+  "Mật khẩu mạnh nên có chữ hoa, chữ thường, số và ký hiệu, ví dụ: Tr@ng#2024!",
+  "Lão nghễnh ngãng, lững thững bước qua sân, tay huơ huơ chiếc gậy trúc.",
+  "Công thức: diện tích = dài * rộng; với dài = 12 m và rộng = 7,5 m thì kết quả là 90 m2.",
+  "\"Khuya khoắt rồi, sao còn chưa ngủ?\" - mẹ hỏi, giọng nửa trách nửa thương.",
+  "Lịch thi: Toán (08:00), Văn (10:15), Anh (14:00) - nhớ mang thẻ dự thi [bắt buộc].",
+  "Nguyễn Văn A, sinh ngày 05/11/1998, số điện thoại 0912-345-678, email: a.nguyen@example.com.",
+  "Quýnh quáng vì trễ giờ, anh ta xỏ nhầm giày, khoác ngược áo, rồi quên luôn chìa khóa.",
+  "Giá vàng hôm nay: mua vào 7.850.000 đ/chỉ, bán ra 7.990.000 đ/chỉ (tăng 1,2%).",
+  "Thằng bé khệnh khạng, ngúng nguẩy mãi rồi cũng chịu ngồi vào bàn ăn.",
+  "Chương 3, mục 2.4: {Quy tắc} - mọi biến phải được khai báo trước khi dùng; không ngoại lệ!",
+  "Những con sóng lừ đừ, uể oải vỗ vào ghềnh đá lởm chởm, tung bọt trắng xóa.",
+  "Từ 01/01 đến 31/12, công ty đã bán được 12.480 sản phẩm, vượt chỉ tiêu 8,3%.",
+  "Đường dẫn: C:/Users/hoc_sinh/Tai lieu/bai_tap_01.docx (đừng xóa nhé).",
+  "Ông khoan thai rót trà, nheo nheo mắt nhìn ra khoảng sân lấp loáng ánh trăng.",
+  "Bảng mã: A1 = 3, B2 = 7, C3 = A1 + B2 * 2 = 17; kiểm tra lại giúp mình nhé?",
+  "Ngoằn ngoèo, lắt léo, khấp khểnh - con dốc ấy chẳng khác gì một mê cung.",
+  "Chuyến bay VN-219 khởi hành lúc 06:45, cửa số 12, hành lý tối đa 23 kg/người.",
+  "Hắn thuỗn mặt, ngẩn ngơ, rồi lẩm bẩm: \"Sao lại thế được nhỉ?!\"",
+  "Mã giảm giá SALE50 giảm 50% (tối đa 100.000 đ) cho đơn từ 299.000 đ trở lên.",
+  "Đôi mắt thao láo, cái miệng chành bạnh, thằng cu nhoẻn cười toe toét.",
+  "Kết quả: 3 thắng, 2 hòa, 1 thua => 11 điểm, xếp hạng 2/8 (sau đội #5).",
+  "Rì rào, xào xạc, lao xao - rừng tre như đang thầm thì kể chuyện ngày xưa.",
+  "Lưu ý: nhập đúng định dạng dd/mm/yyyy, ví dụ 29/10/2026; sai định dạng sẽ bị từ chối!",
+  "Ngật ngưỡng giữa trưa hè oi ả, gã phu xe lầm lũi kéo chiếc xe cọc cạch.",
+  "Tổng chi phí = 4 x 125.000 + 3 x 89.000 = 767.000 đồng (chưa tính VAT 10%).",
+  "Trong veo, lạnh buốt, dòng suối róc rách luồn qua những hòn cuội nhẵn thín.",
+  "Báo cáo quý III: doanh thu ~2,4 tỷ, lợi nhuận ~310 triệu; chi tiết xem Phụ lục B.",
+  "Bà lão móm mém nhai trầu, chậm rãi kể về những năm tháng khốn khó.",
+  "Ghi chú: (1) nộp bài trước 23:59; (2) đặt tên file theo mẫu Ho_Ten_Lop.pdf; (3) không nộp muộn.",
+  "Xiêu xiêu vẹo vẹo, mấy túp lều tranh nép mình dưới rặng phi lao.",
+  "Biểu thức (x + 3) * (x - 2) = 0 có hai nghiệm: x = -3 hoặc x = 2.",
+  "Thoang thoảng hương bưởi, man mác gió heo may - thu đã về thật rồi.",
+];
+
+export const EN_HARD = [
+  "Order #A-2047 ($1,250.00) must ship before 5:30 p.m. on Friday; if delayed, call +1 (555) 013-2468.",
+  "The quixotic scheme, though ingenious, proved utterly impractical within the 6-month budget.",
+  "Win rate rose from 42.5% to 67.8% in just 3 months (about 90 days) of daily drills.",
+  "A strong password mixes cases, digits, and symbols, e.g. Tr0ub4dor&3 or C@ts_R_#1!",
+  "Formula: area = length * width; with length = 12 m and width = 7.5 m, the area is 90 m2.",
+  "\"Isn't it a bit late?\" she whispered - half annoyed, half amused - and closed the door.",
+  "Schedule: Math (08:00), Literature (10:15), English (14:00) - bring your ID card [required].",
+  "Contact: Jane Q. Doe, born 11/05/1998, phone 555-0147, email: jane.doe@example.com.",
+  "The obsequious clerk's sycophantic remarks irked the phlegmatic, laconic inspector.",
+  "Gold today: buy at $1,942.30/oz, sell at $1,951.80/oz (up 1.2% since Monday).",
+  "Chapter 3, section 2.4: {Rule} - every variable must be declared before use; no exceptions!",
+  "From 01/01 to 12/31, the company sold 12,480 units, beating its target by 8.3%.",
+  "Path: C:/Users/student/Documents/homework_01.docx (please don't delete it).",
+  "Lookup table: A1 = 3, B2 = 7, C3 = A1 + B2 * 2 = 17; could you double-check?",
+  "Flight UA-219 departs at 6:45 a.m. from gate 12; the baggage limit is 23 kg per person.",
+  "He stared, dumbfounded, then muttered: \"How on earth did that happen?!\"",
+  "Coupon SAVE50 takes 50% off (max $100) on orders of $299 or more; expires 10/31.",
+  "Result: 3 wins, 2 draws, 1 loss => 11 points, ranked 2/8 (behind team #5).",
+  "Note: use the mm/dd/yyyy format, e.g. 10/29/2026; anything else will be rejected!",
+  "Total cost = 4 x $12.50 + 3 x $8.90 = $76.70 (before the 10% sales tax).",
+  "Q3 report: revenue ~$2.4M, profit ~$310K; see Appendix B for the full breakdown.",
+  "The equation (x + 3) * (x - 2) = 0 has two roots: x = -3 or x = 2.",
+  "Rules: (1) submit by 11:59 p.m.; (2) name the file Last_First_Class.pdf; (3) no late work.",
+  "Its idiosyncratic, labyrinthine syntax baffled even the most perspicacious reviewers.",
+  "Use git commit -m \"fix: handle #42\" && git push origin main; then open a PR.",
+  "The ephemeral euphoria evaporated; only a vague, wistful melancholy lingered.",
+  "Set the timer to 00:25:00, take a 5-min break, repeat 4x, then rest 15-30 min.",
+  "Our API returns {\"status\": 200, \"items\": [3, 7, 11]} when the query succeeds.",
+  "A capricious zephyr ruffled the gossamer curtains of the dilapidated gazebo.",
+  "Ratio check: 3/4 = 0.75, 5/8 = 0.625, and 7/16 = 0.4375 - all less than 1.",
+  "The surreptitious rendezvous at 11:15 p.m. was anything but inconspicuous.",
+  "Price list: tea $2.50, coffee $3.75, cake $4.20; 10% off for groups of 5+.",
+  "Brrr! At -12 degrees, even the hardiest mountaineers wore 3 layers & thick gloves.",
+  "Measure twice, cut once; if it's still wrong, blame the ruler (not yourself).",
+  "Version 2.14.3 fixes 27 bugs, adds 5 features, and drops support for v1.x.",
+];

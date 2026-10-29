@@ -10,6 +10,7 @@ import type { MsRound } from "../games/minesweeper";
 import type { SudokuRound } from "../games/sudoku";
 import type { Problem as SxProblem, SxRound } from "../games/system-design";
 import type { CtRound } from "../games/citta-challenge";
+import type { TrRound } from "../games/typing-race";
 import type { TxRound } from "../games/truc-xanh";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
@@ -78,6 +79,9 @@ export type Meta = {
   ct?: CtRound;
   // Mã các đề Tâm Đấu phòng đã chơi, để ván sau ưu tiên đề mới.
   ctUsed?: string[];
+  tr?: TrRound;
+  // Văn bản chủ phòng tự nhập cho ván tới — không để trong opts vì opts được quảng bá ra sảnh.
+  trText?: string;
   ack: Record<string, number>;
   kicked: string[];
   cheats?: string[];
@@ -100,6 +104,8 @@ export type Member = Profile & {
   pick?: number[];
   ready?: boolean;
   key?: string;
+  // Xe đã chọn ở Anh Hùng Bàn Phím.
+  car?: number;
   seq: number;
   left?: boolean;
 };

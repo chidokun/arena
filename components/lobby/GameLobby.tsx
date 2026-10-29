@@ -125,6 +125,23 @@ import {
   type Mode as CtMode,
 } from "@/lib/games/citta-challenge";
 import {
+  DEFAULT_OPTIONS as TR_DEFAULTS,
+  goalLabel as trGoal,
+  LANG_KEYS as TR_LANG_KEYS,
+  LANGS as TR_LANGS,
+  LENGTHS as TR_LENGTHS,
+  LEVEL_KEYS as TR_LEVEL_KEYS,
+  LEVELS as TR_LEVELS,
+  MAX_PLAYERS as TR_MAX,
+  MINUTES as TR_MINUTES,
+  MODE_KEYS as TR_MODE_KEYS,
+  MODES as TR_MODES,
+  normOptions as trOptions,
+  type Lang as TrLang,
+  type Level as TrLevel,
+  type Mode as TrMode,
+} from "@/lib/games/typing-race";
+import {
   DEFAULT_OPTIONS as UC_DEFAULTS,
   MAX_PLAYERS as UC_MAX,
   MIN_PLAYERS as UC_MIN,
@@ -277,6 +294,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const cd = room.game === "co-cho";
   const sx = room.game === "system-design";
   const ct = room.game === "citta-challenge";
+  const tr = room.game === "typing-race";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
@@ -322,7 +340,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                                 ? "Đang thiết kế"
                                                 : ct
                                                   ? "Đang tĩnh tâm"
-                                                  : "Đang đấu",
+                                                  : tr
+                                                    ? "Đang đua"
+                                                    : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -383,6 +403,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <SystemDesignChips room={room} />
         ) : ct ? (
           <CittaChallengeChips room={room} />
+        ) : tr ? (
+          <TypingRaceChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -734,6 +756,28 @@ function SystemDesignChips({ room }: { room: RoomAd }) {
   );
 }
 
+function TypingRaceChips({ room }: { room: RoomAd }) {
+  const opts = trOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🏎️ {room.players}/{room.seats} tay đua
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-coral-soft px-2.5 py-1">
+        {TR_MODES[opts.mode].emoji} {trGoal(opts)}
+      </span>
+      {opts.source === "custom" ? (
+        <span className="rounded-lg bg-sunken px-2.5 py-1">✍️ Văn bản tự nhập</span>
+      ) : (
+        <span className="rounded-lg bg-sunken px-2.5 py-1">
+          {TR_LANGS[opts.lang].emoji} {TR_LEVELS[opts.level].emoji} {TR_LEVELS[opts.level].name}
+        </span>
+      )}
+    </>
+  );
+}
+
 function CittaChallengeChips({ room }: { room: RoomAd }) {
   const { mode, topics, timer } = ctOptions(room.opts);
   return (
@@ -825,6 +869,11 @@ function CreateForm({ slug }: { slug: string }) {
   const [sxMode, setSxMode] = useState<SxMode>("basic");
   const [ctMode, setCtMode] = useState<CtMode>(CT_DEFAULTS.mode);
   const [ctTimer, setCtTimer] = useState(CT_DEFAULTS.timer);
+  const [trMode, setTrMode] = useState<TrMode>(TR_DEFAULTS.mode);
+  const [trLength, setTrLength] = useState(TR_DEFAULTS.length);
+  const [trMinutes, setTrMinutes] = useState(TR_DEFAULTS.minutes);
+  const [trLang, setTrLang] = useState<TrLang>(TR_DEFAULTS.lang);
+  const [trLevel, setTrLevel] = useState<TrLevel>(TR_DEFAULTS.level);
   const [sxTimeLimit, setSxTimeLimit] = useState<SxTime>(300);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
@@ -847,6 +896,7 @@ function CreateForm({ slug }: { slug: string }) {
   const cd = slug === "co-cho";
   const sx = slug === "system-design";
   const ct = slug === "citta-challenge";
+  const tr = slug === "typing-race";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -877,6 +927,8 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (ct) {
           stashCreate(id, { name: clean, cap: 0, seats: CT_MAX, opts: ctOptions({ mode: ctMode, timer: ctTimer }) });
+        } else if (tr) {
+          stashCreate(id, { name: clean, cap: 0, seats: TR_MAX, opts: trOptions({ mode: trMode, length: trLength, minutes: trMinutes, lang: trLang, level: trLevel }) });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
         else if (cd) stashCreate(id, { name: clean, cap, seats, opts: { setup: cdSetup } });
         else if (bs) stashCreate(id, { name: clean, cap, seats, opts: { chain, turn: bsTurn, mode: bsMode } });
@@ -1323,6 +1375,59 @@ function CreateForm({ slug }: { slug: string }) {
           <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
             🎋 Không giới hạn người chơi, một mình cũng chơi được. Lần lượt lật hai ô: trùng hình thì lộ một mảng tranh và được lật tiếp. Ai cũng đoán được từ khoá
             bất cứ lúc nào — đúng là thắng, trật thì thôi.
+          </p>
+        </>
+      ) : tr ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Thể thức</legend>
+            <div className="grid gap-2">
+              {TR_MODE_KEYS.map((k) => (
+                <Choice key={k} on={trMode === k} onClick={() => setTrMode(k)} title={`${TR_MODES[k].emoji} ${TR_MODES[k].name}`} text={TR_MODES[k].text} />
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">{trMode === "chars" ? "Độ dài văn bản" : "Thời gian thi đấu"}</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {trMode === "chars"
+                ? TR_LENGTHS.map((n) => (
+                    <button key={n} type="button" onClick={() => setTrLength(n)} aria-pressed={trLength === n} className={`btn !px-2 ${trLength === n ? "btn-sun" : ""}`}>
+                      {n.toLocaleString("vi-VN")}
+                    </button>
+                  ))
+                : TR_MINUTES.map((n) => (
+                    <button key={n} type="button" onClick={() => setTrMinutes(n)} aria-pressed={trMinutes === n} className={`btn !px-2 ${trMinutes === n ? "btn-sun" : ""}`}>
+                      {n} phút
+                    </button>
+                  ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">{trMode === "chars" ? "Đơn vị: ký tự." : ""} Tự chọn số khác, hoặc tự nhập văn bản đua, ngay trong phòng.</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Ngôn ngữ</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {TR_LANG_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setTrLang(k)} aria-pressed={trLang === k} className={`btn !px-2 ${trLang === k ? "btn-sun" : ""}`}>
+                  {TR_LANGS[k].emoji} {TR_LANGS[k].name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Độ khó</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {TR_LEVEL_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setTrLevel(k)} aria-pressed={trLevel === k} className={`btn !px-2 ${trLevel === k ? "btn-sun" : ""}`}>
+                  {TR_LEVELS[k].emoji} {TR_LEVELS[k].name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">{TR_LEVELS[trLevel].text}</p>
+          </fieldset>
+          <p className="rounded-xl bg-coral-soft p-3 text-[13.5px] text-ink-2">
+            🏎️ Từ 1 đến {TR_MAX} tay đua, ai vào cũng xem được. Gõ đúng thì xe tiến, gõ sai phải xoá lỗi rồi gõ lại — dùng được bộ gõ Telex / VNI. Mọi cấu hình đổi
+            được trong phòng trước mỗi ván.
           </p>
         </>
       ) : sudoku ? (
