@@ -7,6 +7,9 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.10.29.1
+- Ra mắt game mới 🏎️ Anh Hùng Bàn Phím — đua xe bằng bàn phím cho hội bạn thân, vừa chơi vừa luyện gõ phím nhanh.
+
 ## 2026.10.27.2
 - Tâm Đấu đã có sticker bay: thả tim, ném gạch cho bạn cùng bàn ngay khi đang đọc đề.
 - Cờ Caro: dễ dàng phóng to / thu nhỏ bàn chơi - máy tính thì lăn chuột trên bàn, kéo chuột để dời bàn; điện thoại thì chụm hai ngón, kéo hai ngón để dời bàn. Kéo, phóng giờ mượt hơn hẳn.
