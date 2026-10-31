@@ -303,7 +303,7 @@ export const RULES: Record<string, GameRules> = {
         items: [
           "Ai trong đội hình cũng được đoán từ khoá bất cứ lúc nào, không cần tới lượt — gõ vào ô đoán dưới tranh.",
           "Không cần dấu, không phân biệt hoa thường (“thap eiffel” ≡ “Tháp Eiffel”); vài tranh có nhiều cách gọi, gọi cách nào cũng được.",
-          "Đoán đúng là thắng ngay. Đoán trật thì thôi, không bị phạt — chỉ hiện cho cả phòng thấy; gần đúng thì chỉ riêng bạn được báo. Mỗi ván đoán tối đa 20 lần.",
+          "Đoán đúng là thắng ngay. Đoán trật thì thôi, không bị phạt — chỉ hiện cho cả phòng thấy; gần đúng thì chỉ riêng bạn được báo. Mỗi ván đoán tối đa 10 lần.",
           "Lật hết bàn mà chưa ai đoán ra thì cả phòng còn 30 giây để đoán, hết giờ thì ván kết thúc không ai thắng.",
         ],
       },

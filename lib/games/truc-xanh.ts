@@ -25,7 +25,7 @@ export const TURN_MS = 20000;
 // Hai ô lật trật còn ngửa một lúc cho cả phòng nhớ rồi mới úp lại.
 export const PEEK_MS = 1600;
 export const FINAL_MS = 30000;
-export const GUESS_MAX = 20;
+export const GUESS_MAX = 10;
 export const GUESS_LEN = 40;
 
 export const LEVELS = {
