@@ -9,12 +9,14 @@ import {
   GUESS_MAX,
   guessesIn,
   hintShown,
+  imageOf,
   isAnswer,
   judge,
   MIN_PLAYERS,
   normOptions,
   optimistic,
   LEVELS,
+  pickImage,
   pickPicture,
   pictureOf,
   replay,
@@ -31,6 +33,31 @@ import {
 import { RoomSession, type Member, type Meta, type Result, type SeatView, type StickerId } from "./room";
 
 const ABANDON_MS = 60000;
+// Ảnh tải lâu quá chừng này thì coi như hỏng, bốc ảnh khác.
+const PROBE_MS = 8000;
+// Thử chừng này ảnh vẫn hỏng hết thì thôi — thường là mạng của chủ phòng có vấn đề.
+const PROBE_MAX = 12;
+
+// Ảnh không tải được trên máy mình (cả phiên) — chủ phòng bốc tranh tránh ra.
+const broken = new Set<string>();
+const isBroken = (url: string) => broken.has(url);
+
+function probe(url: string): Promise<boolean> {
+  if (typeof Image === "undefined") return Promise.resolve(true);
+  return new Promise((done) => {
+    const img = new Image();
+    const end = (ok: boolean) => {
+      clearTimeout(timer);
+      if (!ok) broken.add(url);
+      done(ok);
+    };
+    const timer = setTimeout(() => end(false), PROBE_MS);
+    img.referrerPolicy = "no-referrer";
+    img.onload = () => end(true);
+    img.onerror = () => end(false);
+    img.src = url;
+  });
+}
 
 export type GuessState = "wait" | "wrong" | "near" | "right";
 
@@ -57,7 +84,11 @@ export type TxView = {
   opts: TxOptions;
   match?: TxMatch;
   pics: { used: number; total: number };
+  // Chủ phòng đang thử tải ảnh để chốt tranh cho ván mới.
+  picking: boolean;
 };
+
+type Pick = { level: Level; pic: number; img: number };
 
 export class TrucXanhRoom extends RoomSession<TxView> {
   readonly game = "truc-xanh";
@@ -66,6 +97,8 @@ export class TrucXanhRoom extends RoomSession<TxView> {
   private opened = { round: -1, at: 0 };
   private stageSeen = { key: "", at: 0 };
   private told = { round: -1, log: 0, guesses: 0 };
+  private picking = false;
+  private picked: Pick | null = null;
 
   private board(m: Meta): Board {
     const b = this.gossip.get<Board>(`g:${m.round}`);
@@ -113,12 +146,52 @@ export class TrucXanhRoom extends RoomSession<TxView> {
     }
     const opts = normOptions(m.opts);
     const used = m.txUsed ?? [];
-    const pic = pickPicture(used, opts.level, Math.random);
+    // Tranh đã chốt trước ở `start()`; mức khó vừa đổi thì bốc lại (không thử tải được nữa).
+    const chosen = this.picked?.level === opts.level ? this.picked : null;
+    const pic = chosen?.pic ?? pickPicture(used, opts.level, Math.random, isBroken);
+    const img = chosen?.img ?? pickImage(LEVELS[opts.level].pictures[pic], Math.random, isBroken);
     m.lineup = players;
-    m.tx = { ...opts, seed: crypto.getRandomValues(new Uint32Array(1))[0], pic, t0: Date.now() + COUNTDOWN_MS };
+    m.tx = { ...opts, seed: crypto.getRandomValues(new Uint32Array(1))[0], pic, img, t0: Date.now() + COUNTDOWN_MS };
     const full = usedOf(used, opts.level).length >= LEVELS[opts.level].pictures.length;
     m.txUsed = [...(full ? this.otherLevels(used, opts.level) : used), usedId(opts.level, pic)];
     return true;
+  }
+
+  /** Chủ phòng thử tải ảnh trên máy mình rồi mới mở ván, nên ảnh đã chốt thì cả phòng chỉ việc tải về. */
+  start() {
+    const m = this.meta();
+    if (this.picking || !m || m.host !== this.me || m.status === "playing") return;
+    this.picking = true;
+    this.gameStore.invalidate();
+    void this.choose(normOptions(m.opts).level, m.txUsed ?? [])
+      .then((pick) => {
+        if (!pick) return this.system("⚠️ Không tải được tranh nào — kiểm tra mạng rồi bấm bắt đầu lại nhé.");
+        this.picked = pick;
+        super.start();
+      })
+      .finally(() => {
+        this.picked = null;
+        this.picking = false;
+        this.gameStore.invalidate();
+      });
+  }
+
+  /** Bốc từ khoá và ảnh; ảnh hỏng thì bốc ảnh khác của từ khoá đó, hết ảnh thì bốc từ khoá khác — tới khi tải được. */
+  private async choose(level: Level, used: readonly number[]): Promise<Pick | null> {
+    const set = LEVELS[level].pictures;
+    let tries = 0;
+    while (tries < PROBE_MAX) {
+      const pic = pickPicture(used, level, Math.random, isBroken);
+      const p = set[pic];
+      // Cả bộ không còn ảnh nào dùng được.
+      if (p.imgs.every(isBroken)) return null;
+      while (tries < PROBE_MAX && !p.imgs.every(isBroken)) {
+        const img = pickImage(p, Math.random, isBroken);
+        tries++;
+        if (await probe(p.imgs[img])) return { level, pic, img };
+      }
+    }
+    return null;
   }
 
   protected outcome(m: Meta): Result | undefined {
@@ -208,7 +281,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
 
   protected gameView(m: Meta, seatOf: (uid: string) => SeatView): TxView {
     const opts = normOptions(m.opts);
-    const base: TxView = { opts, pics: { used: usedOf(m.txUsed ?? [], opts.level).length, total: LEVELS[opts.level].pictures.length } };
+    const base: TxView = { opts, picking: this.picking, pics: { used: usedOf(m.txUsed ?? [], opts.level).length, total: LEVELS[opts.level].pictures.length } };
     const tx = m.tx;
     const pic = tx && pictureOf(tx);
     if (!tx || !pic || !m.round || !m.lineup.length) return base;
@@ -235,7 +308,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
         me,
         cheats: m.lineup.map((u) => this.cheated(m, u)),
         state,
-        img: pic.img,
+        img: imageOf(tx),
         hint: hintOpen ? pic.hint : undefined,
         hintLocked: !!pic.hint && !hintOpen,
         answer: m.status === "ended" || state.over ? pic.w : undefined,
@@ -306,6 +379,7 @@ export class TrucXanhRoom extends RoomSession<TxView> {
   }
 
   setOptions(next: Partial<TxOptions>) {
+    if (this.picking) return;
     this.hostEdit((m) => {
       if (m.status === "playing") return false;
       const opts = normOptions({ ...normOptions(m.opts), ...next });

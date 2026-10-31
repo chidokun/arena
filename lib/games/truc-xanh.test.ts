@@ -9,6 +9,7 @@ import {
   guessesIn,
   hintNeed,
   hintShown,
+  imageOf,
   isAnswer,
   isClose,
   judge,
@@ -19,6 +20,7 @@ import {
   optimistic,
   pairsOf,
   PEEK_MS,
+  pickImage,
   pickPicture,
   pictureOf,
   PICTURES,
@@ -87,16 +89,21 @@ test("chia bàn: mỗi hình đúng hai ô, đủ số cặp, tất định theo
   assert.equal(normOptions({ level: "x" }).level, "easy");
 });
 
-test("bộ tranh: mỗi mức ít nhất 100 tranh, mỗi tranh có từ khoá và ảnh https", () => {
+test("bộ tranh: mỗi mức ít nhất 100 tranh, mỗi tranh có từ khoá và ít nhất một ảnh https", () => {
   for (const level of LEVEL_KEYS) {
     const set = LEVELS[level].pictures;
     assert.ok(set.length >= 100, level);
     assert.equal(new Set(set.map((p) => p.w)).size, set.length);
     for (const p of set) {
       assert.ok(p.w.trim());
-      assert.match(p.img, /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^?]+$/);
+      assert.ok(p.imgs.length >= 1, p.w);
+      assert.equal(new Set(p.imgs).size, p.imgs.length, p.w);
+      for (const url of p.imgs) assert.match(url, /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^?]+$/);
     }
   }
+  // Một ảnh chỉ thuộc một từ khoá, kể cả khác bộ.
+  const all = LEVEL_KEYS.flatMap((level) => LEVELS[level].pictures.flatMap((p) => p.imgs));
+  assert.equal(new Set(all).size, all.length);
   assert.equal(LEVELS.easy.pictures, PICTURES);
   assert.equal(LEVELS.hard.pictures, ABSTRACT);
   assert.ok(PICTURES.length >= 300);
@@ -131,6 +138,30 @@ test("bốc tranh theo mức, tránh tranh đã chơi của mức đó, hết th
   assert.equal(pickPicture([...hardUsed, 7], "hard", Math.random), 7);
   assert.deepEqual(usedOf([3, usedId("hard", 3), 9], "easy"), [3, 9]);
   assert.deepEqual(usedOf([3, usedId("hard", 3), 9], "hard"), [3]);
+});
+
+test("bốc tranh tránh từ khoá đã hết ảnh dùng được, trừ khi cả bộ đều hỏng", () => {
+  const dead = new Set(PICTURES.filter((_, i) => i !== 9).flatMap((p) => p.imgs));
+  assert.equal(pickPicture([], "easy", Math.random, (u) => dead.has(u)), 9);
+  // Đã chơi rồi vẫn hơn từ khoá hỏng ảnh.
+  assert.equal(pickPicture([9], "easy", Math.random, (u) => dead.has(u)), 9);
+  const any = pickPicture([], "easy", () => 0.5, () => true);
+  assert.ok(any >= 0 && any < PICTURES.length);
+});
+
+test("bốc ảnh ngẫu nhiên trong từ khoá, tránh ảnh hỏng; ván dùng đúng ảnh đã chốt", () => {
+  const p = { w: "X", imgs: ["a", "b", "c"] };
+  assert.equal(pickImage(p, () => 0), 0);
+  assert.equal(pickImage(p, () => 0.99), 2);
+  assert.equal(pickImage(p, () => 0, (u) => u !== "b"), 1);
+  assert.equal(pickImage(p, () => 0, () => true), 0);
+  assert.equal(pickImage({ w: "Y", imgs: [] }, Math.random), 0);
+  const imgs = PICTURES[pic].imgs;
+  assert.equal(imageOf({ pic, img: imgs.length - 1 }), imgs[imgs.length - 1]);
+  // Ván cũ chưa có `img`, hoặc vị trí lạ, thì dùng ảnh đầu.
+  assert.equal(imageOf({ pic }), imgs[0]);
+  assert.equal(imageOf({ pic, img: 99 }), imgs[0]);
+  assert.equal(imageOf({ pic: 99999 }), "");
 });
 
 test("tranh của ván theo mức; ván cũ chưa có mức là bộ Dễ", () => {

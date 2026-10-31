@@ -47,12 +47,20 @@ export function normOptions(o: unknown): TxOptions {
 export type TxRound = TxOptions & {
   seed: number;
   pic: number;
+  // Vị trí ảnh trong `Picture.imgs`; ván chốt trước khi có nhiều ảnh thì là ảnh đầu.
+  img?: number;
   t0: number;
 };
 
 export const pairsOf = (size: SizeKey) => (SIZES[size].w * SIZES[size].h) / 2;
 // Ván chốt trước khi có mức khó thì là bộ Dễ.
 export const pictureOf = (r: { pic: number; level?: unknown }): Picture | undefined => LEVELS[normLevel(r.level)].pictures[r.pic];
+
+/** Ảnh chủ phòng đã chốt cho ván. */
+export function imageOf(r: { pic: number; level?: unknown; img?: number }): string {
+  const imgs = pictureOf(r)?.imgs ?? [];
+  return imgs[isInt(r.img) && r.img >= 0 && r.img < imgs.length ? r.img : 0] ?? "";
+}
 
 // Bộ Khó cộng thêm chừng này vào mã để chung một danh sách "đã chơi" với bộ Dễ (`meta.txUsed`).
 const HARD_BASE = 1000;
@@ -95,12 +103,21 @@ export function deal(seed: number, size: SizeKey): number[] {
   return shuffle([...kinds, ...kinds], rand);
 }
 
-export function pickPicture(used: readonly number[], level: Level, rand: () => number): number {
-  const all = LEVELS[level].pictures.map((_, i) => i);
+// `broken`: ảnh đã biết là không tải được — tránh từ khoá hết ảnh dùng được, trừ khi cả bộ đều vậy.
+export function pickPicture(used: readonly number[], level: Level, rand: () => number, broken: (url: string) => boolean = () => false): number {
+  const set = LEVELS[level].pictures;
+  const all = set.map((_, i) => i);
   const seen = new Set(usedOf(used, level));
-  const fresh = all.filter((i) => !seen.has(i));
-  const pool = fresh.length ? fresh : all;
+  const alive = (i: number) => set[i].imgs.some((u) => !broken(u));
+  const pool = [all.filter((i) => !seen.has(i) && alive(i)), all.filter(alive), all].find((p) => p.length)!;
   return pool[Math.floor(rand() * pool.length)];
+}
+
+export function pickImage(p: Picture, rand: () => number, broken: (url: string) => boolean = () => false): number {
+  const all = p.imgs.map((_, i) => i);
+  const ok = all.filter((i) => !broken(p.imgs[i]));
+  const pool = ok.length ? ok : all;
+  return pool[Math.floor(rand() * pool.length)] ?? 0;
 }
 
 export type PassWhy = 0 | 1 | 2;
@@ -239,7 +256,7 @@ const clone = (s: TxState): TxState => ({
 
 export function replay(r: Pick<TxRound, "seed" | "size" | "t0" | "pic" | "level">, players: number, log: readonly unknown[], from?: TxState): TxState {
   const s = from && from.count <= log.length && from.pairs.length === players ? clone(from) : newGame(r, players);
-  const pic = pictureOf(r) ?? { w: "", img: "" };
+  const pic = pictureOf(r) ?? { w: "", imgs: [] };
   for (; s.count < log.length; s.count++) apply(s, pic, log[s.count]);
   return s;
 }
@@ -256,7 +273,7 @@ export function judge(r: Pick<TxRound, "seed" | "size" | "t0" | "pic" | "level">
   const { now } = ctx;
   if (now < r.t0) return null;
   const players = moves.length;
-  const pic = pictureOf(r) ?? { w: "", img: "" };
+  const pic = pictureOf(r) ?? { w: "", imgs: [] };
   const s = state && state.count === prev.log.length ? clone(state) : replay(r, players, prev.log);
   const log = prev.log.slice();
   const seen = Array.from({ length: players }, (_, k) => prev.seen[k] ?? 0);

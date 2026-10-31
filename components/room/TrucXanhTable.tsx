@@ -199,14 +199,28 @@ function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
       </StatusBar>
     );
   }
-  const blocked = !m.players.length ? "Cần ít nhất một người vào ghế" : !view.seats.some((s) => s.online) ? "Người chơi đang mất kết nối" : "";
+  const picking = view.game!.picking;
+  const blocked = picking
+    ? "Đang bốc tranh…"
+    : !m.players.length
+      ? "Cần ít nhất một người vào ghế"
+      : !view.seats.some((s) => s.online)
+        ? "Người chơi đang mất kết nối"
+        : "";
   return (
     <StatusBar
-      message={seatMessage(view, {
-        enough: m.players.length > 0,
-        startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng — chơi một mình cũng được.",
-        join: "Bấm “Vào chơi” để cùng lật ô đoán tranh — không giới hạn người chơi.",
-      })}
+      tone={picking ? TONE.hot : undefined}
+      message={
+        picking ? (
+          <>🎲 Đang bốc tranh — thử tải ảnh trước khi mở ván…</>
+        ) : (
+          seatMessage(view, {
+            enough: m.players.length > 0,
+            startHint: "Bấm “Bắt đầu” khi mọi người sẵn sàng — chơi một mình cũng được.",
+            join: "Bấm “Vào chơi” để cùng lật ô đoán tranh — không giới hạn người chơi.",
+          })
+        )
+      }
     >
       <SeatButtons view={view} session={session} blocked={blocked} />
     </StatusBar>
