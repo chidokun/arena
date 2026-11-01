@@ -4321,6 +4321,11 @@
     border-color: var(--lime);
     background: var(--lime-soft);
   }
+  /* Trình chiếu: tranh lấp ô giữa (bề ngang do `--stage-center` quyết định), không giữ giới hạn 760px. */
+  .stage .tx-board,
+  .stage .tx-timer {
+    max-width: none;
+  }
 
   .ww-stage {
     position: relative;

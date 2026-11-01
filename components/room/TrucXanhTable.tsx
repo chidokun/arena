@@ -10,6 +10,7 @@ import { CountdownCine, Crowd, Party, useCountdown, useEndScene, WinCine } from 
 import { PeoplePanel } from "./People";
 import { ResultCard as Result, StoppedCard } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
+import { StageArea, useStaged } from "./stage";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
@@ -57,6 +58,11 @@ function nameIn(view: View, uid: string) {
 
 const turnOf = (g: TxMatch) => (g.state.cleared || g.state.over ? -1 : g.state.current);
 
+// Thanh thời gian (8px) và khoảng cách tới bàn (12px): lúc trình chiếu bàn 4:3 rộng tối đa sao cho cả khối vừa chiều cao.
+const TIMER_H = 20;
+const STAGE_FIT = "w-[min(100cqw,var(--stage-center))]";
+const STAGE_CENTER = `(100cqh - ${TIMER_H}px) * 4 / 3`;
+
 const banned = (g: TxMatch) => g.me >= 0 && !!g.cheats[g.me];
 
 const canGuess = (view: View, g: TxMatch, opened: boolean) => isLive(view) && g.me >= 0 && !banned(g) && !g.state.over && opened;
@@ -91,6 +97,9 @@ const TrucXanhBody = memo(function TrucXanhBody({ session }: { session: TrucXanh
   const end = useEndScene(g?.result?.reason === "guess" && g.result.winner ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
   const size = live && g ? g.size : opts.size;
   const level = LEVELS[live && g ? g.level : opts.level];
+  // Lúc trình chiếu tranh lấp ô giữa; thứ tự lượt sang một bên, trạng thái / gợi ý / ô đoán sang bên kia (màn hình dọc:
+  // trên / dưới).
+  const staged = useStaged();
 
   return (
     <>
@@ -108,11 +117,31 @@ const TrucXanhBody = memo(function TrucXanhBody({ session }: { session: TrucXanh
       {!live && <Rules view={view} session={session} />}
       {g?.result && <ResultCard view={view} match={g} />}
 
-      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        {g ? <Play key={g.round} view={view} session={session} match={g} /> : <EmptyBoard view={view} />}
-        {g && <Scoreboard view={view} match={g} />}
-        <Flyers flyers={flyers} />
-      </div>
+      <StageArea
+        className="mt-4"
+        fit={STAGE_FIT}
+        center={STAGE_CENTER}
+        flanks={
+          g
+            ? [
+                <div key="a" className="sd-flank">
+                  <Scoreboard view={view} match={g} />
+                </div>,
+                <div key="b" className="sd-flank">
+                  <ActionBar view={view} session={session} bare />
+                  <PlayNotes key={g.round} view={view} session={session} match={g} />
+                </div>,
+              ]
+            : undefined
+        }
+        tools={<Buttons view={view} session={session} />}
+      >
+        <div ref={areaRef} className={staged ? "relative" : "relative grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]"}>
+          {g ? <Play key={g.round} view={view} session={session} match={g} staged={staged} /> : <EmptyBoard view={view} />}
+          {g && !staged && <Scoreboard view={view} match={g} />}
+          <Flyers flyers={flyers} />
+        </div>
+      </StageArea>
 
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
       {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
@@ -151,7 +180,8 @@ function WinScene({ view, match: g, onClose }: { view: View; match: TxMatch; onC
   );
 }
 
-function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
+// `bare`: bản ở mạn bên lúc trình chiếu — nút đã nằm trên thanh công cụ trình chiếu.
+function ActionBar({ view, session, bare }: { view: View; session: TrucXanhRoom; bare?: boolean }) {
   const m = view.meta!;
   const g = view.game!.match;
   const live = isLive(view);
@@ -195,18 +225,11 @@ function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
     }
     return (
       <StatusBar tone={tone} message={message}>
-        {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+        {!bare && <Buttons view={view} session={session} />}
       </StatusBar>
     );
   }
   const picking = view.game!.picking;
-  const blocked = picking
-    ? "Đang bốc tranh…"
-    : !m.players.length
-      ? "Cần ít nhất một người vào ghế"
-      : !view.seats.some((s) => s.online)
-        ? "Người chơi đang mất kết nối"
-        : "";
   return (
     <StatusBar
       tone={picking ? TONE.hot : undefined}
@@ -222,9 +245,24 @@ function ActionBar({ view, session }: { view: View; session: TrucXanhRoom }) {
         )
       }
     >
-      <SeatButtons view={view} session={session} blocked={blocked} />
+      {!bare && <Buttons view={view} session={session} />}
     </StatusBar>
   );
+}
+
+// Dùng chung cho thanh trạng thái và thanh công cụ lúc trình chiếu.
+function Buttons({ view, session }: { view: View; session: TrucXanhRoom }) {
+  const m = view.meta!;
+  if (isLive(view)) return view.isHost ? <StopButton onConfirm={() => session.stop()} /> : null;
+  const picking = view.game!.picking;
+  const blocked = picking
+    ? "Đang bốc tranh…"
+    : !m.players.length
+      ? "Cần ít nhất một người vào ghế"
+      : !view.seats.some((s) => s.online)
+        ? "Người chơi đang mất kết nối"
+        : "";
+  return <SeatButtons view={view} session={session} blocked={blocked} />;
 }
 
 function Rules({ view, session }: { view: View; session: TrucXanhRoom }) {
@@ -330,7 +368,7 @@ function TurnTimer({ deadline, total, color }: { deadline?: number; total: numbe
   );
 }
 
-function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; match: TxMatch }) {
+function Play({ view, session, match: g, staged }: { view: View; session: TrucXanhRoom; match: TxMatch; staged: boolean }) {
   const live = isLive(view);
   const s = g.state;
   // Bàn chỉ cần biết đã mở chưa — vẽ lại một lần lúc mở bàn; thanh thời gian chạy riêng trong <TurnTimer>.
@@ -350,16 +388,7 @@ function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; 
       {live && !done && (
         <TurnTimer deadline={counting ? undefined : g.deadline} total={total} color={s.cleared ? "var(--coral)" : turn === g.me ? "var(--lime)" : "var(--pen)"} />
       )}
-      {g.hint && !counting && (
-        <p key="hint" className="tx-hint is-open" role="note">
-          💡 Gợi ý: {g.hint}
-        </p>
-      )}
-      {g.hintLocked && !counting && (
-        <p key="locked" className="tx-hint is-locked" role="note">
-          🔒 Câu gợi ý mở khi lật được nửa bàn — đã lật {openedOf(s)}/{hintNeed(s)} ô
-        </p>
-      )}
+      {!staged && <Hint match={g} counting={counting} />}
       <div className="tx-board" style={{ "--cols": w } as React.CSSProperties}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="tx-pic" src={g.img} alt={done && g.answer ? `Tranh: ${g.answer}` : ""} draggable={false} referrerPolicy="no-referrer" onLoad={() => setPic("ok")} onError={() => setPic("err")} />
@@ -392,6 +421,36 @@ function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; 
         {pic === "err" && (s.left < pairsOf(g.size) || done) && <p className="tx-answer is-err">⚠️ Không tải được tranh</p>}
         {counting && <div className="sd-hush" aria-hidden="true" />}
       </div>
+      {!staged && <PlayFoot view={view} session={session} match={g} opened={opened} />}
+    </div>
+  );
+}
+
+function Hint({ match: g, counting }: { match: TxMatch; counting: boolean }) {
+  if (counting) return null;
+  if (g.hint)
+    return (
+      <p key="hint" className="tx-hint is-open" role="note">
+        💡 Gợi ý: {g.hint}
+      </p>
+    );
+  if (g.hintLocked)
+    return (
+      <p key="locked" className="tx-hint is-locked" role="note">
+        🔒 Câu gợi ý mở khi lật được nửa bàn — đã lật {openedOf(g.state)}/{hintNeed(g.state)} ô
+      </p>
+    );
+  return null;
+}
+
+// Số cặp còn úp, lượt của ai, ô đoán: lúc thường nằm dưới tranh, lúc trình chiếu sang mạn bên.
+function PlayFoot({ view, session, match: g, opened }: { view: View; session: TrucXanhRoom; match: TxMatch; opened: boolean }) {
+  const s = g.state;
+  const live = isLive(view);
+  const done = !live || s.over;
+  const turn = turnOf(g);
+  return (
+    <>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px] font-semibold text-ink-3">
         <span>
           Còn {s.left}/{pairsOf(g.size)} cặp úp
@@ -404,7 +463,18 @@ function Play({ view, session, match: g }: { view: View; session: TrucXanhRoom; 
           🚫 Bạn bị xử thua vì gian lận — ô đoán đã khoá.
         </p>
       )}
-    </div>
+    </>
+  );
+}
+
+// Bản ở mạn bên lúc trình chiếu.
+function PlayNotes({ view, session, match: g }: { view: View; session: TrucXanhRoom; match: TxMatch }) {
+  const opened = useReached(g.opensAt);
+  return (
+    <>
+      <Hint match={g} counting={isLive(view) && !opened} />
+      <PlayFoot view={view} session={session} match={g} opened={opened} />
+    </>
   );
 }
 

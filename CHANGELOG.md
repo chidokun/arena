@@ -7,6 +7,10 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.11.01.3
+- Trúc Xanh giờ đã có mode 📺 Trình chiếu: tranh phóng to giữa màn hình, thứ tự lượt và ô đoán hai bên — hợp để chiếu lên TV chơi cùng cả nhóm.
+- Bộ ảnh Trúc Xanh giờ đã được cải thiện nhiều hơn.
+
 ## 2026.10.31.1
 - Trúc Xanh: mỗi ván giờ chỉ được đoán tối đa 10 lần (trước là 20) — cân nhắc kỹ trước khi đoán nhé.
 
