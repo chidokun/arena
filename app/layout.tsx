@@ -110,6 +110,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               Nền tảng mini game P2P miễn phí dành cho hội bạn thân. Những ván đấu đối kháng nho nhỏ để cả nhóm thêm gần nhau, thêm nhiều
               chuyện để cười.
             </p>
+            <nav aria-label="Liên kết cuối trang" className="flex gap-4">
+              <Link href="/pricing/" className="font-semibold text-ink-2 no-underline hover:text-ink">
+                Bảng giá
+              </Link>
+              <Link href="/terms/" className="font-semibold text-ink-2 no-underline hover:text-ink">
+                Chính sách dịch vụ
+              </Link>
+            </nav>
           </div>
         </footer>
       </body>
