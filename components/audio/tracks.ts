@@ -98,3 +98,65 @@ export const ZEN: Track = {
     }
   },
 };
+
+// Nhạc hải chiến: Rê thứ, bass móc liên tục và trống trận giữ nhịp căng; tiếng sonar dội xa và kèn hiệu vang lên định kỳ.
+const NAVY_CHORDS = [
+  { pad: [50, 53, 57, 62], bass: 38 },
+  { pad: [46, 53, 58, 62], bass: 34 },
+  { pad: [48, 53, 57, 60], bass: 41 },
+  { pad: [48, 52, 55, 60], bass: 36 },
+];
+const NAVY_CALLS = [
+  [62, 65, 69, 67],
+  [69, 67, 65, 62],
+];
+const CALL_STEPS = [0, 3, 6, 12];
+
+function horn(b: Bus, dest: AudioNode, midi: number, t: number, dur: number, gain: number) {
+  tone(b, dest, { freq: hz(midi), t, dur, gain, type: "sawtooth", attack: 0.04, lp: 1500, send: 0.45 });
+  tone(b, dest, { freq: hz(midi), t, dur, gain: gain * 1.4, type: "triangle", attack: 0.03, send: 0.45 });
+}
+
+export const NAVY: Track = {
+  bpm: 96,
+  stepsPerBeat: 4,
+  swing: 0,
+  loop: 128,
+  level: 0.45,
+  lowpass: 4200,
+  play({ b, dest, step, t, rand: r }) {
+    const len = stepOf(NAVY);
+    const s = step % 16;
+    const bar = Math.floor(step / 16);
+    const chord = NAVY_CHORDS[bar % NAVY_CHORDS.length];
+    if (s === 0) {
+      for (const n of chord.pad)
+        for (const detune of [-8, 8]) tone(b, dest, { freq: hz(n), t, dur: len * 16 + 0.4, gain: 0.014, type: "triangle", attack: 0.4, detune, lp: 1200, send: 0.4 });
+    }
+    if (s % 2 === 0) {
+      const n = chord.bass + (s === 6 || s === 14 ? 12 : 0);
+      tone(b, dest, { freq: hz(n), t, dur: len * 1.6, gain: 0.07, type: "sawtooth", attack: 0.01, lp: 500 });
+    }
+    if (s === 0 || s === 8 || (s === 10 && r() < 0.5)) tone(b, dest, { freq: 120, glide: 40, t, dur: 0.3, gain: 0.3 });
+    if (s === 4 || s === 12) {
+      hiss(b, dest, { t, dur: 0.14, gain: 0.08, type: "bandpass", freq: 1500, q: 0.9, send: 0.3 });
+      tone(b, dest, { freq: 200, glide: 150, t, dur: 0.08, gain: 0.07 });
+    }
+    if (s % 2 === 0) hiss(b, dest, { t, dur: 0.04, gain: s % 4 ? 0.012 : 0.02, type: "highpass", freq: 7000 });
+    // Cuối mỗi câu bốn ô nhịp thì dồn trống trận xuống dần.
+    if (bar % 4 === 3 && s >= 12) tone(b, dest, { freq: [180, 150, 120, 100][s - 12], glide: 70, t, dur: 0.22, gain: 0.16, send: 0.2 });
+    if (bar % 2 === 1 && (s === 0 || s === 3)) for (const n of chord.pad.slice(1)) horn(b, dest, n + 12, t, 0.22, 0.008);
+    if (s === 0 && bar % 2 === 0 && r() < 0.7) {
+      tone(b, dest, { freq: 1568, t, dur: 1.2, gain: 0.03, attack: 0.002, send: 0.9 });
+      tone(b, dest, { freq: 1568, t: t + 0.5, dur: 0.9, gain: 0.01, attack: 0.002, send: 0.9 });
+    }
+    // Kèn hiệu ở ô nhịp thứ ba mỗi câu, câu hỏi rồi câu đáp luân phiên.
+    if (bar % 4 === 2) {
+      const k = CALL_STEPS.indexOf(s);
+      if (k >= 0) {
+        const call = NAVY_CALLS[Math.floor(bar / 4) % 2];
+        horn(b, dest, call[k], t, k === 3 ? len * 4 : len * 2.5, 0.02);
+      }
+    }
+  },
+};

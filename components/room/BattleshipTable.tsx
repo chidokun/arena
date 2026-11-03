@@ -27,6 +27,9 @@ import {
 } from "@/lib/games/battleship";
 import type { BattleshipRoom, BsMatch, BsSide, BsView } from "@/lib/net/battleship-room";
 import type { RoomState, RoomView } from "@/lib/net/room";
+import { AudioToggles } from "../audio/AudioToggles";
+import { useMusic } from "../audio/music";
+import { NAVY } from "../audio/tracks";
 import { BS_TONE, damage, fleetDraws, SeaBoard, ShapeIcon, type ShipDraw } from "./BattleshipBoard";
 import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
@@ -168,6 +171,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const count = useCountdown(live && g.phase === "battle" && !g.last && g.pending < 0 ? g.round : 0);
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   const timed = live && g.phase === "battle" && g.opts.turn > 0;
+  useMusic(NAVY);
   return (
     <>
       <StageArea
@@ -176,7 +180,12 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
         head={<SeatRowPart session={session} />}
         flanks={[<FlankPart key={0} session={session} i={0} />, <FlankPart key={1} session={session} i={1} />]}
         center={g?.placing ? EDITOR_CENTER : watersCenter(timed)}
-        tools={<ControlsPart session={session} />}
+        tools={
+          <>
+            <ControlsPart session={session} />
+            <AudioToggles />
+          </>
+        }
         scroll
       >
         <div ref={boardRef} className="relative landscape:h-full">
@@ -184,6 +193,9 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
           <Flyers flyers={flyers} />
         </div>
       </StageArea>
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <AudioToggles />
+      </div>
       {!seated && !(g && g.me >= 0) && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={view.me} n={count} />}
