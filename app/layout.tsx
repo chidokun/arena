@@ -12,6 +12,7 @@ import { NetBadge } from "@/components/NetBadge";
 import { NetProvider } from "@/components/NetProvider";
 import { ProfileButton } from "@/components/ProfileButton";
 import { PublicChatDock } from "@/components/room/ChatPanel";
+import { Splash, SPLASH_SCRIPT } from "@/components/Splash";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UpdateWatcher } from "@/components/UpdateWatcher";
 import { CHANGELOG_FILE, latestEntry, parseChangelog } from "@/lib/changelog";
@@ -50,8 +51,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="vi" className={`${body.variable} ${display.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_SCRIPT }} />
       </head>
       <body className="flex min-h-screen flex-col antialiased">
+        <Splash />
         <a
           href="#noi-dung"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2"
@@ -62,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NetProvider>
             <header className="sticky top-0 z-40 border-b-2 border-edge bg-[color-mix(in_srgb,var(--surface)_90%,transparent)] backdrop-blur-md">
               <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-2 px-4 sm:gap-3 sm:px-6">
-                <Link href="/" className="flex items-center gap-2.5 no-underline">
+                <Link href="/" className="logo-home flex items-center gap-2.5 no-underline">
                   <LogoMark />
                   <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
                 </Link>

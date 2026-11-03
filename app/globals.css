@@ -7254,3 +7254,293 @@
     box-shadow: inset 0 -3px 0 transparent;
   }
 }
+
+/* ── Logo Arena ─────────────────────────────────────────────────────────────────────────────────────────────────────
+   Màn mở đầu (Splash.tsx): `html[data-boot=run]` ráp logo từng mảnh — tấm đế trồi lên, mặt rơi xuống nảy, nét X vẽ
+   lần lượt, vòng O xoay vẽ, hai chấm bay vào, cả khối nhún một nhịp kèm gợn sóng; chữ "Arena" bật lên từng chữ. Tải lâu
+   hơn lượt ráp thì hiện ba chấm chờ. `data-boot=out`: logo bay về chỗ logo đầu trang (--fly-* do script đo), nền mờ dần.
+   Logo đầu trang ẩn suốt lúc có `data-boot` để không thấy hai logo. Các mảnh SVG xoay / co quanh tâm của chính nó. */
+.logo-mark * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.splash {
+  display: none;
+}
+html[data-boot] .splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+}
+html[data-boot] .logo-home .logo-mark {
+  visibility: hidden;
+}
+.splash-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(50% 45% at 50% 45%, color-mix(in srgb, var(--pen) 14%, transparent), transparent 70%),
+    radial-gradient(var(--paper-dot) 1.4px, transparent 1.4px);
+  background-size:
+    100% 100%,
+    22px 22px;
+}
+.splash-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.splash-mark {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  transition: transform 560ms cubic-bezier(0.6, -0.15, 0.25, 1);
+}
+/* Gợn sóng nở ra sau nhịp nhún cuối. */
+.splash-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 4px solid var(--pen);
+  border-radius: 44px;
+  opacity: 0;
+  animation: splash-ripple 700ms 1.24s ease-out both;
+  pointer-events: none;
+}
+.splash-mark svg {
+  overflow: visible;
+  animation: splash-thump 300ms 1.18s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+.splash .lm-base {
+  transform-origin: bottom;
+  animation: splash-base 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.splash .lm-face {
+  animation: splash-face 560ms 120ms cubic-bezier(0.3, 1.45, 0.5, 1) both;
+}
+.splash .lm-x path {
+  stroke-dasharray: 1 2;
+  animation: splash-draw 220ms 520ms ease-out both;
+}
+.splash .lm-x path + path {
+  animation-delay: 660ms;
+}
+.splash .lm-ring {
+  stroke-dasharray: 1 2;
+  animation: splash-ring 420ms 760ms cubic-bezier(0.3, 0.8, 0.4, 1) both;
+}
+.splash .lm-coral {
+  --from: translate(9px, -9px);
+  animation: splash-dot 420ms 960ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.splash .lm-lime {
+  --from: translate(-9px, 9px);
+  animation: splash-dot 420ms 1.04s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.splash-word {
+  display: flex;
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+.splash-word span {
+  display: inline-block;
+  animation: splash-letter 440ms calc(640ms + var(--i) * 60ms) cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.splash-dots {
+  display: flex;
+  gap: 6px;
+  height: 8px;
+  animation: splash-fade 300ms 1.6s both;
+  transition: opacity 200ms ease;
+}
+.splash-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: splash-wait 900ms calc(1.6s + var(--d, 0ms)) ease-in-out infinite;
+}
+.splash-dots i:nth-child(2) {
+  --d: 150ms;
+}
+.splash-dots i:nth-child(3) {
+  --d: 300ms;
+}
+
+html[data-boot="out"] .splash {
+  pointer-events: none;
+}
+html[data-boot="out"] .splash-bg {
+  opacity: 0;
+  transition: opacity 420ms 160ms ease;
+}
+html[data-boot="out"] .splash-mark {
+  transform: translate(var(--fly-x, 0), var(--fly-y, 0)) scale(var(--fly-s, 0.32));
+}
+html[data-boot="out"] .splash-word,
+html[data-boot="out"] .splash-dots {
+  opacity: 0;
+  transform: translateY(8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash *,
+  .splash *::after {
+    animation: none !important;
+  }
+  .splash-mark {
+    transition: none;
+  }
+  html[data-boot="out"] .splash-mark {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+/* Rê chuột / focus vào logo đầu trang: mặt logo nhấc lên khỏi đế, X xoay một phần tư vòng (xoay xong vẫn là X), vòng O
+   phồng ra, hai chấm nhảy so le như quân cờ. Bấm thì cả mặt lún xuống đế như nút .btn. */
+.logo-home .lm-top,
+.logo-home .lm-x,
+.logo-home .lm-ring {
+  transition: transform 320ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.logo-home .logo-mark {
+  overflow: visible;
+}
+@media (hover: hover) {
+  .logo-home:hover .lm-top {
+    transform: translateY(-1.5px);
+  }
+  .logo-home:hover .lm-x {
+    transform: rotate(90deg);
+  }
+  .logo-home:hover .lm-ring {
+    transform: scale(1.18);
+  }
+  .logo-home:hover .lm-coral {
+    animation: logo-hop 460ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+  .logo-home:hover .lm-lime {
+    animation: logo-hop 460ms 90ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+}
+.logo-home:focus-visible .lm-top {
+  transform: translateY(-1.5px);
+}
+.logo-home:focus-visible .lm-x {
+  transform: rotate(90deg);
+}
+.logo-home:active .lm-top {
+  transform: translateY(1.5px);
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-home .lm-top,
+  .logo-home .lm-x,
+  .logo-home .lm-ring {
+    transition: none;
+  }
+  .logo-home:is(:hover, :focus-visible) .lm-x,
+  .logo-home:is(:hover, :focus-visible) .lm-ring,
+  .logo-home:hover .lm-dot {
+    transform: none;
+    animation: none;
+  }
+}
+
+@keyframes splash-base {
+  from {
+    transform: translateY(10px) scaleY(0.15);
+    opacity: 0;
+  }
+}
+@keyframes splash-face {
+  from {
+    transform: translateY(-28px) rotate(-14deg) scale(0.7);
+    opacity: 0;
+  }
+}
+@keyframes splash-draw {
+  from {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+}
+@keyframes splash-ring {
+  from {
+    stroke-dashoffset: 1;
+    transform: rotate(-200deg) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+}
+@keyframes splash-dot {
+  from {
+    transform: var(--from) scale(0);
+  }
+  60% {
+    transform: scale(1.35);
+  }
+}
+@keyframes splash-thump {
+  40% {
+    transform: scale(1.08, 0.93);
+  }
+  70% {
+    transform: scale(0.97, 1.03);
+  }
+}
+@keyframes splash-ripple {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+@keyframes splash-letter {
+  from {
+    transform: translateY(16px) rotate(-10deg);
+    opacity: 0;
+  }
+}
+@keyframes splash-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes splash-wait {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+@keyframes logo-hop {
+  45% {
+    transform: translateY(-3px) scale(1.15);
+  }
+}
