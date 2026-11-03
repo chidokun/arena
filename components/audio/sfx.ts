@@ -49,6 +49,19 @@ export const COMMON_SFX = {
       for (const n of [72, 76, 79, 84, 88]) tone(b, b.sfx, { freq: hz(n), t: t + 0.5, dur: 1.6, gain: 0.045, type: "triangle", attack: 0.02, send: 0.6 });
     },
   },
+  hurry: {
+    play: (b, t) => {
+      tone(b, b.sfx, { freq: 880, t, dur: 0.07, gain: 0.12 });
+      tone(b, b.sfx, { freq: 880, t: t + 0.12, dur: 0.07, gain: 0.08 });
+    },
+  },
+  draw: {
+    play: (b, t) => {
+      duck(2);
+      [67, 72, 74].forEach((n, i) => bell(b, n, t + i * 0.1, 0.09, 0.6));
+      for (const n of [62, 67, 72]) tone(b, b.sfx, { freq: hz(n), t: t + 0.35, dur: 1.4, gain: 0.04, type: "triangle", attack: 0.02, send: 0.6 });
+    },
+  },
   rival: {
     play: (b, t) => {
       bell(b, 84, t, 0.09, 0.4);

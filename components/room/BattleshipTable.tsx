@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CLASSIC,
   coord,
@@ -31,6 +31,7 @@ import { AudioToggles } from "../audio/AudioToggles";
 import { useMusic } from "../audio/music";
 import { NAVY } from "../audio/tracks";
 import { BS_TONE, damage, fleetDraws, SeaBoard, ShapeIcon, type ShipDraw } from "./BattleshipBoard";
+import { play } from "./battleshipSounds";
 import { Score, Wins } from "./CaroTable";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
@@ -39,7 +40,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea, useStaged } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { shortTurn, TIME_BAR_H, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
+import { HURRY_S, shortTurn, TIME_BAR_H, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 type View = Omit<RoomView<BsView>, "chat">;
@@ -172,6 +173,7 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
   const end = useEndScene(g?.result ? g.round : 0, { delay: g?.result?.reason === "sunk" ? SUNK_PAUSE_MS : 0, cheer: g?.result?.loser !== view.me, emojis: CHEERS });
   const timed = live && g.phase === "battle" && g.opts.turn > 0;
   useMusic(NAVY);
+  useCueSounds(g, count, end.shown, view.me);
   return (
     <>
       <StageArea
@@ -204,6 +206,88 @@ const PlayPart = memo(function PlayPart({ session }: { session: BattleshipRoom }
     </>
   );
 });
+
+// Đếm ngược khai hoả, phát bắn người khác vừa bắn, kết quả mỗi phát (trượt / trúng / chìm), mất lượt, lượt quay về mình,
+// bên kia chốt hạm đội, rồi tiếng kết ván lúc màn kết hiện ra. Mở trang giữa chừng thì im với những gì đã diễn ra.
+function useCueSounds(g: BsMatch | undefined, count: number, ended: boolean, me: string) {
+  const lastCount = useRef(count);
+  useEffect(() => {
+    const prev = lastCount.current;
+    lastCount.current = count;
+    if (count > 0 && count !== prev) play("tick");
+    else if (count === 0 && prev > 0) play("go");
+  }, [count]);
+
+  const round = g?.round ?? 0;
+  const battle = g?.phase === "battle";
+  const key = (x: number | undefined) => `${round}:${x ?? -1}`;
+
+  // Bên kia (hay một trong hai bên, nếu đang xem) chốt hạm đội; mình chốt thì đã nghe lúc bấm.
+  const ready = `${round}:${g?.sides[0].ready ?? false}:${g?.sides[1].ready ?? false}`;
+  const seenReady = useRef(ready);
+  const onReady = useEffectEvent((prev: string) => {
+    const was = prev.split(":");
+    if (was[0] !== String(round)) return;
+    if (g!.sides.some((s, i) => s.ready && was[i + 1] === "false" && i !== g!.me)) play("other");
+  });
+  useEffect(() => {
+    const prev = seenReady.current;
+    seenReady.current = ready;
+    if (prev !== ready) onReady(prev);
+  }, [ready]);
+
+  const pending = battle ? key(g!.pending >= 0 ? g!.pending : undefined) : "";
+  const seenPending = useRef(pending);
+  const onPending = useEffectEvent(() => {
+    if (g!.pending >= 0 && g!.turn !== g!.me) play("incoming");
+  });
+  useEffect(() => {
+    const prev = seenPending.current;
+    seenPending.current = pending;
+    if (pending && pending !== prev) onPending();
+  }, [pending]);
+
+  const shot = key(g?.last?.n);
+  const seenShot = useRef(shot);
+  const onShot = useEffectEvent(() => {
+    const r = g?.last?.r;
+    if (r !== undefined) play(r === 2 ? "sunk" : r === 1 ? "hit" : "splash");
+  });
+  useEffect(() => {
+    const prev = seenShot.current;
+    seenShot.current = shot;
+    if (shot !== prev) onShot();
+  }, [shot]);
+
+  // Mất lượt liên tiếp thì bên mất lượt đổi qua lại, nên mỗi lần mất lượt mới đều đổi giá trị này.
+  const passed = key(g?.passed);
+  const seenPass = useRef(passed);
+  useEffect(() => {
+    const prev = seenPass.current;
+    seenPass.current = passed;
+    if (passed !== prev && !passed.endsWith(":-1")) play("pass");
+  }, [passed]);
+
+  // Chỉ khi lượt chuyển từ đối thủ sang mình, không phải lúc trúng được bắn tiếp. Phát đầu ván đã có tiếng đếm ngược.
+  const turn = battle && !g!.result ? key(g!.turn) : "";
+  const seenTurn = useRef(turn);
+  const onTurn = useEffectEvent(() => {
+    if (g!.me >= 0 && g!.turn === g!.me) play("yours");
+  });
+  useEffect(() => {
+    const prev = seenTurn.current;
+    seenTurn.current = turn;
+    if (turn && prev && turn !== prev && prev.split(":")[0] === String(round)) onTurn();
+  }, [turn, round]);
+
+  const onEnd = useEffectEvent(() => {
+    const r = g?.result;
+    if (r) play(!r.winner ? "draw" : r.loser === me ? "rival" : "win");
+  });
+  useEffect(() => {
+    if (ended) onEnd();
+  }, [ended]);
+}
 
 const RING = ["#ff5a5f", "#2f7bff"] as const;
 
@@ -353,6 +437,11 @@ function Clock({ deadline, limit }: { deadline: number; limit: number }) {
 function TurnBar({ match: g }: { match: BsMatch }) {
   const total = g.opts.turn * 1000;
   const left = useTimeLeft(g.deadline);
+  // Mấy giây cuối lượt của mình thì gõ nhịp mỗi giây, cho người đang mải ngắm biết sắp hết giờ.
+  const s = g.myTurn && g.deadline ? Math.ceil(Math.min(total, left) / 1000) : 0;
+  useEffect(() => {
+    if (s > 0 && s <= HURRY_S) play("hurry");
+  }, [s]);
   return <TimeBar left={g.deadline ? Math.min(total, left) : total} total={total} tone={BS_TONE[g.turn]} />;
 }
 
@@ -460,7 +549,14 @@ function Side({ i, g, view, session, locked, fit }: { i: 0 | 1; g: BsMatch; view
                 pending={g.turn !== i ? g.pending : -1}
                 aim={fire ? BS_TONE[g.me as 0 | 1] : undefined}
                 canHit={(c) => side.marks[c] < 0}
-                onCell={fire ? (c) => session.fire(c) : undefined}
+                onCell={
+                  fire
+                    ? (c) => {
+                        play("fire");
+                        session.fire(c);
+                      }
+                    : undefined
+                }
               />
               {fog && (
                 <div className="absolute inset-0 grid place-items-center rounded-xl" style={{ background: "color-mix(in srgb, var(--surface) 55%, transparent)" }}>
@@ -573,6 +669,7 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
   const ok = !!preview && fits(slots, preview);
 
   const shake = () => {
+    play("nope");
     const el = boardRef.current;
     if (!el) return;
     el.classList.remove("shake");
@@ -585,12 +682,14 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
     if (slots[k] === undefined && full) return shake();
     let f = slots;
     if (held?.from) f = f.map((s, j) => (j === held.k ? held.from : s));
+    play("pick");
     setHeld({ k, o: f[k]?.o ?? 0, i, from: f[k] ?? null });
     setSlots(f.map((s, j) => (j === k ? null : s)));
   };
 
   const cancel = () => {
     if (!held) return;
+    play("unpick");
     if (held.from) setSlots((f) => f.map((s, j) => (j === held.k ? held.from : s)));
     setHeld(null);
   };
@@ -600,6 +699,7 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
     let f = slots;
     if (held?.from && held.k !== k) f = f.map((s, j) => (j === held.k ? held.from : s));
     if (held) setHeld(null);
+    play("unpick");
     setSlots(f.map((s, j) => (j === k ? undefined : s)));
   };
 
@@ -612,19 +712,25 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
     const ship = anchorOf(held.k, held.o, held.i, c);
     if (!fits(slots, ship)) return shake();
     const next = slots.map((s, j) => (j === held.k ? ship : s));
+    play("place");
     setSlots(next);
     const k = next.findIndex((s) => s === null);
     setHeld(k >= 0 ? { k, o: 0, i: 0, from: null } : null);
   };
 
   const reorient = (turn: (o: number) => number) => {
-    if (held) return setHeld({ ...held, o: turn(held.o) });
+    if (held) {
+      play("turn");
+      return setHeld({ ...held, o: turn(held.o) });
+    }
     const k = hover >= 0 ? shipAt(hover) : -1;
     if (k < 0) return;
     const s = slots[k]!;
     const ship = anchorOf(k, turn(s.o), shipCells(s)!.indexOf(hover), hover);
-    if (fits(slots, ship)) setSlots(slots.map((x, j) => (j === k ? ship : x)));
-    else shake();
+    if (fits(slots, ship)) {
+      play("turn");
+      setSlots(slots.map((x, j) => (j === k ? ship : x)));
+    } else shake();
   };
   const rotate = () => reorient(rotated);
   const flip = () => {
@@ -667,6 +773,7 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
             type="button"
             className="btn btn-sm"
             onClick={() => {
+              play("shuffle");
               setSlots(slotsOf(shuffle()));
               setHeld(null);
             }}
@@ -678,6 +785,7 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
             className="btn btn-sm"
             disabled={!picked.length}
             onClick={() => {
+              play("unpick");
               setSlots(slots.map((s) => (s === undefined ? undefined : null)));
               setHeld({ k: picked[0], o: 0, i: 0, from: null });
             }}
@@ -739,6 +847,7 @@ function FleetEditor({ round, mode, session, foe }: { round: number; mode: BsMod
           className="btn btn-lime btn-nudge h-12 text-base"
           disabled={!done || sending}
           onClick={() => {
+            play("lock");
             setSending(true);
             session.lockFleet(fleet).finally(() => setSending(false));
           }}

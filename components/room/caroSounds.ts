@@ -1,5 +1,4 @@
-import { bell, hiss, hz, tone, type Bus } from "../audio/engine";
-import { duck } from "../audio/music";
+import { bell, hiss, tone, type Bus } from "../audio/engine";
 import { COMMON_SFX, defineSfx } from "../audio/sfx";
 
 // Quân gỗ đặt xuống bàn: tiếng gõ ngắn cộng tiếng thân bàn trầm. X cao hơn O một chút để nghe là biết bên nào vừa đi.
@@ -18,23 +17,10 @@ export const play = defineSfx({
   mine2: { gesture: true, play: (b, t) => stone(b, t, O_PITCH, 0.3) },
   move1: { play: (b, t) => stone(b, t, X_PITCH, 0.22) },
   move2: { play: (b, t) => stone(b, t, O_PITCH, 0.22) },
-  hurry: {
-    play: (b, t) => {
-      tone(b, b.sfx, { freq: 880, t, dur: 0.07, gain: 0.12 });
-      tone(b, b.sfx, { freq: 880, t: t + 0.12, dur: 0.07, gain: 0.08 });
-    },
-  },
   line: {
     play: (b, t) => {
       hiss(b, b.sfx, { t, dur: 0.6, gain: 0.08, type: "bandpass", freq: 800, sweep: 5000, q: 1.4, send: 0.4 });
       [72, 74, 76, 79, 81].forEach((n, i) => bell(b, n, t + i * 0.07, 0.08, 0.5));
-    },
-  },
-  draw: {
-    play: (b, t) => {
-      duck(2);
-      [67, 72, 74].forEach((n, i) => bell(b, n, t + i * 0.1, 0.09, 0.6));
-      for (const n of [62, 67, 72]) tone(b, b.sfx, { freq: hz(n), t: t + 0.35, dur: 1.4, gain: 0.04, type: "triangle", attack: 0.02, send: 0.6 });
     },
   },
 });
