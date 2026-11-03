@@ -79,6 +79,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       Sắp ra mắt
                     </span>
                   </Link>
+                  <Link href="/pricing/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                    Bảng giá
+                  </Link>
                 </nav>
                 <div className="flex-1" />
                 <NetBadge />

@@ -9,6 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${SITE_URL}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/tournaments/`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/pricing/`, changeFrequency: "monthly", priority: 0.5 },
     ...games.map((g) => ({ url: `${SITE_URL}${gameHref(g.slug)}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   ];
 }
