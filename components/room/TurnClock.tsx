@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 // Đồng hồ lượt dùng chung cho các bàn đấu tay đôi có bấm giờ mỗi lượt.
 
 /** Còn chừng này giây thì đồng hồ chuyển đỏ và nhấp nháy. */
-const HURRY_S = 5;
+export const HURRY_S = 5;
 
 /** Cao của `TimeBar` kể cả lề dưới (8px + `mb-3`): lúc trình chiếu bàn vuông phải chừa chỗ này để không tràn khung. */
 export const TIME_BAR_H = 20;

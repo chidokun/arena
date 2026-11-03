@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, type ReactNode } from "react";
 import { emptyState, normOptions, SIZES, sizeLabel, TURN_LIMITS, turnLabel } from "@/lib/games/caro";
 import type { CaroMatch, CaroRoom, CaroView } from "@/lib/net/caro-room";
 import type { RoomState, SeatView } from "@/lib/net/room";
+import { AudioToggles } from "../audio/AudioToggles";
+import { useMusic } from "../audio/music";
+import { ZEN } from "../audio/tracks";
+import { play } from "./caroSounds";
 import { CaroBoard, MarkIcon } from "./CaroBoard";
 import { ChatPanel } from "./ChatPanel";
 import { CountdownCine, DrawCine, Duel, Fighter, Party, useCountdown, useEndScene, WinCine } from "./Cine";
@@ -12,7 +16,7 @@ import { DuelResult, type DuelSummary } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout, SpectatorNote, WaitingOverlay } from "./RoomLayout";
 import { StageArea } from "./stage";
 import { forfeitWhy, ResignButton, SeatButtons, seatMessage, StatusBar, TONE } from "./StatusBar";
-import { shortTurn, SQUARE_FIT, squareCenter, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
+import { HURRY_S, shortTurn, SQUARE_FIT, squareCenter, TimeBar, TurnClock, useTimeLeft } from "./TurnClock";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
 
 const CHEERS = ["🎉", "🏆", "✨", "🎊", "❌", "⭕"];
@@ -143,16 +147,26 @@ function Play({ session }: { session: CaroRoom }) {
     cheer: g?.result?.loser !== room.me,
     emojis: CHEERS,
   });
+  useMusic(ZEN);
+  useCueSounds(g, count, end.shown, room.me);
   const shown = shownMatch(game, room.status);
   const size = game?.opts.size ?? 15;
   const state = useMemo(() => shown?.state ?? emptyState(size), [shown?.state, size]);
-  const onPlay = useCallback((x: number, y: number) => session.move(x, y), [session]);
+  const myMark = g?.myMark ?? 0;
+  // Tiếng quân của mình phát ngay lúc bấm, không chờ nước đi vòng qua chủ phòng rồi mới về.
+  const onPlay = useCallback(
+    (x: number, y: number) => {
+      if (myMark) play(`mine${myMark}`);
+      session.move(x, y);
+    },
+    [session, myMark],
+  );
   const inLineup = !!g && g.myMark > 0;
   const timed = live && g!.opts.turn > 0;
 
   return (
     <>
-      <StageArea className="relative mt-4" fit={SQUARE_FIT} center={squareCenter(timed)} flanks={[seat(0, true), seat(1, true)]} tools={<Controls session={session} />}>
+      <StageArea className="relative mt-4" fit={SQUARE_FIT} center={squareCenter(timed)} flanks={[seat(0, true), seat(1, true)]} tools={<><Controls session={session} /><AudioToggles /></>}>
         {/* Hiện suốt ván có bấm giờ (lúc đếm ngược mở màn thì đầy) để bàn không bị đẩy xuống khi đồng hồ bắt đầu chạy. */}
         {timed && <TurnBar match={g!} />}
         <div ref={boardRef} className="card overflow-hidden p-2 sm:p-3" style={{ background: "var(--board)" }}>
@@ -161,6 +175,9 @@ function Play({ session }: { session: CaroRoom }) {
         <Flyers flyers={flyers} />
         {!shown && room.status === "waiting" && <WaitingOverlay isHost={room.isHost} players={room.players} seats={room.seats} />}
       </StageArea>
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <AudioToggles />
+      </div>
       {!room.seated && !inLineup && <SpectatorNote />}
 
       {g && count > 0 && <CountdownScene match={g} me={room.me} n={count} />}
@@ -170,11 +187,61 @@ function Play({ session }: { session: CaroRoom }) {
   );
 }
 
+// Đếm ngược mở màn, nước của người khác, đường thắng hiện trên bàn, rồi tiếng kết ván lúc màn kết hiện ra. Mở trang giữa
+// lúc ván đã xong thì im, như màn kết.
+function useCueSounds(g: CaroMatch | undefined, count: number, ended: boolean, me: string) {
+  const lastCount = useRef(count);
+  useEffect(() => {
+    const prev = lastCount.current;
+    lastCount.current = count;
+    if (count > 0 && count !== prev) play("tick");
+    else if (count === 0 && prev > 0) play("go");
+  }, [count]);
+
+  const round = g?.round ?? 0;
+  const moves = g?.state.count ?? 0;
+  const seen = useRef({ round, moves });
+  const onMove = useEffectEvent(() => {
+    const mark = g!.state.board[g!.state.last];
+    if (mark && mark !== g!.myMark) play(`move${mark as 1 | 2}`);
+  });
+  useEffect(() => {
+    const prev = seen.current;
+    seen.current = { round, moves };
+    if (round === prev.round && moves === prev.moves + 1) onMove();
+  }, [round, moves]);
+
+  const resultKey = g?.result ? g.round : 0;
+  const lastResult = useRef(resultKey);
+  const onResult = useEffectEvent(() => {
+    if (g!.result!.reason === "line") play("line");
+  });
+  useEffect(() => {
+    const prev = lastResult.current;
+    lastResult.current = resultKey;
+    if (resultKey && resultKey !== prev) onResult();
+  }, [resultKey]);
+
+  const onEnd = useEffectEvent(() => {
+    const r = g?.result;
+    if (r) play(!r.winner ? "draw" : r.loser === me ? "rival" : "win");
+  });
+  useEffect(() => {
+    if (ended) onEnd();
+  }, [ended]);
+}
+
 // Tách riêng để đồng hồ chạy chỉ vẽ lại thanh này, không kéo cả bàn cờ vẽ lại theo. Hạn chót nước đầu tính cả lúc đếm
 // ngược mở màn nên kẹp lại để thanh đầy trong lúc đó.
 function TurnBar({ match: g }: { match: CaroMatch }) {
   const total = g.opts.turn * 1000;
-  return <TimeBar left={Math.min(total, useTimeLeft(g.deadline))} total={total} tone={MARK_TONE[g.state.turn]} />;
+  const left = Math.min(total, useTimeLeft(g.deadline));
+  // Mấy giây cuối lượt của mình thì gõ nhịp mỗi giây, cho người đang mải nhìn bàn biết sắp hết giờ.
+  const s = g.myTurn ? Math.ceil(left / 1000) : 0;
+  useEffect(() => {
+    if (s > 0 && s <= HURRY_S) play("hurry");
+  }, [s]);
+  return <TimeBar left={left} total={total} tone={MARK_TONE[g.state.turn]} />;
 }
 
 const fighter = (seat: SeatView | undefined, mark: 1 | 2, me: string, side: "left" | "right") => (
