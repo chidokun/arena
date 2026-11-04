@@ -6,6 +6,11 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "3219"],
       "port": 3219
+    },
+    {
+      "name": "arena-attach",
+      "url": "http://localhost:3219",
+      "port": 3219
     }
   ]
 }

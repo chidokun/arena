@@ -4,6 +4,7 @@ import { memo, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore
 import type { ChangelogEntry } from "@/lib/changelog";
 import { TEXT_MAX } from "@/lib/net/chat";
 import type { ChatMsg, GuessMark, RoomSession } from "@/lib/net/room";
+import type { RoomLink } from "@/lib/room-link";
 import { KAIXIN_PACK, KAIXIN_STICKERS, QUICK_STICKERS, type StickerId } from "@/lib/stickers";
 import { Avatar } from "../Avatar";
 import { LogoMark } from "../Logo";
@@ -11,6 +12,7 @@ import { useLobbyOnline, useNet, usePublicChat } from "../NetProvider";
 import { setStickerFx, useStickerFx } from "../stickerFx";
 import { useWhatsNew } from "../WhatsNew";
 import { Flyers } from "./RoomLayout";
+import { InviteSummary, RoomInviteCard, roomLinkOf } from "./RoomInvite";
 import { useRoomSide, type RoomSide, type SidePanel } from "./side";
 import { useStaged } from "./stage";
 import { StickerArt } from "./Sticker";
@@ -33,7 +35,10 @@ function ChatAvatar({ m, size }: { m: ChatMsg; size: number }) {
   return <Avatar p={m} size={size} />;
 }
 
-type Row = { kind: "msg"; m: ChatMsg } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
+type Row = { kind: "msg"; m: ChatMsg; link: RoomLink | null } | { kind: "icons"; m: ChatMsg; items: ChatMsg[] };
+
+// Chỉ tin chữ thường mới thành thẻ mời; tin hệ thống / mô tả / đoán / hét giữ nguyên dạng.
+const inviteOf = (m: ChatMsg) => (m.system || m.news || m.shout || m.clue || m.guess ? null : roomLinkOf(m.text));
 
 const GUESS_TAG: Record<GuessMark, string> = { wrong: "❌ Đã đoán sai", near: "🔥 Gần đúng rồi!", right: "✅ Đã đoán đúng" };
 
@@ -41,7 +46,7 @@ function toRows(chat: ChatMsg[]): Row[] {
   const rows: Row[] = [];
   for (const m of chat) {
     const last = rows.at(-1);
-    if (!isIcon(m)) rows.push({ kind: "msg", m });
+    if (!isIcon(m)) rows.push({ kind: "msg", m, link: inviteOf(m) });
     else if (last?.kind === "icons" && last.m.uid === m.uid && m.at - last.items.at(-1)!.at < 120_000) last.items.push(m);
     else rows.push({ kind: "icons", m, items: [m] });
   }
@@ -60,7 +65,7 @@ function Icon({ m }: { m: ChatMsg }) {
 
 // Tách riêng và `memo` để gõ phím trong ô nhập hay các cập nhật khác của khung chat (số người online, bàn chơi đổi
 // trạng thái…) không vẽ lại cả trăm tin.
-const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: string; empty: string }) {
+const Messages = memo(function Messages({ rows, me, empty, here }: { rows: Row[]; me: string; empty: string; here?: string }) {
   return (
     <>
     {rows.length === 0 && <li className="py-8 text-center text-sm text-ink-3">{empty}</li>}
@@ -92,6 +97,8 @@ const Messages = memo(function Messages({ rows, me, empty }: { rows: Row[]; me: 
                 <span className="mb-0.5 block text-[11px] font-extrabold tracking-wide uppercase">{GUESS_TAG[r.m.guess]}</span>
                 {r.m.text}
               </p>
+            ) : r.link ? (
+              <RoomInviteCard link={r.link} here={here} fallback={<p className="inline-block rounded-2xl border-2 border-edge bg-sunken px-3 py-1.5 text-left text-[14.5px] leading-snug [overflow-wrap:anywhere]">{r.m.text}</p>} />
             ) : r.m.shout ? (
               <p className="inline-block rounded-2xl border-2 border-edge bg-sun px-3 py-1 font-display text-xl font-extrabold text-[#2b1d00]">
                 {r.m.text}
@@ -182,6 +189,7 @@ function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: 
     <ol className={`pointer-events-none fixed right-4 bottom-[86px] ${z} flex w-[min(280px,calc(100vw-2rem))] flex-col items-end gap-2`} aria-live="polite">
       {msgs.map((m, i) => {
         const { tone, tag } = bubbleKind(m);
+        const link = inviteOf(m);
         return (
           <li key={m.id} className={`chat-bubble ${i === msgs.length - 1 ? "has-tail" : ""} ${tone}`}>
             <button type="button" tabIndex={m.news ? 0 : -1} onClick={onOpen} className="pointer-events-auto flex max-w-full items-start gap-2 px-2.5 py-2 text-left">
@@ -196,7 +204,9 @@ function Bubbles({ msgs, onOpen, z }: { msgs: ChatMsg[]; onOpen: () => void; z: 
                     <NewsText text={m.text ?? ""} />
                   </span>
                 ) : (
-                  <span className={`line-clamp-3 leading-snug [overflow-wrap:anywhere] ${m.shout ? "font-display text-[17px] font-extrabold" : "text-[14px] font-semibold"}`}>{m.text}</span>
+                  <span className={`line-clamp-3 leading-snug [overflow-wrap:anywhere] ${m.shout ? "font-display text-[17px] font-extrabold" : "text-[14px] font-semibold"}`}>
+                    {link ? <InviteSummary link={link} /> : m.text}
+                  </span>
                 )}
               </span>
             </button>
@@ -221,6 +231,7 @@ function ChatBox({
   bubbles = [],
   onRead,
   staged = false,
+  here,
 }: {
   channels: Channel[];
   panels?: SidePanel[];
@@ -236,6 +247,8 @@ function ChatBox({
   // Gọi khi khung đang mở ở một kênh chat — tức người chơi đã thấy tin trong đó.
   onRead?: () => void;
   staged?: boolean;
+  // Phòng đang ở (nếu có): thẻ mời vào chính phòng này không hiện nút vào nữa.
+  here?: string;
 }) {
   const uid = useId();
   const fx = useStickerFx();
@@ -524,7 +537,7 @@ function ChatBox({
             className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3"
             aria-live="polite"
           >
-            <Messages rows={rows} me={me} empty={ch.empty} />
+            <Messages rows={rows} me={me} empty={ch.empty} here={here} />
           </ol>
           {ch.locked ? (
             <p className="border-t-2 border-edge bg-sunken px-4 py-3.5 text-center text-[13.5px] font-semibold text-ink-2">{ch.locked}</p>
@@ -683,6 +696,7 @@ export const ChatPanel = memo(function ChatPanel({
       // Màn hình rộng thì nằm sẵn trong sidebar; điện thoại thì thu nhỏ để không che bàn chơi.
       openByDefault={() => false}
       bubbles={bubbles}
+      here={session.id}
     />
   );
 });
