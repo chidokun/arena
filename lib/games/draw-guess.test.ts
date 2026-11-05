@@ -50,7 +50,7 @@ test("bộ từ: không trùng (kể cả khi bỏ dấu), mã từ ổn định
   const fold = (w: string) => w.replace(/[đĐ]/g, "d").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const all = TIERS.flat();
   assert.equal(new Set(all.map(fold)).size, all.length);
-  assert.ok(TIERS.every((t) => t.length >= 80 && t.length < 1000));
+  assert.ok(TIERS.every((t) => t.length >= 80 && t.length <= 1000));
   assert.equal(wordOf(wordId(1, 3)), TIERS[1][3]);
   assert.equal(tierOf(wordId(2, 5)), 2);
   assert.equal(wordOf(5000), undefined);

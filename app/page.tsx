@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GameGrid, LiveStats } from "@/components/home/GameGrid";
+import { Faq, type FaqItem } from "@/components/Faq";
+import { FeaturedGames, LiveStats } from "@/components/home/GameGrid";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { TOURNAMENT_PERKS, TournamentArt } from "@/components/home/TournamentArt";
 import { HUE } from "@/components/home/hue";
@@ -36,10 +37,20 @@ export default async function Home() {
 
       <section id="games" className="mx-auto max-w-[1280px] scroll-mt-24 px-4 py-10 sm:px-6">
         <div className="mb-6 flex items-end justify-between gap-4">
-          <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Chọn trò chơi</h2>
-          <p className="hidden text-sm text-ink-3 sm:block">Số liệu cập nhật trực tiếp từ những người đang online</p>
+          <div>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Game nổi bật</h2>
+            <p className="mt-1 hidden text-sm text-ink-3 sm:block">Số liệu cập nhật trực tiếp từ những người đang online</p>
+          </div>
+          <Link href="/games/" className="shrink-0 font-bold whitespace-nowrap text-pen no-underline hover:underline">
+            Xem tất cả →
+          </Link>
         </div>
-        <GameGrid />
+        <FeaturedGames />
+        <div className="mt-8 text-center">
+          <Link href="/games/" className="btn btn-pen h-12 px-8 text-base no-underline">
+            Xem tất cả {games.length} trò chơi →
+          </Link>
+        </div>
       </section>
 
       <section className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6">
@@ -56,8 +67,40 @@ export default async function Home() {
           ))}
         </ol>
       </section>
+
+      <Faq items={faq(games)}>
+        <p className="mt-6 text-center text-[15px] text-ink-2">
+          Còn thắc mắc khác? Xem thêm <Link href="/terms/">Chính sách dịch vụ</Link> hoặc hỏi mọi người trong khung chat chung.
+        </p>
+      </Faq>
     </>
   );
+}
+
+function faq(games: GameDef[]): FaqItem[] {
+  const maxPlayers = Math.max(...games.map((g) => Math.max(g.capacity.max, g.seats.max)));
+  return [
+    {
+      q: "Arena là gì?",
+      a: `Arena là nền tảng mini game đối kháng chơi ngay trên trình duyệt, dành cho hội bạn bè. Hiện có ${games.length} game từ cờ Caro, Cờ Tướng, Ma Sói tới Lô Tô, Ô Ăn Quan, mở phòng là đấu được ngay.`,
+    },
+    { q: "Chơi Arena có mất phí không?", a: "Không. Mọi game và tính năng đều miễn phí, không có gói trả phí hay giới hạn số ván. Arena chỉ hiển thị một ít quảng cáo để trang trải chi phí duy trì." },
+    { q: "Có cần đăng ký tài khoản hay cài app không?", a: "Không. Bạn chỉ cần đặt tên, chọn avatar là vào chơi được ngay trên trình duyệt. Bạn bè của bạn cũng vậy." },
+    {
+      q: "Làm sao để chơi cùng bạn bè?",
+      a: "Chọn một game, tạo phòng mới rồi gửi đường link phòng cho bạn bè. Ai mở link là vào thẳng phòng của bạn; khi đủ người, chủ phòng bấm Bắt đầu.",
+    },
+    { q: "Một phòng chơi được bao nhiêu người?", a: `Tuỳ từng game: có game đấu tay đôi, có game chơi được tới ${maxPlayers} người một phòng. Người vào sau khi ván đã bắt đầu sẽ được xem.` },
+    { q: "Chơi trên điện thoại được không?", a: "Được. Arena chạy trên trình duyệt của cả điện thoại lẫn máy tính, không cần cài đặt gì thêm." },
+    {
+      q: "Vì sao tôi không vào được phòng hoặc bị mất kết nối?",
+      a: "Arena nối trực tiếp giữa các trình duyệt (P2P), nên một số mạng công ty, trường học hoặc VPN có thể chặn kết nối. Bạn thử tải lại trang, tắt VPN hoặc đổi sang mạng khác như 4G nhé.",
+    },
+    {
+      q: "Arena có lưu dữ liệu của tôi không?",
+      a: "Arena không có máy chủ game và không thu thập email hay số điện thoại. Tên, avatar và cài đặt chỉ lưu trong trình duyệt trên máy bạn; nước đi và tin nhắn được gửi thẳng giữa các máy.",
+    },
+  ];
 }
 
 const SLIDE = "mx-auto grid max-w-[1280px] items-center gap-10 px-4 pt-12 pb-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20";
@@ -78,7 +121,7 @@ function ArenaSlide() {
           <Link href="/games/caro/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Chơi Caro ngay →
           </Link>
-          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+          <Link href="/games/" className="btn h-12 px-6 text-base no-underline">
             Xem các game
           </Link>
         </div>
@@ -109,7 +152,7 @@ function SystemDesignSlide() {
           <Link href="/games/system-design/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Thử thiết kế ngay →
           </Link>
-          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+          <Link href="/games/" className="btn h-12 px-6 text-base no-underline">
             Xem các game
           </Link>
         </div>
@@ -223,7 +266,7 @@ function GamesSlide({ games }: { games: GameDef[] }) {
           ]}
         />
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href="#games" className="btn btn-pen h-12 px-6 text-base no-underline">
+          <Link href="/games/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Chọn game ngay →
           </Link>
         </div>
@@ -287,7 +330,7 @@ function HistorySlide() {
           <span className="btn h-12 px-6 text-base opacity-70" aria-disabled="true">
             ⏳ Sắp ra mắt
           </span>
-          <Link href="#games" className="btn btn-pen h-12 px-6 text-base no-underline">
+          <Link href="/games/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Chơi ngay →
           </Link>
         </div>
@@ -364,7 +407,7 @@ function TournamentSlide() {
           <Link href="/tournaments/" className="btn btn-pen h-12 px-6 text-base no-underline">
             Tìm hiểu giải đấu →
           </Link>
-          <Link href="#games" className="btn h-12 px-6 text-base no-underline">
+          <Link href="/games/" className="btn h-12 px-6 text-base no-underline">
             Chơi game trước đã
           </Link>
         </div>

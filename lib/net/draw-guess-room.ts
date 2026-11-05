@@ -31,7 +31,6 @@ import {
   type Secret,
   type Stroke,
 } from "../games/draw-guess";
-import { TIERS } from "../games/draw-guess-words";
 import type { Profile } from "../identity";
 import type { Rumor } from "./gossip";
 import type { Lobby, RoomAd } from "./lobby";
@@ -88,7 +87,6 @@ export type DwView = {
   opts: DwOptions;
   match?: DwMatch;
   unkeyed: string[];
-  words: { used: number; total: number };
 };
 
 export class DrawGuessRoom extends RoomSession<DwView> {
@@ -531,7 +529,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
     const base: DwView = {
       opts,
       unkeyed: m.players.filter((u) => !this.keyOf(u)),
-      words: { used: m.dwUsed?.length ?? 0, total: TIERS.reduce((n, t) => n + t.length, 0) },
     };
     const pub = m.dw;
     if (!pub || !m.round || pub.round !== m.round) return base;
@@ -626,13 +623,6 @@ export class DrawGuessRoom extends RoomSession<DwView> {
       const next = normOptions({ ...normOptions(m.opts), ...patch });
       if (JSON.stringify(next) === JSON.stringify(normOptions(m.opts))) return false;
       m.opts = next;
-    });
-  }
-
-  resetWords() {
-    this.hostEdit((m) => {
-      if (!m.dwUsed?.length) return false;
-      delete m.dwUsed;
     });
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CATEGORIES, gameHref, type GameDef } from "@/lib/games/registry";
+import { CATEGORIES, featuredGames, gameHref, type GameDef } from "@/lib/games/registry";
 import { countFor } from "@/lib/net/lobby";
 import { GameIcon } from "../GameIcon";
 import { useGames } from "../GamesProvider";
@@ -35,28 +35,44 @@ function Stat({ value, label, tone }: { value: number | null; label: string; ton
   );
 }
 
-export function GameGrid() {
+const countsOf = (view: ReturnType<typeof useLobbyView>, slug: string) => (view.connected || view.alone ? countFor(view, slug) : null);
+
+function CardList({ games }: { games: GameDef[] }) {
   const view = useLobbyView();
+  return (
+    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {games.map((g) => (
+        <li key={g.slug}>
+          <GameCard game={g} counts={countsOf(view, g.slug)} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Trang chủ: chỉ vài game nổi bật, không chia thể loại.
+export function FeaturedGames() {
+  useWhere({});
+  return <CardList games={featuredGames(useGames())} />;
+}
+
+// Trang "Trò chơi": đủ mọi game, xếp theo thể loại.
+export function GameGrid() {
+  useWhere({});
   const games = useGames();
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {CATEGORIES.map((c) => {
         const list = games.filter((g) => g.category === c.value);
         if (!list.length) return null;
         const id = `games-${c.value}`;
         return (
-          <section key={c.value} aria-labelledby={id}>
-            <h3 id={id} className="mb-4 flex items-center gap-2 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+          <section key={c.value} id={c.value} aria-labelledby={id} className="scroll-mt-24">
+            <h2 id={id} className="mb-4 flex items-center gap-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
               <span aria-hidden="true">{c.emoji}</span> {c.label}
               <span className="chip bg-surface text-ink-2">{list.length}</span>
-            </h3>
-            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {list.map((g) => (
-                <li key={g.slug}>
-                  <GameCard game={g} counts={view.connected || view.alone ? countFor(view, g.slug) : null} />
-                </li>
-              ))}
-            </ul>
+            </h2>
+            <CardList games={list} />
           </section>
         );
       })}
@@ -83,7 +99,7 @@ function GameCard({ game, counts }: { game: GameDef; counts: { rooms: number; pl
         {game.status === "DEVELOPMENT" && <span className="chip absolute top-3 right-3 bg-surface text-ink-2">Sắp ra mắt</span>}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h4 className="font-display text-[22px] font-extrabold tracking-tight">{game.name}</h4>
+        <h3 className="font-display text-[22px] font-extrabold tracking-tight">{game.name}</h3>
         <p className="mt-1 text-[14.5px] text-ink-2">{game.tagline}</p>
         <div className="mt-auto flex items-center gap-4 pt-4 text-sm font-bold">
           {game.status === "LIVE" ? (

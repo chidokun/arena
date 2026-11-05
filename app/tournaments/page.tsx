@@ -34,7 +34,7 @@ export default function Tournaments() {
             <span className="btn h-12 px-6 text-base opacity-70" aria-disabled="true">
               ⏳ Đang phát triển…
             </span>
-            <Link href="/#games" className="btn btn-pen h-12 px-6 text-base no-underline">
+            <Link href="/games/" className="btn btn-pen h-12 px-6 text-base no-underline">
               Chơi game trong lúc chờ →
             </Link>
           </div>

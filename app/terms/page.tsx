@@ -184,7 +184,7 @@ export default function Terms() {
         <div className="card p-8 text-center sm:p-12" style={{ background: "var(--pen-soft)" }}>
           <h2 className="font-display text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">Đọc xong rồi, vào chơi thôi!</h2>
           <p className="mx-auto mt-3 max-w-[48ch] text-ink-2">Chơi đẹp, cười nhiều, và nhớ khao trà sữa nếu thua nhé.</p>
-          <Link href="/#games" className="btn btn-pen mt-6 h-12 px-8 text-base no-underline">
+          <Link href="/games/" className="btn btn-pen mt-6 h-12 px-8 text-base no-underline">
             Chọn game ngay →
           </Link>
         </div>

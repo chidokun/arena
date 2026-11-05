@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BUILT_GAMES, CATEGORIES, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
+import { BUILT_GAMES, CATEGORIES, FEATURED_GAMES, featuredGames, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
 
 const caro = {
   slug: "caro",
@@ -77,4 +77,12 @@ test("sai cấu trúc thì ném lỗi", () => {
   assert.throws(() => parseGames({}), /games/);
   assert.throws(() => parseGames({ games: [{ ...caro, hue: "pink" }] }), /hue/);
   assert.throws(() => parseGames({ games: [{ ...caro, seats: { min: 2 } }] }), /seats/);
+});
+
+test("game nổi bật theo thứ tự cố định, bỏ game không LIVE và bù bằng game LIVE khác", () => {
+  assert.ok(FEATURED_GAMES.every(hasPage));
+  const g = (slug: string, status = "LIVE") => ({ ...caro, slug, status });
+  const games = parseGames({ games: [g("x"), g("werewolf", "MAINTENANCE"), g("loto"), g("y", "DEVELOPMENT"), g("caro"), g("z")] });
+  assert.deepEqual(featuredGames(games).map((x) => x.slug), ["caro", "loto", "x", "z"]);
+  assert.deepEqual(featuredGames(games, 3).map((x) => x.slug), ["caro", "loto", "x"]);
 });

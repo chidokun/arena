@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Faq } from "@/components/Faq";
 import { GameIcon } from "@/components/GameIcon";
 import { gameHref, loadGames } from "@/lib/games/registry";
 import { shareMeta } from "@/lib/site";
@@ -130,7 +131,7 @@ export default async function Pricing() {
               ))}
             </ul>
 
-            <Link href="/#games" className="btn btn-pen mt-8 h-12 w-full px-6 text-base no-underline">
+            <Link href="/games/" className="btn btn-pen mt-8 h-12 w-full px-6 text-base no-underline">
               Chơi ngay →
             </Link>
             <p className="mt-3 text-center text-sm text-ink-3">Mất chưa tới 10 giây để vào ván đầu tiên.</p>
@@ -200,28 +201,13 @@ export default async function Pricing() {
         </ul>
       </section>
 
-      <section className="mx-auto max-w-[800px] px-4 py-10 sm:px-6">
-        <h2 className="mb-6 text-center font-display text-3xl font-extrabold tracking-tight">Câu hỏi thường gặp</h2>
-        <div className="flex flex-col gap-3">
-          {faq.map((f) => (
-            <details key={f.q} className="group card p-0">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 font-display text-lg font-extrabold [&::-webkit-details-marker]:hidden">
-                {f.q}
-                <span className="text-2xl leading-none text-pen transition-transform group-open:rotate-45" aria-hidden="true">
-                  +
-                </span>
-              </summary>
-              <p className="-mt-1 px-5 pb-5 text-[15px] text-ink-2">{f.a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
+      <Faq items={faq} />
 
       <section className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6">
         <div className="card p-8 text-center sm:p-12" style={{ background: "var(--pen-soft)" }}>
           <h2 className="font-display text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">Cả hội đã sẵn sàng chưa?</h2>
           <p className="mx-auto mt-3 max-w-[48ch] text-ink-2">Mở phòng, gửi link, và xem ai là người phải khao trà sữa hôm nay.</p>
-          <Link href="/#games" className="btn btn-pen mt-6 h-12 px-8 text-base no-underline">
+          <Link href="/games/" className="btn btn-pen mt-6 h-12 px-8 text-base no-underline">
             Chọn game ngay →
           </Link>
         </div>

@@ -226,7 +226,7 @@ function ActionBar({ view, session }: { view: View; session: DrawGuessRoom }) {
 }
 
 function Rules({ view, session }: { view: View; session: DrawGuessRoom }) {
-  const { opts, words } = view.game!;
+  const { opts } = view.game!;
   const host = view.isHost;
   const row = "flex flex-wrap items-center gap-2";
   const label = "w-[96px] text-[13px] font-bold text-ink-3";
@@ -261,14 +261,6 @@ function Rules({ view, session }: { view: View; session: DrawGuessRoom }) {
         đầu; khung chat chỉ để thảo luận, ai đoán đúng thì bị khoá chat tới hết lượt. Đoán càng sớm càng
         nhiều điểm (60–300); người vẽ được 50 điểm cho mỗi người đoán ra.
         {!host && " Chủ phòng chỉnh luật cho ván tới."}
-      </p>
-      <p className="flex flex-wrap items-center gap-2 text-[12.5px] font-semibold text-ink-3">
-        📚 Đã chơi {words.used}/{words.total} từ — phòng không bốc lại từ đã chơi.
-        {host && words.used > 0 && (
-          <button type="button" className="btn btn-sm btn-ghost !min-h-[28px] !px-2" onClick={() => session.resetWords()}>
-            Làm mới bộ từ
-          </button>
-        )}
       </p>
     </section>
   );

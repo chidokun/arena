@@ -70,7 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <span className="font-display text-[22px] font-extrabold tracking-tight">Arena</span>
                 </Link>
                 <nav aria-label="Điều hướng chính" className="ml-3 hidden md:flex">
-                  <Link href="/#games" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
+                  <Link href="/games/" className="rounded-lg px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-ink-2 no-underline hover:bg-sunken hover:text-ink">
                     Trò chơi
                   </Link>
                   <Link
