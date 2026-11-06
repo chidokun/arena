@@ -40,20 +40,27 @@ Deploy: đẩy lên nhánh `main`, workflow `.github/workflows/deploy.yml` build
 `public/CNAME` trỏ tên miền `arena.nguyentuan.dev`.
 
 **Danh mục game.** Tên, mô tả, số ghế… và trạng thái của từng game nằm ở [arena-api](https://arena-api.nguyentuan.dev/games.json)
-(build nhúng sẵn một bản, trình duyệt hỏi lại lúc chạy). Game nào có trang thì do code quyết định: mọi slug trong
+(trình duyệt hỏi lúc chạy và làm theo đó). Game nào có trang thì do code quyết định: mọi slug trong
 `BUILT_GAMES` (`lib/games/registry.ts`) có mục trên API đều được xuất trang sảnh + phòng, *bất kể trạng thái*. Trạng thái
 chỉ điều khiển hiển thị lúc chạy — `LIVE` vào chơi được, `MAINTENANCE` (bảo trì) và `DEVELOPMENT` (sắp ra mắt) bị chặn ở
 `MaintenanceGate` — nên đổi trạng thái theo chiều nào cũng không cần build lại. Slug có trên API mà chưa có code thì luôn
 hiện "sắp ra mắt", dù API ghi gì.
 
+**Build không gọi mạng.** Build dùng bản chép `games.json` trong `lib/games/catalog.ts` (tên, mô tả cho SEO và ảnh chia
+sẻ), font và emoji của ảnh OG nằm sẵn ở `app/og/fonts/`, `app/og/emoji/` — arena-api hay Google Fonts có sập thì build vẫn
+chạy. CI chạy `npm run catalog` ngay trước khi build để chép `games.json` mới nhất (API lỗi thì chỉ cảnh báo và dùng bản đã
+commit); build ở máy thì tự chạy lệnh này nếu muốn. Trạng thái, thứ tự và game mới trên API thì không phụ thuộc bản chép,
+vì trình duyệt luôn hỏi lại. (Font của trang web vẫn qua `next/font/google`, có cache.)
+
 **Game nổi bật ở trang chủ.** Thứ tự lấy từ [`home.json`](https://arena-api.nguyentuan.dev/home.json) của arena-api
-(sửa bằng arena-admin, tab "Trang chủ"), cũng nhúng lúc build và hỏi lại lúc chạy. Game trong danh sách đang không `LIVE`
-thì bị bỏ qua, lấy game `LIVE` khác bù vào. Lúc build không tải được tệp thì dùng `FEATURED_GAMES` mặc định.
+(sửa bằng arena-admin, tab "Trang chủ"), trình duyệt tải lúc chạy; bản build và lúc chưa tải được dùng `FEATURED_GAMES`.
+Game trong danh sách đang không `LIVE` thì bị bỏ qua, lấy game `LIVE` khác bù vào.
 
 ## Thêm game mới
 
-1. Thêm mục vào `games.json` của arena-api (để `DEVELOPMENT` tới khi muốn mở) và thêm slug vào `BUILT_GAMES` trong
-   `lib/games/registry.ts`. Deploy xong thì bật `LIVE` trên arena-api là mở — không cần build lại.
+1. Thêm mục vào `games.json` của arena-api (để `DEVELOPMENT` tới khi muốn mở), thêm slug vào `BUILT_GAMES` trong
+   `lib/games/registry.ts` rồi chạy `npm run catalog` (test báo lỗi nếu bản chép thiếu game đã có code), thêm logo PNG
+   cho ảnh OG ở `app/og/logos/`. Deploy xong thì bật `LIVE` trên arena-api là mở — không cần build lại.
 2. Viết luật thuần trong `lib/games/<game>.ts` (dựng lại trạng thái tất định từ nhật ký) kèm unit test.
 3. Viết lớp phòng `lib/net/<game>-room.ts` kế thừa `RoomSession`: bắt buộc `begin` (chốt đội hình khi bắt đầu ván),
    `outcome` (kết quả suy ra từ nhật ký), `gameView`, `resultText`; tuỳ chọn `applyIntent`, `hostPlay`, `tidy`,

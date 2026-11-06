@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BUILT_GAMES, CATEGORIES, FEATURED_GAMES, featuredGames, hasPage, mergeGames, parseGames, parseHome, withPages } from "./registry.ts";
+import { BUILT_GAMES, CATEGORIES, FEATURED_GAMES, featuredGames, hasPage, loadGames, mergeGames, parseGames, parseHome, withPages } from "./registry.ts";
 
 const caro = {
   slug: "caro",
@@ -71,6 +71,20 @@ test("trạng thái lúc chạy đổi được mọi game đã có trang, kể 
   assert.deepEqual(merged.map((g) => g.status), ["MAINTENANCE", "LIVE", "DEVELOPMENT", "DEVELOPMENT"]);
   assert.equal(merged[0].name, "Caro mới");
   assert.deepEqual(mergeGames(built, []), built);
+});
+
+test("lúc chạy theo thứ tự API, có cả game API mới thêm, giữ game có trang mà API thiếu", () => {
+  const built = withPages(parseGames({ games: [caro, { ...caro, slug: "loto" }] }));
+  const fresh = parseGames({ games: [{ ...caro, slug: "loto" }, { ...caro, slug: "word-chain", status: "LIVE" }] });
+  const merged = mergeGames(built, fresh);
+  assert.deepEqual(merged.map((g) => g.slug), ["loto", "word-chain", "caro"]);
+  assert.equal(merged[1].status, "DEVELOPMENT", "chưa có code thì vẫn là sắp ra mắt");
+});
+
+test("bản chép lúc build hợp lệ và có đủ mọi game đã có code", async () => {
+  const games = await loadGames();
+  assert.deepEqual(BUILT_GAMES.filter((s) => !games.some((g) => g.slug === s)), []);
+  assert.ok(FEATURED_GAMES.every((s) => games.some((g) => g.slug === s && g.status === "LIVE")), "game nổi bật mặc định phải đang LIVE trong bản chép");
 });
 
 test("sai cấu trúc thì ném lỗi", () => {

@@ -24,13 +24,22 @@ export const OG_HUE: Record<GameDef["hue"], { soft: string; solid: string }> = {
   sun: { soft: "#fff1cc", solid: "#ffc23d" },
 };
 
-// Lấy TTF vì Satori không đọc được woff2; chỉ lấy đúng các ký tự cần vẽ.
-async function googleFont(family: string, weight: number, text: string) {
-  const url = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}&text=${encodeURIComponent(text)}`;
-  const css = await (await fetch(url)).text();
-  const src = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
-  if (!src) throw new Error(`Không tải được font ${family} ${weight} cho ảnh OG`);
-  return (await fetch(src)).arrayBuffer();
+// Font nằm sẵn trong repo (app/og/fonts/, giấy phép SIL OFL) để build không phụ thuộc Google Fonts. Dùng TTF vì Satori
+// không đọc được woff2; mỗi tệp chỉ đọc một lần cho mọi ảnh.
+const fonts = new Map<string, Promise<Buffer>>();
+const font = (file: string) => {
+  let data = fonts.get(file);
+  if (!data) fonts.set(file, (data = readFile(path.join(process.cwd(), "app/og/fonts", file))));
+  return data;
+};
+
+// Emoji đầu dòng kicker vẽ bằng SVG Twemoji trong repo (app/og/emoji/<mã>.svg, CC-BY 4.0) thay vì để Satori tải từ CDN lúc
+// build. Thêm kicker có emoji mới thì chép thêm tệp SVG tương ứng, thiếu tệp thì build báo lỗi ngay.
+const LEADING_EMOJI = /^(\p{Extended_Pictographic})\uFE0F?\s*/u;
+
+async function emojiData(ch: string) {
+  const code = [...ch].map((c) => c.codePointAt(0)!.toString(16)).join("-");
+  return `data:image/svg+xml;base64,${(await readFile(path.join(process.cwd(), "app/og/emoji", `${code}.svg`))).toString("base64")}`;
 }
 
 type Tile = Pick<GameDef, "slug" | "emoji" | "hue">;
@@ -51,13 +60,10 @@ export type OgCardProps = {
 
 export async function renderOgImage({ kicker, title, subtitle, cta, tiles }: OgCardProps) {
   const host = SITE_URL.replace(/^https?:\/\//, "");
-  const display = `${SITE_NAME}${title}`;
-  const body = `${kicker}${subtitle}${cta}${host}`;
-  const [titleFont, bodyFont, boldFont] = await Promise.all([
-    googleFont("Bricolage Grotesque", 800, display),
-    googleFont("Be Vietnam Pro", 500, body),
-    googleFont("Be Vietnam Pro", 700, body),
-  ]);
+  const [titleFont, bodyFont, boldFont] = await Promise.all([font("BricolageGrotesque-ExtraBold.ttf"), font("BeVietnamPro-Medium.ttf"), font("BeVietnamPro-Bold.ttf")]);
+  const lead = LEADING_EMOJI.exec(kicker);
+  const kickerIcon = lead ? await emojiData(lead[1]) : null;
+  const kickerText = lead ? kicker.slice(lead[0].length) : kicker;
   const big = tiles.length === 1;
   const logos = await Promise.all(tiles.map((t) => logoData(t.slug)));
 
@@ -86,6 +92,8 @@ export async function renderOgImage({ kicker, title, subtitle, cta, tiles }: OgC
             <span
               style={{
                 display: "flex",
+                alignItems: "center",
+                gap: 10,
                 alignSelf: "flex-start",
                 padding: "8px 18px",
                 borderRadius: 999,
@@ -96,7 +104,9 @@ export async function renderOgImage({ kicker, title, subtitle, cta, tiles }: OgC
                 fontWeight: 700,
               }}
             >
-              {kicker}
+              {/* eslint-disable-next-line @next/next/no-img-element -- Satori chỉ hiểu <img> */}
+              {kickerIcon && <img src={kickerIcon} alt="" width={28} height={28} />}
+              {kickerText}
             </span>
             <span style={{ fontFamily: "Display", fontSize: title.length > 20 ? 64 : title.length > 12 ? 72 : 88, lineHeight: 1.02, letterSpacing: -2, marginTop: 22 }}>{title}</span>
             <span style={{ fontSize: 30, lineHeight: 1.35, color: C.ink2, marginTop: 18 }}>{subtitle}</span>

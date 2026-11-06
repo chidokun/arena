@@ -1,5 +1,8 @@
 // Game nào có trang là việc của bản build (có code thì có trang); tên, mô tả và trạng thái lấy từ API để đổi trạng thái
-// không cần build lại.
+// không cần build lại. Build không gọi API: dùng bản chép `CATALOG` (`npm run catalog`) và `FEATURED_GAMES`, nên arena-api
+// có sập build vẫn chạy; trình duyệt hỏi lại API lúc chạy và làm theo đó.
+
+import { CATALOG } from "./catalog.ts";
 
 export type GameStatus = "LIVE" | "MAINTENANCE" | "DEVELOPMENT";
 
@@ -56,7 +59,7 @@ export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "unde
 
 export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
 
-// Game nổi bật mặc định, chỉ dùng khi chưa tải được home.json (hoặc danh sách trong đó rỗng).
+// Game nổi bật lúc build và khi chưa tải được home.json (hoặc danh sách trong đó rỗng).
 export const FEATURED_GAMES: readonly string[] = ["caro", "battleship", "draw-guess", "kawaii", "truc-xanh", "sudoku", "werewolf", "undercover"];
 
 // Sai cấu trúc thì ném lỗi như `parseGames`; slug lặp chỉ lấy lần đầu, slug lạ để `featuredGames` tự bỏ qua.
@@ -80,8 +83,10 @@ export const gameLogo = (slug: string) => (hasPage(slug) ? `/games/${slug}.webp`
 // Game chưa có code trong bản build luôn là "sắp ra mắt" dù API ghi gì, vì không có trang để vào.
 export const withPages = (games: GameDef[]) => games.map((g): GameDef => (hasPage(g.slug) ? g : { ...g, status: "DEVELOPMENT" }));
 
+// Lúc chạy làm theo API: đúng thứ tự trên API, có cả game API mới thêm (chưa có code thì là "sắp ra mắt"). Game có
+// trong bản build mà API không có thì giữ ở cuối để trang của nó vẫn mở được.
 export function mergeGames(built: GameDef[], fresh: GameDef[]): GameDef[] {
-  return withPages(built.map((g) => fresh.find((x) => x.slug === g.slug) ?? g));
+  return withPages([...fresh, ...built.filter((g) => !fresh.some((x) => x.slug === g.slug))]);
 }
 
 const fetchGames = (cache: RequestCache) =>
@@ -96,38 +101,15 @@ const fetchHome = (cache: RequestCache) =>
     return res.json().then(parseHome);
   });
 
-let loading: Promise<GameDef[]> | undefined;
-let loadingHome: Promise<readonly string[]> | undefined;
+let built: GameDef[] | undefined;
 
-// Lúc build: không tải được home.json thì dùng danh sách mặc định (trang chủ vẫn đủ thẻ, trình duyệt sẽ tải lại sau);
-// tải được mà sai cấu trúc thì dừng build như games.json.
-export function loadHome() {
-  return (loadingHome ??= fetch(HOME_URL, { cache: "force-cache" })
-    .then(
-      (res) => (res.ok ? res.json().then(parseHome) : (console.warn(`Không tải được ${HOME_URL}: HTTP ${res.status} — dùng game nổi bật mặc định`), FEATURED_GAMES)),
-      (e) => (console.warn(`Không tải được ${HOME_URL} — dùng game nổi bật mặc định:`, e), FEATURED_GAMES),
-    )
-    .then((order) => {
-      seedFeatured(order);
-      return order;
-    })
-    .catch((e) => {
-      loadingHome = undefined;
-      throw e;
-    }));
-}
-
-export function loadGames() {
-  return (loading ??= fetchGames("force-cache")
-    .then((fresh) => {
-      const games = withPages(fresh);
-      seedGames(games);
-      return games;
-    })
-    .catch((e) => {
-      loading = undefined;
-      throw e;
-    }));
+// Danh mục lúc build, từ bản chép trong repo. Giữ dạng async cho các trang đang `await loadGames()`.
+export async function loadGames() {
+  if (!built) {
+    built = withPages(parseGames(CATALOG));
+    seedGames(built);
+  }
+  return built;
 }
 
 let state = { games: [] as GameDef[], featured: null as readonly string[] | null, synced: false };
@@ -140,10 +122,6 @@ function update(next: Partial<typeof state>) {
 
 export function seedGames(games: GameDef[]) {
   if (!state.games.length) state = { ...state, games };
-}
-
-export function seedFeatured(order: readonly string[]) {
-  if (!state.featured) state = { ...state, featured: order };
 }
 
 export const getGames = () => state.games;

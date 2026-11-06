@@ -32,6 +32,11 @@ jobs:
 
       - run: npm run lint
 
+      # Chép games.json mới nhất của arena-api cho nội dung SEO / ảnh chia sẻ. API lỗi thì chỉ cảnh báo và dùng bản đã
+      # commit — build không phụ thuộc arena-api.
+      - name: Update game catalog
+        run: npm run catalog
+
       - name: Build static site
         run: npm run build
         env:

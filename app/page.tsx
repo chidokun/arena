@@ -7,7 +7,7 @@ import { TOURNAMENT_PERKS, TournamentArt } from "@/components/home/TournamentArt
 import { HUE } from "@/components/home/hue";
 import { GameIcon } from "@/components/GameIcon";
 import { StickerArt } from "@/components/room/Sticker";
-import { loadGames, loadHome, type GameDef } from "@/lib/games/registry";
+import { loadGames, type GameDef } from "@/lib/games/registry";
 import { shareMeta, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -22,8 +22,7 @@ const STEPS = [
 ];
 
 export default async function Home() {
-  const [all, featured] = await Promise.all([loadGames(), loadHome()]);
-  const games = all.filter((g) => g.status === "LIVE");
+  const games = (await loadGames()).filter((g) => g.status === "LIVE");
   return (
     <>
       <HeroCarousel
@@ -46,7 +45,7 @@ export default async function Home() {
             Xem tất cả →
           </Link>
         </div>
-        <FeaturedGames order={featured} />
+        <FeaturedGames />
         <div className="mt-8 text-center">
           <Link href="/games/" className="btn btn-pen h-12 px-8 text-base no-underline">
             Xem tất cả {games.length} trò chơi →
