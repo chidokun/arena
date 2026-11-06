@@ -28,6 +28,8 @@ export type GameDef = {
 const HUES: readonly GameDef["hue"][] = ["coral", "sky", "lime", "grape", "sun"];
 
 export const GAMES_URL = "https://arena-api.nguyentuan.dev/games.json";
+// Cấu hình trang chủ: `games` là slug các game nổi bật theo thứ tự hiển thị (sửa bằng arena-admin).
+export const HOME_URL = "https://arena-api.nguyentuan.dev/home.json";
 
 const range = (v: unknown, keys: string[]) => typeof v === "object" && v !== null && keys.every((k) => typeof (v as Record<string, unknown>)[k] === "number");
 
@@ -54,13 +56,22 @@ export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "unde
 
 export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
 
-// Game nổi bật ở trang chủ, theo thứ tự hiển thị. Game nào đang không LIVE thì bỏ qua và lấy game LIVE khác bù vào.
+// Game nổi bật mặc định, chỉ dùng khi chưa tải được home.json (hoặc danh sách trong đó rỗng).
 export const FEATURED_GAMES: readonly string[] = ["caro", "battleship", "draw-guess", "kawaii", "truc-xanh", "sudoku", "werewolf", "undercover"];
 
-export function featuredGames(games: GameDef[], count = FEATURED_GAMES.length) {
+// Sai cấu trúc thì ném lỗi như `parseGames`; slug lặp chỉ lấy lần đầu, slug lạ để `featuredGames` tự bỏ qua.
+export function parseHome(json: unknown): string[] {
+  const list = (json as { games?: unknown })?.games;
+  if (!Array.isArray(list) || !list.every((s) => typeof s === "string")) throw new Error(`${HOME_URL}: "games" phải là mảng slug`);
+  return [...new Set(list as string[])];
+}
+
+// Game nổi bật theo thứ tự `order`. Game nào đang không LIVE (hoặc không có) thì bỏ qua và lấy game LIVE khác bù vào.
+export function featuredGames(games: GameDef[], order: readonly string[] = FEATURED_GAMES, count?: number) {
+  const slugs = order.length ? order : FEATURED_GAMES;
   const live = games.filter((g) => g.status === "LIVE");
-  const picked = FEATURED_GAMES.flatMap((slug) => live.filter((g) => g.slug === slug));
-  return [...picked, ...live.filter((g) => !picked.includes(g))].slice(0, count);
+  const picked = slugs.flatMap((slug) => live.filter((g) => g.slug === slug));
+  return [...picked, ...live.filter((g) => !picked.includes(g))].slice(0, count ?? slugs.length);
 }
 
 // Logo nằm trong bản build (public/games/<slug>.webp) nên chỉ game có trang mới có; game "sắp ra mắt" từ API vẫn dùng emoji.
@@ -79,7 +90,32 @@ const fetchGames = (cache: RequestCache) =>
     return res.json().then(parseGames);
   });
 
+const fetchHome = (cache: RequestCache) =>
+  fetch(HOME_URL, { cache }).then((res) => {
+    if (!res.ok) throw new Error(`Không tải được ${HOME_URL}: HTTP ${res.status}`);
+    return res.json().then(parseHome);
+  });
+
 let loading: Promise<GameDef[]> | undefined;
+let loadingHome: Promise<readonly string[]> | undefined;
+
+// Lúc build: không tải được home.json thì dùng danh sách mặc định (trang chủ vẫn đủ thẻ, trình duyệt sẽ tải lại sau);
+// tải được mà sai cấu trúc thì dừng build như games.json.
+export function loadHome() {
+  return (loadingHome ??= fetch(HOME_URL, { cache: "force-cache" })
+    .then(
+      (res) => (res.ok ? res.json().then(parseHome) : (console.warn(`Không tải được ${HOME_URL}: HTTP ${res.status} — dùng game nổi bật mặc định`), FEATURED_GAMES)),
+      (e) => (console.warn(`Không tải được ${HOME_URL} — dùng game nổi bật mặc định:`, e), FEATURED_GAMES),
+    )
+    .then((order) => {
+      seedFeatured(order);
+      return order;
+    })
+    .catch((e) => {
+      loadingHome = undefined;
+      throw e;
+    }));
+}
 
 export function loadGames() {
   return (loading ??= fetchGames("force-cache")
@@ -94,7 +130,7 @@ export function loadGames() {
     }));
 }
 
-let state = { games: [] as GameDef[], synced: false };
+let state = { games: [] as GameDef[], featured: null as readonly string[] | null, synced: false };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<typeof state>) {
@@ -106,7 +142,12 @@ export function seedGames(games: GameDef[]) {
   if (!state.games.length) state = { ...state, games };
 }
 
+export function seedFeatured(order: readonly string[]) {
+  if (!state.featured) state = { ...state, featured: order };
+}
+
 export const getGames = () => state.games;
+export const getFeatured = () => state.featured ?? FEATURED_GAMES;
 export const isSynced = () => state.synced;
 export const subscribeGames = (f: () => void) => {
   listeners.add(f);
@@ -119,9 +160,15 @@ let refreshedAt = 0;
 export function refreshGames() {
   if (refreshing) return refreshing;
   if (Date.now() - refreshedAt < 60_000) return Promise.resolve();
-  return (refreshing = fetchGames("no-cache")
-    .then((fresh) => update({ games: mergeGames(state.games, fresh) }))
-    .catch((e) => console.warn("Không cập nhật được danh mục game:", e))
+  return (refreshing = Promise.all([
+    fetchGames("no-cache")
+      .then((fresh) => update({ games: mergeGames(state.games, fresh) }))
+      .catch((e) => console.warn("Không cập nhật được danh mục game:", e)),
+    fetchHome("no-cache")
+      .then((featured) => update({ featured }))
+      .catch((e) => console.warn("Không cập nhật được cấu hình trang chủ:", e)),
+  ])
+    .then(() => {})
     .finally(() => {
       refreshing = undefined;
       refreshedAt = Date.now();

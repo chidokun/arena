@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BUILT_GAMES, CATEGORIES, FEATURED_GAMES, featuredGames, hasPage, mergeGames, parseGames, withPages } from "./registry.ts";
+import { BUILT_GAMES, CATEGORIES, FEATURED_GAMES, featuredGames, hasPage, mergeGames, parseGames, parseHome, withPages } from "./registry.ts";
 
 const caro = {
   slug: "caro",
@@ -84,5 +84,20 @@ test("game nổi bật theo thứ tự cố định, bỏ game không LIVE và b
   const g = (slug: string, status = "LIVE") => ({ ...caro, slug, status });
   const games = parseGames({ games: [g("x"), g("werewolf", "MAINTENANCE"), g("sudoku"), g("y", "DEVELOPMENT"), g("caro"), g("z")] });
   assert.deepEqual(featuredGames(games).map((x) => x.slug), ["caro", "sudoku", "x", "z"]);
-  assert.deepEqual(featuredGames(games, 3).map((x) => x.slug), ["caro", "sudoku", "x"]);
+  assert.deepEqual(featuredGames(games, FEATURED_GAMES, 3).map((x) => x.slug), ["caro", "sudoku", "x"]);
+});
+
+test("game nổi bật theo thứ tự trong home.json, rỗng thì dùng mặc định", () => {
+  const g = (slug: string, status = "LIVE") => ({ ...caro, slug, status });
+  const games = parseGames({ games: [g("caro"), g("loto"), g("chess"), g("werewolf", "MAINTENANCE"), g("z")] });
+  assert.deepEqual(featuredGames(games, ["chess", "nope", "werewolf", "loto"]).map((x) => x.slug), ["chess", "loto", "caro", "z"]);
+  assert.deepEqual(featuredGames(games, ["loto"]).map((x) => x.slug), ["loto"]);
+  assert.deepEqual(featuredGames(games, []).map((x) => x.slug), featuredGames(games).map((x) => x.slug));
+});
+
+test("đọc home.json", () => {
+  assert.deepEqual(parseHome({ games: ["caro", "loto", "caro"] }), ["caro", "loto"]);
+  assert.deepEqual(parseHome({ games: [] }), []);
+  assert.throws(() => parseHome({}), /games/);
+  assert.throws(() => parseHome({ games: [1] }), /games/);
 });

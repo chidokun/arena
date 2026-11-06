@@ -46,6 +46,10 @@ chỉ điều khiển hiển thị lúc chạy — `LIVE` vào chơi được, `
 `MaintenanceGate` — nên đổi trạng thái theo chiều nào cũng không cần build lại. Slug có trên API mà chưa có code thì luôn
 hiện "sắp ra mắt", dù API ghi gì.
 
+**Game nổi bật ở trang chủ.** Thứ tự lấy từ [`home.json`](https://arena-api.nguyentuan.dev/home.json) của arena-api
+(sửa bằng arena-admin, tab "Trang chủ"), cũng nhúng lúc build và hỏi lại lúc chạy. Game trong danh sách đang không `LIVE`
+thì bị bỏ qua, lấy game `LIVE` khác bù vào. Lúc build không tải được tệp thì dùng `FEATURED_GAMES` mặc định.
+
 ## Thêm game mới
 
 1. Thêm mục vào `games.json` của arena-api (để `DEVELOPMENT` tới khi muốn mở) và thêm slug vào `BUILT_GAMES` trong

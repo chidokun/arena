@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { CATEGORIES, featuredGames, gameHref, type GameDef } from "@/lib/games/registry";
+import { CATEGORIES, featuredGames, gameHref, seedFeatured, type GameDef } from "@/lib/games/registry";
 import { countFor } from "@/lib/net/lobby";
 import { GameIcon } from "../GameIcon";
-import { useGames } from "../GamesProvider";
+import { useFeatured, useGames } from "../GamesProvider";
 import { showMaintenance } from "../Maintenance";
 import { useLobbyView, useWhere } from "../NetProvider";
 import { Spinner } from "../Spinner";
@@ -50,10 +50,12 @@ function CardList({ games }: { games: GameDef[] }) {
   );
 }
 
-// Trang chủ: chỉ vài game nổi bật, không chia thể loại.
-export function FeaturedGames() {
+// Trang chủ: chỉ vài game nổi bật (thứ tự theo home.json của arena-api), không chia thể loại.
+// `order` là bản đọc lúc build; trình duyệt tải lại home.json để đổi thứ tự không cần build lại.
+export function FeaturedGames({ order }: { order: readonly string[] }) {
   useWhere({});
-  return <CardList games={featuredGames(useGames())} />;
+  seedFeatured(order);
+  return <CardList games={featuredGames(useGames(), useFeatured())} />;
 }
 
 // Trang "Trò chơi": đủ mọi game, xếp theo thể loại.
