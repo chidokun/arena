@@ -55,7 +55,7 @@ export const BUILT_GAMES: readonly string[] = ["caro", "loto", "werewolf", "unde
 export const hasPage = (slug: string) => BUILT_GAMES.includes(slug);
 
 // Game nổi bật ở trang chủ, theo thứ tự hiển thị. Game nào đang không LIVE thì bỏ qua và lấy game LIVE khác bù vào.
-export const FEATURED_GAMES: readonly string[] = ["caro", "werewolf", "system-design", "loto", "xiangqi", "draw-guess", "chess", "oanquan"];
+export const FEATURED_GAMES: readonly string[] = ["caro", "battleship", "draw-guess", "kawaii", "truc-xanh", "sudoku", "werewolf", "undercover"];
 
 export function featuredGames(games: GameDef[], count = FEATURED_GAMES.length) {
   const live = games.filter((g) => g.status === "LIVE");

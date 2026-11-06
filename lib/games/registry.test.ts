@@ -82,7 +82,7 @@ test("sai cấu trúc thì ném lỗi", () => {
 test("game nổi bật theo thứ tự cố định, bỏ game không LIVE và bù bằng game LIVE khác", () => {
   assert.ok(FEATURED_GAMES.every(hasPage));
   const g = (slug: string, status = "LIVE") => ({ ...caro, slug, status });
-  const games = parseGames({ games: [g("x"), g("werewolf", "MAINTENANCE"), g("loto"), g("y", "DEVELOPMENT"), g("caro"), g("z")] });
-  assert.deepEqual(featuredGames(games).map((x) => x.slug), ["caro", "loto", "x", "z"]);
-  assert.deepEqual(featuredGames(games, 3).map((x) => x.slug), ["caro", "loto", "x"]);
+  const games = parseGames({ games: [g("x"), g("werewolf", "MAINTENANCE"), g("sudoku"), g("y", "DEVELOPMENT"), g("caro"), g("z")] });
+  assert.deepEqual(featuredGames(games).map((x) => x.slug), ["caro", "sudoku", "x", "z"]);
+  assert.deepEqual(featuredGames(games, 3).map((x) => x.slug), ["caro", "sudoku", "x"]);
 });
