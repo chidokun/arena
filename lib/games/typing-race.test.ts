@@ -1,6 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cleanText, cutText, makeText, normOptions, normRec, roundText, scan, standings, timeTextLength, type TrRec } from "./typing-race.ts";
+import {
+  badges,
+  carIndex,
+  carOf,
+  CARS,
+  cleanText,
+  colorOf,
+  cutText,
+  isCar,
+  makeText,
+  nAt,
+  normOptions,
+  normRec,
+  recentWpm,
+  roundText,
+  scan,
+  shapeOf,
+  SHAPES,
+  standings,
+  thin,
+  timeTextLength,
+  wpmSeries,
+  type TrRec,
+} from "./typing-race.ts";
 
 test("văn bản sinh tất định theo seed và đúng độ dài gần mốc", () => {
   for (const lang of ["vi", "en"] as const)
@@ -127,4 +150,74 @@ test("xếp hạng theo thời gian: nhiều ký tự, chính xác, đạt sớm
     ],
   );
   assert.equal(standings("time", [rec(10, 0)], [true])[0].rank, 0);
+});
+
+test("mã xe gồm màu và dáng; mã cũ chỉ có màu vẫn là xe con", () => {
+  assert.equal(shapeOf(3), "classic");
+  assert.equal(colorOf(3), CARS[3]);
+  const f1 = carIndex(4, SHAPES.length - 1);
+  assert.ok(isCar(f1));
+  assert.equal(shapeOf(f1), "f1");
+  assert.equal(colorOf(f1), CARS[4]);
+  assert.ok(!isCar(CARS.length * SHAPES.length));
+  assert.equal(carOf("ai đó", f1), f1);
+  assert.equal(shapeOf(carOf("ai đó")), "classic");
+});
+
+test("diễn biến ván: nội suy số ký tự, rút gọn điểm, WPM tức thời", () => {
+  const pts = [
+    [0, 0],
+    [10000, 100],
+    [20000, 100],
+  ] as const;
+  assert.equal(nAt(pts, 5000), 50);
+  assert.equal(nAt(pts, 15000), 100);
+  assert.equal(nAt(pts, 99999), 100);
+  assert.equal(nAt([], 5), 0);
+  const long = Array.from({ length: 1000 }, (_, i) => [i, i] as const);
+  const few = thin(long, 50);
+  assert.equal(few.length, 50);
+  assert.deepEqual(few[0], [0, 0]);
+  assert.deepEqual(few.at(-1), [999, 999]);
+  const s = wpmSeries(pts, 20000, { steps: 4, window: 5000 });
+  // 100 ký tự / 10 giây = 120 WPM; nửa sau đứng yên.
+  assert.equal(Math.round(s[0][1]), 120);
+  assert.equal(s[3][1], 0);
+});
+
+test("danh hiệu: bứt tốc, chính xác nhất, lội ngược dòng; một người thì không có", () => {
+  const recs: TrRec[] = [
+    { p: 300, n: 300, e: 30, at: 60000, v: 0, fin: 60000 },
+    { p: 300, n: 300, e: 2, at: 70000, v: 0, fin: 70000 },
+  ];
+  const final = standings("chars", recs);
+  // Người 0 chậm nửa đầu rồi bứt lên; người 1 dẫn ở giữa ván.
+  const series = [
+    [
+      [0, 0],
+      [35000, 60],
+      [60000, 300],
+    ],
+    [
+      [0, 0],
+      [35000, 150],
+      [70000, 300],
+    ],
+  ] as const;
+  const b = badges(final, series, 70000);
+  assert.equal(b.find((x) => x.key === "burst")?.k, 0);
+  assert.equal(b.find((x) => x.key === "sharp")?.k, 1);
+  assert.deepEqual(b.find((x) => x.key === "comeback"), { k: 0, key: "comeback", emoji: "🚀", label: "Lội ngược dòng", text: "hạng 2 → 1" });
+  assert.deepEqual(badges(standings("chars", [recs[0]]), [series[0]], 60000), []);
+});
+
+test("tốc độ tức thời tính trên cửa sổ gần nhất và tụt về 0 khi ngừng gõ", () => {
+  // Gõ đều 5 ký tự/giây (60 WPM) trong 20 giây.
+  const pts = Array.from({ length: 101 }, (_, i) => [i * 200, i] as const);
+  assert.equal(Math.round(recentWpm(pts, 100, 20000, 4000)), 60);
+  // Ngừng 2 giây: nửa cửa sổ không gõ thêm.
+  assert.equal(Math.round(recentWpm(pts, 100, 22000, 4000)), 30);
+  assert.equal(recentWpm(pts, 100, 25000, 4000), 0);
+  // Đầu ván: cửa sổ tối thiểu 1 giây.
+  assert.equal(Math.round(recentWpm([[0, 0]], 5, 500, 4000)), 60);
 });

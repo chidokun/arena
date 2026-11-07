@@ -361,7 +361,22 @@ export const CARS = [
   { name: "Đen Tuyền", color: "#3b3556" },
 ] as const;
 
-export const isCar = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < CARS.length;
+// Dáng xe mở khoá dần theo điểm (`carPoints`). Mã xe = màu + dáng × số màu, nên mã cũ (chỉ có màu) vẫn là xe con.
+export const SHAPES = [
+  { key: "classic", name: "Xe con", need: 0 },
+  { key: "kart", name: "Xe kart", need: 1 },
+  { key: "truck", name: "Xe tải", need: 5 },
+  { key: "f1", name: "Xe F1", need: 12 },
+] as const;
+export type Shape = (typeof SHAPES)[number]["key"];
+
+export const isCar = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < CARS.length * SHAPES.length;
+export const colorOf = (car: number) => CARS[car % CARS.length] ?? CARS[0];
+export const shapeAt = (car: number) => Math.floor(car / CARS.length) % SHAPES.length;
+export const shapeOf = (car: number): Shape => SHAPES[shapeAt(car)].key;
+export const carIndex = (color: number, shape: number) => (color % CARS.length) + (shape % SHAPES.length) * CARS.length;
+/** Điểm mở khoá dáng xe: mỗi ván chơi trọn +1, thắng ván nhiều người +2 nữa. */
+export const carPoints = (s: { races: number; wins: number }) => s.races + 2 * s.wins;
 
 /** Ai chưa chọn xe thì lấy theo uid để mỗi người một màu ổn định. */
 export function carOf(uid: string, pick?: unknown) {
@@ -369,4 +384,90 @@ export function carOf(uid: string, pick?: unknown) {
   let h = 0;
   for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return h % CARS.length;
+}
+
+// ——— Diễn biến ván: chuỗi điểm (thời điểm, số ký tự) của từng người ———
+
+export type Pt = readonly [at: number, n: number];
+
+/** Số ký tự ở thời điểm `t`, nội suy tuyến tính giữa hai mốc (giữa hai lần phát tiến độ coi như gõ đều tay). */
+export function nAt(pts: readonly Pt[], t: number): number {
+  if (!pts.length || t <= pts[0][0]) return pts.length && t >= pts[0][0] ? pts[0][1] : 0;
+  let lo = 0;
+  let hi = pts.length - 1;
+  if (t >= pts[hi][0]) return pts[hi][1];
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (pts[mid][0] <= t) lo = mid;
+    else hi = mid;
+  }
+  const [a, na] = pts[lo];
+  const [b, nb] = pts[hi];
+  return b > a ? na + ((nb - na) * (t - a)) / (b - a) : nb;
+}
+
+/**
+ * WPM tức thời: số ký tự gõ thêm trong `window` ms gần nhất. `pts` là các mốc gần đây (tăng dần, mốc đầu là chỗ bắt
+ * đầu theo dõi); trước mốc đầu coi như đứng ở mốc đầu. Ngừng gõ thì tụt dần về 0 sau `window` ms.
+ */
+export function recentWpm(pts: readonly Pt[], n: number, elapsed: number, window: number): number {
+  const span = Math.max(1000, Math.min(window, elapsed));
+  const from = elapsed - span;
+  const base = !pts.length ? n : from <= pts[0][0] ? pts[0][1] : nAt(pts, from);
+  return Math.max(0, wpm(n - base, span));
+}
+
+/** Rút gọn còn tối đa `max` điểm, giữ điểm đầu và cuối. */
+export function thin(pts: readonly Pt[], max = 160): Pt[] {
+  if (pts.length <= max) return [...pts];
+  const out: Pt[] = [];
+  for (let i = 0; i < max; i++) out.push(pts[Math.round((i * (pts.length - 1)) / (max - 1))]);
+  return out;
+}
+
+/** WPM tức thời (tính trên `window` ms gần nhất) tại `steps` mốc đều nhau từ đầu tới `end`. */
+export function wpmSeries(pts: readonly Pt[], end: number, { window = 5000, steps = 60 } = {}): Pt[] {
+  if (end <= 0) return [];
+  const out: Pt[] = [];
+  for (let i = 1; i <= steps; i++) {
+    const t = (end * i) / steps;
+    const w = Math.min(window, t);
+    out.push([t, Math.max(0, wpm(nAt(pts, t) - nAt(pts, t - w), w))]);
+  }
+  return out;
+}
+
+export type Badge = { k: number; key: "burst" | "sharp" | "comeback"; emoji: string; label: string; text: string };
+
+/**
+ * Danh hiệu cuối ván cho ván nhiều người: bứt tốc (WPM tức thời cao nhất), chính xác nhất (gõ ít nhất 30 ký tự),
+ * lội ngược dòng (giữa ván hạng thấp nhất so với lúc về).
+ */
+export function badges(final: readonly Standing[], series: readonly (readonly Pt[])[], end: number): Badge[] {
+  const ranked = final.filter((s) => !s.out && s.rank > 0);
+  if (ranked.length < 2) return [];
+  const out: Badge[] = [];
+  let burst = { k: -1, v: 0 };
+  for (const s of ranked) {
+    const pts = series[s.k] ?? [];
+    if (pts.length < 2) continue;
+    const v = Math.max(0, ...wpmSeries(pts, Math.min(end, s.fin ?? end)).map((p) => p[1]));
+    if (v > burst.v) burst = { k: s.k, v };
+  }
+  if (burst.k >= 0) out.push({ k: burst.k, key: "burst", emoji: "⚡", label: "Bứt tốc", text: `${Math.round(burst.v)} WPM` });
+  const sharp = ranked
+    .filter((s) => s.n >= 30)
+    .sort((a, b) => accuracy(b.n, b.e) - accuracy(a.n, a.e) || b.n - a.n)[0];
+  if (sharp) out.push({ k: sharp.k, key: "sharp", emoji: "🎯", label: "Chính xác nhất", text: `${Math.floor(accuracy(sharp.n, sharp.e))}%` });
+  if (ranked.every((s) => (series[s.k]?.length ?? 0) >= 2)) {
+    const half = end / 2;
+    const mid = [...ranked].sort((a, b) => nAt(series[b.k], half) - nAt(series[a.k], half) || a.k - b.k);
+    let best = { k: -1, from: 0, to: 0 };
+    mid.forEach((s, i) => {
+      const gain = i + 1 - s.rank;
+      if (gain > 0 && gain > best.from - best.to) best = { k: s.k, from: i + 1, to: s.rank };
+    });
+    if (best.k >= 0) out.push({ k: best.k, key: "comeback", emoji: "🚀", label: "Lội ngược dòng", text: `hạng ${best.from} → ${best.to}` });
+  }
+  return out;
 }

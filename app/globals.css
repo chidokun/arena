@@ -6994,10 +6994,94 @@
   }
 }
 
-/* ——— Anh Hùng Bàn Phím ——— */
+/* ——— Anh Hùng Bàn Phím ———
+   Đường đua: mỗi làn là một đoạn đường có lề cỏ / vỉa hè, vạch kẻ chạy lùi theo tốc độ (`--roll`), xe đi bằng transform
+   theo `--f` (0–1) trên bề rộng làn (container query). Phông cảnh và màu đường theo độ khó: đồng quê / phố chiều / đêm
+   neon có mưa. */
 @layer components {
   .tr-track {
     --car-w: 76px;
+    --road-h: 52px;
+    --asphalt: #3d3a52;
+    --dash: rgba(255, 255, 255, 0.6);
+    --verge-a: #4f9a2c;
+    --verge-b: #5fb03a;
+    --kerb-a: #ff4b4b;
+    --kerb-b: #ffffff;
+    --sky: linear-gradient(#a9dcff, #e3f4ff);
+    position: relative;
+    overflow: hidden;
+  }
+  .tr-track.is-medium {
+    --asphalt: #34314a;
+    --dash: #ffd166;
+    --verge-a: #8d89a6;
+    --verge-b: #a19db8;
+    --kerb-a: #ffd166;
+    --kerb-b: #2b2840;
+    --sky: linear-gradient(#ffc28f, #ffe6c9);
+  }
+  .tr-track.is-hard {
+    --asphalt: #1c1838;
+    --dash: #5ef2ff;
+    --verge-a: #120e2a;
+    --verge-b: #191339;
+    --kerb-a: #ff6fb5;
+    --kerb-b: #120e2a;
+    --sky: linear-gradient(#0f0b2e, #2a1f5c);
+  }
+  .tr-track.is-hard::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background:
+      repeating-linear-gradient(105deg, transparent 0 26px, rgba(150, 200, 255, 0.16) 26px 27px),
+      repeating-linear-gradient(100deg, transparent 0 41px, rgba(150, 200, 255, 0.1) 41px 42px);
+    pointer-events: none;
+    animation: tr-rain 700ms linear infinite;
+  }
+  .tr-sky {
+    position: relative;
+    height: 46px;
+    margin: 0 2px 6px;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 12px;
+    background: var(--sky);
+  }
+  .tr-sky svg {
+    position: absolute;
+    inset: 0;
+  }
+  .tr-sky-roll {
+    animation: tr-sky 16s linear infinite paused;
+  }
+  .tr-sky.is-moving .tr-sky-roll {
+    animation-play-state: running;
+  }
+  .tr-sky-orb {
+    position: absolute;
+    top: 7px;
+    right: 9%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffd23f;
+    box-shadow: 0 0 0 5px rgba(255, 210, 63, 0.3);
+  }
+  .tr-sky.is-medium .tr-sky-orb {
+    top: 20px;
+    background: #ff8a3d;
+    box-shadow: 0 0 0 6px rgba(255, 138, 61, 0.28);
+  }
+  .tr-sky.is-hard .tr-sky-orb {
+    width: 16px;
+    height: 16px;
+    background: #f4f1ff;
+    box-shadow:
+      inset -5px -2px 0 #c9c3e6,
+      0 0 12px rgba(244, 241, 255, 0.5);
   }
   .tr-lanes {
     display: grid;
@@ -7022,6 +7106,11 @@
     filter: grayscale(1);
     opacity: 0.5;
   }
+  .tr-lane.is-fin .tr-road {
+    box-shadow:
+      0 0 0 2px var(--c),
+      0 0 16px 2px color-mix(in srgb, var(--c) 60%, transparent);
+  }
   .tr-who {
     display: flex;
     min-width: 0;
@@ -7040,14 +7129,39 @@
   }
   .tr-road {
     position: relative;
-    height: 48px;
+    height: var(--road-h);
+    overflow: hidden;
     border: 2px solid var(--edge);
     border-radius: 12px;
+    background: var(--asphalt);
+    container-type: inline-size;
+    transition: box-shadow 400ms;
+  }
+  /* Lề trên / dưới, viền lề và vạch giữa: mọi lớp chu kỳ 34px, rộng hơn làn 34px để trượt đi không lộ chỗ hở. */
+  .tr-ground {
+    position: absolute;
+    inset: 0;
     background:
-      linear-gradient(90deg, rgba(255, 255, 255, 0.85) 0 3px, transparent 3px) 10px 0 / 100% 100% no-repeat,
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0 18px, transparent 18px 34px) 0 50% / 100% 2px no-repeat,
-      #3d3a52;
-    overflow: hidden;
+      repeating-linear-gradient(90deg, var(--verge-a) 0 8.5px, var(--verge-b) 8.5px 17px) 0 0 / calc(100% + 34px) 6px no-repeat,
+      repeating-linear-gradient(90deg, var(--kerb-a) 0 17px, var(--kerb-b) 17px 34px) 0 6px / calc(100% + 34px) 3px no-repeat,
+      repeating-linear-gradient(90deg, var(--dash) 0 18px, transparent 18px 34px) 0 50% / calc(100% + 34px) 2px no-repeat,
+      repeating-linear-gradient(90deg, var(--kerb-a) 0 17px, var(--kerb-b) 17px 34px) 0 calc(100% - 6px) / calc(100% + 34px) 3px no-repeat,
+      repeating-linear-gradient(90deg, var(--verge-a) 0 8.5px, var(--verge-b) 8.5px 17px) 0 100% / calc(100% + 34px) 6px no-repeat;
+  }
+  .tr-road.is-rolling .tr-ground {
+    animation: tr-roll var(--roll, 1s) linear infinite;
+  }
+  .tr-track.is-hard .tr-ground {
+    filter: drop-shadow(0 0 3px rgba(94, 242, 255, 0.45));
+  }
+  .tr-road::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    bottom: 9px;
+    left: 10px;
+    width: 3px;
+    background: rgba(255, 255, 255, 0.85);
   }
   .tr-road.has-finish::after {
     content: "";
@@ -7055,27 +7169,47 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: 12px;
-    background: repeating-conic-gradient(#1d1648 0 25%, #fff 0 50%) 0 0 / 12px 12px;
+    width: 20px;
     border-left: 2px solid var(--edge);
+    background: repeating-conic-gradient(#1d1648 0 25%, #fff 0 50%) 0 0 / 10px 10px;
   }
   .tr-tick {
     position: absolute;
     top: 0;
     bottom: 0;
     border-left: 2px dashed rgba(255, 255, 255, 0.22);
-    padding: 1px 0 0 4px;
+    padding: 7px 0 0 4px;
     font-size: 10.5px;
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
     font-variant-numeric: tabular-nums;
   }
   .tr-car {
     position: absolute;
-    bottom: 1px;
+    bottom: 3px;
+    left: 0;
+    z-index: 2;
     width: var(--car-w);
-    transition: left 600ms linear;
+    transform: translateX(calc((100cqw - var(--car-w)) * var(--f, 0)));
+    transition: transform 600ms linear;
+  }
+  .tr-car.is-ghost {
     z-index: 1;
+    opacity: 0.38;
+    filter: grayscale(0.4);
+    transition-duration: 250ms;
+  }
+  .tr-ghost-tag {
+    position: absolute;
+    top: -4px;
+    left: 2px;
+    font-size: 12px;
+  }
+  .tr-body {
+    display: block;
+  }
+  .tr-body.is-hit {
+    animation: tr-sputter 420ms ease-out;
   }
   .tr-car-art {
     display: block;
@@ -7108,6 +7242,58 @@
     -webkit-mask-image: linear-gradient(90deg, transparent, #000);
     mask-image: linear-gradient(90deg, transparent, #000);
   }
+  /* Lửa nitro ở ống xả: cam khi trên 60 WPM, xanh khi trên 90 WPM. */
+  .tr-flame {
+    position: absolute;
+    top: 50%;
+    right: 95%;
+    width: 0;
+    height: 10px;
+    border-radius: 10px 3px 3px 10px;
+    background: linear-gradient(90deg, transparent, #ffc23d 40%, #ff6b2c);
+    opacity: 0;
+    transform-origin: right center;
+    transition:
+      width 200ms,
+      opacity 200ms;
+  }
+  .tr-car.is-n1 .tr-flame,
+  .tr-car.is-n2 .tr-flame {
+    width: 24px;
+    opacity: 1;
+    animation: tr-flicker 90ms steps(2) infinite alternate;
+  }
+  .tr-car.is-n2 .tr-flame {
+    width: 36px;
+    background: linear-gradient(90deg, transparent, #9fdcff 35%, #2f7bff);
+    box-shadow: 0 0 10px #5ef2ff;
+  }
+  /* Khói khi gõ sai. */
+  .tr-puff {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    pointer-events: none;
+  }
+  .tr-puff i {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(214, 210, 232, 0.92);
+    box-shadow: 0 0 0 1px rgba(29, 22, 72, 0.25);
+    animation: tr-puff 700ms ease-out both;
+  }
+  .tr-puff i:nth-child(2) {
+    --dx: -20px;
+    --dy: -12px;
+    animation-delay: 70ms;
+  }
+  .tr-puff i:nth-child(3) {
+    --dx: -9px;
+    --dy: -20px;
+    animation-delay: 140ms;
+  }
   .tr-speed {
     position: absolute;
     top: -3px;
@@ -7122,10 +7308,84 @@
     color: #1d1648;
     font-variant-numeric: tabular-nums;
   }
+  .tr-ticker {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: var(--sun-soft);
+    padding: 1px 10px;
+    font-size: 13px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: tr-ticker 4.5s ease both;
+  }
+  .tr-lights {
+    display: inline-flex;
+    gap: 3px;
+    border: 2px solid var(--edge);
+    border-radius: 8px;
+    background: #1d1648;
+    padding: 3px 4px;
+  }
+  .tr-lights i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #3b3556;
+    transition:
+      background 120ms,
+      box-shadow 120ms;
+  }
+  .tr-lights i.is-on {
+    background: #ff4b4b;
+    box-shadow: 0 0 8px #ff4b4b;
+  }
+  .tr-lights.is-go i {
+    background: #3fe0a5;
+    box-shadow: 0 0 10px #3fe0a5;
+  }
+  .tr-lights.is-big {
+    gap: 10px;
+    border-width: 3px;
+    border-radius: 18px;
+    padding: 10px 14px;
+  }
+  .tr-lights.is-big i {
+    width: 34px;
+    height: 34px;
+  }
+  .tr-lights.is-big i.is-on {
+    box-shadow: 0 0 20px 4px #ff4b4b;
+  }
+  .tr-track.is-dense {
+    --car-w: 54px;
+    --road-h: 38px;
+  }
+  .tr-track.is-dense .tr-sky {
+    display: none;
+  }
+  .tr-track.is-dense .tr-lanes {
+    gap: 3px;
+  }
+  .tr-track.is-dense .tr-lane {
+    padding: 2px 6px;
+  }
+  .tr-track.is-dense .tr-who {
+    font-size: 12.5px;
+  }
+  .tr-track.is-dense .tr-car {
+    bottom: 1px;
+  }
+
+  /* ——— Chọn xe ——— */
   .tr-pick {
     display: grid;
-    width: 70px;
+    width: 88px;
     place-items: center;
+    gap: 2px;
     border: 2px solid var(--rule);
     border-radius: 14px;
     background: var(--surface);
@@ -7142,9 +7402,87 @@
     background: var(--sun-soft);
     box-shadow: var(--shadow-sm);
   }
+  .tr-pick.is-locked {
+    filter: grayscale(0.8);
+    opacity: 0.55;
+  }
+  .tr-pick.is-locked:hover {
+    transform: none;
+  }
+  .tr-pick-name {
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+    color: var(--ink-2);
+  }
+  .tr-color {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--edge);
+    border-radius: 50%;
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+    transition: transform 120ms;
+  }
+  .tr-color:hover {
+    transform: scale(1.12);
+  }
+  .tr-color.is-on {
+    outline: 3px solid var(--pen);
+    outline-offset: 2px;
+  }
+
+  /* ——— Khu vực gõ ——— */
+  .tr-mini {
+    margin: 2px 12px 12px 8px;
+  }
+  .tr-mini-bar {
+    position: relative;
+    height: 12px;
+    border: 2px solid var(--edge);
+    border-radius: 999px;
+    background: repeating-linear-gradient(90deg, var(--sunken) 0 10px, var(--rule) 10px 12px);
+  }
+  .tr-mini-bar.has-finish::after {
+    content: "🏁";
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    font-size: 16px;
+    transform: translateY(-58%);
+  }
+  .tr-mini-dot {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--f, 0) * 100%);
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--edge);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: left 400ms linear;
+  }
+  .tr-mini-dot.is-me {
+    z-index: 3;
+    width: 20px;
+    height: 20px;
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--car, var(--pen));
+  }
+  .tr-mini-dot.is-ghost {
+    z-index: 2;
+    border-style: dashed;
+    border-color: var(--ink-3);
+    background: var(--surface);
+  }
+  .tr-mini-dot.is-off {
+    filter: grayscale(1);
+    opacity: 0.4;
+  }
   .tr-stats {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px;
   }
   .tr-stat {
@@ -7154,6 +7492,27 @@
     border-radius: 12px;
     background: var(--sunken);
     padding: 6px 10px;
+    transition:
+      background 200ms,
+      box-shadow 200ms;
+  }
+  .tr-gauge {
+    width: 46px;
+    height: auto;
+    flex: none;
+    overflow: visible;
+  }
+  .tr-needle {
+    transform-origin: 32px 32px;
+    transition: transform 450ms cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .tr-combo.is-hot {
+    background: var(--sun-soft);
+    box-shadow: inset 0 0 0 2px var(--sun);
+  }
+  .tr-combo.is-hot .tr-combo-n {
+    color: var(--coral);
+    animation: tr-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1);
   }
   .tr-text {
     position: relative;
@@ -7180,26 +7539,38 @@
     filter: blur(0.2px);
   }
   .tr-done {
-    color: var(--lime);
+    color: var(--ink-3);
   }
   .tr-typing {
     color: var(--ink);
-    text-decoration: underline 2px var(--pen);
+    text-decoration: underline 2px var(--car, var(--pen));
     text-underline-offset: 5px;
   }
-  .tr-cur,
-  .tr-wrong {
-    border-radius: 4px;
+  .tr-word {
     color: var(--ink);
   }
-  .tr-cur {
-    background: var(--pen-soft);
-    box-shadow: inset 0 -3px 0 var(--pen);
-    animation: tr-caret 1s steps(2) infinite;
-  }
   .tr-wrong {
+    border-radius: 4px;
     background: var(--coral);
     color: #fff;
+  }
+  /* Con trỏ trượt: đặt bằng transform tới chữ kế tiếp, màu theo xe. */
+  .tr-caret {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: var(--car, var(--pen));
+    box-shadow: 0 0 6px var(--car, var(--pen));
+    pointer-events: none;
+    transition:
+      transform 90ms ease-out,
+      height 90ms;
+  }
+  .tr-caret.is-idle {
+    opacity: 0;
   }
   .tr-watch {
     height: calc(2.5em * 5);
@@ -7289,16 +7660,118 @@
     border-color: var(--coral);
     background: var(--coral-soft);
   }
+
+  /* ——— Kết quả ——— */
+  .tr-record {
+    margin-top: 10px;
+    border: 2px dashed var(--pen);
+    border-radius: 12px;
+    background: var(--pen-soft);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .tr-podium {
+    display: grid;
+    max-width: 460px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+    gap: 10px;
+    margin: 16px auto 4px;
+  }
+  .tr-step {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    animation: tr-rise 600ms cubic-bezier(0.2, 1.3, 0.5, 1) both;
+  }
+  .tr-step.is-1 {
+    animation-delay: 300ms;
+  }
+  .tr-step.is-2 {
+    animation-delay: 150ms;
+  }
+  .tr-step.is-me b {
+    color: var(--pen);
+  }
+  .tr-podium-car {
+    width: 78px;
+  }
+  .tr-step.is-1 .tr-podium-car {
+    width: 96px;
+  }
+  .tr-block {
+    display: grid;
+    width: 100%;
+    height: 34px;
+    place-items: center;
+    margin-top: 6px;
+    border: 2px solid var(--edge);
+    border-radius: 10px 10px 4px 4px;
+    background: var(--sunken);
+  }
+  .tr-step.is-1 .tr-block {
+    height: 70px;
+    background: var(--sun-soft);
+  }
+  .tr-step.is-2 .tr-block {
+    height: 50px;
+  }
+  .tr-badges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .tr-badge {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid var(--edge);
+    border-left-width: 8px;
+    border-left-color: var(--c);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 6px 10px;
+    animation: tr-rise 500ms 450ms both;
+  }
+  .tr-chart {
+    margin: 14px 0 6px;
+  }
+  .tr-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .tr-chart-grid {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+  .tr-chart-label {
+    fill: var(--ink-3);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tr-chart-under {
+    fill: none;
+    stroke: var(--edge);
+    stroke-linejoin: round;
+    opacity: 0.22;
+  }
+
   @media (max-width: 640px) {
     .tr-track {
       --car-w: 58px;
+      --road-h: 42px;
     }
     .tr-lane {
       grid-template-columns: minmax(0, 1fr);
       gap: 3px;
-    }
-    .tr-road {
-      height: 40px;
     }
     .tr-stats {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7306,16 +7779,59 @@
     .tr-text {
       font-size: 17px;
     }
+    .tr-lights.is-big i {
+      width: 26px;
+      height: 26px;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
-    .tr-car {
+    .tr-car,
+    .tr-mini-dot,
+    .tr-caret,
+    .tr-needle {
       transition: none;
     }
     .tr-car.is-moving .tr-car-art,
     .tr-car.is-moving .tr-wheel,
-    .tr-cur {
-      animation: none;
+    .tr-road.is-rolling .tr-ground,
+    .tr-sky-roll,
+    .tr-track.is-hard::after,
+    .tr-flame,
+    .tr-body.is-hit,
+    .tr-puff,
+    .tr-combo-n,
+    .tr-step,
+    .tr-badge {
+      animation: none !important;
     }
+    .tr-ticker {
+      animation-name: tr-fade;
+    }
+  }
+}
+:root[data-theme="dark"] .tr-sky:not(.is-hard) {
+  filter: brightness(0.8) saturate(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tr-sky:not(.is-hard) {
+    filter: brightness(0.8) saturate(0.9);
+  }
+}
+@keyframes tr-roll {
+  to {
+    background-position-x: -34px;
+  }
+}
+@keyframes tr-sky {
+  to {
+    transform: translateX(-240px);
+  }
+}
+@keyframes tr-rain {
+  to {
+    background-position:
+      -14px 80px,
+      -10px 80px;
   }
 }
 @keyframes tr-spin {
@@ -7326,6 +7842,82 @@
 @keyframes tr-bounce {
   to {
     transform: translateY(-1.5px);
+  }
+}
+@keyframes tr-flicker {
+  to {
+    transform: scaleX(0.72) scaleY(0.85);
+  }
+}
+@keyframes tr-sputter {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translateX(-4px) rotate(-3deg);
+    filter: brightness(0.7);
+  }
+  45% {
+    transform: translateX(3px) rotate(2deg);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+@keyframes tr-puff {
+  from {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--dx, -14px)), calc(-50% + var(--dy, -4px))) scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes tr-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35) rotate(-4deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes tr-rise {
+  from {
+    transform: translateY(18px) scale(0.92);
+    opacity: 0;
+  }
+}
+@keyframes tr-ticker {
+  0% {
+    transform: translateY(-6px) scale(0.9);
+    opacity: 0;
+  }
+  8% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  14% {
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes tr-fade {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 @keyframes tr-bit {
@@ -7345,11 +7937,6 @@
   100% {
     transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 26px)) scale(0.9) rotate(var(--r));
     opacity: 0;
-  }
-}
-@keyframes tr-caret {
-  50% {
-    box-shadow: inset 0 -3px 0 transparent;
   }
 }
 

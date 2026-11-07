@@ -26,6 +26,8 @@ const CAR_KEY = "arena:typing-race:car";
 
 export type TrMatch = {
   round: number;
+  /** Seed của ván — cũng dùng làm mã ván ổn định trên máy mình (đếm thành tích một lần mỗi ván). */
+  seed: number;
   opts: TrOptions;
   text: string;
   lineup: SeatView[];
@@ -185,6 +187,7 @@ export class TypingRaceRoom extends RoomSession<TrView> {
     const lineup = m.lineup.map(seatOf);
     view.match = {
       round: m.round,
+      seed: tr.seed,
       opts: normOptions(tr),
       text,
       lineup,

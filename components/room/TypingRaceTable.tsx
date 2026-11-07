@@ -1,11 +1,15 @@
 "use client";
 
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   accuracy,
+  badges,
+  carIndex,
   CARS,
   carOf,
+  carPoints,
   clock,
+  colorOf,
   CUSTOM_MAX,
   CUSTOM_MIN,
   FINISH_GRACE_MS,
@@ -22,15 +26,22 @@ import {
   MINUTES_MIN,
   MODE_KEYS,
   MODES,
+  nAt,
+  recentWpm,
   scan,
+  shapeAt,
+  shapeOf,
+  SHAPES,
   standings,
   wpm,
+  type Level,
   type Standing,
   type TrOptions,
   type TrRec,
 } from "@/lib/games/typing-race";
 import { START_COUNTDOWN_MS, type RoomState, type RoomView } from "@/lib/net/room";
 import type { TrMatch, TrView, TypingRaceRoom } from "@/lib/net/typing-race-room";
+import { AudioToggles } from "../audio/AudioToggles";
 import { ConfirmButton } from "../ConfirmButton";
 import { Avatar } from "../Avatar";
 import { ChatPanel } from "./ChatPanel";
@@ -40,6 +51,10 @@ import { ResultCard as Result, Standings } from "./ResultCard";
 import { Flyers, RoomHeader, RoomLayout } from "./RoomLayout";
 import { SeatButtons, seatMessage, StatusBar, StopButton, TONE } from "./StatusBar";
 import { shallowEqual, useFlyers, useGame, usePeople, useRoomState } from "./useRoom";
+import { CarArt, Gauge, Scenery, StartLights } from "./TypingRaceArt";
+import { Badges, Podium, WpmChart, type Racer } from "./TypingRaceResults";
+import { beats, bestCombo, countRace, ghostKey, keepCombo, readGhost, record as remember, saveGhost, useGhost, useStats, type Ghost } from "./typingRaceStore";
+import { play, setEngine } from "./typingRaceSounds";
 
 type View = Omit<RoomView<TrView>, "chat">;
 
@@ -146,7 +161,7 @@ const SetupPart = memo(function SetupPart({ session }: { session: TypingRaceRoom
 const ResultPart = memo(function ResultPart({ session }: { session: TypingRaceRoom }) {
   const view = useTrView(session);
   const g = view.game!.match;
-  return g?.result ? <ResultCard view={view} match={g} /> : null;
+  return g?.result ? <ResultCard key={g.seed} view={view} match={g} session={session} /> : null;
 });
 
 const TrackPart = memo(function TrackPart({ session }: { session: TypingRaceRoom }) {
@@ -154,9 +169,14 @@ const TrackPart = memo(function TrackPart({ session }: { session: TypingRaceRoom
   const ref = useRef<HTMLDivElement>(null);
   const flyers = useFlyers(session, ref);
   const g = view.game!.match;
+  // Ghi diễn biến ván cho biểu đồ cuối ván và xe ma.
+  useEffect(() => {
+    if (g) remember(session, g.seed, g.recs);
+  }, [session, g?.seed, g?.recs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ghost = useGhost(g?.opts ?? view.game!.opts);
   return (
     <div ref={ref} className="relative mt-4">
-      {g ? <Track view={view} match={g} /> : <Grid view={view} />}
+      {g ? <Track view={view} match={g} ghost={ghost} /> : <Grid view={view} />}
       <Flyers flyers={flyers} />
     </div>
   );
@@ -180,6 +200,20 @@ const CinemaPart = memo(function CinemaPart({ session }: { session: TypingRaceRo
   // Vào phòng / tải lại giữa lúc đếm thì vẫn đếm nốt phần còn lại tới lúc xuất phát.
   const count = useCountdown(live && g ? g.round : 0, { endsAt: g?.opensAt, ms: START_COUNTDOWN_MS, onMount: true });
   const end = useEndScene(g?.result && g.result.reason !== "stop" && g.final?.some((s) => s.rank === 1 && s.n > 0) ? g.round : 0, { ms: WIN_SCENE_MS, emojis: CONFETTI });
+  // Mỗi nhịp đếm một tiếng đèn đỏ, xuất phát thì đèn xanh; màn thắng của mình có nhạc thắng.
+  const lastCount = useRef(count);
+  useEffect(() => {
+    const prev = lastCount.current;
+    lastCount.current = count;
+    if (count > 0 && count !== prev) play("light");
+    else if (count === 0 && prev > 0) play("start");
+  }, [count]);
+  const onWin = useEffectEvent(() => {
+    if (g && g.me >= 0 && g.final?.some((s) => s.k === g.me && s.rank === 1 && s.n > 0)) play("win");
+  });
+  useEffect(() => {
+    if (end.shown) onWin();
+  }, [end.shown]);
   return (
     <>
       {g && <Cinema match={g} me={me} count={count} win={end.shown} onClose={end.close} />}
@@ -197,7 +231,9 @@ function Cinema({ match: g, me, count, win, onClose }: { match: TrMatch; me: str
         n={count}
         title={g.me >= 0 ? "Đặt tay lên hàng phím ASDF… sẵn sàng!" : "Các tay đua đã vào vạch xuất phát!"}
         tip={g.me >= 0 ? "Gõ đúng thì xe tiến, gõ sai phải xoá lỗi rồi gõ lại." : undefined}
-      />
+      >
+        <StartLights big lit={Math.max(0, Math.min(5, (4 - count) * 2 - 1))} />
+      </CountdownCine>
     );
   if (!win || !g.final) return null;
   const top = g.final.filter((s) => s.rank === 1 && s.n > 0);
@@ -277,6 +313,7 @@ function ActionBar({ view, session }: { view: View; session: TypingRaceRoom }) {
           </ConfirmButton>
         )}
         {view.isHost && <StopButton onConfirm={() => session.stop()} />}
+        <AudioToggles />
       </StatusBar>
     );
   }
@@ -301,6 +338,7 @@ function ActionBar({ view, session }: { view: View; session: TypingRaceRoom }) {
       }
     >
       <SeatButtons view={view} session={session} blocked={blocked} joinLabel="🏎️ Vào chơi" />
+      <AudioToggles />
     </StatusBar>
   );
 }
@@ -310,6 +348,10 @@ function ActionBar({ view, session }: { view: View; session: TypingRaceRoom }) {
 function Setup({ view, session }: { view: View; session: TypingRaceRoom }) {
   const { opts, draft, drafted, myCar } = view.game!;
   const host = view.isHost;
+  const stats = useStats();
+  const points = carPoints(stats);
+  const color = myCar % CARS.length;
+  const shape = shapeAt(myCar);
   const set = (next: Partial<TrOptions>) => host && session.setOptions(next);
   const pick = <T,>(label: string, keys: readonly T[], on: (k: T) => boolean, name: (k: T) => React.ReactNode, choose: (k: T) => void, title?: (k: T) => string) => (
     <div className="flex flex-wrap items-center gap-2">
@@ -364,22 +406,45 @@ function Setup({ view, session }: { view: View; session: TypingRaceRoom }) {
       </p>
       <div className="border-t-2 border-dashed border-rule pt-3">
         <p className="mb-2 text-[13px] font-bold text-ink-3">🏎️ Xe của bạn</p>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Chọn xe">
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Chọn dáng xe">
+          {SHAPES.map((sh, i) => {
+            const locked = points < sh.need;
+            return (
+              <button
+                key={sh.key}
+                type="button"
+                role="radio"
+                aria-checked={shape === i}
+                disabled={locked && shape !== i}
+                className={`tr-pick ${shape === i ? "is-on" : ""} ${locked ? "is-locked" : ""}`}
+                onClick={() => session.setCar(carIndex(color, i))}
+                title={locked ? `${sh.name} — cần ${sh.need} điểm xe (bạn có ${points})` : sh.name}
+              >
+                <CarArt color={CARS[color].color} shape={sh.key} />
+                <span className="tr-pick-name">{locked ? `🔒 ${sh.need} điểm` : sh.name}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-2.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Chọn màu xe">
           {CARS.map((c, i) => (
             <button
               key={c.name}
               type="button"
               role="radio"
-              aria-checked={myCar === i}
-              className={`tr-pick ${myCar === i ? "is-on" : ""}`}
-              onClick={() => session.setCar(i)}
+              aria-checked={color === i}
+              className={`tr-color ${color === i ? "is-on" : ""}`}
+              style={{ background: c.color }}
+              onClick={() => session.setCar(carIndex(i, shape))}
               title={c.name}
             >
-              <CarArt color={c.color} />
               <span className="sr-only">{c.name}</span>
             </button>
           ))}
         </div>
+        <p className="mt-2 text-[12.5px] font-semibold text-ink-3">
+          Điểm xe của bạn: <b className="text-ink-2">{points}</b> — mỗi ván chơi trọn +1, thắng ván nhiều người +2 nữa. Dáng xe mới mở khoá theo điểm (lưu trên máy này).
+        </p>
       </div>
     </section>
   );
@@ -522,24 +587,57 @@ function rowValue(g: TrMatch, s: Standing) {
   return s.fin != null ? `⏱ ${clock(s.fin)} · ${stats}` : `${s.n.toLocaleString("vi-VN")}/${g.text.length.toLocaleString("vi-VN")} · ${stats}`;
 }
 
-function ResultCard({ view, match: g }: { view: View; match: TrMatch }) {
+const racersOf = (g: TrMatch, me: string): Racer[] =>
+  g.lineup.map((s, k) => ({
+    k,
+    uid: s.uid,
+    name: nameOf(g, k, me),
+    member: s.member,
+    color: colorOf(g.cars[k]).color,
+    shape: shapeOf(g.cars[k]),
+    num: k + 1,
+    me: k === g.me,
+  }));
+
+const runLabel = (r: { fin?: number; n: number }) => (r.fin != null ? clock(r.fin) : `${r.n.toLocaleString("vi-VN")} ký tự`);
+
+function ResultCard({ view, match: g, session }: { view: View; match: TrMatch; session: TypingRaceRoom }) {
   const r = g.result!;
   const final = g.final ?? [];
   const top = final.filter((s) => s.rank === 1 && s.n > 0);
   const solo = g.lineup.length === 1;
   const mine = final.find((s) => s.k === g.me);
+  const pts = remember(session, g.seed, g.recs);
+  const racers = racersOf(g, view.me);
+  // Kỷ lục trước ván này — đọc một lần trước khi lưu kỷ lục mới.
+  const [prev] = useState(() => readGhost(g.opts));
+  const played = g.me >= 0 && r.reason !== "stop" && !!mine && !mine.out && mine.n > 0;
+  const isRecord = played && !!ghostKey(g.opts) && beats(g.opts.mode, mine!, prev);
+
+  // Chơi trọn ván thì cộng điểm xe; phá kỷ lục cấu hình này thì lưu làm xe ma.
+  useEffect(() => {
+    if (!played) return;
+    countRace(g.seed, !solo && mine!.rank === 1);
+    const mineSeries = pts[g.me] ?? [];
+    if (mineSeries.length >= 3 && beats(g.opts.mode, mine!, readGhost(g.opts))) saveGhost(g.opts, { n: mine!.n, pts: mineSeries, ...(mine!.fin != null ? { fin: mine!.fin } : {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g.seed, played]);
+
   const rows = (
     <Standings
       rows={final.map((s) => ({
         uid: g.lineup[s.k].uid,
         name: nameOf(g, s.k, view.me),
         rank: s.rank,
-        mark: <span className="sd-swatch" style={{ background: CARS[g.cars[s.k]].color }} aria-hidden="true" />,
+        mark: <span className="sd-swatch" style={{ background: colorOf(g.cars[s.k]).color }} aria-hidden="true" />,
         value: rowValue(g, s),
       }))}
     />
   );
-  const note = mine ? `Bạn: ${mine.n.toLocaleString("vi-VN")} ký tự đúng · ${mine.e} lần gõ sai · chính xác ${pct(accuracy(mine.n, mine.e))}` : undefined;
+  const combo = bestCombo(session, g.seed);
+  const note = mine
+    ? `Bạn: ${mine.n.toLocaleString("vi-VN")} ký tự đúng · ${mine.e} lần gõ sai · chính xác ${pct(accuracy(mine.n, mine.e))}${combo ? ` · combo dài nhất x${combo}` : ""}`
+    : undefined;
   if (r.reason === "stop" || !top.length)
     return (
       <Result round={g.round} title="⏹ Dừng ván" sub={`Ván ${g.round} dừng giữa chừng — không tính ai thắng.`} note={note}>
@@ -558,8 +656,26 @@ function ResultCard({ view, match: g }: { view: View; match: TrMatch }) {
         : g.opts.mode === "chars"
           ? `🏆 ${names} về nhất!`
           : `🏆 ${names} đi xa nhất!`;
+  const end = g.end ?? Math.max(0, ...g.recs.map((x) => x?.at ?? 0));
+  const podium = final
+    .filter((s) => !s.out && s.rank > 0 && s.n > 0)
+    .slice(0, 3)
+    .map((s) => ({ racer: racers[s.k], rank: s.rank, value: s.fin != null ? `⏱ ${clock(s.fin)}` : `${s.n.toLocaleString("vi-VN")} ký tự` }));
+  const stopOf = (k: number) => {
+    const s = final.find((x) => x.k === k);
+    return s?.fin ?? (s?.quit ? s.at : undefined);
+  };
   return (
     <Result round={g.round} title={title} note={note}>
+      {isRecord && (
+        <p className="tr-record">
+          👻 Kỷ lục mới của bạn cho {goalLabel(g.opts)} · {LANGS[g.opts.lang].name} · {LEVELS[g.opts.level].name}: <b>{runLabel(mine!)}</b>
+          {prev ? <> (cũ {runLabel(prev)})</> : null} — ván sau xe ma sẽ chạy theo thành tích này.
+        </p>
+      )}
+      {!solo && <Podium top={podium} />}
+      {!solo && <Badges list={badges(final, pts, end)} racers={racers} />}
+      <WpmChart end={end} lines={racers.map((x) => ({ racer: x, pts: pts[x.k] ?? [], stop: stopOf(x.k) }))} />
       {rows}
     </Result>
   );
@@ -567,80 +683,90 @@ function ResultCard({ view, match: g }: { view: View; match: TrMatch }) {
 
 // ——— Đường đua ———
 
-export function CarArt({ color, className }: { color: string; className?: string }) {
-  return (
-    <svg viewBox="0 0 120 58" className={`tr-car-art ${className ?? ""}`} aria-hidden="true">
-      <ellipse cx="62" cy="53" rx="52" ry="4" fill="rgba(0,0,0,.22)" />
-      <path d="M4 21h18l3 8H8z" fill={color} stroke="#1d1648" strokeWidth="3" strokeLinejoin="round" />
-      <path
-        d="M8 37c0-7 5-9 13-10l17-3c6-9 14-13 26-13h13c10 0 17 5 22 12l8 2c6 1 9 5 9 10v5c0 3-2 4-5 4H12c-3 0-4-2-4-4z"
-        fill={color}
-        stroke="#1d1648"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path d="M44 25c4-7 10-10 18-10h13c6 0 11 3 15 10z" fill="#9fdcff" stroke="#1d1648" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M68 15v10" stroke="#1d1648" strokeWidth="2.5" />
-      <path d="M52 22l6-6" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" opacity=".7" />
-      <path d="M16 34h84" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity=".35" />
-      <ellipse cx="111" cy="32" rx="3.5" ry="3" fill="#fff6c2" stroke="#1d1648" strokeWidth="2" />
-      {[31, 93].map((x) => (
-        <g key={x} className="tr-wheel" style={{ transformOrigin: `${x}px 45px` }}>
-          <circle cx={x} cy="45" r="10" fill="#1d1648" />
-          <circle cx={x} cy="45" r="4.5" fill="#c9c3e6" />
-          <path d={`M${x - 7} 45h14M${x} 38v14`} stroke="#c9c3e6" strokeWidth="2" />
-        </g>
-      ))}
-    </svg>
-  );
+// Vạch đường chạy lùi theo bậc tốc độ (giây mỗi vòng hoa văn): chia bậc để không giật mỗi lần tốc độ nhích một chút.
+const ROLL = [0, 1.3, 0.85, 0.55, 0.36, 0.24];
+const rollOf = (speed: number) => (speed <= 1 ? 0 : speed < 25 ? 1 : speed < 45 ? 2 : speed < 65 ? 3 : speed < 90 ? 4 : 5);
+// Quá chừng này người thì thu thấp các làn.
+const DENSE = 6;
+
+/** Đếm số lần `v` tăng kể từ lúc gắn (lần đầu không tính) — để diễn lại hiệu ứng mỗi lần gõ sai. */
+function useBump(v: number) {
+  const [s, setS] = useState({ v, n: 0 });
+  if (v !== s.v) setS({ v, n: v > s.v ? s.n + 1 : s.n });
+  return s.n;
 }
+
+const sceneOf = (o: TrOptions): Level => (o.source === "custom" ? "medium" : o.level);
 
 function Lane({
   name,
   me,
   member,
   online,
-  color,
+  car,
+  num,
   frac,
   speed,
   rank,
   tag,
   finish,
+  done,
+  errors = 0,
+  ghost,
   ticks,
 }: {
   name: string;
   me: boolean;
   member?: Parameters<typeof Avatar>[0]["p"];
   online: boolean;
-  color: string;
+  car: number;
+  num?: number;
   frac: number;
   speed: number;
   rank?: number;
-  tag?: React.ReactNode;
+  tag?: ReactNode;
   finish: boolean;
+  done?: boolean;
+  errors?: number;
+  ghost?: ReactNode;
   ticks?: { at: number; label: string }[];
 }) {
+  const color = colorOf(car).color;
   const moving = speed > 1;
+  const roll = rollOf(speed);
+  const hit = useBump(errors);
   return (
-    <li className={`tr-lane ${me ? "is-me" : ""} ${online ? "" : "is-off"}`}>
+    <li className={`tr-lane ${me ? "is-me" : ""} ${online ? "" : "is-off"} ${done ? "is-fin" : ""}`} style={{ ["--c" as string]: color }}>
       <div className="tr-who">
         <span className="tr-rank">{rank ? (["🥇", "🥈", "🥉"][rank - 1] ?? rank) : "–"}</span>
         {member ? <Avatar p={member} size={28} className={online ? "" : "opacity-40 grayscale"} /> : <span className="avatar h-[28px] w-[28px] bg-sunken" />}
         <span className="min-w-0 truncate">{name}</span>
         {tag}
       </div>
-      <div className={`tr-road ${finish ? "has-finish" : ""}`}>
+      <div className={`tr-road ${finish ? "has-finish" : ""} ${roll ? "is-rolling" : ""}`} style={roll ? { ["--roll" as string]: `${ROLL[roll]}s` } : undefined}>
+        <span className="tr-ground" aria-hidden="true" />
         {ticks?.map((t) => (
           <span key={t.label} className="tr-tick" style={{ left: `calc((100% - var(--car-w)) * ${t.at} + var(--car-w) * 0.9)` }}>
             {t.label}
           </span>
         ))}
+        {ghost}
         <div
-          className={`tr-car ${moving ? "is-moving" : ""} ${speed > 45 ? "is-fast" : ""}`}
-          style={{ left: `calc((100% - var(--car-w)) * ${Math.min(1, Math.max(0, frac))})`, ["--spin" as string]: `${Math.max(0.12, 1.2 - speed / 90)}s` }}
+          className={`tr-car ${moving ? "is-moving" : ""} ${speed > 45 ? "is-fast" : ""} ${speed > 90 ? "is-n2" : speed > 60 ? "is-n1" : ""}`}
+          style={{ ["--f" as string]: Math.min(1, Math.max(0, frac)), ["--spin" as string]: `${Math.max(0.12, 1.2 - speed / 90)}s` }}
         >
           <span className="tr-trail" aria-hidden="true" />
-          <CarArt color={color} />
+          <span className="tr-flame" aria-hidden="true" />
+          {hit > 0 && (
+            <span key={hit} className="tr-puff" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          )}
+          <span key={`b${hit}`} className={`tr-body ${hit ? "is-hit" : ""}`}>
+            <CarArt color={color} shape={shapeOf(car)} num={num} />
+          </span>
           {moving && <span className="tr-speed">{Math.round(speed)}</span>}
         </div>
       </div>
@@ -648,7 +774,56 @@ function Lane({
   );
 }
 
-function Track({ view, match: g }: { view: View; match: TrMatch }) {
+/** Xe ma: chạy lại kỷ lục của mình ở cùng cấu hình, chỉ mình thấy. */
+function GhostCar({ ghost, opensAt, scale, car }: { ghost: Ghost; opensAt: number; scale: number; car: number }) {
+  const now = useNow(true, 250);
+  if (!now || now < opensAt) return null;
+  const n = nAt(ghost.pts, now - opensAt);
+  return (
+    <div className="tr-car is-ghost" style={{ ["--f" as string]: Math.min(1, n / Math.max(1, scale)) }} title="Xe ma — kỷ lục của bạn">
+      <CarArt color={colorOf(car).color} shape={shapeOf(car)} />
+      <span className="tr-ghost-tag">👻</span>
+    </div>
+  );
+}
+
+type Tick = { seed: number; sig: string; ranks: number[]; fins: boolean[]; msg?: { id: number; text: string; at: number; mine: boolean } };
+
+/** Bình luận viên: ai vừa vượt ai, ai vừa về đích. Tính lại mỗi lần thứ hạng đổi. */
+function useTicker(g: TrMatch, me: string, live: boolean) {
+  const sts = live ? standings(g.opts.mode, g.recs) : [];
+  const ranks = g.lineup.map((_, k) => sts.find((s) => s.k === k && !s.out)?.rank ?? 0);
+  const fins = g.recs.map((r) => r?.fin != null);
+  const sig = `${g.seed}|${ranks.join()}|${fins.map(Number).join("")}`;
+  const [s, setS] = useState<Tick>({ seed: g.seed, sig, ranks, fins });
+  if (s.sig !== sig) {
+    let msg = s.seed === g.seed ? s.msg : undefined;
+    if (s.seed === g.seed && live && g.lineup.length > 1) {
+      const id = (msg?.id ?? 0) + 1;
+      const fin = fins.findIndex((f, k) => f && !s.fins[k]);
+      if (fin >= 0) msg = { id, text: `🏁 ${nameOf(g, fin, me)} về đích${ranks[fin] === 1 ? " đầu tiên" : ` — hạng ${ranks[fin]}`}!`, at: g.recs[fin]?.at ?? 0, mine: fin === g.me };
+      else {
+        let pass: [number, number] | null = null;
+        for (let k = 0; k < ranks.length; k++) {
+          const rk = ranks[k];
+          if (!rk || !s.ranks[k] || rk >= s.ranks[k]) continue;
+          for (let j = 0; j < ranks.length; j++)
+            if (j !== k && s.ranks[j] && s.ranks[j] < s.ranks[k] && ranks[j] > rk && (!pass || rk < ranks[pass[0]])) pass = [k, j];
+        }
+        const at = pass ? (g.recs[pass[0]]?.at ?? 0) : 0;
+        // Đầu ván ai cũng sát nhau, đổi hạng liên tục — chưa bình luận; mỗi câu cách nhau một chút.
+        if (pass && at > 5000 && (!msg || Math.abs(at - msg.at) > 2500)) {
+          const [k, j] = pass;
+          msg = { id, text: `${ranks[k] === 1 ? "👑" : "💨"} ${nameOf(g, k, me)} vừa vượt ${nameOf(g, j, me)}${ranks[k] === 1 ? " lên dẫn đầu" : ""}!`, at, mine: k === g.me || j === g.me };
+        }
+      }
+    }
+    setS({ seed: g.seed, sig, ranks, fins, msg });
+  }
+  return live ? s.msg : undefined;
+}
+
+function Track({ view, match: g, ghost }: { view: View; match: TrMatch; ghost: Ghost | null }) {
   const live = isLive(view);
   const total = g.text.length;
   const chars = g.opts.mode === "chars";
@@ -659,12 +834,27 @@ function Track({ view, match: g }: { view: View; match: TrMatch }) {
   const scale = chars ? total : Math.max(200, Math.ceil((most * 1.2) / 100) * 100);
   const ticks = chars ? undefined : [0.25, 0.5, 0.75].map((f) => ({ at: f, label: `${Math.round(scale * f)}` }));
   const order = g.lineup.map((_, k) => k);
+  const speeds = order.map((k) => {
+    const r = g.recs[k];
+    return live && r?.fin == null && !r?.quit && g.lineup[k].online ? (r?.v ?? 0) : 0;
+  });
+  const msg = useTicker(g, view.me, live);
+  const mine = msg?.mine ? msg.id : 0;
+  useEffect(() => {
+    if (mine) play("overtake");
+  }, [mine]);
   return (
-    <section className="card tr-track p-3 sm:p-4" aria-label="Đường đua">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 px-1">
+    <section className={`card tr-track is-${sceneOf(g.opts)} ${g.lineup.length > DENSE ? "is-dense" : ""} p-3 sm:p-4`} aria-label="Đường đua">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
         <h2 className="font-display text-lg font-extrabold">🏎️ Đường đua</h2>
+        {msg && (
+          <p key={msg.id} className="tr-ticker" aria-live="polite">
+            {msg.text}
+          </p>
+        )}
         <RaceClock view={view} match={g} />
       </div>
+      <Scenery level={sceneOf(g.opts)} moving={speeds.some((v) => v > 1)} />
       <ol className="tr-lanes">
         {order.map((k) => {
           const seat = g.lineup[k];
@@ -684,13 +874,17 @@ function Track({ view, match: g }: { view: View; match: TrMatch }) {
               me={k === g.me}
               member={seat.member}
               online={seat.online}
-              color={CARS[g.cars[k]].color}
+              car={g.cars[k]}
+              num={k + 1}
               frac={(r?.n ?? 0) / Math.max(1, scale)}
-              speed={live && r?.fin == null && !r?.quit && seat.online ? (r?.v ?? 0) : 0}
+              speed={speeds[k]}
               rank={s && !s.out && (s.n > 0 || !!final) ? s.rank : undefined}
               tag={tag}
               finish={chars}
+              done={r?.fin != null}
+              errors={r?.e ?? 0}
               ticks={ticks}
+              ghost={k === g.me && live && ghost ? <GhostCar ghost={ghost} opensAt={g.opensAt} scale={scale} car={g.cars[k]} /> : undefined}
             />
           );
         })}
@@ -704,30 +898,48 @@ function RaceClock({ view, match: g }: { view: View; match: TrMatch }) {
   const now = useNow(live, 500);
   if (!live) return g.end != null ? <span className="font-display text-base font-extrabold tabular-nums text-ink-3">⏱ {clock(g.end)}</span> : null;
   if (!now) return null;
-  if (now < g.opensAt) return <span className="font-display text-base font-extrabold text-ink-3">Chuẩn bị…</span>;
-  if (g.endsAt) return <span className="font-display text-lg font-extrabold tabular-nums">⏳ Còn {clock(Math.max(0, g.endsAt - now + 999))}</span>;
-  return <span className="font-display text-lg font-extrabold tabular-nums">⏱ {clock(now - g.opensAt)}</span>;
+  if (now < g.opensAt)
+    return (
+      <span className="flex items-center gap-2 font-display text-base font-extrabold text-ink-3">
+        <StartLights lit={Math.max(0, Math.min(5, 5 - Math.ceil((g.opensAt - now) / 700)))} /> Chuẩn bị…
+      </span>
+    );
+  const go = now < g.opensAt + 1500 ? <StartLights lit={5} go /> : null;
+  if (g.endsAt)
+    return (
+      <span className="flex items-center gap-2 font-display text-lg font-extrabold tabular-nums">
+        {go}⏳ Còn {clock(Math.max(0, g.endsAt - now + 999))}
+      </span>
+    );
+  return (
+    <span className="flex items-center gap-2 font-display text-lg font-extrabold tabular-nums">
+      {go}⏱ {clock(now - g.opensAt)}
+    </span>
+  );
 }
 
 // Chưa có ván nào: xếp sẵn các xe ở vạch xuất phát.
 function Grid({ view }: { view: View }) {
   const seated = view.seats.filter((s) => !!s?.uid);
+  const opts = view.game!.opts;
   return (
-    <section className="card tr-track p-3 sm:p-4" aria-label="Vạch xuất phát">
+    <section className={`card tr-track is-${sceneOf(opts)} ${seated.length > DENSE ? "is-dense" : ""} p-3 sm:p-4`} aria-label="Vạch xuất phát">
       <h2 className="mb-2 px-1 font-display text-lg font-extrabold">🏎️ Vạch xuất phát</h2>
+      <Scenery level={sceneOf(opts)} moving={false} />
       {seated.length ? (
         <ol className="tr-lanes">
-          {seated.map((s) => (
+          {seated.map((s, i) => (
             <Lane
               key={s.uid}
               name={s.uid === view.me ? "Bạn" : (s.member?.name ?? "Ai đó")}
               me={s.uid === view.me}
               member={s.member}
               online={s.online}
-              color={CARS[carOf(s.uid, s.uid === view.me ? view.game!.myCar : s.member?.car)].color}
+              car={carOf(s.uid, s.uid === view.me ? view.game!.myCar : s.member?.car)}
+              num={i + 1}
               frac={0}
               speed={0}
-              finish={view.game!.opts.mode === "chars"}
+              finish={opts.mode === "chars"}
             />
           ))}
         </ol>
@@ -740,15 +952,19 @@ function Grid({ view }: { view: View }) {
 
 // ——— Khu vực gõ ———
 
-type Typing = { pos: number; n: number; e: number; at: number; fin?: number; quit?: boolean; buf: string; samples: [number, number][] };
+type Typing = { pos: number; n: number; e: number; at: number; fin?: number; quit?: boolean; buf: string; samples: [number, number][]; combo: number; best: number };
 
-function speedOf(t: Typing, elapsed: number) {
-  const from = elapsed - SPEED_WINDOW_MS;
-  let base = t.samples.find(([at]) => at >= from) ?? [elapsed, t.n];
-  if (base[0] > from && t.samples.length && t.samples[0][0] <= from) base = t.samples[0];
-  const span = Math.max(1000, Math.min(SPEED_WINDOW_MS, elapsed));
-  return Math.max(0, wpm(t.n - base[1], span));
-}
+// Mỗi chừng này ký tự đúng liền mạch thì combo lên một bậc (rung + chuông).
+const COMBO_STEP = 25;
+
+const speedOf = (t: Typing, elapsed: number) => recentWpm(t.samples, t.n, elapsed, SPEED_WINDOW_MS);
+
+const lum = (hex: string) => {
+  const v = parseInt(hex.slice(1), 16);
+  return 0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255);
+};
+
+const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch }) {
   const text = g.text;
@@ -757,12 +973,15 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
   const ref = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
+  const barRef = useRef<HTMLSpanElement>(null);
   const composing = useRef(false);
+  const ghost = useGhost(g.opts);
   // Trạng thái gõ đổi ngay trong trình xử lý phím (`state`), bản chụp (`t`) để vẽ. Tải lại trang giữa ván thì gõ
   // tiếp từ bản ghi đã phát.
   const [t, setT] = useState<Typing>(() => {
     const r = session.saved(g.round);
-    return { pos: r?.p ?? 0, n: r?.n ?? 0, e: r?.e ?? 0, at: r?.at ?? 0, fin: r?.fin, quit: r?.quit, buf: "", samples: [] };
+    // Mốc đầu của tốc độ tức thời: chỗ đang đứng lúc mở khu vực gõ (đầu ván, hoặc bản ghi cũ khi tải lại trang).
+    return { pos: r?.p ?? 0, n: r?.n ?? 0, e: r?.e ?? 0, at: r?.at ?? 0, fin: r?.fin, quit: r?.quit, buf: "", samples: [[r?.at ?? 0, r?.n ?? 0]], combo: 0, best: bestCombo(session, g.seed) };
   });
   const state = useRef(t);
   // Ô nhập đang hiện, kể cả chữ bộ gõ còn đang soạn — để tô màu văn bản.
@@ -773,6 +992,8 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
   const canType = opened && !timeUp && !done;
   const now = useNow(opened && !done, 500);
   const elapsed = now ? Math.max(0, now - g.opensAt) : 0;
+  const speed = canType && now ? Math.round(speedOf(t, elapsed)) : 0;
+  const color = colorOf(g.cars[g.me] ?? 0).color;
 
   const record = (v: number): TrRec => {
     const x = state.current;
@@ -789,6 +1010,12 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
       session.report(record(v));
     }
   });
+
+  // Tiếng máy xe theo tốc độ; rời khu vực gõ thì tắt máy.
+  useEffect(() => {
+    setEngine(canType ? speed : null);
+  }, [canType, speed]);
+  useEffect(() => () => setEngine(null), []);
 
   // Hết giờ: chốt bản ghi cuối ngay.
   useEffect(() => {
@@ -822,6 +1049,8 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
     }
     const at = Math.max(0, Date.now() - g.opensAt);
     const s = scan(text, x.pos, v);
+    const errors = x.e;
+    const combo = x.combo;
     let buf = v;
     if (s.bad >= 0) {
       // Mỗi lần nhập khi đang có ký tự sai đều là một lần nhập sai; chỉ giữ lại một ký tự sai trong ô.
@@ -830,11 +1059,14 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
     }
     const reached = x.pos + s.good;
     if (reached > x.n) {
+      x.combo += reached - x.n;
       x.n = reached;
       x.at = at;
       x.samples.push([at, x.n]);
       if (x.samples.length > 200) x.samples.splice(0, x.samples.length - 200);
     }
+    if (x.e > errors) x.combo = 0;
+    x.best = Math.max(x.best, x.combo);
     if (s.commit > 0) {
       x.pos += s.commit;
       buf = buf.slice(s.commit);
@@ -851,6 +1083,14 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
     const v2 = Math.round(speedOf(x, at));
     lastV.current = v2;
     session.report(record(v2), urgent);
+    keepCombo(session, g.seed, x.best);
+    // Tiếng và cảm giác tay: gõ sai thì khung chữ rung, lên bậc combo thì chuông, về đích thì reo.
+    if (x.e > errors) {
+      play("miss");
+      if (!reduced()) boxRef.current?.animate([{ transform: "translateX(0)" }, { transform: "translateX(-7px)" }, { transform: "translateX(6px)" }, { transform: "translateX(-3px)" }, { transform: "translateX(0)" }], { duration: 240 });
+    } else if (v !== prev) play("key");
+    if (Math.floor(x.combo / COMBO_STEP) > Math.floor(combo / COMBO_STEP)) play("combo");
+    if (urgent && x.fin != null) play("finish");
     setT({ ...x });
     setShown(buf);
   };
@@ -861,27 +1101,51 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
   let from = Math.max(0, t.pos - BEHIND);
   if (from > 0) from = text.indexOf(" ", from) + 1 || from;
   const to = Math.min(text.length, cur + AHEAD);
+  const space = text.indexOf(" ", cur);
+  const wordEnd = Math.max(cur + 1, space < 0 ? text.length : space);
 
+  // Giữ dòng đang gõ ở dòng thứ hai của khung, và con trỏ trượt tới chữ kế tiếp.
   useLayoutEffect(() => {
     const box = boxRef.current;
     const caret = caretRef.current;
     if (!box || !caret) return;
     const line = parseFloat(getComputedStyle(box).lineHeight) || 30;
     box.scrollTop = Math.max(0, caret.offsetTop - line);
+    const bar = barRef.current;
+    if (bar) {
+      bar.style.transform = `translate(${caret.offsetLeft}px, ${caret.offsetTop}px)`;
+      bar.style.height = `${caret.offsetHeight}px`;
+    }
   });
 
   const n = t.n;
   const ms = t.fin ?? (g.endsAt && timeUp ? g.endsAt - g.opensAt : elapsed);
   const chars = g.opts.mode === "chars";
   const left = g.endsAt && now ? Math.max(0, g.endsAt - now) : null;
+  const hot = t.combo >= COMBO_STEP;
 
   return (
-    <section className="card tr-pad mt-4 p-3 sm:p-4" aria-label="Khu vực gõ">
+    <section className="card tr-pad mt-4 p-3 sm:p-4" aria-label="Khu vực gõ" style={{ ["--car" as string]: lum(color) > 200 ? "var(--pen)" : color }}>
+      <MiniMap match={g} mine={t} ghost={opened ? ghost : null} elapsed={elapsed} />
       <div className="tr-stats">
-        <Stat label="WPM" value={Math.round(wpm(n, ms))} />
+        <div className="tr-stat">
+          <span className="text-[11px] font-bold tracking-wide text-ink-3 uppercase">WPM</span>
+          <span className="flex items-end justify-between gap-1">
+            <b className="font-display text-xl leading-tight tabular-nums">{Math.round(wpm(n, ms))}</b>
+            <Gauge v={speed} />
+          </span>
+          <span className="text-[11px] font-semibold text-ink-3 tabular-nums">tức thời {speed}</span>
+        </div>
         <Stat label="Chính xác" value={pct(accuracy(n, t.e))} />
         <Stat label="Lỗi" value={t.e} tone={t.e ? "coral" : undefined} />
-        <Stat label={chars ? "Thời gian" : "Còn lại"} value={chars ? clock(ms) : clock(left != null ? left + 999 : timeUp ? 0 : (g.opts.minutes * 60000))} />
+        <div className={`tr-stat tr-combo ${hot ? "is-hot" : ""}`}>
+          <span className="text-[11px] font-bold tracking-wide text-ink-3 uppercase">Combo</span>
+          <b key={Math.floor(t.combo / COMBO_STEP)} className="tr-combo-n font-display text-xl leading-tight tabular-nums">
+            {hot ? "🔥 " : ""}x{t.combo}
+          </b>
+          <span className="text-[11px] font-semibold text-ink-3 tabular-nums">cao nhất x{t.best}</span>
+        </div>
+        <Stat label={chars ? "Thời gian" : "Còn lại"} value={chars ? clock(ms) : clock(left != null ? left + 999 : timeUp ? 0 : g.opts.minutes * 60000)} />
         <Stat label="Tiến độ" value={chars ? pct((100 * n) / Math.max(1, text.length)) : n.toLocaleString("vi-VN")} sub={chars ? `${n}/${text.length}` : "ký tự"} />
       </div>
       <div ref={boxRef} className={`tr-text ${opened ? "" : "is-hidden"}`} onClick={() => ref.current?.focus()} aria-hidden={!opened}>
@@ -889,18 +1153,20 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
           <>
             {from > 0 && <span className="tr-done">…</span>}
             <span className="tr-done">{text.slice(from, t.pos)}</span>
-            <span className="tr-typing">{text.slice(t.pos, t.pos + okLen)}</span>
+            <span className="tr-typing">{text.slice(t.pos, cur)}</span>
             {s.bad >= 0 ? (
               <span ref={caretRef} className="tr-wrong">
                 {text[cur] ?? " "}
               </span>
             ) : (
-              <span ref={caretRef} className={canType ? "tr-cur" : ""}>
+              <span ref={caretRef} className="tr-word">
                 {text[cur] ?? ""}
               </span>
             )}
-            <span>{text.slice(cur + 1, to)}</span>
+            <span className="tr-word">{text.slice(cur + 1, wordEnd)}</span>
+            <span>{text.slice(wordEnd, to)}</span>
             {to < text.length && <span>…</span>}
+            <span ref={barRef} className={`tr-caret ${canType ? "" : "is-idle"}`} aria-hidden="true" />
           </>
         ) : (
           <span>Văn bản sẽ hiện khi xuất phát — đặt tay lên hàng phím ASDF nhé!</span>
@@ -951,6 +1217,67 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
   );
 }
 
+/** Bản đồ mini ngay trên khung chữ: mắt người gõ ở đây, nên đối thủ và xe ma cũng phải ở đây. */
+function MiniMap({ match: g, mine, ghost, elapsed }: { match: TrMatch; mine: Typing; ghost: Ghost | null; elapsed: number }) {
+  const chars = g.opts.mode === "chars";
+  const recs = g.recs.map((r, k) => (k === g.me ? { ...(r ?? { v: 0 }), p: mine.pos, n: mine.n, e: mine.e, at: mine.at, v: r?.v ?? 0, ...(mine.fin != null ? { fin: mine.fin } : {}), ...(mine.quit || r?.quit ? { quit: true } : {}) } : r));
+  const ghostN = ghost && elapsed ? nAt(ghost.pts, elapsed) : null;
+  const most = Math.max(0, ghostN ?? 0, ...recs.map((r) => r?.n ?? 0));
+  const scale = chars ? g.text.length : Math.max(200, Math.ceil((most * 1.2) / 100) * 100);
+  const sts = standings(g.opts.mode, recs);
+  const ranked = sts.filter((s) => !s.out);
+  const me = sts.find((s) => s.k === g.me);
+  let info: ReactNode;
+  if (g.lineup.length === 1)
+    info =
+      ghostN != null ? (
+        mine.n >= ghostN ? (
+          <>👻 Nhanh hơn kỷ lục {Math.round(mine.n - ghostN)} ký tự</>
+        ) : (
+          <>👻 Chậm hơn kỷ lục {Math.round(ghostN - mine.n)} ký tự</>
+        )
+      ) : (
+        <>Luyện tập một mình — chơi trọn ván để lập kỷ lục 👻</>
+      );
+  else if (me && !me.out) {
+    const i = ranked.findIndex((s) => s.k === g.me);
+    if (i === 0) {
+      const second = ranked[1];
+      info = (
+        <>
+          👑 Dẫn đầu{second ? <> · hơn {nameOf(g, second.k, "")} {mine.n - second.n} ký tự</> : null}
+        </>
+      );
+    } else {
+      const above = ranked[i - 1];
+      info = (
+        <>
+          Hạng {me.rank}/{ranked.length} · kém {nameOf(g, above.k, "")} {Math.max(0, above.n - mine.n)} ký tự
+        </>
+      );
+    }
+  }
+  return (
+    <div className="tr-mini" aria-label="Vị trí các tay đua">
+      <div className={`tr-mini-bar ${chars ? "has-finish" : ""}`}>
+        {ghostN != null && <span className="tr-mini-dot is-ghost" style={{ ["--f" as string]: Math.min(1, ghostN / scale) }} title="Xe ma — kỷ lục của bạn" />}
+        {recs.map((r, k) =>
+          k === g.me ? null : (
+            <span
+              key={g.lineup[k].uid}
+              className={`tr-mini-dot ${r?.quit || !g.lineup[k].online ? "is-off" : ""}`}
+              style={{ ["--f" as string]: Math.min(1, (r?.n ?? 0) / scale), background: colorOf(g.cars[k]).color }}
+              title={nameOf(g, k, "")}
+            />
+          ),
+        )}
+        <span className="tr-mini-dot is-me" style={{ ["--f" as string]: Math.min(1, mine.n / scale), background: colorOf(g.cars[g.me] ?? 0).color }} title="Bạn" />
+      </div>
+      {info && <p className="mt-1 text-[12.5px] font-bold text-ink-2 tabular-nums">{info}</p>}
+    </div>
+  );
+}
+
 // ——— Người xem: bộ chữ đang đua ———
 
 // Khung chữ của người xem trải từ người chậm nhất tới người dẫn đầu, nhưng không dài quá chừng này phía sau.
@@ -989,7 +1316,7 @@ function Watch({ match: g, me }: { match: TrMatch; me: string }) {
 
   const racers = g.lineup.map((seat, k) => {
     const r = g.recs[k];
-    return { k, n: Math.min(text.length, r?.n ?? 0), color: CARS[g.cars[k]].color, name: nameOf(g, k, me), off: !seat.online || !!r?.quit, fin: r?.fin != null };
+    return { k, n: Math.min(text.length, r?.n ?? 0), color: colorOf(g.cars[k]).color, name: nameOf(g, k, me), off: !seat.online || !!r?.quit, fin: r?.fin != null };
   });
   const most = Math.max(0, ...racers.map((r) => r.n));
   const active = racers.filter((r) => !r.off);
