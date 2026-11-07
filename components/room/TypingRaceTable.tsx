@@ -125,6 +125,7 @@ export function TypingRaceTable({ id, slug, session }: { id: string; slug: strin
       {!live && <SetupPart session={session} />}
       <TrackPart session={session} />
       {live && playing && <PadPart key={round} session={session} />}
+      {live && !playing && <WatchPart key={round} session={session} />}
       <CinemaPart session={session} />
     </RoomLayout>
   );
@@ -164,6 +165,12 @@ const TrackPart = memo(function TrackPart({ session }: { session: TypingRaceRoom
 const PadPart = memo(function PadPart({ session }: { session: TypingRaceRoom }) {
   const g = useGame(session, (v) => v?.match);
   return g ? <Pad session={session} match={g} /> : null;
+});
+
+const WatchPart = memo(function WatchPart({ session }: { session: TypingRaceRoom }) {
+  const g = useGame(session, (v) => v?.match);
+  const me = useRoomState(session, (r) => r.me);
+  return g ? <Watch match={g} me={me} /> : null;
 });
 
 const CinemaPart = memo(function CinemaPart({ session }: { session: TypingRaceRoom }) {
@@ -940,6 +947,162 @@ function Pad({ session, match: g }: { session: TypingRaceRoom; match: TrMatch })
       <p className="mt-1.5 text-[12px] font-semibold text-ink-3">
         {s.bad >= 0 ? "❌ Gõ sai — nhấn Backspace để xoá lỗi rồi gõ lại." : "Gõ dùng được bộ gõ Telex / VNI · không dán được văn bản · phân biệt chữ hoa, chữ thường."}
       </p>
+    </section>
+  );
+}
+
+// ——— Người xem: bộ chữ đang đua ———
+
+// Khung chữ của người xem trải từ người chậm nhất tới người dẫn đầu, nhưng không dài quá chừng này phía sau.
+const WATCH_BEHIND = 1200;
+const WATCH_AHEAD = 420;
+const MAX_BITS = 360;
+
+/** Chữ trên lá cờ: màu xe sáng thì chữ tối, màu xe tối thì chữ trắng. */
+function inkOn(hex: string) {
+  const v = parseInt(hex.slice(1), 16);
+  const lum = 0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255);
+  return lum > 160 ? "#1d1648" : "#fff";
+}
+
+/** Bắn pháo giấy màu `color` từ điểm (x, y) trong lớp hiệu ứng. */
+function burst(fx: HTMLElement, x: number, y: number, color: string, count: number, big = false) {
+  for (let i = 0; i < count && fx.childElementCount < MAX_BITS; i++) {
+    const bit = document.createElement("i");
+    const a = Math.random() * Math.PI * 2;
+    const d = (big ? 30 : 14) + Math.random() * (big ? 60 : 30);
+    const w = 4 + Math.random() * 4;
+    bit.className = `tr-bit ${Math.random() < 0.3 ? "is-dot" : ""}`;
+    bit.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${w * (0.45 + Math.random() * 0.4)}px;background:${color};--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d - (big ? 22 : 10)}px;--r:${(Math.random() - 0.5) * 900}deg;animation-duration:${(big ? 1100 : 750) + Math.random() * 400}ms`;
+    bit.addEventListener("animationend", () => bit.remove(), { once: true });
+    fx.appendChild(bit);
+  }
+}
+
+function Watch({ match: g, me }: { match: TrMatch; me: string }) {
+  const text = g.text;
+  const opened = useReached(g.opensAt);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const fxRef = useRef<HTMLDivElement>(null);
+  const pins = useRef(new Map<number, HTMLSpanElement>());
+  const seen = useRef<{ n: number; fin: boolean }[] | null>(null);
+
+  const racers = g.lineup.map((seat, k) => {
+    const r = g.recs[k];
+    return { k, n: Math.min(text.length, r?.n ?? 0), color: CARS[g.cars[k]].color, name: nameOf(g, k, me), off: !seat.online || !!r?.quit, fin: r?.fin != null };
+  });
+  const most = Math.max(0, ...racers.map((r) => r.n));
+  const active = racers.filter((r) => !r.off);
+  const least = Math.min(most, ...(active.length ? active : racers).map((r) => r.n));
+  let from = Math.max(least, most - WATCH_BEHIND);
+  if (from > 0) from = text.lastIndexOf(" ", from - 1) + 1;
+  const to = Math.min(text.length, most + WATCH_AHEAD);
+
+  // Gom tay đua theo vị trí: cùng một chỗ thì chung một con trỏ, các lá cờ xếp cạnh nhau.
+  const at = new Map<number, typeof racers>();
+  for (const r of racers) if (r.n >= from) at.set(r.n, [...(at.get(r.n) ?? []), r]);
+  const stops = [...new Set([from, ...at.keys(), least, most, to])].filter((p) => p >= from && p <= to).sort((a, b) => a - b);
+
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i < stops.length; i++) {
+    const p = stops[i];
+    const group = at.get(p);
+    if (group) {
+      const lead = group.find((r) => !r.off) ?? group[0];
+      parts.push(
+        <span
+          key={`pin${p}`}
+          ref={(el) => {
+            if (!el) return;
+            for (const r of group) pins.current.set(r.k, el);
+            return () => {
+              for (const r of group) if (pins.current.get(r.k) === el) pins.current.delete(r.k);
+            };
+          }}
+          className={`tr-pin ${lead.off ? "is-off" : ""}`}
+          style={{ ["--c" as string]: lead.color }}
+        >
+          <span className="tr-flags">
+            {group.map((r) => (
+              <span
+                key={r.k}
+                className={`tr-flag ${r.off ? "is-off" : ""}`}
+                style={{ background: r.color, color: inkOn(r.color) }}
+              >
+                {r.fin ? "🏁 " : ""}
+                {r.name}
+              </span>
+            ))}
+          </span>
+        </span>,
+      );
+    }
+    const next = stops[i + 1];
+    if (next === undefined || next === p) continue;
+    const cls = next <= least ? "tr-done" : p >= most ? "tr-ahead" : "";
+    parts.push(
+      <span key={`t${p}`} className={cls}>
+        {text.slice(p, next)}
+      </span>,
+    );
+  }
+
+  // Ai tiến lên thì pháo giấy màu xe người đó nổ ngay chỗ đó; về đích thì nổ to.
+  useEffect(() => {
+    const fx = fxRef.current;
+    const prev = seen.current;
+    seen.current = racers.map((r) => ({ n: r.n, fin: r.fin }));
+    if (!fx || !prev || !opened || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    for (const r of racers) {
+      const was = prev[r.k];
+      const pin = pins.current.get(r.k);
+      if (!was || !pin || r.n <= was.n) continue;
+      const x = pin.offsetLeft + 1;
+      const y = pin.offsetTop + pin.offsetHeight / 2;
+      const big = r.fin && !was.fin;
+      burst(fx, x, y, r.color, big ? 46 : Math.min(18, 5 + (r.n - was.n) * 2), big);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g.recs, opened]);
+
+  // Giữ người chậm nhất ở mép trên; ai cũng không vừa khung thì bám theo người dẫn đầu.
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    // Con trỏ sát mép phải thì cờ quay sang trái để khỏi bị cắt.
+    for (const pin of pins.current.values()) {
+      if (pin.offsetLeft > box.clientWidth - 110) pin.dataset.flip = "";
+      else delete pin.dataset.flip;
+    }
+    const y = (r: (typeof racers)[number]) => pins.current.get(r.k)?.offsetTop;
+    const all = racers.flatMap((r) => y(r) ?? []);
+    if (!all.length) return;
+    const line = parseFloat(getComputedStyle(box).lineHeight) || 40;
+    const lead = Math.max(...all);
+    const top = Math.min(lead, ...active.flatMap((r) => y(r) ?? []));
+    let want = top - line * 0.5;
+    if (lead + line * 1.6 > want + box.clientHeight) want = lead + line * 1.6 - box.clientHeight;
+    if (Math.abs(box.scrollTop - want) > 2) box.scrollTo({ top: Math.max(0, want), behavior: "smooth" });
+  });
+
+  return (
+    <section className="card tr-pad mt-4 p-3 sm:p-4" aria-label="Bộ chữ đang đua">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 px-1">
+        <h2 className="font-display text-lg font-extrabold">👀 Bộ chữ đang đua</h2>
+        <span className="text-[12.5px] font-semibold text-ink-3">Mỗi tay đua một màu pháo giấy — gõ tới đâu nổ tới đó</span>
+      </div>
+      <div ref={boxRef} className={`tr-text tr-watch ${opened ? "" : "is-hidden"}`} aria-hidden={!opened}>
+        {opened ? (
+          <>
+            {from > 0 && <span className="tr-done">… </span>}
+            {parts}
+            {to < text.length && <span className="tr-ahead">…</span>}
+            <div ref={fxRef} className="tr-fx" aria-hidden="true" />
+          </>
+        ) : (
+          <span>Văn bản sẽ hiện khi xuất phát…</span>
+        )}
+      </div>
     </section>
   );
 }

@@ -7201,6 +7201,85 @@
     background: var(--coral);
     color: #fff;
   }
+  .tr-watch {
+    height: calc(2.5em * 5);
+    line-height: 2.5em;
+    padding-top: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    cursor: default;
+    color: var(--ink);
+  }
+  .tr-watch .tr-ahead {
+    color: var(--ink-3);
+  }
+  .tr-pin {
+    position: relative;
+    display: inline-block;
+    width: 3px;
+    height: 1.25em;
+    margin: 0 -1.5px;
+    vertical-align: -0.25em;
+    border-radius: 2px;
+    background: var(--c);
+    box-shadow: 0 0 0 1px var(--edge);
+    z-index: 2;
+  }
+  .tr-pin.is-off {
+    opacity: 0.45;
+  }
+  .tr-flags {
+    position: absolute;
+    bottom: calc(100% + 1px);
+    left: -2px;
+    display: flex;
+    gap: 2px;
+    pointer-events: none;
+  }
+  .tr-pin[data-flip] .tr-flags {
+    right: -2px;
+    left: auto;
+    flex-direction: row-reverse;
+  }
+  .tr-pin[data-flip] .tr-flag {
+    border-radius: 6px 6px 1px 6px;
+  }
+  .tr-flag {
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1.5px solid var(--edge);
+    border-radius: 6px 6px 6px 1px;
+    padding: 0 5px;
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 14px;
+  }
+  .tr-flag.is-off {
+    filter: grayscale(1);
+    opacity: 0.6;
+  }
+  .tr-fx {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .tr-bit {
+    position: absolute;
+    border-radius: 1px;
+    box-shadow: 0 0 0 1px rgba(29, 22, 72, 0.28);
+    animation: tr-bit 900ms both;
+  }
+  .tr-bit.is-dot {
+    border-radius: 999px;
+  }
   .tr-input {
     margin-top: 10px;
     width: 100%;
@@ -7247,6 +7326,25 @@
 @keyframes tr-bounce {
   to {
     transform: translateY(-1.5px);
+  }
+}
+@keyframes tr-bit {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.15, 0.8, 0.35, 1);
+  }
+  8% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate(calc(-50% + var(--dx) * 0.85), calc(-50% + var(--dy))) scale(1) rotate(calc(var(--r) * 0.45));
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.9, 0.6);
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 26px)) scale(0.9) rotate(var(--r));
+    opacity: 0;
   }
 }
 @keyframes tr-caret {
