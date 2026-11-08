@@ -72,14 +72,16 @@ export type BsOptions = {
   mode: BsMode;
 };
 
-export const DEFAULT_OPTIONS: BsOptions = { chain: true, turn: 0, mode: "basic" };
+// Mặc định khi tạo phòng mới.
+export const DEFAULT_OPTIONS: BsOptions = { chain: true, turn: 30, mode: "basic" };
 
-// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn; trước khi có chế độ thì là cơ bản.
+// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn (không theo DEFAULT_OPTIONS, để
+// phòng đã có không bị đổi luật giữa chừng); trước khi có chế độ thì là cơ bản.
 export function normOptions(raw: unknown): BsOptions {
   const o = (raw ?? {}) as Partial<BsOptions>;
   return {
     chain: typeof o.chain === "boolean" ? o.chain : DEFAULT_OPTIONS.chain,
-    turn: TURN_LIMITS.find((t) => t === o.turn) ?? DEFAULT_OPTIONS.turn,
+    turn: TURN_LIMITS.find((t) => t === o.turn) ?? 0,
     mode: MODES.find((m) => m === o.mode) ?? DEFAULT_OPTIONS.mode,
   };
 }

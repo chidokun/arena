@@ -13,13 +13,15 @@ export type CaroOptions = {
   blockTwoEnds: boolean;
   turn: TurnLimit;
 };
-export const DEFAULT_OPTIONS: CaroOptions = { size: 15, blockTwoEnds: true, turn: 0 };
+// Mặc định khi tạo phòng mới.
+export const DEFAULT_OPTIONS: CaroOptions = { size: 19, blockTwoEnds: true, turn: 30 };
 
-// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn.
+// Phòng tạo trước khi có tuỳ chọn thời gian thì không có `turn`, coi như không giới hạn. Giá trị thiếu/sai rơi về luật
+// cũ (15×15, không giới hạn) chứ không theo DEFAULT_OPTIONS, để phòng đã có không bị đổi luật giữa chừng.
 export function normOptions(o: Record<string, unknown> | undefined): CaroOptions {
-  const size = SIZES.find((s) => s === o?.size) ?? DEFAULT_OPTIONS.size;
+  const size = SIZES.find((s) => s === o?.size) ?? 15;
   const blockTwoEnds = typeof o?.blockTwoEnds === "boolean" ? o.blockTwoEnds : DEFAULT_OPTIONS.blockTwoEnds;
-  const turn = TURN_LIMITS.find((t) => t === o?.turn) ?? DEFAULT_OPTIONS.turn;
+  const turn = TURN_LIMITS.find((t) => t === o?.turn) ?? 0;
   return { size, blockTwoEnds, turn };
 }
 
