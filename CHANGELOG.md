@@ -7,6 +7,9 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.11.09.1
+- Ra mắt game mới 👑 Vua Tiếng Việt — bốn vòng đố chữ Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi cho 1–8 người: cả phòng nhận cùng câu hỏi, đúng và nhanh thì nhiều điểm, ai giỏi tiếng Việt nhất sẽ lên ngôi. Chơi một mình để luyện tập cũng được.
+
 ## 2026.11.05.1
 - 🎨 Vẽ Đoán có bộ từ mới đa dạng hơn hẳn: thêm con vật, món ăn Việt, địa danh, nhân vật cổ tích, nghề nghiệp, hành động thường ngày và cả thành ngữ, tục ngữ để thử tài vẽ.
 

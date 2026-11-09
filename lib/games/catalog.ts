@@ -438,6 +438,25 @@ export const CATALOG: unknown = {
         "default": 0
       },
       "hue": "coral"
+    },
+    {
+      "slug": "vua-tieng-viet",
+      "name": "Vua Tiếng Việt",
+      "emoji": "👑",
+      "status": "LIVE",
+      "category": "brain",
+      "tagline": "Bốn vòng đố chữ — ai giỏi tiếng Việt nhất sẽ lên ngôi",
+      "description": "Đố vui tiếng Việt cho 1–8 người qua bốn vòng: Phản xạ (trắc nghiệm chính tả, từ vựng, thành ngữ, văn học), Giải nghĩa (đoán từ qua gợi ý mở dần), Xâu chuỗi (sắp thẻ thành câu tục ngữ, ca dao) và Soán ngôi (giải mã câu dài hoặc săn từ trong lưới 4×4). Cả phòng nhận cùng câu hỏi, cùng lúc — đúng và nhanh thì nhiều điểm, tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Chơi một mình để luyện tập cũng được.",
+      "seats": {
+        "min": 1,
+        "max": 8
+      },
+      "capacity": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      },
+      "hue": "sun"
     }
   ]
 };

@@ -27,6 +27,7 @@ export default async function Home() {
     <>
       <HeroCarousel
         slides={[
+          { label: "Vua Tiếng Việt", content: <VuaTiengVietSlide /> },
           { label: "Thiết kế hệ thống", content: <SystemDesignSlide /> },
           { label: "Đấu trường mini", content: <ArenaSlide /> },
           { label: "Kho game", content: <GamesSlide games={games} /> },
@@ -130,6 +131,83 @@ function ArenaSlide() {
         </div>
       </div>
       <HeroArt />
+    </div>
+  );
+}
+
+function VuaTiengVietSlide() {
+  return (
+    <div className={SLIDE}>
+      <div>
+        <p className="chip bg-surface" style={{ color: "var(--coral)" }}>
+          👑 Game mới · Vua Tiếng Việt
+        </p>
+        <h2 className={SLIDE_TITLE}>
+          Ai sẽ là <span className="text-pen">Vua Tiếng Việt</span> của hội bạn?
+        </h2>
+        <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
+          Bốn vòng đố chữ: Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Trả lời thật nhanh để ghi điểm. Dễ dàng chơi một mình để luyện tập.
+        </p>
+        <Perks
+          items={[
+            { icon: "⚡", title: "Trắc nghiệm nhanh" },
+            { icon: "🔗", title: "Xếp thẻ tục ngữ" },
+            { icon: "🔠", title: "Săn từ trong lưới" },
+          ]}
+        />
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/games/vua-tieng-viet/" className="btn btn-pen h-12 px-6 text-base no-underline">
+            Tranh ngôi ngay →
+          </Link>
+          <Link href="/games/" className="btn h-12 px-6 text-base no-underline">
+            Xem các game
+          </Link>
+        </div>
+      </div>
+      <VuaTiengVietArt />
+    </div>
+  );
+}
+
+const VT_PLACED = ["lời", "chào", "cao", "hơn"];
+const VT_POOL = ["mâm", "cỗ"];
+
+function VuaTiengVietArt() {
+  return (
+    <div className="vt-root relative mx-auto w-full max-w-[460px]" aria-hidden="true">
+      <div className="card -rotate-2 p-5" style={{ boxShadow: "0 8px 0 var(--edge)" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- site xuất tĩnh, ảnh đã thu nhỏ sẵn */}
+        <img src={`${process.env.BASE_PATH ?? ""}/vua-tieng-viet/logo.webp`} alt="" width={560} height={442} className="mx-auto block h-auto w-[58%]" draggable={false} />
+        <div className="mt-3 flex items-center gap-3">
+          <span className="vt-roundtag is-coral">🔗 Vòng 3 · Xâu chuỗi</span>
+          <span className="ml-auto font-display text-2xl font-extrabold tabular-nums" style={{ color: "var(--coral)" }}>
+            18
+          </span>
+        </div>
+        <div className="vt-timer mt-2">
+          <span style={{ width: "72%" }} />
+        </div>
+        <div className="vt-line mt-3 !min-h-[56px]">
+          {VT_PLACED.map((t) => (
+            <span key={t} className="vt-tile is-placed !min-h-[38px] !text-[15px]">
+              {t}
+            </span>
+          ))}
+        </div>
+        <div className="vt-pool mt-3">
+          {VT_POOL.map((t) => (
+            <span key={t} className="vt-tile !min-h-[38px] !text-[15px]">
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+      <span className="bob absolute -top-6 -right-5" style={{ ["--r" as string]: "10deg" }}>
+        <StickerArt id="kx-dang-cap" size={70} />
+      </span>
+      <span className="bob absolute -bottom-6 -left-5" style={{ ["--r" as string]: "-12deg", animationDelay: "-1.4s" }}>
+        <StickerArt id="clap" size={58} />
+      </span>
     </div>
   );
 }

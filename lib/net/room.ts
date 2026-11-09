@@ -12,6 +12,7 @@ import type { Problem as SxProblem, SxRound } from "../games/system-design";
 import type { CtRound } from "../games/citta-challenge";
 import type { TrRound } from "../games/typing-race";
 import type { TxRound } from "../games/truc-xanh";
+import type { VtRound } from "../games/vua-tieng-viet";
 import type { Public as UcPublic, Role as UcTeam } from "../games/undercover";
 import type { Public as WolfPublic, Side } from "../games/werewolf";
 import type { XqRolePublic } from "../games/xiangqi-role";
@@ -82,6 +83,9 @@ export type Meta = {
   tr?: TrRound;
   // Văn bản chủ phòng tự nhập cho ván tới — không để trong opts vì opts được quảng bá ra sảnh.
   trText?: string;
+  vt?: VtRound;
+  // Mã các câu Vua Tiếng Việt phòng đã chơi, để ván sau ưu tiên câu mới.
+  vtUsed?: string[];
   ack: Record<string, number>;
   kicked: string[];
   cheats?: string[];

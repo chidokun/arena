@@ -7,6 +7,75 @@ export type GameRules = {
 };
 
 export const RULES: Record<string, GameRules> = {
+  "vua-tieng-viet": {
+    intro:
+      "Vua Tiếng Việt: đố vui kiến thức tiếng Việt cho 1–8 người qua bốn vòng. Cả phòng nhận cùng câu hỏi, cùng lúc, cùng giới hạn giờ; không ai bị loại giữa chừng, câu sai không bị trừ điểm. Tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Thể thức lấy cảm hứng từ gameshow cùng tên, không phải luật chính thức của chương trình.",
+    sections: [
+      {
+        emoji: "⚙️",
+        title: "Thiết lập ván",
+        items: [
+          "Chủ phòng chọn gói: ⚡ Nhanh (3 · 2 · 1 · 1 câu, ~3 phút), 👑 Tiêu chuẩn (6 · 4 · 3 · 2, ~5–6 phút), 🏯 Dài (10 · 5 · 5 · 3, ~8–9 phút) hoặc 🛠️ Tùy chỉnh số câu từng vòng.",
+          "Độ khó Dễ / Trung bình / Khó / Hỗn hợp và chủ đề Tổng hợp / Chính tả / Từ vựng / Thành ngữ – tục ngữ / Văn học phổ thông: máy ưu tiên câu đúng chủ đề, câu phòng chưa chơi, rồi gần độ khó đã chọn. Vòng cuối luôn nghiêng về câu khó.",
+          "Bật / tắt phần giải thích sau mỗi câu. Bộ câu hỏi được chốt lúc bắt đầu, cả phòng nhận giống hệt nhau; người vào sau khi ván bắt đầu chỉ được xem.",
+          "Chơi một mình là chế độ luyện tập: cùng câu hỏi, cùng luật, đọc lời giải bao lâu cũng được rồi mới sang câu sau.",
+        ],
+      },
+      {
+        emoji: "⚡",
+        title: "Vòng 1 — Phản xạ (12 giây mỗi câu)",
+        items: [
+          "Trắc nghiệm 4 phương án: chính tả, từ đúng ngữ cảnh, điền tiếng còn thiếu trong tục ngữ, từ loại trong một câu cụ thể, nghĩa của từ, tác giả – tác phẩm.",
+          "Bấm vào phương án là chốt, không sửa được. Đúng: 100 + ⌊50 × giây còn lại / 12⌋ điểm (tối đa 150). Sai, bỏ trống, hết giờ: 0.",
+          "Máy tính dùng phím 1–4 hoặc A–D để chọn nhanh.",
+        ],
+      },
+      {
+        emoji: "🔍",
+        title: "Vòng 2 — Giải nghĩa (20 giây mỗi câu)",
+        items: [
+          "Đoán từ / cụm từ qua 3 gợi ý mở dần ở giây 0, 7 và 14, rồi gõ đáp án có dấu và gửi. Mỗi câu chỉ được gửi một lần — đoán sớm nhiều điểm, nhưng sai là mất lượt.",
+          "Đúng trước gợi ý 2: 150 điểm · từ gợi ý 2 tới trước gợi ý 3: 110 · từ gợi ý 3 tới hết giờ: 70. Hết giờ chưa gửi: 0.",
+          "Chấm không phân biệt hoa thường, bỏ qua khoảng trắng thừa, nhưng phải đúng dấu: “doan ket” không phải “đoàn kết”. Chỉ những biến thể đã duyệt cho từng câu mới được chấp nhận (vd. “kỷ niệm” / “kỉ niệm”).",
+        ],
+      },
+      {
+        emoji: "🔗",
+        title: "Vòng 3 — Xâu chuỗi (25 giây mỗi câu)",
+        items: [
+          "Các tiếng của một câu tục ngữ, thành ngữ, ca dao bị xáo trộn. Chạm lần lượt (hoặc kéo thả, hoặc gõ số trên bàn phím) để xếp lại, đổi thứ tự thoải mái rồi bấm Xác nhận.",
+          "Mỗi câu xác nhận một lần. Đúng: 200 + ⌊50 × giây còn lại / 25⌋ (tối đa 250). Sai hoặc hết giờ: 0.",
+          "Chấm theo chuỗi chữ sau khi ghép nên hai thẻ trùng chữ đổi chỗ vẫn đúng; không xét dấu câu. Câu có nhiều cách xếp tự nhiên (vd. “Chị ngã em nâng” / “Em ngã chị nâng”) thì cách nào cũng được.",
+        ],
+      },
+      {
+        emoji: "👑",
+        title: "Vòng 4 — Soán ngôi (35 giây mỗi thử thách)",
+        items: [
+          "Giải mã câu khó: xếp lại một câu dài hơn vòng 3. Đúng: 300 + ⌊100 × giây còn lại / 35⌋ (tối đa 400).",
+          "Săn từ trong lưới 4×4 theo chủ đề: kéo (hoặc chạm lần lượt) nối các ô kề nhau theo hàng ngang / dọc — không nối chéo, không dùng lại ô — để thành từ đúng chủ đề. Mỗi từ hợp lệ khác nhau +75 điểm, tối đa 4 từ; đủ 4 từ thì xong sớm và được thêm ⌊100 × giây còn lại / 35⌋.",
+          "Gói Tiêu chuẩn có cả hai thử thách; gói Nhanh chỉ có Săn từ; gói Dài: Giải mã – Săn từ – Giải mã.",
+        ],
+      },
+      {
+        emoji: "🏆",
+        title: "Xếp hạng & câu hỏi phụ",
+        items: [
+          "Kết quả từng câu chỉ hiện khi hết giờ hoặc mọi người đã chốt. Trong lúc trả lời chỉ thấy ai “đã trả lời / đang suy nghĩ”, không thấy đáp án của nhau.",
+          "Xếp theo tổng điểm; bằng điểm thì ai điểm vòng Soán ngôi cao hơn đứng trên; vẫn bằng thì ai nhiều câu đúng hơn (mỗi từ trong lưới tính một).",
+          "Vẫn hoà ở ngôi đầu thì những người hoà vào câu hỏi phụ: một câu trắc nghiệm khó, 15 giây. Đúng thắng sai, cùng đúng thì nhanh hơn thắng; cùng sai hoặc hoà tuyệt đối thì đấu tiếp, tối đa 3 câu — sau đó trao danh hiệu Đồng Vua. Các vị trí khác hoà thì đồng hạng.",
+          "Mất kết nối thì đồng hồ không dừng; vào lại vẫn chơi tiếp câu đang mở. Mở công cụ nhà phát triển giữa ván bị xử thua.",
+        ],
+      },
+      {
+        emoji: "🚩",
+        title: "Câu hỏi & báo lỗi",
+        items: [
+          "Mỗi câu có mã riêng, đáp án kèm giải thích ngắn. Thấy câu sai hoặc đa nghĩa thì bấm 🚩 Báo lỗi ở màn đáp án — lời báo được gửi vào khung chat và chép sẵn để gửi cho người quản trị; báo lỗi không đổi điểm giữa trận.",
+        ],
+      },
+    ],
+  },
   "typing-race": {
     intro: "Anh Hùng Bàn Phím: đua xe bằng cách gõ chữ — gõ càng nhanh và chính xác, xe càng tiến nhanh. Không có nút tăng tốc: khả năng gõ chính là động cơ của xe.",
     sections: [

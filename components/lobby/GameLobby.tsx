@@ -148,6 +148,21 @@ import {
   normOptions as ucOptions,
   ROLES as UC_ROLES,
 } from "@/lib/games/undercover";
+import {
+  DEFAULT_OPTIONS as VT_DEFAULTS,
+  DEFAULT_SEATS as VT_SEATS,
+  LEVEL_KEYS as VT_LEVEL_KEYS,
+  LEVELS as VT_LEVELS,
+  MAX_PLAYERS as VT_MAX,
+  maxScore as vtMax,
+  normOptions as vtOptions,
+  PACKS as VT_PACKS,
+  TOPIC_KEYS as VT_TOPIC_KEYS,
+  TOPICS as VT_TOPICS,
+  type Level as VtLevel,
+  type Pack as VtPack,
+  type Topic as VtTopic,
+} from "@/lib/games/vua-tieng-viet";
 import { DEFAULT_OPTIONS, MAX_PLAYERS, MIN_PLAYERS, normOptions, ROLES, TALKS, talkName } from "@/lib/games/werewolf";
 import { cleanName, randomId } from "@/lib/identity";
 import type { RoomAd } from "@/lib/net/lobby";
@@ -295,6 +310,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const sx = room.game === "system-design";
   const ct = room.game === "citta-challenge";
   const tr = room.game === "typing-race";
+  const vt = room.game === "vua-tieng-viet";
   const full = room.cap > 0 && room.members >= room.cap;
   const playing = room.status === "playing";
   const noSheets = loto && (room.sheets ?? 0) >= room.seats;
@@ -342,7 +358,9 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
                                                   ? "Đang tĩnh tâm"
                                                   : tr
                                                     ? "Đang đua"
-                                                    : "Đang đấu",
+                                                    : vt
+                                                      ? "Đang tranh ngôi"
+                                                      : "Đang đấu",
         color: "var(--coral)",
       }
     : room.status === "ended"
@@ -405,6 +423,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <CittaChallengeChips room={room} />
         ) : tr ? (
           <TypingRaceChips room={room} />
+        ) : vt ? (
+          <VuaTiengVietChips room={room} />
         ) : (
           <CaroChips room={room} />
         )}</div>
@@ -797,6 +817,29 @@ function CittaChallengeChips({ room }: { room: RoomAd }) {
   );
 }
 
+function VuaTiengVietChips({ room }: { room: RoomAd }) {
+  const opts = vtOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        👑 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-sun-soft px-2.5 py-1">
+        {VT_PACKS[opts.pack].emoji} {VT_PACKS[opts.pack].name}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        {VT_LEVELS[opts.level].emoji} {VT_LEVELS[opts.level].name}
+      </span>
+      {opts.topic !== "all" && (
+        <span className="rounded-lg bg-sunken px-2.5 py-1">
+          {VT_TOPICS[opts.topic].emoji} {VT_TOPICS[opts.topic].name}
+        </span>
+      )}
+    </>
+  );
+}
+
 function XiangqiRoleChips({ room }: { room: RoomAd }) {
   const opts = xqOptions(room.opts);
   return (
@@ -875,6 +918,11 @@ function CreateForm({ slug }: { slug: string }) {
   const [trLang, setTrLang] = useState<TrLang>(TR_DEFAULTS.lang);
   const [trLevel, setTrLevel] = useState<TrLevel>(TR_DEFAULTS.level);
   const [sxTimeLimit, setSxTimeLimit] = useState<SxTime>(300);
+  const [vtPack, setVtPack] = useState<VtPack>(VT_DEFAULTS.pack);
+  const [vtSeats, setVtSeats] = useState(VT_SEATS);
+  const [vtLevel, setVtLevel] = useState<VtLevel>(VT_DEFAULTS.level);
+  const [vtTopic, setVtTopic] = useState<VtTopic>(VT_DEFAULTS.topic);
+  const [vtWatch, setVtWatch] = useState(true);
   const loto = slug === "loto";
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
@@ -897,6 +945,7 @@ function CreateForm({ slug }: { slug: string }) {
   const sx = slug === "system-design";
   const ct = slug === "citta-challenge";
   const tr = slug === "typing-race";
+  const vt = slug === "vua-tieng-viet";
   const seats = game.seats.min;
   const clean = cleanName(name);
 
@@ -927,6 +976,8 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { problem } });
         } else if (ct) {
           stashCreate(id, { name: clean, cap: 0, seats: CT_MAX, opts: ctOptions({ mode: ctMode, timer: ctTimer }) });
+        } else if (vt) {
+          stashCreate(id, { name: clean, cap: vtWatch ? 0 : vtSeats, seats: vtSeats, opts: vtOptions({ pack: vtPack, level: vtLevel, topic: vtTopic }) });
         } else if (tr) {
           stashCreate(id, { name: clean, cap: 0, seats: TR_MAX, opts: trOptions({ mode: trMode, length: trLength, minutes: trMinutes, lang: trLang, level: trLevel }) });
         } else if (xiangqi || c4 || chess || rv) stashCreate(id, { name: clean, cap, seats, opts: {} });
@@ -1282,6 +1333,65 @@ function CreateForm({ slug }: { slug: string }) {
             </select>
             <span className="mt-1 block text-[13px] text-ink-3">Traffic mục tiêu, sự cố và budget được sinh kèm; trong phòng bạn soạn lại được toàn bộ đề trước mỗi ván.</span>
           </label>
+        </>
+      ) : vt ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Gói câu hỏi</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {(["quick", "standard", "long"] as const).map((k) => (
+                <button key={k} type="button" onClick={() => setVtPack(k)} aria-pressed={vtPack === k} className={`btn !px-2 ${vtPack === k ? "btn-sun" : ""}`}>
+                  {VT_PACKS[k].emoji} {VT_PACKS[k].name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">
+              {vtPack === "custom" ? "" : `${VT_PACKS[vtPack].counts.join(" · ")} câu qua 4 vòng, ${VT_PACKS[vtPack].minutes}, tối đa ${vtMax(VT_PACKS[vtPack].counts).toLocaleString("vi-VN")} điểm.`}{" "}
+              Tự chỉnh số câu từng vòng được ở trong phòng.
+            </p>
+          </fieldset>
+          <div>
+            <label htmlFor="cr-vt-seats" className="mb-1.5 flex justify-between text-sm font-bold">
+              <span>Số người chơi tối đa</span>
+              <span className="text-pen tabular-nums">{vtSeats} người</span>
+            </label>
+            <input id="cr-vt-seats" type="range" min={2} max={VT_MAX} value={vtSeats} onChange={(e) => setVtSeats(Number(e.target.value))} className="w-full accent-[var(--pen)]" />
+            <p className="mt-1 text-[13px] text-ink-3">Một mình vẫn bắt đầu được — đó là chế độ luyện tập.</p>
+          </div>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Độ khó</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {VT_LEVEL_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setVtLevel(k)} aria-pressed={vtLevel === k} className={`btn !px-1 text-[13px] ${vtLevel === k ? "btn-sun" : ""}`}>
+                  {VT_LEVELS[k].emoji} {VT_LEVELS[k].name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chủ đề</legend>
+            <div className="flex flex-wrap gap-2">
+              {VT_TOPIC_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setVtTopic(k)} aria-pressed={vtTopic === k} className={`btn btn-sm ${vtTopic === k ? "btn-lime" : ""}`}>
+                  {VT_TOPICS[k].emoji} {VT_TOPICS[k].name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Khán giả</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {[true, false].map((on) => (
+                <button key={String(on)} type="button" onClick={() => setVtWatch(on)} aria-pressed={vtWatch === on} className={`btn !px-2 ${vtWatch === on ? "btn-sun" : ""}`}>
+                  {on ? "👀 Cho phép xem" : "🔒 Chỉ người chơi"}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
+            👑 Từ 1 đến {vtSeats} người, cùng nhận câu hỏi một lúc qua 4 vòng: Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Đúng và nhanh thì nhiều điểm, sai không bị trừ —
+            tổng điểm cao nhất lên ngôi Vua Tiếng Việt; hoà ngôi đầu thì đấu câu hỏi phụ.
+          </p>
         </>
       ) : ct ? (
         <>
