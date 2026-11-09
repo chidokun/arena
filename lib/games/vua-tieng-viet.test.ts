@@ -25,6 +25,9 @@ import {
   roundOf,
   scrambleAnswers,
   scrambleTiers,
+  limitOf,
+  limitNote,
+  limitSpan,
   standings,
   TB,
   tieSurvivors,
@@ -45,7 +48,7 @@ const item = (id: string) => {
 test("ngân hàng: mã không trùng, đủ câu cho gói Dài", () => {
   const all = Object.values(BANK).flat();
   assert.equal(new Set(all.map((x) => x.id)).size, all.length);
-  assert.ok(BANK.r0.length >= 60);
+  assert.ok(BANK.r0.length >= 400);
   assert.ok(BANK.r1.length >= 10 + 3 + 40);
   assert.ok(BANK.r2.length >= 30);
   assert.ok(BANK.r3.length >= 30);
@@ -55,10 +58,12 @@ test("ngân hàng: mã không trùng, đủ câu cho gói Dài", () => {
 });
 
 test("ngân hàng ghép từ: đủ câu mỗi cấp, đáp án phụ cùng bộ chữ, thẻ bày không đọc sẵn ra đáp án", () => {
-  for (const lv of [1, 2, 3, 4]) assert.ok(BANK.r0.filter((x) => x.lv === lv).length >= 10, `cấp ${lv} thiếu câu`);
+  for (const lv of [1, 2, 3, 4]) assert.ok(BANK.r0.filter((x) => x.lv === lv).length >= 100, `cấp ${lv} thiếu câu`);
   for (const w of BANK.r0) {
     const letters = lettersOf(w.a);
     assert.ok(letters.length >= 4, w.id);
+    // Dài hơn 18 chữ cái thì không kịp chạm xếp hết trong 15 giây.
+    assert.ok(letters.length <= 18, `${w.id}: quá dài (${letters.length} chữ cái)`);
     assert.ok(w.why.trim(), w.id);
     const bag = (s: string) => lettersOf(s).sort().join("");
     for (const a of w.acc ?? []) assert.equal(bag(a), bag(w.a), `${w.id}: đáp án phụ “${a}” khác bộ chữ`);
@@ -182,10 +187,15 @@ test("lập đề: ưu tiên chủ đề và câu chưa chơi", () => {
 test("điểm Phản xạ: 100 + thưởng tốc độ, sai / hết giờ 0", () => {
   const q = item(BANK.r1[0].id);
   assert.deepEqual(mark(q, 1, { a: 0, t: 0 }), { ok: true, t: 0, hits: 1, pts: 150 });
-  assert.equal(mark(q, 1, { a: 0, t: 7200 }).pts, 120);
-  assert.equal(mark(q, 1, { a: 0, t: 12000 }).pts, 100);
+  // Câu dễ, trung bình 15 giây; câu khó 30 giây.
+  assert.equal(q.lv, 2);
+  assert.equal(mark(q, 1, { a: 0, t: 9000 }).pts, 120);
+  assert.equal(mark(q, 1, { a: 0, t: 15000 }).pts, 100);
+  const hard = item("R1-003");
+  assert.equal(hard.lv, 3);
+  assert.equal(mark(hard, 1, { a: 0, t: 15000 }).pts, 125);
   assert.equal(mark(q, 1, { a: 2, t: 100 }).pts, 0);
-  assert.equal(mark(q, 1, { t: 12000 }).pts, 0);
+  assert.equal(mark(q, 1, { t: 15000 }).pts, 0);
   assert.equal(mark(q, 1, undefined).pts, 0);
   // Câu hỏi phụ không cộng điểm.
   assert.equal(mark(q, TB, { a: 0, t: 100 }).pts, 0);
@@ -223,7 +233,7 @@ test("điểm Xâu chuỗi và Giải mã câu khó; đáp án phụ được ch
   const long = item("R4A-001");
   if (long.kind !== "order") throw 0;
   assert.equal(mark(long, CROWN, { a: tokensOf(long).map((_, i) => i), t: 0 }).pts, 400);
-  assert.equal(mark(long, CROWN, { a: tokensOf(long).map((_, i) => i), t: 35000 }).pts, 300);
+  assert.equal(mark(long, CROWN, { a: tokensOf(long).map((_, i) => i), t: limitOf(CROWN, long) }).pts, 300);
 });
 
 test("điểm Săn từ: 75 mỗi từ khác nhau, tối đa 4 từ, thưởng khi đủ 4 sớm", () => {
@@ -289,6 +299,22 @@ test("thứ tự phương án tất định theo seed", () => {
   assert.ok(seen.size >= 3, "đáp án đúng nên rơi vào nhiều vị trí khác nhau");
 });
 
+test("hạn trả lời theo vòng và cấp độ", () => {
+  const first = (list: readonly Item[], lv: number) => list.find((x) => x.lv === lv)!;
+  const sec = (r: number, x: Item) => limitOf(r, x) / 1000;
+  assert.deepEqual([1, 2, 3, 4].map((lv) => sec(0, first(BANK.r0, lv))), [15, 15, 30, 60]);
+  assert.deepEqual([1, 2, 3].map((lv) => sec(1, first(BANK.r1, lv))), [15, 15, 30]);
+  assert.deepEqual([1, 2, 3].map((lv) => sec(2, first(BANK.r2, lv))), [20, 20, 20]);
+  assert.deepEqual([1, 2, 3].map((lv) => sec(3, first(BANK.r3, lv))), [25, 25, 45]);
+  assert.deepEqual([2, 3].map((lv) => sec(CROWN, first(BANK.r4a, lv))), [45, 60]);
+  for (const g of BANK.r4b) assert.equal(sec(CROWN, g), 35);
+  assert.equal(sec(TB, first(BANK.r1, 3)), 15);
+  assert.equal(limitNote(0), "Dễ, Trung bình: 15 giây · Khó: 30 giây · Rất khó: 60 giây");
+  assert.equal(limitNote(2), "20 giây mỗi câu");
+  assert.equal(limitNote(CROWN), "Giải mã — Trung bình: 45 giây · Khó: 60 giây · Săn từ: 35 giây");
+  assert.deepEqual(limitSpan(CROWN), [35, 60]);
+});
+
 test("cấp độ Ghép từ tăng dần qua vòng", () => {
   assert.deepEqual(scrambleTiers(6, "mixed"), [1, 1, 2, 2, 3, 4]);
   assert.deepEqual(scrambleTiers(3, "mixed"), [1, 2, 3]);
@@ -299,7 +325,7 @@ test("cấp độ Ghép từ tăng dần qua vòng", () => {
 });
 
 test("điểm Ghép từ: dùng hết chữ, đúng dấu, khoảng trắng không tính; 100 + thưởng tốc độ", () => {
-  const w = item("GT-101");
+  const w = item("GT-2001");
   if (w.kind !== "scramble") throw 0;
   assert.equal(w.lv, 2);
   const L = lettersOf(w.a);
@@ -322,7 +348,7 @@ test("điểm Ghép từ: dùng hết chữ, đúng dấu, khoảng trắng khô
   assert.equal(mark(w, 0, { a: [...right, 7], t: 0 }).pts, 0);
   assert.equal(mark(w, 0, { t: 15000 }).pts, 0);
   // Đáp án phụ đã duyệt được chấp nhận.
-  const n = item("GT-110");
+  const n = item("GT-2010");
   if (n.kind !== "scramble") throw 0;
   const NL = lettersOf(n.a);
   const tinh = lettersOf("tình").map((ch) => NL.lastIndexOf(ch));
@@ -331,7 +357,7 @@ test("điểm Ghép từ: dùng hết chữ, đúng dấu, khoảng trắng khô
 });
 
 test("chuẩn hoá bản ghi Ghép từ từ mạng", () => {
-  const w = item("GT-001");
+  const w = item("GT-1001");
   assert.deepEqual(normSub(w, { a: [0, -1, 2, -5, 1.5, "x", 3], t: 100 }, 15000), { a: [0, -1, 2, 3], t: 100 });
   assert.deepEqual(normSub(w, { a: "cây đa", t: 100 }, 15000), { t: 100 });
 });

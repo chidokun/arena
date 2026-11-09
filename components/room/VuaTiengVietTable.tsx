@@ -13,6 +13,8 @@ import {
   GRID_WORD,
   gridFinds,
   HINT_AT,
+  limitNote,
+  limitSpan,
   itemOf,
   LETTERS,
   lettersOf,
@@ -404,8 +406,12 @@ function Setup({ view, session }: { view: View; session: VuaTiengVietRoom }) {
         )}
       </div>
       <p className="text-[13.5px] text-ink-2">
-        Năm vòng: 🧩 Ghép từ (15s/câu) → ⚡ Phản xạ (12s) → 🔍 Giải nghĩa (20s) → 🔗 Xâu chuỗi (25s) → 👑 Soán ngôi (35s). Đúng và nhanh thì nhiều điểm, sai không bị trừ; hoà ngôi đầu thì đấu
-        câu hỏi phụ.{!host && " Chủ phòng chọn gói, độ khó và chủ đề cho ván tới."}
+        Năm vòng:{" "}
+        {ROUNDS.map((x, r) => {
+          const [lo, hi] = limitSpan(r);
+          return `${x.emoji} ${x.name} (${lo === hi ? lo : `${lo}–${hi}`}s${r ? "" : "/câu"})`;
+        }).join(" → ")}
+        ; câu càng khó càng nhiều giờ. Đúng và nhanh thì nhiều điểm, sai không bị trừ; hoà ngôi đầu thì đấu câu hỏi phụ.{!host && " Chủ phòng chọn gói, độ khó và chủ đề cho ván tới."}
       </p>
     </section>
   );
@@ -461,6 +467,7 @@ function RoundIntro({ match: g }: { match: VtMatch }) {
       <h2 className="vt-intro-title">{tb ? TIEBREAK.name : ROUNDS[g.r].name}</h2>
       <p className="vt-intro-about">{tb ? "Một câu trắc nghiệm khó, 15 giây — tối đa 3 câu." : ROUNDS[g.r].about}</p>
       <p className="vt-intro-rule">{tb ? TIEBREAK.rule : ROUNDS[g.r].rule}</p>
+      {!tb && <p className="vt-intro-rule">⏱️ {limitNote(g.r)}</p>}
     </div>
   );
 }

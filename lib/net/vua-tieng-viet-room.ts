@@ -228,7 +228,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     }
     const who = this.takers(m);
     if (vt.stage === "ask") {
-      const limit = limitOf(placeOf(vt.counts, vt.i).r);
+      const limit = limitOf(placeOf(vt.counts, vt.i).r, item);
       const b = this.board(m);
       const subs = (b[vt.i] ??= {});
       const late = now >= vt.at + limit + GRACE_MS;
@@ -367,7 +367,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const b = this.board(m);
     const live = m.status === "playing";
     const { r, k, n } = placeOf(vt.counts, vt.i);
-    const limit = limitOf(r);
+    const limit = limitOf(r, item);
     const who = this.takers(m);
     const closed = vt.stage === "reveal" || vt.stage === "done" || !live;
     const asking = live && vt.stage === "ask";
@@ -457,8 +457,13 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     this.react();
   }
 
-  private elapsed(m: Meta) {
-    return Math.max(0, Date.now() - this.stageAt(m, limitOf(placeOf(m.vt!.counts, m.vt!.i).r)));
+  /** Hạn trả lời của câu đang mở. */
+  private limitNow(vt: NonNullable<Meta["vt"]>, item: Item) {
+    return limitOf(placeOf(vt.counts, vt.i).r, item);
+  }
+
+  private elapsed(m: Meta, item: Item) {
+    return Math.max(0, Date.now() - this.stageAt(m, this.limitNow(m.vt!, item)));
   }
 
   /** Chốt câu trả lời (ghép từ: thứ tự thẻ chữ, -1 là khoảng trắng; trắc nghiệm: chỉ số gốc của phương án; giải nghĩa: chữ gõ; xâu chuỗi: thứ tự thẻ). Mỗi câu một lần. */
@@ -468,8 +473,8 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const vt = m.vt!;
     const item = this.itemAt(vt, vt.i);
     if (!item || item.kind === "grid" || this.draftOf(m, this.me)?.lk || this.board(m)[vt.i]?.[this.me]) return;
-    const t = this.elapsed(m);
-    if (t > limitOf(placeOf(vt.counts, vt.i).r)) return;
+    const t = this.elapsed(m, item);
+    if (t > this.limitNow(vt, item)) return;
     this.save(m, { q: vt.i, a, t, lk: true });
   }
 
@@ -486,8 +491,8 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const have = gridFinds(item, d.f);
     if (!gridHas(item, word)) return { kind: "bad", word, count: have.length };
     if (have.some((x) => x.w === word)) return { kind: "dup", word, count: have.length };
-    const t = this.elapsed(m);
-    if (t > limitOf(placeOf(vt.counts, vt.i).r)) return null;
+    const t = this.elapsed(m, item);
+    if (t > this.limitNow(vt, item)) return null;
     d.f = [...(d.f ?? []), { p, t }];
     const count = have.length + 1;
     if (count >= GRID_GOAL) {

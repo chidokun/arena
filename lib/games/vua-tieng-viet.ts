@@ -14,9 +14,9 @@ export const DEFAULT_SEATS = 4;
 export const COUNTDOWN_MS = 3000;
 
 export const PACKS: Record<Exclude<Pack, "custom">, { name: string; emoji: string; counts: Counts; minutes: string }> & Record<"custom", { name: string; emoji: string; minutes: string }> = {
-  quick: { name: "Nhanh", emoji: "⚡", counts: [3, 3, 2, 1, 1], minutes: "~4 phút" },
-  standard: { name: "Tiêu chuẩn", emoji: "👑", counts: [6, 6, 4, 3, 2], minutes: "~7–8 phút" },
-  long: { name: "Dài", emoji: "🏯", counts: [10, 10, 5, 5, 3], minutes: "~11–12 phút" },
+  quick: { name: "Nhanh", emoji: "⚡", counts: [3, 3, 2, 1, 1], minutes: "~4–5 phút" },
+  standard: { name: "Tiêu chuẩn", emoji: "👑", counts: [6, 6, 4, 3, 2], minutes: "~8–10 phút" },
+  long: { name: "Dài", emoji: "🏯", counts: [10, 10, 5, 5, 3], minutes: "~13–15 phút" },
   custom: { name: "Tùy chỉnh", emoji: "🛠️", minutes: "tùy số câu" },
 };
 export const PACK_KEYS: readonly Pack[] = ["quick", "standard", "long", "custom"];
@@ -71,12 +71,13 @@ export function normOptions(o: unknown): VtOptions {
 
 export type Kind = "scramble" | "mc" | "clue" | "order" | "grid";
 
+// `limits`: hạn trả lời (ms) theo cấp độ câu 1 dễ … 4 rất khó.
 export const ROUNDS = [
-  { name: "Ghép từ", emoji: "🧩", limit: 15000, rule: "Đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ. Dùng hết mọi chữ cái, giữ nguyên dấu.", about: "Xếp các chữ cái bị xáo trộn thành từ, cụm từ có nghĩa rồi xác nhận. Độ khó tăng dần." },
-  { name: "Phản xạ", emoji: "⚡", limit: 12000, rule: "Chọn đáp án đúng — đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Trắc nghiệm chính tả, từ vựng, thành ngữ, văn học. Bấm là chốt, không sửa." },
-  { name: "Giải nghĩa", emoji: "🔍", limit: 20000, rule: "Gợi ý mở dần ở giây 0 – 7 – 14. Đúng trước gợi ý 2: 150 · trước gợi ý 3: 110 · sau đó: 70.", about: "Gõ từ (có dấu) khớp với lời giải nghĩa. Chỉ được gửi một lần!" },
-  { name: "Xâu chuỗi", emoji: "🔗", limit: 25000, rule: "Đúng được 200 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Sắp các thẻ tiếng thành câu tục ngữ, ca dao hoàn chỉnh rồi xác nhận." },
-  { name: "Soán ngôi", emoji: "👑", limit: 35000, rule: "Giải mã câu dài: 300 + tới 100 điểm tốc độ. Săn từ: 75 điểm mỗi từ (tối đa 4) + tới 100 điểm nếu đủ 4 từ sớm.", about: "Vòng cuối khó hơn, điểm cao hơn — cơ hội lật ngược thế cờ!" },
+  { name: "Ghép từ", emoji: "🧩", limits: [15000, 15000, 30000, 60000], rule: "Đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ. Dùng hết mọi chữ cái, giữ nguyên dấu.", about: "Xếp các chữ cái bị xáo trộn thành từ, cụm từ có nghĩa rồi xác nhận. Độ khó tăng dần." },
+  { name: "Phản xạ", emoji: "⚡", limits: [15000, 15000, 30000, 30000], rule: "Chọn đáp án đúng — đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Trắc nghiệm chính tả, từ vựng, thành ngữ, văn học. Bấm là chốt, không sửa." },
+  { name: "Giải nghĩa", emoji: "🔍", limits: [20000, 20000, 20000, 20000], rule: "Gợi ý mở dần ở giây 0 – 7 – 14. Đúng trước gợi ý 2: 150 · trước gợi ý 3: 110 · sau đó: 70.", about: "Gõ từ (có dấu) khớp với lời giải nghĩa. Chỉ được gửi một lần!" },
+  { name: "Xâu chuỗi", emoji: "🔗", limits: [25000, 25000, 45000, 45000], rule: "Đúng được 200 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Sắp các thẻ tiếng thành câu tục ngữ, ca dao hoàn chỉnh rồi xác nhận." },
+  { name: "Soán ngôi", emoji: "👑", limits: [45000, 45000, 60000, 60000], rule: "Giải mã câu dài: 300 + tới 100 điểm tốc độ. Săn từ: 75 điểm mỗi từ (tối đa 4) + tới 100 điểm nếu đủ 4 từ sớm.", about: "Vòng cuối khó hơn, điểm cao hơn — cơ hội lật ngược thế cờ!" },
 ] as const;
 /** Chỉ số vòng Soán ngôi (vòng cuối) và của câu hỏi phụ (sau vòng cuối). */
 export const CROWN = 4;
@@ -86,6 +87,7 @@ export const TIEBREAK_MAX = 3;
 export const HINT_AT = [0, 7000, 14000] as const;
 export const GRID_GOAL = 4;
 export const GRID_WORD = 75;
+export const GRID_LIMIT = 35000;
 
 // ——— Kiểu dữ liệu ngân hàng ———
 
@@ -363,7 +365,34 @@ export const firstOfRound = (c: Counts, i: number) => {
   return r < TB ? k === 0 : i === totalOf(c);
 };
 
-export const limitOf = (r: number) => (r === TB ? TIEBREAK.limit : ROUNDS[r].limit);
+/** Hạn trả lời (ms) của câu `item` ở vòng `r`: tuỳ vòng và cấp độ câu (Soán ngôi: `limits` là của Giải mã, Săn từ luôn `GRID_LIMIT`). */
+export function limitOf(r: number, item: Item) {
+  if (r === TB) return TIEBREAK.limit;
+  if (item.kind === "grid") return GRID_LIMIT;
+  return ROUNDS[r].limits[item.lv - 1];
+}
+
+/** Các cấp độ có câu ở vòng `r` (Ghép từ có 4 cấp; Giải mã câu dài chỉ có trung bình, khó). */
+const levelsOf = (r: number): number[] => (r === 0 ? [1, 2, 3, 4] : r === CROWN ? [2, 3] : [1, 2, 3]);
+
+/** Hạn ngắn nhất – dài nhất (giây) của vòng `r`. */
+export function limitSpan(r: number): [number, number] {
+  const all = [...levelsOf(r).map((lv) => ROUNDS[r].limits[lv - 1]), ...(r === CROWN ? [GRID_LIMIT] : [])].map((x) => x / 1000);
+  return [Math.min(...all), Math.max(...all)];
+}
+
+/** Hạn trả lời theo cấp độ của vòng `r`, vd. "Dễ, Trung bình: 15 giây · Khó: 30 giây · Rất khó: 60 giây". */
+export function limitNote(r: number) {
+  const groups: { names: string[]; s: number }[] = [];
+  for (const lv of levelsOf(r)) {
+    const s = ROUNDS[r].limits[lv - 1] / 1000;
+    const last = groups.at(-1);
+    if (last?.s === s) last.names.push(TIER_NAMES[lv]);
+    else groups.push({ names: [TIER_NAMES[lv]], s });
+  }
+  const text = groups.length === 1 ? `${groups[0].s} giây mỗi câu` : groups.map((g) => `${g.names.join(", ")}: ${g.s} giây`).join(" · ");
+  return r === CROWN ? `Giải mã — ${text} · Săn từ: ${GRID_LIMIT / 1000} giây` : text;
+}
 
 // ——— Chấm điểm ———
 
@@ -390,7 +419,7 @@ export function gridFinds(g: Grid, finds: readonly Find[] | undefined) {
 
 export function mark(item: Item, r: number, sub: Sub | undefined): Mark {
   if (!sub) return BLANK;
-  const limit = limitOf(r);
+  const limit = limitOf(r, item);
   const t = Math.min(limit, Math.max(0, Number(sub.t) || 0));
   if (item.kind === "scramble") {
     const spelled = scrambleSpell(item, sub.a);
