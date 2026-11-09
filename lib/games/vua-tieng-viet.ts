@@ -84,6 +84,8 @@ export const CROWN = 4;
 export const TB = 5;
 export const TIEBREAK = { name: "Câu hỏi phụ", emoji: "⚔️", limit: 15000, rule: "Ai đúng thắng; cùng đúng thì ai nhanh hơn thắng." };
 export const TIEBREAK_MAX = 3;
+/** Thời lượng màn giới thiệu vòng `r` (ms): vòng 1 ngắn hơn vì vừa đếm ngược xong; các vòng sau có thêm bảng xếp hạng để đọc. */
+export const introMs = (r: number) => (r === 0 ? 5000 : r === TB ? 6000 : 7500);
 export const HINT_AT = [0, 7000, 14000] as const;
 export const GRID_GOAL = 4;
 export const GRID_WORD = 75;

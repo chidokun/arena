@@ -13,6 +13,7 @@ import {
   GRID_WORD,
   gridFinds,
   HINT_AT,
+  introMs,
   limitNote,
   limitSpan,
   itemOf,
@@ -159,6 +160,9 @@ const VtBody = memo(function VtBody({ session }: { session: VuaTiengVietRoom }) 
   const won = g?.result?.reason === "points" && g.lineup.length > 1 && !!g.result.winners?.length;
   const end = useEndScene(won ? g!.round : 0, { ms: 6500, emojis: CHEERS });
   const shown = live && g ? g.opts : opts;
+  const opened = useReached(live ? g?.opensAt : undefined);
+  const sceneKey = live && g && opened && g.stage === "intro" ? `${g.round}:${g.i}` : "";
+  const [hidden, setHidden] = useState("");
 
   return (
     <div className="vt-root">
@@ -182,6 +186,7 @@ const VtBody = memo(function VtBody({ session }: { session: VuaTiengVietRoom }) 
       </div>
 
       {g && count > 0 && <CountdownScene view={view} match={g} n={count} />}
+      {g && sceneKey && hidden !== sceneKey && count === 0 && <RoundScene key={sceneKey} view={view} session={session} match={g} onClose={() => setHidden(sceneKey)} />}
       {g && end.shown && <WinScene view={view} match={g} onClose={end.close} />}
       <Party bits={end.party} />
       <StickerFlyers session={session} areaRef={areaRef} />
@@ -276,7 +281,7 @@ function ActionBar({ view, session }: { view: View; session: VuaTiengVietRoom })
     } else message = <>👑 Hết câu — đang tổng kết…</>;
     return (
       <StatusBar tone={tone} message={message}>
-        {view.isHost && (g.stage === "intro" || g.stage === "reveal") && !g.solo && (
+        {view.isHost && (g.stage === "intro" || (g.stage === "reveal" && !g.solo)) && (
           <button type="button" className="btn" onClick={() => session.skip()}>
             ⏭ {g.stage === "intro" ? "Bỏ qua" : "Câu tiếp"}
           </button>
@@ -468,6 +473,107 @@ function RoundIntro({ match: g }: { match: VtMatch }) {
       <p className="vt-intro-about">{tb ? "Một câu trắc nghiệm khó, 15 giây — tối đa 3 câu." : ROUNDS[g.r].about}</p>
       <p className="vt-intro-rule">{tb ? TIEBREAK.rule : ROUNDS[g.r].rule}</p>
       {!tb && <p className="vt-intro-rule">⏱️ {limitNote(g.r)}</p>}
+    </div>
+  );
+}
+
+/** Màn giới thiệu vòng toàn màn hình: lộ trình 5 vòng, luật vòng mới và bảng xếp hạng sau vòng vừa xong. Bấm để ẩn riêng máy mình. */
+function RoundScene({ view, session, match: g, onClose }: { view: View; session: VuaTiengVietRoom; match: VtMatch; onClose: () => void }) {
+  const tb = g.r === TB;
+  const ms = introMs(g.r);
+  const now = useNow(g.introAt > 0, 200);
+  const left = g.introAt && now ? Math.max(0, g.introAt + ms - now) : ms;
+  const order = [...g.lineup]
+    .filter((s) => !s.out)
+    .sort((a, b) => b.total - a.total || b.rounds[CROWN] - a.rounds[CROWN] || b.hits - a.hits);
+  const prev = g.r > 0 && !tb ? g.r - 1 : -1;
+  const tied = tb ? (g.tbs[g.tbs.length - 1] ?? []) : [];
+  const meIdx = order.findIndex((s) => s.seat.uid === view.me);
+  const mine = meIdx >= 0 ? order[meIdx] : undefined;
+  const top = order[0];
+  let standing: string | null = null;
+  if (!tb && prev >= 0 && mine && !g.solo) {
+    if (mine.total === top.total) {
+      const second = order.find((s) => s.total < mine.total);
+      const co = order.filter((s) => s.total === mine.total).length;
+      standing = co > 1 ? `Bạn đang đồng dẫn đầu với ${co - 1} người khác — bứt lên nào!` : second ? `Bạn đang dẫn đầu, hơn hạng nhì ${fmtPts(mine.total - second.total)} điểm.` : "Bạn đang dẫn đầu!";
+    } else standing = `Bạn đang hạng ${order.filter((s) => s.total > mine.total).length + 1} · kém 👑 ${nameIn(view, top.seat.uid)} ${fmtPts(top.total - mine.total)} điểm.`;
+  }
+  const rd = tb ? null : ROUNDS[g.r];
+  return (
+    <div className={`cine vt-scene is-${ROUND_TONES[g.r]} is-skippable`} role="dialog" aria-modal="true" aria-label={tb ? TIEBREAK.name : `Vòng ${g.r + 1}: ${rd!.name}`} onClick={onClose}>
+      <div className="vt-scene-body">
+        <ol className="vt-road" aria-label="Lộ trình năm vòng">
+          {ROUNDS.map((x, r) => (
+            <li key={r} className={`is-${ROUND_TONES[r]} ${r === g.r ? "is-now" : r < g.r ? "is-done" : ""}`} style={{ animationDelay: `${80 + r * 70}ms` }}>
+              <span className="vt-road-dot">{r < g.r ? "✓" : x.emoji}</span>
+              <span className="vt-road-name">{x.name}</span>
+            </li>
+          ))}
+          {tb && (
+            <li className="is-gold is-now" style={{ animationDelay: "430ms" }}>
+              <span className="vt-road-dot">{TIEBREAK.emoji}</span>
+              <span className="vt-road-name">Phụ</span>
+            </li>
+          )}
+        </ol>
+
+        <span className="vt-scene-emoji" aria-hidden="true">
+          {tb ? TIEBREAK.emoji : rd!.emoji}
+        </span>
+        <p className="vt-scene-eyebrow">{tb ? "Hoà điểm ở ngôi đầu" : g.r === CROWN ? `Vòng cuối · ${g.n} thử thách` : `Vòng ${g.r + 1} / ${ROUNDS.length} · ${g.n} câu`}</p>
+        <h2 className="vt-scene-title">{tb ? TIEBREAK.name : rd!.name}</h2>
+        <p className="vt-scene-about">{tb ? "Một câu trắc nghiệm khó, 15 giây — tối đa 3 câu." : rd!.about}</p>
+        <div className="vt-scene-rules">
+          <span>🎯 {tb ? TIEBREAK.rule : rd!.rule}</span>
+          {!tb && <span>⏱️ {limitNote(g.r)}</span>}
+        </div>
+
+        {tb ? (
+          <div className="vt-scene-board">
+            <p className="vt-scene-board-h">Cùng {fmtPts(order.find((s) => tied.includes(s.seat.uid))?.total ?? 0)} điểm</p>
+            <Crowd people={tied.map((uid) => ({ uid, p: g.lineup.find((s) => s.seat.uid === uid)?.seat.member, name: nameIn(view, uid), ring: "#f4b71c" }))} />
+          </div>
+        ) : prev >= 0 && order.length > 0 ? (
+          <div className="vt-scene-board">
+            <p className="vt-scene-board-h">
+              Sau vòng {prev + 1} · {ROUNDS[prev].emoji} {ROUNDS[prev].name}
+            </p>
+            <ol>
+              {order.slice(0, g.solo ? 1 : 5).map((s, k) => {
+                const lead = s.total > 0 && s.total === top.total;
+                const gain = s.rounds[prev];
+                return (
+                  <li key={s.seat.uid} className={s.seat.uid === view.me ? "is-me" : ""} style={{ animationDelay: `${700 + k * 110}ms` }}>
+                    <span className="vt-scene-rank">{lead ? "👑" : order.filter((x) => x.total > s.total).length + 1}</span>
+                    {s.seat.member ? <Avatar p={s.seat.member} size={30} /> : <span className="avatar h-[30px] w-[30px]" />}
+                    <b className="min-w-0 flex-1 truncate text-left">{nameIn(view, s.seat.uid)}</b>
+                    <span className={`vt-scene-gain ${gain ? "" : "is-zero"}`}>+{fmtPts(gain)}</span>
+                    <span className="vt-scene-total">{fmtPts(s.total)}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            {standing && <p className="vt-scene-me">{standing}</p>}
+            {!g.solo && meIdx >= 5 && <p className="vt-scene-me">Bạn: {fmtPts(mine!.total)} điểm</p>}
+          </div>
+        ) : null}
+
+        {g.r === CROWN && !g.solo && <p className="vt-scene-stamp">Cơ hội lật ngược thế cờ!</p>}
+
+        <div className="vt-scene-foot" onClick={(e) => e.stopPropagation()}>
+          <div className="vt-scene-bar" aria-hidden="true">
+            <span style={{ width: `${(left / ms) * 100}%` }} />
+          </div>
+          <span className="vt-scene-left">{tb ? "Câu hỏi phụ" : "Vòng"} bắt đầu sau {Math.ceil(left / 1000)}s</span>
+          {view.isHost && (
+            <button type="button" className="btn btn-sm btn-sun" onClick={() => session.skip()}>
+              ⏭ Bắt đầu ngay
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="cine-skip">Bấm để ẩn</p>
     </div>
   );
 }

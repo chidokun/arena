@@ -8405,6 +8405,231 @@ html[data-boot="out"] .splash-dots {
     color: var(--ink);
   }
 
+  /* Màn giới thiệu vòng (toàn màn hình) */
+  .vt-root .vt-scene {
+    color: #f3f6ff;
+    background:
+      radial-gradient(55% 45% at 50% 22%, color-mix(in srgb, var(--vt-tone) 55%, transparent), transparent 70%),
+      radial-gradient(40% 40% at 8% 92%, color-mix(in srgb, var(--vt-tone) 30%, transparent), transparent 70%),
+      linear-gradient(180deg, #0d1b4c 0%, #0a1438 60%, #060d27 100%);
+  }
+  .vt-scene-body {
+    display: grid;
+    width: min(680px, 100%);
+    justify-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .vt-road {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .vt-road > li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 4px;
+    border: 2px solid rgb(255 255 255 / 0.18);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.06);
+    font-size: 12.5px;
+    font-weight: 800;
+    opacity: 0.6;
+    animation: rise-in 500ms ease-out both;
+  }
+  .vt-road > li.is-done {
+    opacity: 0.85;
+  }
+  .vt-road > li.is-now {
+    border-color: var(--vt-tone);
+    background: color-mix(in srgb, var(--vt-tone) 22%, transparent);
+    opacity: 1;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--vt-tone) 25%, transparent);
+  }
+  .vt-road-dot {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--vt-tone);
+    color: var(--vt-navy);
+    font-size: 13px;
+  }
+  .vt-road > li:not(.is-now):not(.is-done) .vt-road-dot {
+    background: rgb(255 255 255 / 0.14);
+    color: inherit;
+  }
+  .vt-scene-emoji {
+    display: grid;
+    width: 104px;
+    height: 104px;
+    margin-top: 6px;
+    place-items: center;
+    border: 3px solid #050c26;
+    border-radius: 28px;
+    background: var(--vt-tone);
+    box-shadow:
+      0 6px 0 #050c26,
+      0 0 60px color-mix(in srgb, var(--vt-tone) 70%, transparent);
+    font-size: 56px;
+    animation: vt-scene-stamp 700ms 150ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .vt-scene-eyebrow {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vt-tone);
+    animation: rise-in 600ms 300ms ease-out both;
+  }
+  .vt-scene-title {
+    font-family: var(--font-display);
+    font-size: clamp(44px, 11vw, 76px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-shadow: 0 5px 0 #050c26;
+    animation: vt-scene-title 700ms 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .vt-scene-about {
+    max-width: 44ch;
+    font-size: 17px;
+    font-weight: 600;
+    opacity: 0.9;
+    animation: rise-in 600ms 520ms ease-out both;
+  }
+  .vt-scene-rules {
+    display: grid;
+    gap: 6px;
+    max-width: 58ch;
+    animation: rise-in 600ms 620ms ease-out both;
+  }
+  .vt-scene-rules > span {
+    padding: 7px 14px;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.1);
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+  .vt-scene-board {
+    width: min(440px, 100%);
+    margin-top: 6px;
+    padding: 12px;
+    border: 2px solid rgb(255 255 255 / 0.16);
+    border-radius: 18px;
+    background: rgb(5 12 38 / 0.55);
+    animation: rise-in 600ms 650ms ease-out both;
+  }
+  .vt-scene-board-h {
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .vt-scene-board ol {
+    display: grid;
+    gap: 6px;
+  }
+  .vt-scene-board ol > li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px 5px 6px;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.06);
+    font-size: 14px;
+    animation: rise-in 500ms ease-out both;
+  }
+  .vt-scene-board ol > li.is-me {
+    background: color-mix(in srgb, var(--vt-tone) 26%, transparent);
+    box-shadow: inset 0 0 0 2px var(--vt-tone);
+  }
+  .vt-scene-board .cine-crowd {
+    margin-top: 4px;
+  }
+  .vt-scene-rank {
+    width: 22px;
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+  }
+  .vt-scene-gain {
+    flex-shrink: 0;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #6ff0c4;
+    font-variant-numeric: tabular-nums;
+  }
+  .vt-scene-gain.is-zero {
+    color: inherit;
+    opacity: 0.45;
+  }
+  .vt-scene-total {
+    width: 56px;
+    flex-shrink: 0;
+    text-align: right;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .vt-scene-me {
+    margin-top: 8px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--vt-tone);
+  }
+  .vt-scene-stamp {
+    padding: 6px 22px;
+    border: 3px solid #050c26;
+    border-radius: 16px;
+    background: var(--vt-gold);
+    box-shadow: 0 5px 0 #050c26;
+    color: var(--vt-navy);
+    font-family: var(--font-display);
+    font-size: clamp(22px, 5vw, 30px);
+    font-weight: 800;
+    transform: rotate(-3deg);
+    animation: cine-stamp 800ms 1200ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+  }
+  .vt-scene-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: min(440px, 100%);
+    margin-top: 8px;
+    cursor: default;
+  }
+  .vt-scene-bar {
+    flex-basis: 100%;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14);
+  }
+  .vt-scene-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--vt-tone);
+    transition: width 200ms linear;
+  }
+  .vt-scene-left {
+    font-size: 13px;
+    font-weight: 800;
+    opacity: 0.8;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Khung câu hỏi */
   .vt-stage {
     border-top-width: 6px;
@@ -8930,6 +9155,15 @@ html[data-boot="out"] .splash-dots {
     .vt-podium-crown,
     .vt-clock.is-hot,
     .vt-intro,
+    .vt-road > li,
+    .vt-scene-emoji,
+    .vt-scene-eyebrow,
+    .vt-scene-title,
+    .vt-scene-about,
+    .vt-scene-rules,
+    .vt-scene-board,
+    .vt-scene-board ol > li,
+    .vt-scene-stamp,
     .vt-opt.is-right,
     .vt-hint.is-open,
     .vt-tile.is-placed,
@@ -8940,6 +9174,27 @@ html[data-boot="out"] .splash-dots {
   }
 }
 
+@keyframes vt-scene-stamp {
+  from {
+    opacity: 0;
+    transform: scale(2.2) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-4deg);
+  }
+}
+@keyframes vt-scene-title {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+    letter-spacing: 0.08em;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @keyframes vt-bob {
   50% {
     transform: translateY(-6px) rotate(-1deg);

@@ -6,6 +6,7 @@ import {
   COUNTDOWN_MS,
   CROWN,
   firstOfRound,
+  introMs,
   GRID_GOAL,
   gridFinds,
   gridHas,
@@ -49,7 +50,6 @@ const AWAY_MS = 20000;
 const GRACE_MS = 1500;
 // Thời gian trả lời người chơi tự khai không được nhanh hơn lúc chủ phòng nhận được quá chừng này.
 const LAG_MS = 1500;
-const INTRO_MS = 3500;
 const USED_MAX = 300;
 
 /** Bản nháp của câu đang chơi (chỉ chủ nhân ghi được): `lk` đã chốt, `nx` đã đọc xong lời giải. */
@@ -95,6 +95,8 @@ export type VtMatch = {
   /** Mình đang được trả lời câu này. */
   playing: boolean;
   opensAt: number;
+  /** Lúc vào màn giới thiệu vòng theo giờ máy mình (0 nếu không ở màn giới thiệu). */
+  introAt: number;
   /** Lúc câu mở và hạn chót theo giờ máy mình (0 nếu chưa tới lúc trả lời). */
   askAt: number;
   deadline: number;
@@ -215,7 +217,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const now = Date.now();
     if (now < vt.t0) return;
     if (vt.stage === "intro") {
-      if (now >= vt.at + INTRO_MS) {
+      if (now >= vt.at + introMs(placeOf(vt.counts, vt.i).r)) {
         vt.stage = "ask";
         vt.at = now;
       }
@@ -372,6 +374,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const closed = vt.stage === "reveal" || vt.stage === "done" || !live;
     const asking = live && vt.stage === "ask";
     const askAt = asking ? this.stageAt(m, limit) : 0;
+    const introAt = live && vt.stage === "intro" ? this.stageAt(m, introMs(r)) : 0;
     const revealAt = live && vt.stage === "reveal" ? this.stageAt(m, 30000) : 0;
     const subs = b[vt.i] ?? {};
     const past = this.past(m, b);
@@ -412,6 +415,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
         me: m.lineup.indexOf(this.me),
         playing: live && who.includes(this.me) && !this.out(m, this.me),
         opensAt: this.opensAt(m),
+        introAt,
         askAt,
         deadline: askAt ? askAt + limit : 0,
         limit,
