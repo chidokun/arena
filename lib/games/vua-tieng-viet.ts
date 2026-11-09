@@ -1,12 +1,12 @@
-// Vua Tiếng Việt: đố vui tiếng Việt 1–8 người, bốn vòng Phản xạ → Giải nghĩa → Xâu chuỗi → Soán ngôi. Cả phòng nhận cùng
+// Vua Tiếng Việt: đố vui tiếng Việt 1–8 người, năm vòng Ghép từ → Phản xạ → Giải nghĩa → Xâu chuỗi → Soán ngôi. Cả phòng nhận cùng
 // câu hỏi, cùng lúc, cùng giới hạn giờ; không loại ai giữa chừng, không trừ điểm câu sai. Thiết kế gốc lấy cảm hứng từ thể
 // thức gameshow cùng tên, không phải luật chính thức của chương trình.
-import { CLUES, GRIDS, LONGS, MCS, ORDERS } from "./vua-tieng-viet-bank.ts";
+import { CLUES, GRIDS, LONGS, MCS, ORDERS, SCRAMBLES } from "./vua-tieng-viet-bank.ts";
 
 export type Pack = "quick" | "standard" | "long" | "custom";
 export type Level = "easy" | "medium" | "hard" | "mixed";
 export type Topic = "all" | "spell" | "vocab" | "idiom" | "lit";
-export type Counts = [number, number, number, number];
+export type Counts = [number, number, number, number, number];
 export type VtOptions = { pack: Pack; counts: Counts; level: Level; topic: Topic; explain: boolean };
 
 export const MAX_PLAYERS = 8;
@@ -14,14 +14,14 @@ export const DEFAULT_SEATS = 4;
 export const COUNTDOWN_MS = 3000;
 
 export const PACKS: Record<Exclude<Pack, "custom">, { name: string; emoji: string; counts: Counts; minutes: string }> & Record<"custom", { name: string; emoji: string; minutes: string }> = {
-  quick: { name: "Nhanh", emoji: "⚡", counts: [3, 2, 1, 1], minutes: "~3 phút" },
-  standard: { name: "Tiêu chuẩn", emoji: "👑", counts: [6, 4, 3, 2], minutes: "~5–6 phút" },
-  long: { name: "Dài", emoji: "🏯", counts: [10, 5, 5, 3], minutes: "~8–9 phút" },
+  quick: { name: "Nhanh", emoji: "⚡", counts: [3, 3, 2, 1, 1], minutes: "~4 phút" },
+  standard: { name: "Tiêu chuẩn", emoji: "👑", counts: [6, 6, 4, 3, 2], minutes: "~7–8 phút" },
+  long: { name: "Dài", emoji: "🏯", counts: [10, 10, 5, 5, 3], minutes: "~11–12 phút" },
   custom: { name: "Tùy chỉnh", emoji: "🛠️", minutes: "tùy số câu" },
 };
 export const PACK_KEYS: readonly Pack[] = ["quick", "standard", "long", "custom"];
 // Mỗi vòng tối thiểu 1 câu; tối đa theo độ lớn ngân hàng để vẫn còn chỗ ưu tiên câu chưa chơi.
-export const COUNT_MAX: Counts = [12, 8, 8, 4];
+export const COUNT_MAX: Counts = [12, 12, 8, 8, 4];
 
 export const LEVELS: Record<Level, { name: string; emoji: string }> = {
   easy: { name: "Dễ", emoji: "🌱" },
@@ -40,7 +40,7 @@ export const TOPICS: Record<Topic, { name: string; emoji: string }> = {
 };
 export const TOPIC_KEYS: readonly Topic[] = ["all", "spell", "vocab", "idiom", "lit"];
 
-export const DEFAULT_OPTIONS: VtOptions = { pack: "standard", counts: [6, 4, 3, 2], level: "mixed", topic: "all", explain: true };
+export const DEFAULT_OPTIONS: VtOptions = { pack: "standard", counts: [6, 6, 4, 3, 2], level: "mixed", topic: "all", explain: true };
 
 const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => {
   if (v === null || v === undefined || v === "") return dflt;
@@ -51,7 +51,9 @@ const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => {
 export function normOptions(o: unknown): VtOptions {
   const x = (o ?? {}) as Partial<VtOptions>;
   const pack = PACK_KEYS.includes(x.pack as Pack) ? (x.pack as Pack) : DEFAULT_OPTIONS.pack;
-  const raw = Array.isArray(x.counts) ? x.counts : [];
+  // Cấu hình cũ (trước khi có vòng Ghép từ) chỉ có 4 số: thêm số câu mặc định của Ghép từ vào đầu.
+  const given: unknown[] = Array.isArray(x.counts) ? x.counts : [];
+  const raw = given.length === 4 ? [DEFAULT_OPTIONS.counts[0], ...given] : given;
   const counts =
     pack === "custom"
       ? (COUNT_MAX.map((max, r) => clampInt(raw[r], 1, max, DEFAULT_OPTIONS.counts[r])) as Counts)
@@ -65,16 +67,20 @@ export function normOptions(o: unknown): VtOptions {
   };
 }
 
-// ——— Bốn vòng ———
+// ——— Năm vòng ———
 
-export type Kind = "mc" | "clue" | "order" | "grid";
+export type Kind = "scramble" | "mc" | "clue" | "order" | "grid";
 
 export const ROUNDS = [
+  { name: "Ghép từ", emoji: "🧩", limit: 15000, rule: "Đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ. Dùng hết mọi chữ cái, giữ nguyên dấu.", about: "Xếp các chữ cái bị xáo trộn thành từ, cụm từ có nghĩa rồi xác nhận. Độ khó tăng dần." },
   { name: "Phản xạ", emoji: "⚡", limit: 12000, rule: "Chọn đáp án đúng — đúng được 100 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Trắc nghiệm chính tả, từ vựng, thành ngữ, văn học. Bấm là chốt, không sửa." },
   { name: "Giải nghĩa", emoji: "🔍", limit: 20000, rule: "Gợi ý mở dần ở giây 0 – 7 – 14. Đúng trước gợi ý 2: 150 · trước gợi ý 3: 110 · sau đó: 70.", about: "Gõ từ (có dấu) khớp với lời giải nghĩa. Chỉ được gửi một lần!" },
   { name: "Xâu chuỗi", emoji: "🔗", limit: 25000, rule: "Đúng được 200 điểm, cộng tới 50 điểm thưởng tốc độ.", about: "Sắp các thẻ tiếng thành câu tục ngữ, ca dao hoàn chỉnh rồi xác nhận." },
   { name: "Soán ngôi", emoji: "👑", limit: 35000, rule: "Giải mã câu dài: 300 + tới 100 điểm tốc độ. Săn từ: 75 điểm mỗi từ (tối đa 4) + tới 100 điểm nếu đủ 4 từ sớm.", about: "Vòng cuối khó hơn, điểm cao hơn — cơ hội lật ngược thế cờ!" },
 ] as const;
+/** Chỉ số vòng Soán ngôi (vòng cuối) và của câu hỏi phụ (sau vòng cuối). */
+export const CROWN = 4;
+export const TB = 5;
 export const TIEBREAK = { name: "Câu hỏi phụ", emoji: "⚔️", limit: 15000, rule: "Ai đúng thắng; cùng đúng thì ai nhanh hơn thắng." };
 export const TIEBREAK_MAX = 3;
 export const HINT_AT = [0, 7000, 14000] as const;
@@ -83,15 +89,29 @@ export const GRID_WORD = 75;
 
 // ——— Kiểu dữ liệu ngân hàng ———
 
-type Base = { id: string; lv: 1 | 2 | 3; tp: Exclude<Topic, "all">; fam?: string };
+type Base = { id: string; lv: 1 | 2 | 3 | 4; tp: Exclude<Topic, "all">; fam?: string };
+/** Ghép từ: `lv` (1 dễ – 4 rất khó) tính theo số chữ cái nên ngân hàng không ghi. */
+export type Scramble = Base & { a: string; acc?: string[]; why: string };
+export type ScrambleSrc = Omit<Scramble, "lv">;
 export type Mc = Base & { q: string; o: [string, string, string, string]; why: string };
 export type Clue = Base & { h: [string, string, string]; a: string; acc?: string[]; why: string };
 export type Order = Base & { text: string; alt?: string[]; why: string };
 export type Grid = Base & { theme: string; cells: string[]; words: string[] };
-export type Item = ({ kind: "mc" } & Mc) | ({ kind: "clue" } & Clue) | ({ kind: "order" } & Order) | ({ kind: "grid" } & Grid);
+export type Item = ({ kind: "scramble" } & Scramble) | ({ kind: "mc" } & Mc) | ({ kind: "clue" } & Clue) | ({ kind: "order" } & Order) | ({ kind: "grid" } & Grid);
 
 const tag = <K extends Kind, T>(kind: K, list: T[]) => list.map((x) => ({ ...x, kind }));
+/** Chữ cái của một chuỗi (NFC, viết thường, bỏ khoảng trắng): mỗi chữ có dấu là một chữ. */
+export const lettersOf = (s: string) => [...s.normalize("NFC").toLowerCase().replace(/[\s\u00a0]+/g, "")];
+
+/** Cấp độ Ghép từ theo số chữ cái: 4–6 dễ, 7–9 trung bình, 10–12 khó, trên 12 rất khó. */
+export const scrambleTier = (a: string): Scramble["lv"] => {
+  const n = lettersOf(a).length;
+  return n <= 6 ? 1 : n <= 9 ? 2 : n <= 12 ? 3 : 4;
+};
+export const TIER_NAMES = ["", "Dễ", "Trung bình", "Khó", "Rất khó"] as const;
+
 export const BANK = {
+  r0: tag("scramble", SCRAMBLES.map((x): Scramble => ({ ...x, lv: scrambleTier(x.a) }))),
   r1: tag("mc", MCS),
   r2: tag("clue", CLUES),
   r3: tag("order", ORDERS),
@@ -124,6 +144,18 @@ export function tokensOf(o: Order) {
 }
 
 export const orderAnswers = (o: Order) => [o.text, ...(o.alt ?? [])].map((s) => words(s).join(" "));
+
+/** Đáp án Ghép từ dạng chuỗi chữ cái liền nhau (khoảng trắng không tính khi chấm). */
+export const scrambleAnswers = (s: Scramble) => [s.a, ...(s.acc ?? [])].map((x) => lettersOf(x).join(""));
+
+/** Chuỗi chữ người chơi xếp: chỉ số thẻ, -1 là khoảng trắng chèn cho dễ đọc. Trả về null nếu không dùng đúng mỗi thẻ một lần. */
+export function scrambleSpell(s: Scramble, a: unknown) {
+  const letters = lettersOf(s.a);
+  if (!Array.isArray(a)) return null;
+  const used = a.filter((i) => i !== -1);
+  const full = used.length === letters.length && new Set(used).size === used.length && used.every((i) => Number.isInteger(i) && i >= 0 && i < letters.length);
+  return full ? used.map((i) => letters[i]).join("") : null;
+}
 
 export const clueAnswers = (c: Clue) => [c.a, ...(c.acc ?? [])].map((s) => norm(s));
 
@@ -213,9 +245,38 @@ export function tokenOrder(seed: number, o: Order) {
   return order;
 }
 
+/** Thứ tự bày thẻ chữ Ghép từ: không bao giờ đọc sẵn ra một đáp án đúng. */
+export function letterOrder(seed: number, s: Scramble) {
+  const letters = lettersOf(s.a);
+  const ok = new Set(scrambleAnswers(s));
+  const rand = rng(seed ^ hash(s.id));
+  let order = letters.map((_, i) => i);
+  for (let tries = 0; tries < 20; tries++) {
+    order = shuffle(order, rand);
+    if (!ok.has(order.map((i) => letters[i]).join(""))) return order;
+  }
+  for (let k = 1; k < order.length; k++) {
+    const r = [...order.slice(k), ...order.slice(0, k)];
+    if (!ok.has(r.map((i) => letters[i]).join(""))) return r;
+  }
+  return order;
+}
+
 // ——— Chọn đề ———
 
 const LV: Record<Level, number> = { easy: 1, medium: 2, hard: 3, mixed: 0 };
+
+/**
+ * Cấp độ từng câu Ghép từ, tăng dần qua vòng: câu cuối rất khó (vòng từ 4 câu), các câu trước chia đều dễ → trung bình → khó.
+ * 6 câu: Dễ, Dễ, TB, TB, Khó, Rất khó. Độ khó ván "Dễ" lùi một bậc, "Khó" tiến một bậc.
+ */
+export function scrambleTiers(n: number, level: Level): Scramble["lv"][] {
+  const head = n >= 4 ? n - 1 : n;
+  const tiers = Array.from({ length: head }, (_, i) => 1 + Math.floor((3 * i) / head));
+  if (n >= 4) tiers.push(4);
+  const shift = level === "easy" ? -1 : level === "hard" ? 1 : 0;
+  return tiers.map((t) => Math.min(4, Math.max(1, t + shift)) as Scramble["lv"]);
+}
 
 type Pick = { level: Level; topic: Topic; used: ReadonlySet<string>; fams: Set<string>; taken: Set<string>; rand: () => number };
 
@@ -252,8 +313,16 @@ export const crownKinds = (n: number): ("a" | "b")[] => (n === 1 ? ["b"] : Array
 
 export function makePlan(o: VtOptions, used: readonly string[], rand: () => number) {
   const p: Pick = { level: o.level, topic: o.topic, used: new Set(used), fams: new Set(), taken: new Set(), rand };
-  const [n1, n2, n3, n4] = o.counts;
+  const [n0, n1, n2, n3, n4] = o.counts;
   const kinds = crownKinds(n4);
+  // Ghép từ: mỗi câu lấy đúng cấp độ của nó; hết câu cấp đó thì lấy cấp gần nhất.
+  const r0 = scrambleTiers(n0, o.level).flatMap((tier) => {
+    for (let d = 0; d < 4; d++) {
+      const got = pickFrom(BANK.r0.filter((x) => Math.abs(x.lv - tier) <= d), 1, p);
+      if (got.length) return got;
+    }
+    return [];
+  });
   const r1 = pickFrom(BANK.r1, n1, p);
   const r2 = pickFrom(BANK.r2, n2, p);
   const r3 = pickFrom(BANK.r3, n3, p);
@@ -264,42 +333,42 @@ export function makePlan(o: VtOptions, used: readonly string[], rand: () => numb
   const r4 = kinds.map((k) => (k === "a" ? a.shift()! : b.shift()!));
   // Câu hỏi phụ: trắc nghiệm khó, không trùng câu đã có trong ván.
   const tb = pickFrom(BANK.r1, TIEBREAK_MAX, { ...p, topic: "all" }, (x) => 3 - x.lv);
-  return { qs: [...r1, ...r2, ...r3, ...r4].map((x) => x.id), tbq: tb.map((x) => x.id) };
+  return { qs: [...r0, ...r1, ...r2, ...r3, ...r4].map((x) => x.id), tbq: tb.map((x) => x.id) };
 }
 
 // ——— Vị trí câu trong ván ———
 
-export const totalOf = (c: Counts) => c[0] + c[1] + c[2] + c[3];
+export const totalOf = (c: Counts) => c.reduce((s, x) => s + x, 0);
 
-/** Vòng (0–3) của câu thứ `i`; câu hỏi phụ (sau câu cuối) là 4. */
+/** Vòng (0–4) của câu thứ `i`; câu hỏi phụ (sau câu cuối) là `TB`. */
 export function roundOf(c: Counts, i: number) {
   let acc = 0;
-  for (let r = 0; r < 4; r++) {
+  for (let r = 0; r < TB; r++) {
     acc += c[r];
     if (i < acc) return r;
   }
-  return 4;
+  return TB;
 }
 
 /** Thứ tự của câu `i` trong vòng của nó (0-based) và số câu của vòng. */
 export function placeOf(c: Counts, i: number) {
   const r = roundOf(c, i);
-  if (r === 4) return { r, k: i - totalOf(c), n: TIEBREAK_MAX };
+  if (r === TB) return { r, k: i - totalOf(c), n: TIEBREAK_MAX };
   const start = c.slice(0, r).reduce((s, x) => s + x, 0);
   return { r, k: i - start, n: c[r] };
 }
 
 export const firstOfRound = (c: Counts, i: number) => {
   const { r, k } = placeOf(c, i);
-  return r < 4 ? k === 0 : i === totalOf(c);
+  return r < TB ? k === 0 : i === totalOf(c);
 };
 
-export const limitOf = (r: number) => (r === 4 ? TIEBREAK.limit : ROUNDS[r].limit);
+export const limitOf = (r: number) => (r === TB ? TIEBREAK.limit : ROUNDS[r].limit);
 
 // ——— Chấm điểm ———
 
 export type Find = { p: number[]; t: number };
-/** Câu trả lời đã chốt: `a` là chỉ số phương án / chuỗi gõ / thứ tự thẻ; `t` là số ms đã trôi qua khi chốt; `f` là các từ tìm trong lưới. */
+/** Câu trả lời đã chốt: `a` là chỉ số phương án / chuỗi gõ / thứ tự thẻ (Ghép từ: -1 là khoảng trắng); `t` là số ms đã trôi qua khi chốt; `f` là các từ tìm trong lưới. */
 export type Sub = { a?: number | string | number[]; t: number; f?: Find[] };
 export type Mark = { ok: boolean; pts: number; hits: number; t: number; words?: string[] };
 
@@ -323,10 +392,16 @@ export function mark(item: Item, r: number, sub: Sub | undefined): Mark {
   if (!sub) return BLANK;
   const limit = limitOf(r);
   const t = Math.min(limit, Math.max(0, Number(sub.t) || 0));
+  if (item.kind === "scramble") {
+    const spelled = scrambleSpell(item, sub.a);
+    const ok = spelled !== null && scrambleAnswers(item).includes(spelled);
+    if (!ok) return { ...BLANK, t };
+    return { ok, t, hits: 1, pts: 100 + Math.floor((50 * left(limit, t)) / limit) };
+  }
   if (item.kind === "mc") {
     const ok = sub.a === 0;
     if (!ok) return { ...BLANK, t };
-    return { ok, t, hits: 1, pts: r === 4 ? 0 : 100 + Math.floor((50 * left(limit, t)) / limit) };
+    return { ok, t, hits: 1, pts: r === TB ? 0 : 100 + Math.floor((50 * left(limit, t)) / limit) };
   }
   if (item.kind === "clue") {
     const ok = typeof sub.a === "string" && clueMatch(item, sub.a);
@@ -339,8 +414,8 @@ export function mark(item: Item, r: number, sub: Sub | undefined): Mark {
     const full = Array.isArray(a) && a.length === tokens.length && new Set(a).size === a.length && a.every((i) => Number.isInteger(i) && i >= 0 && i < tokens.length);
     const ok = full && orderAnswers(item).includes(norm((a as number[]).map((i) => tokens[i]).join(" ")));
     if (!ok) return { ...BLANK, t };
-    const base = r === 3 ? 300 : 200;
-    const bonus = r === 3 ? 100 : 50;
+    const base = r === CROWN ? 300 : 200;
+    const bonus = r === CROWN ? 100 : 50;
     return { ok, t, hits: 1, pts: base + Math.floor((bonus * left(limit, t)) / limit) };
   }
   const found = gridFinds(item, sub.f).slice(0, GRID_GOAL);
@@ -357,15 +432,17 @@ export function mark(item: Item, r: number, sub: Sub | undefined): Mark {
 
 /** Điểm tối đa của cả ván với cấu hình `c`. */
 export function maxScore(c: Counts) {
-  const crown = crownKinds(c[3]).length * 400;
-  return c[0] * 150 + c[1] * 150 + c[2] * 250 + crown;
+  const crown = crownKinds(c[4]).length * 400;
+  return c[0] * 150 + c[1] * 150 + c[2] * 150 + c[3] * 250 + crown;
 }
 
 // ——— Xếp hạng ———
 
-export type Row = { uid: string; rounds: [number, number, number, number]; total: number; hits: number; rank: number; king?: boolean };
+export type Rounds = [number, number, number, number, number];
+export const NO_ROUNDS = (): Rounds => [0, 0, 0, 0, 0];
+export type Row = { uid: string; rounds: Rounds; total: number; hits: number; rank: number; king?: boolean };
 
-const cmp = (a: Row, b: Row) => b.total - a.total || b.rounds[3] - a.rounds[3] || b.hits - a.hits;
+const cmp = (a: Row, b: Row) => b.total - a.total || b.rounds[CROWN] - a.rounds[CROWN] || b.hits - a.hits;
 
 /**
  * Tổng điểm cao hơn đứng trên; bằng thì ai điểm Soán ngôi cao hơn; vẫn bằng thì ai nhiều câu đúng hơn (mỗi từ trong lưới
@@ -398,7 +475,7 @@ export function topTie(rows: Row[]) {
 
 /** Sau một câu hỏi phụ: người đúng thắng người sai, cùng đúng thì nhanh hơn thắng. Ai còn lại thì đấu tiếp. */
 export function tieSurvivors(item: Item, uids: readonly string[], subs: Record<string, Sub | undefined>) {
-  const marks = uids.map((u) => ({ u, m: mark(item, 4, subs[u]) }));
+  const marks = uids.map((u) => ({ u, m: mark(item, TB, subs[u]) }));
   const right = marks.filter((x) => x.m.ok);
   if (!right.length) return [...uids];
   const best = Math.min(...right.map((x) => x.m.t));
@@ -413,6 +490,7 @@ export function normSub(item: Item, raw: unknown, limit: number): Sub {
   if (item.kind === "mc") return Number.isInteger(x.a) && (x.a as number) >= 0 && (x.a as number) < 4 ? { a: x.a, t } : { t };
   if (item.kind === "clue") return typeof x.a === "string" ? { a: x.a.slice(0, 60), t } : { t };
   if (item.kind === "order") return Array.isArray(x.a) ? { a: (x.a as unknown[]).filter((i) => Number.isInteger(i)).slice(0, 24) as number[], t } : { t };
+  if (item.kind === "scramble") return Array.isArray(x.a) ? { a: (x.a as unknown[]).filter((i) => Number.isInteger(i) && (i as number) >= -1).slice(0, 64) as number[], t } : { t };
   const f = Array.isArray(x.f)
     ? (x.f as unknown[])
         .slice(0, 40)

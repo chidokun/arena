@@ -1346,7 +1346,7 @@ function CreateForm({ slug }: { slug: string }) {
               ))}
             </div>
             <p className="mt-1 text-[13px] text-ink-3">
-              {vtPack === "custom" ? "" : `${VT_PACKS[vtPack].counts.join(" · ")} câu qua 4 vòng, ${VT_PACKS[vtPack].minutes}, tối đa ${vtMax(VT_PACKS[vtPack].counts).toLocaleString("vi-VN")} điểm.`}{" "}
+              {vtPack === "custom" ? "" : `${VT_PACKS[vtPack].counts.join(" · ")} câu qua 5 vòng, ${VT_PACKS[vtPack].minutes}, tối đa ${vtMax(VT_PACKS[vtPack].counts).toLocaleString("vi-VN")} điểm.`}{" "}
               Tự chỉnh số câu từng vòng được ở trong phòng.
             </p>
           </fieldset>
@@ -1389,7 +1389,7 @@ function CreateForm({ slug }: { slug: string }) {
             </div>
           </fieldset>
           <p className="rounded-xl bg-sun-soft p-3 text-[13.5px] text-ink-2">
-            👑 Từ 1 đến {vtSeats} người, cùng nhận câu hỏi một lúc qua 4 vòng: Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Đúng và nhanh thì nhiều điểm, sai không bị trừ —
+            👑 Từ 1 đến {vtSeats} người, cùng nhận câu hỏi một lúc qua 5 vòng: Ghép từ, Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Đúng và nhanh thì nhiều điểm, sai không bị trừ —
             tổng điểm cao nhất lên ngôi Vua Tiếng Việt; hoà ngôi đầu thì đấu câu hỏi phụ.
           </p>
         </>

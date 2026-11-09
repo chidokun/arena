@@ -8241,6 +8241,8 @@ html[data-boot="out"] .splash-dots {
     --vt-coral-soft: #ffe3df;
     --vt-gold: #f4b71c;
     --vt-gold-soft: #fff1c7;
+    --vt-sky: #7cc4ff;
+    --vt-sky-soft: #e4f3ff;
     --vt-navy: #0d1b4c;
     --vt-ok: #12b981;
     --vt-no: #f2685d;
@@ -8250,6 +8252,7 @@ html[data-boot="out"] .splash-dots {
     --vt-cream-soft: #33291a;
     --vt-coral-soft: #44201f;
     --vt-gold-soft: #3a2f10;
+    --vt-sky-soft: #142c45;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) .vt-root {
@@ -8257,7 +8260,12 @@ html[data-boot="out"] .splash-dots {
       --vt-cream-soft: #33291a;
       --vt-coral-soft: #44201f;
       --vt-gold-soft: #3a2f10;
+      --vt-sky-soft: #142c45;
     }
+  }
+  .vt-root .is-sky {
+    --vt-tone: var(--vt-sky);
+    --vt-tone-soft: var(--vt-sky-soft);
   }
   .vt-root .is-teal {
     --vt-tone: var(--vt-teal);
@@ -8291,7 +8299,7 @@ html[data-boot="out"] .splash-dots {
   .vt-rounds {
     display: grid;
     width: 100%;
-    max-width: 720px;
+    max-width: 900px;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
     text-align: left;
@@ -8644,6 +8652,23 @@ html[data-boot="out"] .splash-dots {
   }
   .vt-tile:disabled {
     cursor: default;
+  }
+  /* Ghép từ: thẻ một chữ cái và khoảng trắng chèn cho dễ đọc */
+  .vt-tile.is-char {
+    min-width: 44px;
+    padding: 6px 0;
+    font-family: var(--font-display);
+    font-size: 21px;
+    line-height: 1;
+  }
+  .vt-gap {
+    width: 18px;
+    min-height: 44px;
+    border-bottom: 3px solid var(--ink-3);
+    opacity: 0.6;
+  }
+  .vt-gap:not(:disabled) {
+    cursor: pointer;
   }
   .vt-tile-key {
     position: absolute;

@@ -9,21 +9,32 @@ export type GameRules = {
 export const RULES: Record<string, GameRules> = {
   "vua-tieng-viet": {
     intro:
-      "Vua Tiếng Việt: đố vui kiến thức tiếng Việt cho 1–8 người qua bốn vòng. Cả phòng nhận cùng câu hỏi, cùng lúc, cùng giới hạn giờ; không ai bị loại giữa chừng, câu sai không bị trừ điểm. Tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Thể thức lấy cảm hứng từ gameshow cùng tên, không phải luật chính thức của chương trình.",
+      "Vua Tiếng Việt: đố vui kiến thức tiếng Việt cho 1–8 người qua năm vòng. Cả phòng nhận cùng câu hỏi, cùng lúc, cùng giới hạn giờ; không ai bị loại giữa chừng, câu sai không bị trừ điểm. Tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Thể thức lấy cảm hứng từ gameshow cùng tên, không phải luật chính thức của chương trình.",
     sections: [
       {
         emoji: "⚙️",
         title: "Thiết lập ván",
         items: [
-          "Chủ phòng chọn gói: ⚡ Nhanh (3 · 2 · 1 · 1 câu, ~3 phút), 👑 Tiêu chuẩn (6 · 4 · 3 · 2, ~5–6 phút), 🏯 Dài (10 · 5 · 5 · 3, ~8–9 phút) hoặc 🛠️ Tùy chỉnh số câu từng vòng.",
+          "Chủ phòng chọn gói: ⚡ Nhanh (3 · 3 · 2 · 1 · 1 câu, ~4 phút), 👑 Tiêu chuẩn (6 · 6 · 4 · 3 · 2, ~7–8 phút), 🏯 Dài (10 · 10 · 5 · 5 · 3, ~11–12 phút) hoặc 🛠️ Tùy chỉnh số câu từng vòng.",
           "Độ khó Dễ / Trung bình / Khó / Hỗn hợp và chủ đề Tổng hợp / Chính tả / Từ vựng / Thành ngữ – tục ngữ / Văn học phổ thông: máy ưu tiên câu đúng chủ đề, câu phòng chưa chơi, rồi gần độ khó đã chọn. Vòng cuối luôn nghiêng về câu khó.",
           "Bật / tắt phần giải thích sau mỗi câu. Bộ câu hỏi được chốt lúc bắt đầu, cả phòng nhận giống hệt nhau; người vào sau khi ván bắt đầu chỉ được xem.",
           "Chơi một mình là chế độ luyện tập: cùng câu hỏi, cùng luật, đọc lời giải bao lâu cũng được rồi mới sang câu sau.",
         ],
       },
       {
+        emoji: "🧩",
+        title: "Vòng 1 — Ghép từ (15 giây mỗi câu)",
+        items: [
+          "Các chữ cái của một từ, từ ghép hoặc thành ngữ bị xáo trộn. Chạm lần lượt (hoặc kéo thả, hoặc gõ đúng chữ trên bàn phím) để xếp lại; có thể bỏ từng chữ, xếp lại từ đầu và chèn khoảng trắng cho dễ đọc. Xếp xong thì bấm Xác nhận — mỗi câu xác nhận một lần, đã chốt là không sửa.",
+          "Phải dùng hết mọi chữ cái, mỗi chữ đúng số lần, không thêm bớt, không đổi dấu: “ố” và “ồ” là hai thẻ khác nhau. Chấm không phân biệt hoa thường; khoảng trắng không tính, miễn thứ tự chữ cái đúng.",
+          "Chỉ chấp nhận các đáp án đã duyệt cho từng câu; câu có nhiều cách ghép đều có nghĩa (vd. “nghĩa tình” / “tình nghĩa”) thì cách nào cũng được.",
+          "Đúng: 100 + ⌊50 × giây còn lại / 15⌋ điểm (tối đa 150). Sai, chưa xác nhận hoặc hết giờ: 0.",
+          "Độ khó tăng dần theo số chữ cái: Dễ 4–6, Trung bình 7–9, Khó 10–12, Rất khó trên 12. Gói Tiêu chuẩn: câu 1–2 dễ, 3–4 trung bình, 5 khó, 6 rất khó; chọn độ khó Dễ / Khó thì lùi / tiến một bậc.",
+        ],
+      },
+      {
         emoji: "⚡",
-        title: "Vòng 1 — Phản xạ (12 giây mỗi câu)",
+        title: "Vòng 2 — Phản xạ (12 giây mỗi câu)",
         items: [
           "Trắc nghiệm 4 phương án: chính tả, từ đúng ngữ cảnh, điền tiếng còn thiếu trong tục ngữ, từ loại trong một câu cụ thể, nghĩa của từ, tác giả – tác phẩm.",
           "Bấm vào phương án là chốt, không sửa được. Đúng: 100 + ⌊50 × giây còn lại / 12⌋ điểm (tối đa 150). Sai, bỏ trống, hết giờ: 0.",
@@ -32,7 +43,7 @@ export const RULES: Record<string, GameRules> = {
       },
       {
         emoji: "🔍",
-        title: "Vòng 2 — Giải nghĩa (20 giây mỗi câu)",
+        title: "Vòng 3 — Giải nghĩa (20 giây mỗi câu)",
         items: [
           "Đoán từ / cụm từ qua 3 gợi ý mở dần ở giây 0, 7 và 14, rồi gõ đáp án có dấu và gửi. Mỗi câu chỉ được gửi một lần — đoán sớm nhiều điểm, nhưng sai là mất lượt.",
           "Đúng trước gợi ý 2: 150 điểm · từ gợi ý 2 tới trước gợi ý 3: 110 · từ gợi ý 3 tới hết giờ: 70. Hết giờ chưa gửi: 0.",
@@ -41,7 +52,7 @@ export const RULES: Record<string, GameRules> = {
       },
       {
         emoji: "🔗",
-        title: "Vòng 3 — Xâu chuỗi (25 giây mỗi câu)",
+        title: "Vòng 4 — Xâu chuỗi (25 giây mỗi câu)",
         items: [
           "Các tiếng của một câu tục ngữ, thành ngữ, ca dao bị xáo trộn. Chạm lần lượt (hoặc kéo thả, hoặc gõ số trên bàn phím) để xếp lại, đổi thứ tự thoải mái rồi bấm Xác nhận.",
           "Mỗi câu xác nhận một lần. Đúng: 200 + ⌊50 × giây còn lại / 25⌋ (tối đa 250). Sai hoặc hết giờ: 0.",
@@ -50,9 +61,9 @@ export const RULES: Record<string, GameRules> = {
       },
       {
         emoji: "👑",
-        title: "Vòng 4 — Soán ngôi (35 giây mỗi thử thách)",
+        title: "Vòng 5 — Soán ngôi (35 giây mỗi thử thách)",
         items: [
-          "Giải mã câu khó: xếp lại một câu dài hơn vòng 3. Đúng: 300 + ⌊100 × giây còn lại / 35⌋ (tối đa 400).",
+          "Giải mã câu khó: xếp lại một câu dài hơn vòng Xâu chuỗi. Đúng: 300 + ⌊100 × giây còn lại / 35⌋ (tối đa 400).",
           "Săn từ trong lưới 4×4 theo chủ đề: kéo (hoặc chạm lần lượt) nối các ô kề nhau theo hàng ngang / dọc — không nối chéo, không dùng lại ô — để thành từ đúng chủ đề. Mỗi từ hợp lệ khác nhau +75 điểm, tối đa 4 từ; đủ 4 từ thì xong sớm và được thêm ⌊100 × giây còn lại / 35⌋.",
           "Gói Tiêu chuẩn có cả hai thử thách; gói Nhanh chỉ có Săn từ; gói Dài: Giải mã – Săn từ – Giải mã.",
         ],

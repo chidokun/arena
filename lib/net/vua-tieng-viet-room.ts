@@ -4,15 +4,18 @@
 // (mở DevTools giữa ván thì bị xử thua như mọi game khác).
 import {
   COUNTDOWN_MS,
+  CROWN,
   firstOfRound,
   GRID_GOAL,
   gridFinds,
   gridHas,
   itemOf,
+  letterOrder,
   limitOf,
   makePlan,
   mark,
   MAX_PLAYERS,
+  NO_ROUNDS,
   normOptions,
   normSub,
   optionOrder,
@@ -21,6 +24,7 @@ import {
   rng,
   ROUNDS,
   standings,
+  TB,
   tieSurvivors,
   TIEBREAK,
   tokenOrder,
@@ -31,6 +35,7 @@ import {
   type Item,
   type Mark,
   type Row,
+  type Rounds,
   type Stage,
   type Sub,
   type VtOptions,
@@ -52,7 +57,8 @@ type Draft = { q: number; a?: number | string | number[]; t?: number; lk?: boole
 /** Câu trả lời đã chốt, theo câu rồi theo người. */
 type Board = Record<string, Record<string, Sub>>;
 
-export const revealMs = (explain: boolean, kind: Item["kind"]) => (kind === "grid" ? 9000 : explain ? 8000 : 4500);
+// Ghép từ: 3 giây là sang câu (thêm 2 giây khi bật giải thích nghĩa).
+export const revealMs = (explain: boolean, kind: Item["kind"]) => (kind === "grid" ? 9000 : kind === "scramble" ? (explain ? 5000 : 3000) : explain ? 8000 : 4500);
 
 export type VtSeat = {
   seat: SeatView;
@@ -64,7 +70,7 @@ export type VtSeat = {
   locked: boolean;
   next: boolean;
   total: number;
-  rounds: [number, number, number, number];
+  rounds: Rounds;
   hits: number;
 };
 
@@ -76,13 +82,13 @@ export type VtMatch = {
   opts: VtOptions;
   total: number;
   i: number;
-  /** Vòng (0–3, 4 = câu hỏi phụ), thứ tự trong vòng và số câu của vòng. */
+  /** Vòng (0–4, `TB` = câu hỏi phụ), thứ tự trong vòng và số câu của vòng. */
   r: number;
   k: number;
   n: number;
   stage: Stage;
   item: Item;
-  /** Thứ tự bày phương án / thẻ. */
+  /** Thứ tự bày phương án / thẻ tiếng / thẻ chữ. */
   order: number[];
   lineup: VtSeat[];
   me: number;
@@ -303,16 +309,16 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const list = m.lineup
       .filter((u) => !this.cheated(m, u))
       .map((uid) => {
-        const rounds: [number, number, number, number] = [0, 0, 0, 0];
+        const rounds = NO_ROUNDS();
         let hits = 0;
         for (const p of past) {
           rounds[p.r] += p.marks[uid].pts;
           hits += p.marks[uid].hits;
         }
-        return { uid, rounds, total: rounds[0] + rounds[1] + rounds[2] + rounds[3], hits };
+        return { uid, rounds, total: rounds.reduce((s, x) => s + x, 0), hits };
       });
     const rows = standings(list, withKings ? m.vt?.kings : undefined);
-    return [...rows, ...m.lineup.filter((u) => this.cheated(m, u)).map((uid): Row => ({ uid, rounds: [0, 0, 0, 0], total: 0, hits: 0, rank: 0 }))];
+    return [...rows, ...m.lineup.filter((u) => this.cheated(m, u)).map((uid): Row => ({ uid, rounds: NO_ROUNDS(), total: 0, hits: 0, rank: 0 }))];
   }
 
   protected outcome(m: Meta): Result | undefined {
@@ -336,7 +342,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     this.told.key = key;
     if (vt.stage !== "intro") return;
     const r = placeOf(vt.counts, vt.i).r;
-    if (r < 4) this.say(`vt-round:${m.round}:${r}`, `${ROUNDS[r].emoji} Vòng ${r + 1} · ${ROUNDS[r].name} — ${vt.counts[r]} ${r === 3 ? "thử thách" : "câu"}`);
+    if (r < TB) this.say(`vt-round:${m.round}:${r}`, `${ROUNDS[r].emoji} Vòng ${r + 1} · ${ROUNDS[r].name} — ${vt.counts[r]} ${r === CROWN ? "thử thách" : "câu"}`);
     else {
       const names = (vt.tbs[0] ?? []).map((u) => (u === this.me ? "Bạn" : this.nameOf(u))).join(", ");
       this.say(`vt-tb:${m.round}`, `${TIEBREAK.emoji} Hoà điểm ở ngôi đầu! ${names} bước vào câu hỏi phụ.`);
@@ -372,7 +378,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     const rows = this.rows(m, b);
     const byUid = new Map(rows.map((x) => [x.uid, x]));
     const draft = live ? (this.draftOf(m, this.me) ?? null) : null;
-    const order = item.kind === "mc" ? optionOrder(vt.seed, item.id) : item.kind === "order" ? tokenOrder(vt.seed, item) : [];
+    const order = item.kind === "mc" ? optionOrder(vt.seed, item.id) : item.kind === "order" ? tokenOrder(vt.seed, item) : item.kind === "scramble" ? letterOrder(vt.seed, item) : [];
     const ended = m.status === "ended" && m.result?.round === m.round;
     return {
       ...base,
@@ -399,7 +405,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
             locked: !!subs[u] || !!d?.lk,
             next: vt.stage === "reveal" && !!d?.nx,
             total: row?.total ?? 0,
-            rounds: row?.rounds ?? [0, 0, 0, 0],
+            rounds: row?.rounds ?? NO_ROUNDS(),
             hits: row?.hits ?? 0,
           };
         }),
@@ -455,7 +461,7 @@ export class VuaTiengVietRoom extends RoomSession<VtView> {
     return Math.max(0, Date.now() - this.stageAt(m, limitOf(placeOf(m.vt!.counts, m.vt!.i).r)));
   }
 
-  /** Chốt câu trả lời (trắc nghiệm: chỉ số gốc của phương án; giải nghĩa: chữ gõ; xâu chuỗi: thứ tự thẻ). Mỗi câu một lần. */
+  /** Chốt câu trả lời (ghép từ: thứ tự thẻ chữ, -1 là khoảng trắng; trắc nghiệm: chỉ số gốc của phương án; giải nghĩa: chữ gõ; xâu chuỗi: thứ tự thẻ). Mỗi câu một lần. */
   answer(a: number | string | number[]) {
     const m = this.active();
     if (!m || m.vt!.stage !== "ask") return;

@@ -146,7 +146,7 @@ function VuaTiengVietSlide() {
           Ai sẽ là <span className="text-pen">Vua Tiếng Việt</span> của hội bạn?
         </h2>
         <p className="mt-5 max-w-[52ch] text-lg text-ink-2">
-          Bốn vòng đố chữ: Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Trả lời thật nhanh để ghi điểm. Dễ dàng chơi một mình để luyện tập.
+          Năm vòng đố chữ: Ghép từ, Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi. Trả lời thật nhanh để ghi điểm. Dễ dàng chơi một mình để luyện tập.
         </p>
         <Perks
           items={[

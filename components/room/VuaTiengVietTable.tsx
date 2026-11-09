@@ -7,6 +7,7 @@ import {
   clueAnswers,
   COUNT_MAX,
   COUNTDOWN_MS,
+  CROWN,
   fmtPts,
   GRID_GOAL,
   GRID_WORD,
@@ -14,6 +15,7 @@ import {
   HINT_AT,
   itemOf,
   LETTERS,
+  lettersOf,
   LEVEL_KEYS,
   LEVELS,
   MAX_PLAYERS,
@@ -22,7 +24,9 @@ import {
   PACK_KEYS,
   PACKS,
   ROUNDS,
+  TB,
   TIEBREAK,
+  TIER_NAMES,
   tokensOf,
   TOPIC_KEYS,
   TOPICS,
@@ -48,7 +52,7 @@ type View = Omit<RoomView<VtView>, "chat">;
 const base = process.env.BASE_PATH ?? "";
 const LOGO = `${base}/vua-tieng-viet/logo.webp`;
 const CHEERS = ["👑", "✨", "🎉", "📜", "⭐"];
-const ROUND_TONES = ["teal", "cream", "coral", "gold", "gold"] as const;
+const ROUND_TONES = ["sky", "teal", "cream", "coral", "gold", "gold"] as const;
 
 function useVtView(session: VuaTiengVietRoom): View {
   const room = useRoomState(session);
@@ -87,12 +91,18 @@ function nameIn(view: View, uid: string) {
   return view.game?.match?.lineup.find((s) => s.seat.uid === uid)?.seat.member?.name ?? view.members.find((p) => p.uid === uid)?.name ?? "Ai đó";
 }
 
-const roundLabel = (r: number) => (r === 4 ? `${TIEBREAK.emoji} ${TIEBREAK.name}` : `${ROUNDS[r].emoji} Vòng ${r + 1} · ${ROUNDS[r].name}`);
+const roundLabel = (r: number) => (r === TB ? `${TIEBREAK.emoji} ${TIEBREAK.name}` : `${ROUNDS[r].emoji} Vòng ${r + 1} · ${ROUNDS[r].name}`);
 const packLabel = (o: VtOptions) => `${PACKS[o.pack].emoji} ${PACKS[o.pack].name}${o.pack === "custom" ? ` (${o.counts.join(" · ")})` : ""}`;
 const locked = (g: VtMatch) => !!g.mine.sub || !!g.mine.draft?.lk;
 
+const upper = (s: string) => s.toLocaleUpperCase("vi");
+
+/** Chuỗi người chơi ghép (chỉ số thẻ chữ, -1 là khoảng trắng). */
+const spellOf = (letters: string[], a: number[]) => upper(a.map((i) => (i === -1 ? " " : (letters[i] ?? ""))).join("").replace(/ +/g, " ").trim());
+
 /** Đáp án chuẩn dạng chữ (để công bố, xem lại, báo lỗi). */
 function answerText(item: Item) {
+  if (item.kind === "scramble") return upper(item.a);
   if (item.kind === "mc") return item.o[0];
   if (item.kind === "clue") return item.a;
   if (item.kind === "order") return item.text;
@@ -100,6 +110,7 @@ function answerText(item: Item) {
 }
 
 function promptText(item: Item) {
+  if (item.kind === "scramble") return `Ghép ${lettersOf(item.a).length} chữ cái · ${TIER_NAMES[item.lv]}`;
   if (item.kind === "mc") return item.q;
   if (item.kind === "clue") return item.h[0];
   if (item.kind === "order") return `Xếp thẻ: ${tokensOf(item).join(" | ")}`;
@@ -109,6 +120,7 @@ function promptText(item: Item) {
 /** Câu trả lời của một người, dạng chữ ngắn. */
 function subText(item: Item, sub: Sub | undefined, order: number[]) {
   if (!sub) return "—";
+  if (item.kind === "scramble") return Array.isArray(sub.a) && sub.a.some((i) => i >= 0) ? spellOf(lettersOf(item.a), sub.a) : "Không xác nhận";
   if (item.kind === "mc") return typeof sub.a === "number" ? `${LETTERS[order.indexOf(sub.a)]}. ${item.o[sub.a]}` : "Không trả lời";
   if (item.kind === "clue") return typeof sub.a === "string" && sub.a.trim() ? `“${sub.a.trim()}”` : "Không trả lời";
   if (item.kind === "order") {
@@ -241,10 +253,10 @@ function ActionBar({ view, session }: { view: View; session: VuaTiengVietRoom })
       message = <>🚫 Bạn đã bị xử thua vì gian lận — ở lại xem mọi người chơi nhé.</>;
     } else if (g.stage === "intro") {
       tone = TONE.hot;
-      message = g.r === 4 ? <>⚔️ Hoà điểm ở ngôi đầu — {tbNames} bước vào câu hỏi phụ!</> : <>📣 {roundLabel(g.r)} sắp bắt đầu…</>;
+      message = g.r === TB ? <>⚔️ Hoà điểm ở ngôi đầu — {tbNames} bước vào câu hỏi phụ!</> : <>📣 {roundLabel(g.r)} sắp bắt đầu…</>;
     } else if (g.stage === "ask") {
       if (!g.playing) {
-        message = g.r === 4 ? <>⚔️ Câu hỏi phụ giữa {tbNames}{clock}…</> : <>👀 Mọi người đang trả lời{clock}…</>;
+        message = g.r === TB ? <>⚔️ Câu hỏi phụ giữa {tbNames}{clock}…</> : <>👀 Mọi người đang trả lời{clock}…</>;
       } else if (locked(g)) {
         message = waiting ? <>🔒 Đã chốt — chờ {waiting} người nữa{clock}.</> : <>🔒 Đã chốt — đang công bố đáp án…</>;
       } else {
@@ -392,7 +404,7 @@ function Setup({ view, session }: { view: View; session: VuaTiengVietRoom }) {
         )}
       </div>
       <p className="text-[13.5px] text-ink-2">
-        Bốn vòng: ⚡ Phản xạ (12s/câu) → 🔍 Giải nghĩa (20s) → 🔗 Xâu chuỗi (25s) → 👑 Soán ngôi (35s). Đúng và nhanh thì nhiều điểm, sai không bị trừ; hoà ngôi đầu thì đấu
+        Năm vòng: 🧩 Ghép từ (15s/câu) → ⚡ Phản xạ (12s) → 🔍 Giải nghĩa (20s) → 🔗 Xâu chuỗi (25s) → 👑 Soán ngôi (35s). Đúng và nhanh thì nhiều điểm, sai không bị trừ; hoà ngôi đầu thì đấu
         câu hỏi phụ.{!host && " Chủ phòng chọn gói, độ khó và chủ đề cho ván tới."}
       </p>
     </section>
@@ -439,13 +451,13 @@ function Stage({ view, session, match: g }: { view: View; session: VuaTiengVietR
 }
 
 function RoundIntro({ match: g }: { match: VtMatch }) {
-  const tb = g.r === 4;
+  const tb = g.r === TB;
   return (
     <div className={`vt-intro card is-${ROUND_TONES[g.r]}`} role="status">
       <span className="vt-intro-emoji" aria-hidden="true">
         {tb ? TIEBREAK.emoji : ROUNDS[g.r].emoji}
       </span>
-      <p className="vt-intro-eyebrow">{tb ? "Hoà điểm ở ngôi đầu" : `Vòng ${g.r + 1} / 4 · ${g.n} ${g.r === 3 ? "thử thách" : "câu"}`}</p>
+      <p className="vt-intro-eyebrow">{tb ? "Hoà điểm ở ngôi đầu" : `Vòng ${g.r + 1} / ${ROUNDS.length} · ${g.n} ${g.r === CROWN ? "thử thách" : "câu"}`}</p>
       <h2 className="vt-intro-title">{tb ? TIEBREAK.name : ROUNDS[g.r].name}</h2>
       <p className="vt-intro-about">{tb ? "Một câu trắc nghiệm khó, 15 giây — tối đa 3 câu." : ROUNDS[g.r].about}</p>
       <p className="vt-intro-rule">{tb ? TIEBREAK.rule : ROUNDS[g.r].rule}</p>
@@ -471,9 +483,19 @@ function Timer({ match: g }: { match: VtMatch }) {
 function QuestionCard({ view, session, match: g }: { view: View; session: VuaTiengVietRoom; match: VtMatch }) {
   const closed = !!g.marks;
   const item = g.item;
-  const head = g.r === 4 ? `Câu ${g.k + 1}` : `${g.r === 3 ? "Thử thách" : "Câu"} ${g.k + 1}/${g.n}`;
+  const head = g.r === TB ? `Câu ${g.k + 1}` : `${g.r === CROWN ? "Thử thách" : "Câu"} ${g.k + 1}/${g.n}`;
   const kindName =
-    item.kind === "grid" ? "Săn từ trong lưới" : item.kind === "order" ? (g.r === 3 ? "Giải mã câu khó" : "Sắp xếp thành câu") : item.kind === "clue" ? "Đoán từ qua gợi ý" : "Trắc nghiệm";
+    item.kind === "grid"
+      ? "Săn từ trong lưới"
+      : item.kind === "order"
+        ? g.r === CROWN
+          ? "Giải mã câu khó"
+          : "Sắp xếp thành câu"
+        : item.kind === "clue"
+          ? "Đoán từ qua gợi ý"
+          : item.kind === "scramble"
+            ? `Ghép chữ cái · ${TIER_NAMES[item.lv]}`
+            : "Trắc nghiệm";
   return (
     <div className="grid gap-4">
       <article className={`vt-stage card p-4 sm:p-5 is-${ROUND_TONES[g.r]}`}>
@@ -486,7 +508,9 @@ function QuestionCard({ view, session, match: g }: { view: View; session: VuaTie
         </div>
         <div className="mt-3">{g.stage === "ask" ? <Timer match={g} /> : <RevealBar match={g} />}</div>
         <div className="mt-4">
-          {item.kind === "mc" ? (
+          {item.kind === "scramble" ? (
+            <ScrambleBody session={session} match={g} item={item} />
+          ) : item.kind === "mc" ? (
             <McBody view={view} session={session} match={g} item={item} />
           ) : item.kind === "clue" ? (
             <ClueBody session={session} match={g} item={item} />
@@ -526,6 +550,139 @@ function Pickers({ view, match: g, uids }: { view: View; match: VtMatch; uids: s
         return p ? <Avatar key={u} p={p} size={22} className="ring-2 ring-[var(--surface)]" /> : null;
       })}
     </span>
+  );
+}
+
+function ScrambleBody({ session, match: g, item }: { session: VuaTiengVietRoom; match: VtMatch; item: Extract<Item, { kind: "scramble" }> }) {
+  const letters = useMemo(() => lettersOf(item.a), [item]);
+  const closed = !!g.marks;
+  const confirmed = (g.mine.sub?.a ?? g.mine.draft?.a) as number[] | undefined;
+  const can = g.playing && g.stage === "ask" && !locked(g);
+  // Thứ tự đang xếp: chỉ số thẻ chữ, -1 là khoảng trắng (chỉ để dễ đọc, không tính khi chấm).
+  const [placed, setPlaced] = useState<number[]>([]);
+  const [drag, setDrag] = useState<number | null>(null);
+  const placedRef = useRef<number[]>([]);
+  useEffect(() => {
+    placedRef.current = placed;
+  }, [placed]);
+  const line = can ? placed : (confirmed ?? []);
+  const used = placed.filter((i) => i >= 0).length;
+  const full = used === letters.length;
+  const add = (i: number) => setPlaced((p) => (p.includes(i) ? p : [...p, i]));
+  const space = () => setPlaced((p) => (p.length && p[p.length - 1] !== -1 ? [...p, -1] : p));
+  const removeAt = (pos: number) => setPlaced((p) => p.filter((_, k) => k !== pos));
+  const submit = (p: number[]) => {
+    const clean = [...p];
+    while (clean[clean.length - 1] === -1) clean.pop();
+    if (clean.filter((i) => i >= 0).length === letters.length) session.answer(clean);
+  };
+  useEffect(() => {
+    if (!can) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement)?.closest?.("input, textarea, [contenteditable]")) return;
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        setPlaced((p) => p.slice(0, -1));
+      } else if (e.key === "Escape") setPlaced([]);
+      else if (e.key === "Enter") {
+        e.preventDefault();
+        submit(placedRef.current);
+      } else if (e.key === " ") {
+        e.preventDefault();
+        space();
+      } else {
+        // Gõ đúng chữ (kể cả dấu) thì lấy thẻ chữ đó chưa dùng đầu tiên.
+        const k = e.key.normalize("NFC").toLowerCase();
+        if ([...k].length !== 1) return;
+        setPlaced((p) => {
+          const i = g.order.find((j) => letters[j] === k && !p.includes(j));
+          return i === undefined ? p : [...p, i];
+        });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit chỉ đọc ref và session
+  }, [can, g.order, letters, session]);
+  const dropAt = (pos: number) => {
+    if (drag === null) return;
+    setPlaced((p) => {
+      const next = [...p];
+      const [x] = next.splice(drag, 1);
+      next.splice(drag < pos ? pos - 1 : pos, 0, x);
+      return next;
+    });
+    setDrag(null);
+  };
+  const myMark = closed && g.me >= 0 ? g.marks?.[g.lineup[g.me].seat.uid] : undefined;
+  return (
+    <>
+      <p className="vt-q">Xếp tất cả chữ cái thành một từ hoặc cụm từ có nghĩa.</p>
+      <p className="mt-1 text-[13px] font-semibold text-ink-3">
+        {letters.length} chữ cái · {TIER_NAMES[item.lv]} · dùng hết mọi chữ, giữ nguyên dấu (“ố” và “ồ” là hai chữ khác nhau).
+      </p>
+      <div
+        className={`vt-line mt-4 ${myMark ? (myMark.ok ? "is-right" : "is-wrong") : ""}`}
+        aria-label="Từ đang ghép"
+        onDragOver={(e) => can && e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          dropAt(placed.length);
+        }}
+      >
+        {line.length === 0 && <span className="text-[13.5px] font-semibold text-ink-3">{can ? "Chạm các chữ bên dưới theo thứ tự đúng…" : closed ? "Không xác nhận" : "Đang chờ…"}</span>}
+        {line.map((i, pos) => (
+          <button
+            key={i === -1 ? `s${pos}` : i}
+            type="button"
+            className={i === -1 ? "vt-gap" : "vt-tile is-char is-placed"}
+            disabled={!can}
+            draggable={can}
+            onDragStart={() => setDrag(pos)}
+            onDragOver={(e) => can && e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              dropAt(pos);
+            }}
+            onClick={() => can && removeAt(pos)}
+            title={can ? (i === -1 ? "Chạm để bỏ khoảng trắng" : "Chạm để bỏ ra, kéo để đổi chỗ") : undefined}
+            aria-label={i === -1 ? "Khoảng trắng" : undefined}
+          >
+            {i === -1 ? "" : upper(letters[i])}
+          </button>
+        ))}
+      </div>
+      {!closed && (
+        <div className="vt-pool mt-3" aria-label="Chữ chưa xếp">
+          {g.order.map((i) => (
+            <button key={i} type="button" className={`vt-tile is-char ${line.includes(i) ? "is-used" : ""}`} disabled={!can || line.includes(i)} onClick={() => add(i)}>
+              {upper(letters[i])}
+            </button>
+          ))}
+        </div>
+      )}
+      {can && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" className="btn btn-pen" disabled={!full} onClick={() => submit(placed)}>
+            ✓ Xác nhận
+          </button>
+          <button type="button" className="btn" disabled={!placed.length || placed[placed.length - 1] === -1} onClick={space}>
+            ␣ Khoảng trắng
+          </button>
+          <button type="button" className="btn" disabled={!placed.length} onClick={() => setPlaced((p) => p.slice(0, -1))}>
+            ⌫ Bỏ chữ cuối
+          </button>
+          <button type="button" className="btn" disabled={!placed.length} onClick={() => setPlaced([])}>
+            ↺ Xếp lại
+          </button>
+          <span className="text-[12.5px] font-semibold text-ink-3">
+            {used}/{letters.length} chữ · gõ chữ để chọn, Space chèn khoảng trắng, ⌫ bỏ chữ cuối, Enter xác nhận
+          </span>
+        </div>
+      )}
+      {!can && !closed && g.playing && <p className="mt-3 text-[14px] font-bold text-ink-2">{confirmed ? "🔒 Đã xác nhận — chờ công bố đáp án." : "⏳ Hết giờ."}</p>}
+    </>
   );
 }
 
@@ -689,7 +846,7 @@ function OrderBody({ session, match: g, item }: { session: VuaTiengVietRoom; mat
   const myMark = closed && g.me >= 0 ? g.marks?.[g.lineup[g.me].seat.uid] : undefined;
   return (
     <>
-      <p className="vt-q">{g.r === 3 ? "Giải mã câu dài: xếp các thẻ thành câu hoàn chỉnh." : "Xếp các thẻ thành câu tục ngữ, thành ngữ hoặc ca dao."}</p>
+      <p className="vt-q">{g.r === CROWN ? "Giải mã câu dài: xếp các thẻ thành câu hoàn chỉnh." : "Xếp các thẻ thành câu tục ngữ, thành ngữ hoặc ca dao."}</p>
       <div
         className={`vt-line mt-4 ${myMark ? (myMark.ok ? "is-right" : "is-wrong") : ""}`}
         aria-label="Câu đang xếp"
@@ -917,6 +1074,7 @@ function RevealPanel({ view, session, match: g }: { view: View; session: VuaTien
         <span className="text-[13px] font-extrabold text-ink-3">Đáp án</span>
         <span className="vt-answer">{item.kind === "grid" ? `${item.words.length} từ hợp lệ` : answerText(item)}</span>
       </div>
+      {item.kind === "scramble" && item.acc?.length ? <p className="text-[13px] font-semibold text-ink-3">Cũng chấp nhận: {item.acc.map(upper).join(" / ")}</p> : null}
       {item.kind === "clue" && clueAnswers(item).length > 1 && <p className="text-[13px] font-semibold text-ink-3">Cũng chấp nhận: {clueAnswers(item).slice(1).join(", ")}</p>}
       {item.kind === "order" && item.alt?.length ? <p className="text-[13px] font-semibold text-ink-3">Cũng chấp nhận: {item.alt.join(" / ")}</p> : null}
       {item.kind === "grid" && (
@@ -940,7 +1098,7 @@ function RevealPanel({ view, session, match: g }: { view: View; session: VuaTien
                 <b className="w-24 shrink-0 truncate">{nameIn(view, uid)}</b>
                 <span className="min-w-0 flex-1 truncate text-ink-2">{subText(item, g.subs?.[uid], g.order)}</span>
                 <span className={`shrink-0 font-extrabold tabular-nums ${mk.ok || mk.pts ? "text-lime" : "text-ink-3"}`}>
-                  {g.r === 4 ? (mk.ok ? `✓ ${secs(mk.t)}` : "✗") : mk.pts ? `+${mk.pts}` : "0"}
+                  {g.r === TB ? (mk.ok ? `✓ ${secs(mk.t)}` : "✗") : mk.pts ? `+${mk.pts}${mk.ok && item.kind !== "grid" ? ` · ${secs(mk.t)}` : ""}` : "0"}
                 </span>
               </li>
             );
@@ -950,7 +1108,7 @@ function RevealPanel({ view, session, match: g }: { view: View; session: VuaTien
       <div className="flex flex-wrap items-center gap-2">
         {live && g.playing && (
           <button type="button" className="btn btn-pen btn-nudge" disabled={meReady} onClick={() => session.proceed()}>
-            {meReady ? "✅ Đã sẵn sàng" : g.i + 1 >= g.total && g.r !== 4 ? "👑 Xem kết quả" : "➡️ Câu tiếp"}
+            {meReady ? "✅ Đã sẵn sàng" : g.i + 1 >= g.total && g.r !== TB ? "👑 Xem kết quả" : "➡️ Câu tiếp"}
           </button>
         )}
         <ReportButton session={session} item={item} />
@@ -963,8 +1121,8 @@ const isBlank = (sub: Sub | undefined) => !sub || (sub.a === undefined && !sub.f
 
 function MineLine({ mark: mk, r, blank }: { mark: Mark; r: number; blank: boolean }) {
   if (blank && !mk.ok) return <p className="vt-mine is-no">⏳ Hết giờ — bạn chưa trả lời · +0 điểm</p>;
-  if (r === 4) return <p className={`vt-mine ${mk.ok ? "is-ok" : "is-no"}`}>{mk.ok ? `✅ Bạn trả lời đúng sau ${secs(mk.t)}` : "❌ Bạn chưa trả lời đúng"}</p>;
-  const text = mk.ok ? `✅ Chính xác! +${mk.pts} điểm` : mk.pts ? `🌗 Tìm được ${mk.hits} từ · +${mk.pts} điểm` : "❌ Chưa đúng · +0 điểm";
+  if (r === TB) return <p className={`vt-mine ${mk.ok ? "is-ok" : "is-no"}`}>{mk.ok ? `✅ Bạn trả lời đúng sau ${secs(mk.t)}` : "❌ Bạn chưa trả lời đúng"}</p>;
+  const text = mk.ok ? `✅ Chính xác sau ${secs(mk.t)}! +${mk.pts} điểm` : mk.pts ? `🌗 Tìm được ${mk.hits} từ · +${mk.pts} điểm` : "❌ Chưa đúng · +0 điểm";
   return <p className={`vt-mine ${mk.ok ? "is-ok" : mk.pts ? "is-part" : "is-no"}`}>{text}</p>;
 }
 
@@ -1006,7 +1164,7 @@ function ReportButton({ session, item }: { session: VuaTiengVietRoom; item: Item
 
 function Scoreboard({ view, match: g }: { view: View; match: VtMatch }) {
   const live = isLive(view);
-  const order = [...g.lineup].sort((a, b) => b.total - a.total || b.rounds[3] - a.rounds[3] || b.hits - a.hits);
+  const order = [...g.lineup].sort((a, b) => b.total - a.total || b.rounds[CROWN] - a.rounds[CROWN] || b.hits - a.hits);
   const top = order[0]?.total ?? 0;
   return (
     <section className="vt-board card p-4" aria-labelledby="vt-score-h">
@@ -1024,7 +1182,7 @@ function Scoreboard({ view, match: g }: { view: View; match: VtMatch }) {
             : s.away
               ? "📡 Đang mất kết nối"
               : !live || !s.on
-                ? g.r === 4 && live && !s.on
+                ? g.r === TB && live && !s.on
                   ? "👀 Đang xem câu hỏi phụ"
                   : ""
                 : g.stage === "ask"
@@ -1137,14 +1295,14 @@ function Podium({ view, match: g }: { view: View; match: VtMatch }) {
 
 function RoundBreakdown({ rounds, counts }: { rounds: number[]; counts: Counts }) {
   return (
-    <div className="mt-4 grid grid-cols-2 gap-2 border-t-2 border-dashed border-rule pt-4 sm:grid-cols-4">
+    <div className="mt-4 grid grid-cols-2 gap-2 border-t-2 border-dashed border-rule pt-4 sm:grid-cols-3 lg:grid-cols-5">
       {ROUNDS.map((rd, r) => (
         <div key={r} className={`vt-sum is-${ROUND_TONES[r]}`}>
           <span className="text-[12px] font-extrabold">
             {rd.emoji} {rd.name}
           </span>
           <b className="font-display text-xl tabular-nums">{fmtPts(rounds[r] ?? 0)}</b>
-          <span className="text-[11px] font-bold text-ink-3">{counts[r]} {r === 3 ? "thử thách" : "câu"}</span>
+          <span className="text-[11px] font-bold text-ink-3">{counts[r]} {r === CROWN ? "thử thách" : "câu"}</span>
         </div>
       ))}
     </div>
