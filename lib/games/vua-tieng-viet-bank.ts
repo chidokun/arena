@@ -8,6 +8,11 @@
 //   trên 12 rất khó.
 // `fam` gom các câu cùng xoay quanh một câu tục ngữ / một từ: một ván không rút hai câu cùng nhóm để câu trước không lộ đáp án câu sau.
 import type { Clue, Grid, Mc, Order, ScrambleSrc } from "./vua-tieng-viet.ts";
+import { CLUES_MORE } from "./vua-tieng-viet-bank-clue.ts";
+import { GRIDS_MORE } from "./vua-tieng-viet-bank-grid.ts";
+import { LONGS_MORE } from "./vua-tieng-viet-bank-long.ts";
+import { MCS_MORE } from "./vua-tieng-viet-bank-mc.ts";
+import { ORDERS_MORE } from "./vua-tieng-viet-bank-order.ts";
 
 export const BANK_VERSION = 1;
 
@@ -113,7 +118,7 @@ export const MCS: Mc[] = [
 
   // ——— Từ vựng & ngữ pháp ———
   { id: "R1-301", lv: 1, tp: "vocab", fam: "siengnang", q: "Từ nào đồng nghĩa với “siêng năng”?", o: ["chăm chỉ", "lười biếng", "thông minh", "nhanh nhẹn"], why: "“Siêng năng” và “chăm chỉ” cùng chỉ sự cần cù, chịu khó." },
-  { id: "R1-302", lv: 1, tp: "vocab", q: "Từ nào trái nghĩa với “hào phóng”?", o: ["keo kiệt", "rộng rãi", "hiền lành", "sang trọng"], why: "“Hào phóng” là rộng rãi khi cho; trái nghĩa là “keo kiệt”." },
+  { id: "R1-302", lv: 1, tp: "vocab", fam: "haophong", q: "Từ nào trái nghĩa với “hào phóng”?", o: ["keo kiệt", "rộng rãi", "hiền lành", "sang trọng"], why: "“Hào phóng” là rộng rãi khi cho; trái nghĩa là “keo kiệt”." },
   { id: "R1-303", lv: 1, tp: "vocab", q: "Trong câu “Cô ấy chạy rất nhanh”, từ “chạy” là:", o: ["động từ", "danh từ", "tính từ", "đại từ"], why: "“Chạy” chỉ hoạt động nên là động từ." },
   { id: "R1-304", lv: 1, tp: "vocab", q: "Trong câu “Chiếc áo này rất đẹp”, từ “đẹp” là:", o: ["tính từ", "danh từ", "động từ", "quan hệ từ"], why: "“Đẹp” chỉ đặc điểm, tính chất nên là tính từ." },
   { id: "R1-305", lv: 2, tp: "vocab", q: "Trong câu “Tôi đọc sách”, từ “tôi” là:", o: ["đại từ", "danh từ", "động từ", "tính từ"], why: "“Tôi” là đại từ xưng hô, dùng thay cho người nói." },
@@ -125,7 +130,7 @@ export const MCS: Mc[] = [
   { id: "R1-311", lv: 3, tp: "vocab", fam: "thiennhien", q: "Trong từ “thiên nhiên”, tiếng “thiên” có nghĩa là:", o: ["trời", "nghìn", "dời đi", "lệch về một phía"], why: "“Thiên” có nhiều nghĩa: trời (thiên nhiên), nghìn (thiên niên kỷ), dời (thiên đô), lệch (thiên vị)." },
   { id: "R1-312", lv: 2, tp: "vocab", q: "Từ Hán Việt “phụ mẫu” có nghĩa là:", o: ["cha mẹ", "anh chị", "ông bà", "con cháu"], why: "“Phụ” là cha, “mẫu” là mẹ." },
   { id: "R1-313", lv: 2, tp: "vocab", q: "“Giang sơn” có nghĩa gốc là:", o: ["sông núi", "mưa gió", "ruộng vườn", "biển đảo"], why: "“Giang” là sông, “sơn” là núi; nghĩa rộng chỉ đất nước." },
-  { id: "R1-314", lv: 1, tp: "vocab", q: "Từ nào trái nghĩa với “cẩn thận”?", o: ["cẩu thả", "chu đáo", "tỉ mỉ", "kỹ lưỡng"], why: "“Cẩu thả” là làm qua loa, không cẩn thận." },
+  { id: "R1-314", lv: 1, tp: "vocab", fam: "canthan", q: "Từ nào trái nghĩa với “cẩn thận”?", o: ["cẩu thả", "chu đáo", "tỉ mỉ", "kỹ lưỡng"], why: "“Cẩu thả” là làm qua loa, không cẩn thận." },
   { id: "R1-315", lv: 1, tp: "vocab", fam: "datnuoc", q: "Từ nào đồng nghĩa với “Tổ quốc”?", o: ["đất nước", "thành phố", "làng xóm", "gia đình"], why: "Tổ quốc là đất nước, nơi ông cha bao đời gây dựng." },
   { id: "R1-316", lv: 1, tp: "vocab", fam: "hoanghon", q: "“Hoàng hôn” là khoảng thời gian nào?", o: ["Lúc mặt trời lặn", "Lúc mặt trời mọc", "Giữa trưa", "Nửa đêm"], why: "Hoàng hôn là lúc mặt trời vừa lặn, trời tối dần." },
   { id: "R1-317", lv: 2, tp: "vocab", q: "Từ “mũi” trong “mũi thuyền” được dùng theo:", o: ["nghĩa chuyển", "nghĩa gốc", "từ láy", "từ tượng thanh"], why: "Nghĩa gốc của “mũi” là bộ phận trên mặt; “mũi thuyền” là nghĩa chuyển (phần nhô ra phía trước)." },
@@ -140,6 +145,7 @@ export const MCS: Mc[] = [
   { id: "R1-326", lv: 3, tp: "vocab", q: "Trong câu “Nó học giỏi nhưng hơi lười”, từ “nhưng” là:", o: ["quan hệ từ", "phó từ", "đại từ", "tính từ"], why: "“Nhưng” nối hai vế có ý tương phản — quan hệ từ." },
   { id: "R1-327", lv: 1, tp: "vocab", q: "“Khán giả” là ai?", o: ["Người xem biểu diễn", "Người biểu diễn", "Người viết kịch bản", "Người bán vé"], why: "“Khán” là xem; khán giả là người xem." },
   { id: "R1-328", lv: 1, tp: "vocab", q: "“Độc giả” là ai?", o: ["Người đọc", "Người viết", "Người in sách", "Người bán sách"], why: "“Độc” ở đây là đọc; độc giả là người đọc sách báo." },
+  ...MCS_MORE,
 ];
 
 export const CLUES: Clue[] = [
@@ -168,12 +174,12 @@ export const CLUES: Clue[] = [
   { id: "R2-023", lv: 2, tp: "vocab", h: ["Dụng cụ có kim nam châm, dùng để xác định phương hướng.", "Kim của nó luôn chỉ hướng bắc – nam.", "Tiếng đầu là “la”."], a: "la bàn", acc: ["địa bàn"], why: "La bàn giúp người đi biển, đi rừng tìm phương hướng." },
   { id: "R2-024", lv: 2, tp: "vocab", h: ["Dụng cụ có thấu kính hội tụ, giúp nhìn rõ những vật nhỏ.", "Thám tử trong truyện hay cầm theo.", "Tiếng cuối là “lúp”."], a: "kính lúp", why: "Kính lúp phóng to ảnh của vật nhỏ." },
   { id: "R2-025", lv: 2, tp: "vocab", h: ["Tổ chức nhận tiền gửi, cho vay và làm các dịch vụ về tiền tệ.", "Danh từ hai tiếng, gốc Hán Việt.", "Tiếng đầu là “ngân”."], a: "ngân hàng", why: "Ngân hàng: “ngân” là bạc, tiền." },
-  { id: "R2-026", lv: 1, tp: "idiom", h: ["Người ở nhà bên cạnh hoặc ở gần nhà mình.", "Tục ngữ: “Bán anh em xa, mua … gần.”", "Tiếng đầu là “hàng”."], a: "hàng xóm", acc: ["láng giềng", "hàng xóm láng giềng"], why: "Hàng xóm (láng giềng) tối lửa tắt đèn có nhau." },
+  { id: "R2-026", lv: 1, tp: "idiom", fam: "langgieng", h: ["Người ở nhà bên cạnh hoặc ở gần nhà mình.", "Tục ngữ: “Bán anh em xa, mua … gần.”", "Tiếng đầu là “hàng”."], a: "hàng xóm", acc: ["láng giềng", "hàng xóm láng giềng"], why: "Hàng xóm (láng giềng) tối lửa tắt đèn có nhau." },
   { id: "R2-027", lv: 1, tp: "vocab", h: ["Thiên thể quay quanh Trái Đất, ban đêm sáng nhờ phản chiếu ánh Mặt Trời.", "Có lúc tròn, có lúc khuyết.", "Tiếng đầu là “mặt”."], a: "mặt trăng", acc: ["trăng", "vầng trăng", "ông trăng"], why: "Mặt Trăng là vệ tinh tự nhiên của Trái Đất." },
   { id: "R2-028", lv: 2, tp: "vocab", h: ["Sử dụng đúng mức, không phí phạm tiền bạc, sức lực, thời gian.", "Trái nghĩa với “lãng phí”.", "Tiếng đầu là “tiết”."], a: "tiết kiệm", why: "Tiết kiệm là dùng vừa đủ, không phung phí." },
   { id: "R2-029", lv: 1, tp: "vocab", fam: "siengnang", h: ["Chăm chỉ, cần cù làm việc một cách thường xuyên.", "Trái nghĩa với “lười biếng”.", "Tiếng đầu là “siêng”."], a: "siêng năng", acc: ["chăm chỉ", "cần cù", "chuyên cần"], why: "Siêng năng là chịu khó, chăm làm." },
   { id: "R2-030", lv: 2, tp: "vocab", h: ["Điều tốt đẹp mình mong muốn đạt được trong tương lai.", "Từ hai tiếng, có thể dùng như danh từ hoặc động từ.", "Tiếng đầu là “ước”."], a: "ước mơ", acc: ["mơ ước"], why: "Ước mơ là điều mong mỏi, hướng tới." },
-  { id: "R2-031", lv: 2, tp: "lit", h: ["Nơi mình sinh ra và lớn lên, có sự gắn bó sâu sắc.", "Đỗ Trung Quân có bài thơ nổi tiếng mở đầu bằng từ này.", "Tiếng cuối là “hương”."], a: "quê hương", acc: ["quê nhà"], why: "“Quê hương là chùm khế ngọt…” — thơ Đỗ Trung Quân." },
+  { id: "R2-031", lv: 2, tp: "lit", fam: "quehuong", h: ["Nơi mình sinh ra và lớn lên, có sự gắn bó sâu sắc.", "Đỗ Trung Quân có bài thơ nổi tiếng mở đầu bằng từ này.", "Tiếng cuối là “hương”."], a: "quê hương", acc: ["quê nhà"], why: "“Quê hương là chùm khế ngọt…” — thơ Đỗ Trung Quân." },
   { id: "R2-032", lv: 2, tp: "vocab", h: ["Khoản tiền cấp cho học sinh, sinh viên học giỏi hoặc có hoàn cảnh khó khăn.", "Danh từ hai tiếng.", "Tiếng đầu là “học”."], a: "học bổng", why: "Học bổng giúp người học có điều kiện học tập tốt hơn." },
   { id: "R2-033", lv: 2, tp: "spell", h: ["Điều đã qua được ghi nhớ lại, thường gợi nhiều cảm xúc.", "Đồ vật gợi nhớ người, việc cũ cũng gọi là “vật …”.", "Tiếng đầu là “kỷ” (hoặc “kỉ”)."], a: "kỷ niệm", acc: ["kỉ niệm"], why: "Viết “kỷ niệm” hay “kỉ niệm” đều được chấp nhận." },
   { id: "R2-034", lv: 2, tp: "vocab", h: ["Tai hoạ do thiên nhiên gây ra như bão, lũ, hạn hán, động đất.", "Danh từ Hán Việt hai tiếng.", "Tiếng đầu là “thiên”."], a: "thiên tai", why: "Thiên tai: “thiên” là trời, “tai” là tai hoạ." },
@@ -189,6 +195,7 @@ export const CLUES: Clue[] = [
   { id: "R2-044", lv: 1, tp: "lit", h: ["Bánh truyền thống hình vuông, gói lá dong, nhân đậu xanh và thịt lợn.", "Gắn với sự tích Lang Liêu.", "Tiếng đầu là “bánh”."], a: "bánh chưng", why: "Theo truyền thuyết, Lang Liêu làm bánh chưng tượng trưng cho đất." },
   { id: "R2-045", lv: 3, tp: "vocab", h: ["Hiện vật bằng đồng tiêu biểu của văn hoá Đông Sơn, mặt có hình ngôi sao và chim Lạc.", "Chiếc ở Ngọc Lũ rất nổi tiếng.", "Tiếng đầu là “trống”."], a: "trống đồng", why: "Trống đồng Đông Sơn là di sản quý của người Việt cổ." },
   { id: "R2-046", lv: 2, tp: "vocab", h: ["Nghệ thuật dân gian dùng con rối biểu diễn trên mặt nước.", "Chú Tễu là nhân vật quen thuộc.", "Gồm ba tiếng, tiếng đầu là “múa”."], a: "múa rối nước", acc: ["rối nước"], why: "Múa rối nước gắn với văn minh lúa nước đồng bằng Bắc Bộ." },
+  ...CLUES_MORE,
 ];
 
 // Vòng 3 — Xâu chuỗi.
@@ -210,7 +217,7 @@ export const ORDERS: Order[] = [
   { id: "R3-015", lv: 2, tp: "idiom", text: "Đói cho sạch, rách cho thơm.", alt: ["Rách cho thơm, đói cho sạch."], why: "Dù nghèo khổ vẫn giữ phẩm giá trong sạch." },
   { id: "R3-016", lv: 3, tp: "idiom", fam: "ngua", text: "Một con ngựa đau, cả tàu bỏ cỏ.", why: "Một người gặp nạn, cả tập thể cùng lo." },
   { id: "R3-017", lv: 2, tp: "idiom", fam: "uoncay", text: "Uốn cây từ thuở còn non.", why: "Dạy con từ khi còn nhỏ mới dễ thành người tốt." },
-  { id: "R3-018", lv: 2, tp: "idiom", text: "Lời nói chẳng mất tiền mua.", why: "Câu đầu của ca dao khuyên lựa lời mà nói cho vừa lòng nhau." },
+  { id: "R3-018", lv: 2, tp: "idiom", fam: "loinoi", text: "Lời nói chẳng mất tiền mua.", why: "Câu đầu của ca dao khuyên lựa lời mà nói cho vừa lòng nhau." },
   { id: "R3-019", lv: 1, tp: "idiom", fam: "anvoc", text: "Ăn vóc học hay.", why: "Ăn uống cho khoẻ, học hành cho giỏi." },
   { id: "R3-020", lv: 2, tp: "idiom", fam: "tienhoc", text: "Tiên học lễ, hậu học văn.", why: "Trước học lễ nghĩa, sau mới học chữ nghĩa." },
   { id: "R3-021", lv: 2, tp: "idiom", fam: "thatbai", text: "Thất bại là mẹ thành công.", why: "Thất bại cho ta bài học để thành công." },
@@ -218,7 +225,7 @@ export const ORDERS: Order[] = [
   { id: "R3-023", lv: 1, tp: "idiom", fam: "cochi", text: "Có chí thì nên.", why: "Có ý chí thì sẽ thành công." },
   { id: "R3-024", lv: 2, tp: "idiom", fam: "kientha", text: "Kiến tha lâu cũng đầy tổ.", why: "Góp nhặt từng chút, lâu ngày thành nhiều." },
   { id: "R3-025", lv: 2, tp: "idiom", text: "Một điều nhịn, chín điều lành.", why: "Biết nhường nhịn thì tránh được nhiều điều không hay." },
-  { id: "R3-026", lv: 3, tp: "idiom", text: "Chớ thấy sóng cả mà ngã tay chèo.", why: "Đừng thấy khó khăn mà nản lòng (“cả”: lớn)." },
+  { id: "R3-026", lv: 3, tp: "idiom", fam: "songca", text: "Chớ thấy sóng cả mà ngã tay chèo.", why: "Đừng thấy khó khăn mà nản lòng (“cả”: lớn)." },
   { id: "R3-027", lv: 1, tp: "idiom", fam: "anchac", text: "Ăn chắc mặc bền.", why: "Chuộng sự chắc chắn, bền lâu hơn hình thức." },
   { id: "R3-028", lv: 2, tp: "idiom", text: "Nói phải củ cải cũng nghe.", why: "Nói có lý thì ai cũng nghe theo." },
   { id: "R3-029", lv: 2, tp: "idiom", fam: "caukieu", text: "Muốn sang thì bắc cầu kiều.", why: "Câu đầu của ca dao đề cao việc kính trọng thầy." },
@@ -226,15 +233,16 @@ export const ORDERS: Order[] = [
   { id: "R3-031", lv: 1, tp: "idiom", fam: "tregia", text: "Tre già măng mọc.", why: "Lớp trước già đi thì có lớp sau tiếp nối." },
   { id: "R3-032", lv: 1, tp: "idiom", fam: "muadam", text: "Mưa dầm thấm lâu.", why: "Kiên trì từng chút thì hiệu quả bền lâu." },
   { id: "R3-033", lv: 1, tp: "idiom", fam: "tacdat", text: "Tấc đất tấc vàng.", why: "Đất đai vô cùng quý giá." },
-  { id: "R3-034", lv: 1, tp: "idiom", text: "Đất lành chim đậu.", why: "Nơi tốt đẹp thì người ta tìm đến." },
-  { id: "R3-035", lv: 2, tp: "idiom", text: "Ăn trông nồi, ngồi trông hướng.", alt: ["Ngồi trông hướng, ăn trông nồi."], why: "Dạy cách cư xử ý tứ, lịch sự." },
+  { id: "R3-034", lv: 1, tp: "idiom", fam: "datlanh", text: "Đất lành chim đậu.", why: "Nơi tốt đẹp thì người ta tìm đến." },
+  { id: "R3-035", lv: 2, tp: "idiom", fam: "antrongnoi", text: "Ăn trông nồi, ngồi trông hướng.", alt: ["Ngồi trông hướng, ăn trông nồi."], why: "Dạy cách cư xử ý tứ, lịch sự." },
   { id: "R3-036", lv: 2, tp: "idiom", fam: "anhem", text: "Anh em như thể tay chân.", why: "Anh em ruột thịt gắn bó như tay với chân." },
-  { id: "R3-037", lv: 3, tp: "idiom", text: "Một con sâu làm rầu nồi canh.", why: "Một người xấu làm ảnh hưởng cả tập thể." },
-  { id: "R3-038", lv: 2, tp: "idiom", text: "Nói có sách, mách có chứng.", alt: ["Mách có chứng, nói có sách."], why: "Nói gì cũng phải có căn cứ, bằng chứng." },
-  { id: "R3-039", lv: 2, tp: "idiom", text: "Lời chào cao hơn mâm cỗ.", why: "Thái độ lịch sự, niềm nở quý hơn vật chất." },
-  { id: "R3-040", lv: 2, tp: "idiom", text: "Giấy rách phải giữ lấy lề.", why: "Dù khó khăn cũng phải giữ nền nếp, phẩm giá." },
-  { id: "R3-041", lv: 2, tp: "idiom", text: "Chim có tổ, người có tông.", alt: ["Người có tông, chim có tổ."], why: "Con người phải nhớ cội nguồn, tổ tiên." },
-  { id: "R3-042", lv: 2, tp: "idiom", text: "Ăn có nhai, nói có nghĩ.", alt: ["Nói có nghĩ, ăn có nhai."], why: "Nói năng phải suy nghĩ cẩn thận." },
+  { id: "R3-037", lv: 3, tp: "idiom", fam: "consau", text: "Một con sâu làm rầu nồi canh.", why: "Một người xấu làm ảnh hưởng cả tập thể." },
+  { id: "R3-038", lv: 2, tp: "idiom", fam: "noicosach", text: "Nói có sách, mách có chứng.", alt: ["Mách có chứng, nói có sách."], why: "Nói gì cũng phải có căn cứ, bằng chứng." },
+  { id: "R3-039", lv: 2, tp: "idiom", fam: "loichao", text: "Lời chào cao hơn mâm cỗ.", why: "Thái độ lịch sự, niềm nở quý hơn vật chất." },
+  { id: "R3-040", lv: 2, tp: "idiom", fam: "giayrach", text: "Giấy rách phải giữ lấy lề.", why: "Dù khó khăn cũng phải giữ nền nếp, phẩm giá." },
+  { id: "R3-041", lv: 2, tp: "idiom", fam: "chimcoto", text: "Chim có tổ, người có tông.", alt: ["Người có tông, chim có tổ."], why: "Con người phải nhớ cội nguồn, tổ tiên." },
+  { id: "R3-042", lv: 2, tp: "idiom", fam: "ancoynhai", text: "Ăn có nhai, nói có nghĩ.", alt: ["Nói có nghĩ, ăn có nhai."], why: "Nói năng phải suy nghĩ cẩn thận." },
+  ...ORDERS_MORE,
 ];
 
 // Vòng 4A — Giải mã câu khó: câu dài hơn, ít manh mối hơn.
@@ -247,20 +255,21 @@ export const LONGS: Order[] = [
   { id: "R4A-006", lv: 3, tp: "idiom", fam: "caukieu", text: "Muốn sang thì bắc cầu kiều, muốn con hay chữ thì yêu lấy thầy.", why: "Muốn con giỏi giang thì phải kính trọng, yêu quý thầy." },
   { id: "R4A-007", lv: 2, tp: "idiom", text: "Thuận vợ thuận chồng, tát biển Đông cũng cạn.", alt: ["Thuận chồng thuận vợ, tát biển Đông cũng cạn."], why: "Vợ chồng đồng lòng thì việc khó mấy cũng làm được." },
   { id: "R4A-008", lv: 2, tp: "idiom", text: "Một miếng khi đói bằng một gói khi no.", alt: ["Một gói khi no bằng một miếng khi đói."], why: "Giúp đúng lúc người ta cần thì quý hơn nhiều." },
-  { id: "R4A-009", lv: 2, tp: "idiom", text: "Người không học như ngọc không mài.", alt: ["Ngọc không mài như người không học."], why: "Học tập giúp con người hoàn thiện, như ngọc phải mài mới sáng." },
+  { id: "R4A-009", lv: 2, tp: "idiom", fam: "ngocmai", text: "Người không học như ngọc không mài.", alt: ["Ngọc không mài như người không học."], why: "Học tập giúp con người hoàn thiện, như ngọc phải mài mới sáng." },
   { id: "R4A-010", lv: 2, tp: "lit", text: "Không có việc gì khó, chỉ sợ lòng không bền.", why: "Lời thơ của Bác Hồ tặng thanh niên xung phong (1951)." },
   { id: "R4A-011", lv: 3, tp: "lit", text: "Đào núi và lấp biển, quyết chí ắt làm nên.", why: "Hai câu sau trong bài thơ Bác Hồ tặng thanh niên xung phong." },
   { id: "R4A-012", lv: 3, tp: "lit", text: "Dù ai đi ngược về xuôi, nhớ ngày giỗ Tổ mùng mười tháng ba.", alt: ["Dù ai đi xuôi về ngược, nhớ ngày giỗ Tổ mùng mười tháng ba."], why: "Ca dao nhắc ngày giỗ Tổ Hùng Vương (10/3 âm lịch)." },
   { id: "R4A-013", lv: 3, tp: "lit", fam: "nonxanh", text: "Đường vô xứ Nghệ quanh quanh, non xanh nước biếc như tranh họa đồ.", alt: ["Đường vô xứ Nghệ quanh quanh, nước biếc non xanh như tranh họa đồ."], why: "Ca dao ca ngợi cảnh đẹp xứ Nghệ." },
-  { id: "R4A-014", lv: 2, tp: "idiom", text: "Nhà sạch thì mát, bát sạch ngon cơm.", alt: ["Bát sạch ngon cơm, nhà sạch thì mát."], why: "Giữ gìn sạch sẽ thì sống khoẻ, sống vui." },
-  { id: "R4A-015", lv: 2, tp: "idiom", text: "Một giọt máu đào hơn ao nước lã.", why: "Tình máu mủ ruột thịt quý hơn người dưng." },
+  { id: "R4A-014", lv: 2, tp: "idiom", fam: "nhasach", text: "Nhà sạch thì mát, bát sạch ngon cơm.", alt: ["Bát sạch ngon cơm, nhà sạch thì mát."], why: "Giữ gìn sạch sẽ thì sống khoẻ, sống vui." },
+  { id: "R4A-015", lv: 2, tp: "idiom", fam: "giotmau", text: "Một giọt máu đào hơn ao nước lã.", why: "Tình máu mủ ruột thịt quý hơn người dưng." },
   { id: "R4A-016", lv: 3, tp: "idiom", text: "Cá không ăn muối cá ươn, con cãi cha mẹ trăm đường con hư.", why: "Con cái nên nghe lời khuyên bảo của cha mẹ." },
-  { id: "R4A-017", lv: 2, tp: "idiom", text: "Con có cha như nhà có nóc.", alt: ["Nhà có nóc như con có cha."], why: "Người cha là chỗ dựa vững chắc của gia đình." },
+  { id: "R4A-017", lv: 2, tp: "idiom", fam: "conco", text: "Con có cha như nhà có nóc.", alt: ["Nhà có nóc như con có cha."], why: "Người cha là chỗ dựa vững chắc của gia đình." },
   { id: "R4A-018", lv: 3, tp: "idiom", fam: "anhem", text: "Anh em như thể tay chân, rách lành đùm bọc, dở hay đỡ đần.", why: "Anh em phải đùm bọc, đỡ đần nhau." },
   { id: "R4A-019", lv: 3, tp: "idiom", text: "Ruộng sâu trâu nái không bằng con gái đầu lòng.", why: "Quan niệm dân gian quý con gái đầu lòng — người đỡ đần cha mẹ." },
   { id: "R4A-020", lv: 3, tp: "idiom", text: "Lên non mới biết non cao, nuôi con mới biết công lao mẹ thầy.", why: "Có làm cha mẹ mới thấu công ơn sinh thành (“thầy”: cha)." },
   { id: "R4A-021", lv: 2, tp: "idiom", text: "Ăn một bát cháo, chạy ba quãng đồng.", why: "Chê việc được ít mà tốn công sức nhiều." },
   { id: "R4A-022", lv: 2, tp: "lit", text: "Ngày nay học tập, ngày mai giúp đời.", why: "Khẩu hiệu quen thuộc nhắc học sinh học tập để mai sau góp sức." },
+  ...LONGS_MORE,
 ];
 
 // Vòng 4B — Săn từ trong lưới 4×4.
@@ -325,6 +334,7 @@ export const GRIDS: Grid[] = [
     cells: ["bàn", "ghế", "tủ", "lạnh", "chăn", "gối", "giường", "quạt", "bát", "đĩa", "máy", "điện", "ấm", "chén", "giặt", "nồi"],
     words: ["bàn ghế", "tủ lạnh", "chăn gối", "giường tủ", "bát đĩa", "quạt điện", "máy giặt", "ấm chén"],
   },
+  ...GRIDS_MORE,
 ];
 
 // ——— Ghép từ: xếp chữ cái thành từ / cụm từ ———
@@ -915,7 +925,7 @@ export const SCRAMBLES: ScrambleSrc[] = [
   { id: "GT-4103", tp: "idiom", a: "buôn may bán đắt", why: "Lời chúc buôn bán thuận lợi." },
   { id: "GT-4104", tp: "idiom", a: "thùng rỗng kêu to", why: "Người kém hiểu biết lại hay khoe khoang." },
   { id: "GT-4105", tp: "idiom", a: "đổ thêm dầu vào lửa", why: "Làm cho sự việc căng thẳng thêm." },
-  { id: "GT-4106", tp: "idiom", a: "mười phân vẹn mười", why: "Hoàn hảo, không có gì để chê." },
+  { id: "GT-4106", tp: "idiom", fam: "kieu", a: "mười phân vẹn mười", why: "Hoàn hảo, không có gì để chê." },
   { id: "GT-4107", tp: "idiom", a: "chín bỏ làm mười", why: "Dễ dàng bỏ qua, châm chước cho nhau." },
   { id: "GT-4108", tp: "idiom", fam: "uoncay", a: "uốn cây từ thuở còn non", why: "Dạy con phải dạy từ khi còn nhỏ." },
   { id: "GT-4109", tp: "idiom", a: "đi đêm có ngày gặp ma", why: "Làm điều sai trái mãi thì có ngày bị lộ." },
