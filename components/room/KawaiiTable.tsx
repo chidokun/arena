@@ -797,7 +797,7 @@ function Scoreboard({ view, match: g, watched, onPick, staged }: { view: View; m
           ? `${g.lineup.length} người chơi · mỗi người ${total} cặp${canPick ? " · bấm để xem bàn" : ""}`
           : `${g.lineup.length} người chơi · mỗi cặp +${PAIR_POINTS}, gợi ý −${HINT_COST}`}
       </p>
-      <ol className={staged ? "sd-score-list mt-3" : "mt-3 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto pr-1"}>
+      <ol className={staged ? "sd-score-list mt-3" : "-mx-1 -mb-1 mt-2 grid max-h-[480px] grid-cols-1 gap-3 overflow-y-auto p-1"}>
         {order.map((k, rank) => {
           const seat = g.lineup[k];
           const p = seat.member;
