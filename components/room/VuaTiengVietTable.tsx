@@ -180,7 +180,7 @@ const VtBody = memo(function VtBody({ session }: { session: VuaTiengVietRoom }) 
       {!live && <Setup view={view} session={session} />}
       {g?.result && <Outcome view={view} match={g} />}
 
-      <div ref={areaRef} className="relative mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
+      <div ref={areaRef} className="relative mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
         {g ? <Stage key={g.round} view={view} session={session} match={g} /> : <Welcome view={view} />}
         {g && <Scoreboard view={view} match={g} />}
       </div>

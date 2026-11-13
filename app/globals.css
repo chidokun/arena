@@ -8285,6 +8285,8 @@ html[data-boot="out"] .splash-dots {
   }
 
   .vt-welcome {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     background:
       radial-gradient(70% 60% at 50% 30%, var(--vt-gold-soft), transparent 70%),
       var(--surface);

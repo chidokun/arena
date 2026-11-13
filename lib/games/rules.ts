@@ -9,7 +9,7 @@ export type GameRules = {
 export const RULES: Record<string, GameRules> = {
   "vua-tieng-viet": {
     intro:
-      "Vua Tiếng Việt: đố vui kiến thức tiếng Việt cho 1–8 người qua năm vòng. Cả phòng nhận cùng câu hỏi, cùng lúc, cùng giới hạn giờ; không ai bị loại giữa chừng, câu sai không bị trừ điểm. Tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Thể thức lấy cảm hứng từ gameshow cùng tên, không phải luật chính thức của chương trình.",
+      "Vua Tiếng Việt: đố vui kiến thức tiếng Việt cho 1–12 người qua năm vòng. Cả phòng nhận cùng câu hỏi, cùng lúc, cùng giới hạn giờ; không ai bị loại giữa chừng, câu sai không bị trừ điểm. Tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Thể thức lấy cảm hứng từ gameshow cùng tên, không phải luật chính thức của chương trình.",
     sections: [
       {
         emoji: "⚙️",

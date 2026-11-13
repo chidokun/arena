@@ -1,4 +1,4 @@
-// Vua Tiếng Việt: đố vui tiếng Việt 1–8 người, năm vòng Ghép từ → Phản xạ → Giải nghĩa → Xâu chuỗi → Soán ngôi. Cả phòng nhận cùng
+// Vua Tiếng Việt: đố vui tiếng Việt 1–12 người, năm vòng Ghép từ → Phản xạ → Giải nghĩa → Xâu chuỗi → Soán ngôi. Cả phòng nhận cùng
 // câu hỏi, cùng lúc, cùng giới hạn giờ; không loại ai giữa chừng, không trừ điểm câu sai. Thiết kế gốc lấy cảm hứng từ thể
 // thức gameshow cùng tên, không phải luật chính thức của chương trình.
 import { CLUES, GRIDS, LONGS, MCS, ORDERS, SCRAMBLES } from "./vua-tieng-viet-bank.ts";
@@ -9,7 +9,7 @@ export type Topic = "all" | "spell" | "vocab" | "idiom" | "lit";
 export type Counts = [number, number, number, number, number];
 export type VtOptions = { pack: Pack; counts: Counts; level: Level; topic: Topic; explain: boolean };
 
-export const MAX_PLAYERS = 8;
+export const MAX_PLAYERS = 12;
 export const DEFAULT_SEATS = 4;
 export const COUNTDOWN_MS = 3000;
 

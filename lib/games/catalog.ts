@@ -446,10 +446,10 @@ export const CATALOG: unknown = {
       "status": "LIVE",
       "category": "brain",
       "tagline": "Năm vòng đố chữ — ai giỏi tiếng Việt nhất sẽ lên ngôi",
-      "description": "Đố vui tiếng Việt cho 1–8 người qua năm vòng: Ghép từ (xếp chữ cái xáo trộn thành từ có nghĩa), Phản xạ (trắc nghiệm chính tả, từ vựng, thành ngữ, văn học), Giải nghĩa (đoán từ qua gợi ý mở dần), Xâu chuỗi (sắp thẻ thành câu tục ngữ, ca dao) và Soán ngôi (giải mã câu dài hoặc săn từ trong lưới 4×4). Cả phòng nhận cùng câu hỏi, cùng lúc — đúng và nhanh thì nhiều điểm, tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Chơi một mình để luyện tập cũng được.",
+      "description": "Đố vui tiếng Việt cho 1–12 người qua năm vòng: Ghép từ (xếp chữ cái xáo trộn thành từ có nghĩa), Phản xạ (trắc nghiệm chính tả, từ vựng, thành ngữ, văn học), Giải nghĩa (đoán từ qua gợi ý mở dần), Xâu chuỗi (sắp thẻ thành câu tục ngữ, ca dao) và Soán ngôi (giải mã câu dài hoặc săn từ trong lưới 4×4). Cả phòng nhận cùng câu hỏi, cùng lúc — đúng và nhanh thì nhiều điểm, tổng điểm cao nhất lên ngôi Vua Tiếng Việt. Chơi một mình để luyện tập cũng được.",
       "seats": {
         "min": 1,
-        "max": 8
+        "max": 12
       },
       "capacity": {
         "min": 0,
