@@ -2918,6 +2918,7 @@
   .gd-board {
     display: grid;
     grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--n), minmax(0, 1fr));
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
@@ -2937,6 +2938,8 @@
     display: grid;
     place-items: center;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     border-right: 1px dashed color-mix(in srgb, var(--edge) 22%, transparent);
     border-bottom: 1px dashed color-mix(in srgb, var(--edge) 22%, transparent);
     background: var(--room, transparent);
@@ -3074,6 +3077,7 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-rows: repeat(9, minmax(0, 1fr));
     width: 100%;
     max-width: 560px;
     aspect-ratio: 1;
@@ -3092,6 +3096,8 @@
     display: grid;
     place-items: center;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     border-right: 1px solid var(--board-line);
     border-bottom: 1px solid var(--board-line);
     background: var(--tint, transparent);
