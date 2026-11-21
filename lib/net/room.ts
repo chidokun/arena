@@ -4,6 +4,7 @@ import type { BsOptions } from "../games/battleship";
 import type { CaroOptions } from "../games/caro";
 import type { CcPublic } from "../games/co-chep";
 import type { DwPublic } from "../games/draw-guess";
+import type { GdRound } from "../games/grid-detective";
 import type { KwRound } from "../games/kawaii";
 import type { McPublic } from "../games/mine-control";
 import type { MsRound } from "../games/minesweeper";
@@ -56,6 +57,7 @@ export type Meta = {
   ww?: WolfPublic;
   uc?: UcPublic;
   sd?: SudokuRound;
+  gd?: GdRound;
   xqr?: XqRolePublic;
   ucUsed?: number[];
   dw?: DwPublic;

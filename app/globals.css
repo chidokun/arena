@@ -2892,6 +2892,184 @@
     font-size: 18px;
   }
 
+  /* Thám Tử Ô Vuông */
+  .gd-frame {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 4px;
+  }
+  .gd-axis {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    padding-inline: 3px;
+    color: var(--ink-3);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+  }
+  .gd-axis-v {
+    grid-template-columns: none;
+    grid-template-rows: repeat(var(--n), minmax(0, 1fr));
+    padding-block: 3px;
+    padding-inline: 0;
+    align-items: center;
+  }
+  .gd-board {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 3px solid var(--edge);
+    border-radius: 14px;
+    background: var(--board);
+    box-shadow: var(--shadow);
+    user-select: none;
+    touch-action: manipulation;
+    container-type: inline-size;
+  }
+  .gd-board.is-shake {
+    animation: shake 380ms ease-in-out;
+  }
+  .gd-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    border-right: 1px dashed color-mix(in srgb, var(--edge) 22%, transparent);
+    border-bottom: 1px dashed color-mix(in srgb, var(--edge) 22%, transparent);
+    background: var(--room, transparent);
+    line-height: 1;
+    transition: background-color 200ms ease, box-shadow 150ms ease;
+  }
+  .gd-cell.wr {
+    border-right: 3px solid var(--edge);
+  }
+  .gd-cell.wb {
+    border-bottom: 3px solid var(--edge);
+  }
+  .gd-cell.is-block {
+    background:
+      repeating-linear-gradient(135deg, color-mix(in srgb, var(--ink) 18%, transparent) 0 4px, transparent 4px 10px),
+      var(--room, transparent);
+  }
+  .gd-cell.is-open {
+    cursor: pointer;
+  }
+  .gd-cell.is-open:hover {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pen) 55%, transparent);
+  }
+  .gd-room {
+    position: absolute;
+    top: 3%;
+    left: 5%;
+    right: 5%;
+    overflow: hidden;
+    color: var(--ink-2);
+    font-size: max(9px, calc(13cqi / var(--n)));
+    font-weight: 800;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .gd-obj {
+    font-size: calc(48cqi / var(--n));
+    opacity: 0.9;
+  }
+  .gd-seat {
+    position: absolute;
+    right: 5%;
+    bottom: 5%;
+    font-size: calc(30cqi / var(--n));
+  }
+  .gd-cell > .gd-seat:only-child,
+  .gd-room + .gd-seat:last-child {
+    position: static;
+    font-size: calc(40cqi / var(--n));
+  }
+  .gd-token {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 74%;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: 0 0 0 2.5px var(--own, var(--edge)), var(--shadow);
+    font-size: calc(46cqi / var(--n));
+    animation: pop-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+  .gd-mark {
+    color: var(--ink-3);
+    font-size: calc(40cqi / var(--n));
+    font-weight: 800;
+  }
+  .gd-cell.is-sel .gd-token {
+    box-shadow: 0 0 0 4px var(--pen), var(--shadow);
+  }
+  .gd-cell.is-clash .gd-token {
+    box-shadow: 0 0 0 4px var(--coral), var(--shadow);
+  }
+  .gd-cell.is-victim .gd-token {
+    background: color-mix(in srgb, var(--sky) 30%, var(--card));
+  }
+  .gd-cell.is-culprit .gd-token {
+    background: color-mix(in srgb, var(--coral) 40%, var(--card));
+    box-shadow: 0 0 0 4px var(--coral), var(--shadow);
+  }
+  .gd-cell.is-pending .gd-token {
+    opacity: 0.6;
+    animation: sd-wait 900ms ease-in-out infinite alternate;
+  }
+  .gd-cell.is-wrong .gd-token {
+    box-shadow: 0 0 0 4px var(--coral), var(--shadow);
+    animation: shake 380ms ease-in-out;
+    opacity: 0.8;
+  }
+  .gd-file {
+    display: grid;
+    gap: 2px;
+    padding: 6px 8px;
+    border: 2px solid var(--rule);
+    border-radius: 12px;
+  }
+  .gd-file.is-sel {
+    border-color: var(--pen);
+    background: color-mix(in srgb, var(--pen) 10%, transparent);
+  }
+  .gd-file.is-culprit {
+    border-color: var(--coral);
+    background: color-mix(in srgb, var(--coral) 10%, transparent);
+  }
+  .gd-file-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    text-align: left;
+    font-size: 14.5px;
+  }
+  .gd-file-head:disabled {
+    cursor: default;
+  }
+  .gd-file-emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+  .gd-clue {
+    padding-left: 30px;
+    color: var(--ink-2);
+    font-size: 13.5px;
+    text-align: left;
+  }
+  .gd-clue.is-struck {
+    color: var(--ink-3);
+    text-decoration: line-through;
+  }
+
   .sd-board {
     position: relative;
     display: grid;

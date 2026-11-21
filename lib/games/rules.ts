@@ -927,6 +927,51 @@ export const RULES: Record<string, GameRules> = {
     ],
   },
 
+  "grid-detective": {
+    intro:
+      "Thám Tử Ô Vuông (Grid Detective): game suy luận cho 1–10 người. Mỗi ván một bản đồ ngôi nhà và một vụ án mới sinh ngẫu nhiên — đặt từng người vào đúng chỗ để lật mặt thủ phạm.",
+    sections: [
+      {
+        emoji: "🗺️",
+        title: "Bản đồ",
+        items: [
+          "Bản đồ là lưới vuông 4×4 (Dễ), 5×5 (Vừa) hoặc 6×6 (Khó), chia thành nhiều phòng có viền đậm và tên phòng (Phòng khách, Bếp, Sân…).",
+          "Ô có đồ vật nền gạch chéo (TV, bếp lò, tủ, chậu cây, xe máy…) là vật cản: không ai đứng được. Ô có ghế, sofa, giường, bồn tắm (biểu tượng nhỏ ở góc) thì đứng được — lời khai có thể nhắc tới chúng.",
+          "Hàng đánh số từ trên xuống, cột từ trái sang. “Cạnh” một đồ vật nghĩa là ô chung cạnh với ô có đồ vật đó (không tính chéo).",
+        ],
+      },
+      {
+        emoji: "🔎",
+        title: "Luật phá án",
+        items: [
+          "Mỗi vụ có một nạn nhân (chủ đề Án mạng) hoặc một món bị mất (chủ đề Ăn vụng) cùng 3–5 nghi phạm. Món bị mất cũng chiếm một ô như một người.",
+          "Mỗi hàng và mỗi cột có đúng một người (hoặc món bị mất). Không ai đứng trên vật cản.",
+          "Mọi lời khai đều đúng. Lời khai đánh dấu 🔍 là của hiện trường (về nạn nhân / món bị mất), 💬 là nghi phạm tự khai.",
+          "Thủ phạm là người DUY NHẤT ở cùng phòng với nạn nhân. Luật này luôn đúng nên cũng dùng được để loại trừ.",
+          "Đề luôn có đúng một lời giải và giải được bằng suy luận, không phải đoán. Bấm vào lời khai để gạch khi đã dùng; bấm ô trống để đánh dấu ✕ chỗ không thể (chỉ lưu trên máy bạn).",
+        ],
+      },
+      {
+        emoji: "⚡",
+        title: "Chế độ Đối kháng",
+        items: [
+          "Mỗi người tự phá án trên bàn của mình: chọn một người trong hồ sơ rồi bấm vào ô để đặt, bấm lại để nhấc ra.",
+          "Đặt đủ mọi người rồi bấm Buộc tội. Đúng cả bàn là về đích; sai bị khoá tay 10 giây và không biết sai ở đâu.",
+          "Ai về đích trước thắng, người còn lại giải tiếp để xếp hạng.",
+        ],
+      },
+      {
+        emoji: "🤝",
+        title: "Chế độ Cùng phá án",
+        items: [
+          "Cả phòng đặt chung một bàn. Đặt đúng chỗ một người trước người khác được +1 điểm, đặt sai bị −1 và người đó quay về hồ sơ.",
+          "Mỗi người được buộc tội một lần: chỉ đúng thủ phạm +2, sai −2. Đã có người chỉ đúng thì không ai buộc tội được nữa.",
+          "Đặt đủ cả bàn là hết ván, nhiều điểm nhất thắng.",
+        ],
+      },
+    ],
+  },
+
   sudoku: {
     intro: "Sudoku tranh đấu: cả phòng nhận cùng một đề 9×9 — thi xem ai nhanh tay, nhanh trí hơn.",
     sections: [

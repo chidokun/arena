@@ -13,6 +13,7 @@ import { CoChoTable } from "./CoChoTable";
 import { ConnectFourTable } from "./ConnectFourTable";
 import { DotsBoxesTable } from "./DotsBoxesTable";
 import { DrawGuessTable } from "./DrawGuessTable";
+import { GridDetectiveTable } from "./GridDetectiveTable";
 import { Joining } from "./Joining";
 import { KawaiiTable } from "./KawaiiTable";
 import { LotoTable } from "./LotoTable";
@@ -140,5 +141,6 @@ function GameTable({ id, slug, session }: { id: string; slug: string; session: G
   if (session.game === "citta-challenge") return <CittaChallengeTable id={id} slug={slug} session={session} />;
   if (session.game === "typing-race") return <TypingRaceTable id={id} slug={slug} session={session} />;
   if (session.game === "vua-tieng-viet") return <VuaTiengVietTable id={id} slug={slug} session={session} />;
+  if (session.game === "grid-detective") return <GridDetectiveTable id={id} slug={slug} session={session} />;
   return <CaroTable id={id} slug={slug} session={session} />;
 }

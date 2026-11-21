@@ -457,6 +457,25 @@ export const CATALOG: unknown = {
         "default": 0
       },
       "hue": "sun"
+    },
+    {
+      "slug": "grid-detective",
+      "name": "Thám Tử Ô Vuông",
+      "emoji": "🕵️",
+      "status": "DEVELOPMENT",
+      "category": "brain",
+      "tagline": "Grid Detective — đặt đúng chỗ từng người, lật mặt thủ phạm",
+      "description": "Thám Tử Ô Vuông (Grid Detective): game suy luận cho 1–10 người. Mỗi ván một bản đồ ngôi nhà và vụ án mới sinh ngẫu nhiên — đặt nạn nhân và các nghi phạm lên lưới 4×4, 5×5 hoặc 6×6 sao cho mỗi hàng, mỗi cột đúng một người và mọi lời khai đều đúng; thủ phạm là người duy nhất ở cùng phòng với nạn nhân. Hai chủ đề Án mạng và Ăn vụng. Đối kháng: ai phá án đúng trước thắng. Cùng phá án: cả phòng đặt chung một bàn, đặt đúng được điểm, chỉ đúng thủ phạm được thưởng.",
+      "seats": {
+        "min": 1,
+        "max": 10
+      },
+      "capacity": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      },
+      "hue": "grape"
     }
   ]
 };

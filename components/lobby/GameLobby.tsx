@@ -104,6 +104,20 @@ import {
   type Mode,
 } from "@/lib/games/sudoku";
 import {
+  DEFAULT_OPTIONS as GD_DEFAULTS,
+  LEVEL_KEYS as GD_LEVEL_KEYS,
+  LEVELS as GD_LEVELS,
+  MAX_PLAYERS as GD_MAX,
+  MODE_KEYS as GD_MODE_KEYS,
+  MODES as GD_MODES,
+  normOptions as gdOptions,
+  THEME_KEYS as GD_THEME_KEYS,
+  THEMES as GD_THEMES,
+  type Level as GdLevel,
+  type Mode as GdMode,
+  type Theme as GdTheme,
+} from "@/lib/games/grid-detective";
+import {
   fmt as sxFmt,
   makeProblem as sxProblem,
   MODES as SX_MODE,
@@ -292,6 +306,7 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
   const wolf = room.game === "werewolf";
   const spy = room.game === "undercover";
   const sudoku = room.game === "sudoku";
+  const gd = room.game === "grid-detective";
   const xiangqi = room.game === "xiangqi";
   const xiangqiRole = room.game === "xiangqi-role";
   const c4 = room.game === "connect-four";
@@ -322,6 +337,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
             ? "Đang chơi"
             : sudoku
               ? "Đang giải"
+              : gd
+                ? "Đang phá án"
                 : xiangqiRole
                   ? "Đang nhập vai"
                   : xiangqi
@@ -387,6 +404,8 @@ function RoomCard({ room, slug }: { room: RoomAd; slug: string }) {
           <UcChips room={room} />
         ) : sudoku ? (
           <SudokuChips room={room} />
+        ) : gd ? (
+          <GdChips room={room} />
         ) : xiangqi ? (
           <XiangqiChips room={room} />
         ) : chess ? (
@@ -758,6 +777,27 @@ function SudokuChips({ room }: { room: RoomAd }) {
   );
 }
 
+function GdChips({ room }: { room: RoomAd }) {
+  const opts = gdOptions(room.opts);
+  return (
+    <>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        🙋 {room.players}/{room.seats} người chơi
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">👥 {room.members} trong phòng</span>
+      <span className="rounded-lg bg-grape-soft px-2.5 py-1">
+        {GD_LEVELS[opts.level].emoji} {GD_LEVELS[opts.level].name}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        {GD_MODES[opts.mode].emoji} {GD_MODES[opts.mode].name}
+      </span>
+      <span className="rounded-lg bg-sunken px-2.5 py-1">
+        {GD_THEMES[opts.theme].emoji} {GD_THEMES[opts.theme].name}
+      </span>
+    </>
+  );
+}
+
 function SystemDesignChips({ room }: { room: RoomAd }) {
   const { mode, target, budget, time } = room.opts as { mode?: SxMode; target?: number; budget?: number; time?: SxTime };
   return (
@@ -890,6 +930,9 @@ function CreateForm({ slug }: { slug: string }) {
   const [hostPlays, setHostPlays] = useState(UC_DEFAULTS.hostPlays);
   const [level, setLevel] = useState<Level>(SD_DEFAULTS.level);
   const [mode, setMode] = useState<Mode>(SD_DEFAULTS.mode);
+  const [gdLevel, setGdLevel] = useState<GdLevel>(GD_DEFAULTS.level);
+  const [gdMode, setGdMode] = useState<GdMode>(GD_DEFAULTS.mode);
+  const [gdTheme, setGdTheme] = useState<GdTheme>(GD_DEFAULTS.theme);
   const [claimMs, setClaimMs] = useState<ClaimMs>(XQ_DEFAULTS.claimMs);
   const [chain, setChain] = useState(BS_DEFAULTS.chain);
   const [bsTurn, setBsTurn] = useState<BsTurn>(BS_DEFAULTS.turn);
@@ -927,6 +970,7 @@ function CreateForm({ slug }: { slug: string }) {
   const wolf = slug === "werewolf";
   const spy = slug === "undercover";
   const sudoku = slug === "sudoku";
+  const gd = slug === "grid-detective";
   const xiangqi = slug === "xiangqi";
   const xiangqiRole = slug === "xiangqi-role";
   const c4 = slug === "connect-four";
@@ -965,6 +1009,8 @@ function CreateForm({ slug }: { slug: string }) {
           stashCreate(id, { name: clean, cap: 0, seats: UC_MAX, opts: { ...UC_DEFAULTS, hostPlays } });
         } else if (sudoku) {
           stashCreate(id, { name: clean, cap: 0, seats: SD_MAX, opts: { level, mode } });
+        } else if (gd) {
+          stashCreate(id, { name: clean, cap: 0, seats: GD_MAX, opts: { level: gdLevel, mode: gdMode, theme: gdTheme } });
         } else if (kw) {
           stashCreate(id, { name: clean, cap: 0, seats: 0, opts: { size: kwSize, mode: kwMode } });
         } else if (tx) {
@@ -1563,6 +1609,42 @@ function CreateForm({ slug }: { slug: string }) {
           </fieldset>
           <p className="rounded-xl bg-lime-soft p-3 text-[13.5px] text-ink-2">
             🔢 Từ 1 đến {SD_MAX} người chơi, ai vào cũng xem được. Mỗi ván một đề mới; mức đề và chế độ đổi được trong phòng trước mỗi ván.
+          </p>
+        </>
+      ) : gd ? (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Mức đề</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {GD_LEVEL_KEYS.map((l) => (
+                <button key={l} type="button" onClick={() => setGdLevel(l)} aria-pressed={gdLevel === l} className={`btn !px-2 ${gdLevel === l ? "btn-sun" : ""}`}>
+                  {GD_LEVELS[l].emoji} {GD_LEVELS[l].name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">{GD_LEVELS[gdLevel].text}</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chủ đề</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {GD_THEME_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setGdTheme(k)} aria-pressed={gdTheme === k} className={`btn !px-2 ${gdTheme === k ? "btn-sun" : ""}`}>
+                  {GD_THEMES[k].emoji} {GD_THEMES[k].name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-3">{GD_THEMES[gdTheme].text}</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold">Chế độ</legend>
+            <div className="grid gap-2">
+              {GD_MODE_KEYS.map((k) => (
+                <Choice key={k} on={gdMode === k} onClick={() => setGdMode(k)} title={`${GD_MODES[k].emoji} ${GD_MODES[k].name}`} text={GD_MODES[k].text} />
+              ))}
+            </div>
+          </fieldset>
+          <p className="rounded-xl bg-grape-soft p-3 text-[13.5px] text-ink-2">
+            🕵️ Từ 1 đến {GD_MAX} thám tử, ai vào cũng xem được. Mỗi ván một bản đồ và vụ án mới sinh ngẫu nhiên; mức đề, chế độ và chủ đề đổi được trong phòng trước mỗi ván.
           </p>
         </>
       ) : spy ? (
