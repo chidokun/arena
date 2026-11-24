@@ -2184,6 +2184,10 @@
     height: auto;
     touch-action: manipulation;
     user-select: none;
+    -webkit-user-select: none;
+  }
+  .xq.can-play {
+    touch-action: none;
   }
   .xq-bg {
     fill: color-mix(in srgb, #e8b56a 50%, var(--board));
@@ -2253,9 +2257,27 @@
   .xq.can-play .xq-piece.is-live {
     cursor: pointer;
   }
+  .xq.can-play .xq-piece.is-mine {
+    cursor: grab;
+  }
+  .xq.is-dragging,
+  .xq.is-dragging .xq-piece,
+  .xq.is-dragging .xq-target {
+    cursor: grabbing;
+  }
+  .xq-piece.is-drag {
+    transition: none;
+    pointer-events: none;
+  }
   .xq.can-play .xq-piece.is-live:hover .xq-lift,
   .xq-piece.is-sel .xq-lift {
     transform: translateY(-3px) scale(1.06);
+  }
+  .xq.is-dragging .xq-piece.is-drag .xq-lift {
+    transform: scale(1.22);
+  }
+  .xq-piece.is-drag .xq-disc {
+    filter: drop-shadow(0 6px 4px rgba(60, 30, 5, 0.45));
   }
   .xq-piece.is-sel .xq-disc {
     stroke: var(--pen);
@@ -2284,7 +2306,8 @@
     pointer-events: none;
   }
   .xq-target:hover .xq-dot,
-  .xq-target:focus-visible .xq-dot {
+  .xq-target:focus-visible .xq-dot,
+  .xq-target.is-over .xq-dot {
     opacity: 1;
     r: 8px;
   }
@@ -2293,6 +2316,10 @@
     stroke: var(--pen);
     stroke-width: 3;
     stroke-dasharray: 5 4;
+  }
+  .xq-hit.is-take.is-over {
+    fill: color-mix(in srgb, var(--pen) 22%, transparent);
+    stroke-dasharray: none;
   }
   .xq-from {
     fill: none;
@@ -2376,6 +2403,12 @@
   .cb-sel {
     fill: color-mix(in srgb, #4a2bd6 40%, transparent);
   }
+  .cb-over {
+    fill: color-mix(in srgb, #4a2bd6 22%, transparent);
+    stroke: color-mix(in srgb, #4a2bd6 75%, transparent);
+    stroke-width: 6;
+    pointer-events: none;
+  }
   .cb-danger {
     fill: url(#cb-danger);
     pointer-events: none;
@@ -2411,7 +2444,7 @@
   .cb-piece.is-sel .cb-lift {
     transform: translateY(-3px) scale(1.05);
   }
-  .cb-piece.is-drag .cb-lift {
+  .cb.is-dragging .cb-piece.is-drag .cb-lift {
     transform: scale(1.18);
   }
   .cb-piece:focus-visible,

@@ -7,6 +7,10 @@ Mục mới nhất ở đây được "Arena" nhắn vào chat công cộng như
 - Sửa tay thì nhớ tăng N, không thì người đã xem sẽ không được báo lại. Sửa chính tả không cần tăng.
 -->
 
+## 2026.11.24.2
+- Ra mắt game mới 🕵️ Thám Tử Ô Vuông — game suy luận cho 1–10 người: mỗi ván một ngôi nhà và vụ án mới, đặt nạn nhân và nghi phạm lên lưới sao cho mỗi hàng, mỗi cột đúng một người và mọi lời khai đều đúng để lật mặt thủ phạm. Hai chủ đề Án mạng và Ăn vụng, chơi Đối kháng (ai phá án trước thắng) hoặc Cùng phá án chung một bàn.
+- Cờ Tướng và Cờ Tướng Nhập Vai giờ đã kéo thả quân được ♟️: giữ chuột (hoặc ngón tay) vào quân rồi kéo tới nước muốn đi, bấm chọn từng bước vẫn dùng được như cũ. Cờ Vua thì sáng ô sắp thả quân khi đang kéo.
+
 ## 2026.11.09.4
 - Ra mắt game mới 👑 Vua Tiếng Việt — 5 vòng đố chữ Ghép từ, Phản xạ, Giải nghĩa, Xâu chuỗi, Soán ngôi cho 1–8 người: cả phòng nhận cùng câu hỏi, đúng và nhanh thì nhiều điểm, ai giỏi tiếng Việt nhất sẽ lên ngôi. Chơi một mình để luyện tập cũng được.
 

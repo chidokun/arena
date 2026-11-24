@@ -89,7 +89,7 @@ export function ChessPieceIcon({ v, size = 26, className = "" }: { v: number; si
   );
 }
 
-type Drag = { from: number; x: number; y: number; x0: number; y0: number; moved: boolean; wasSel: boolean };
+type Drag = { from: number; x: number; y: number; x0: number; y0: number; over: number; moved: boolean; wasSel: boolean };
 
 export function ChessBoard({
   state,
@@ -158,12 +158,12 @@ export function ChessBoard({
     if (!movable.has(sq)) return setPicked(null);
     e.currentTarget.setPointerCapture(e.pointerId);
     setPicked({ at: sq, count: state.count });
-    setDrag({ from: sq, x, y, x0: x, y0: y, moved: false, wasSel: sq === sel });
+    setDrag({ from: sq, x, y, x0: x, y0: y, over: sq, moved: false, wasSel: sq === sel });
   };
   const move = (e: React.PointerEvent) => {
     if (!drag) return;
-    const { x, y } = point(e);
-    setDrag({ ...drag, x, y, moved: drag.moved || Math.hypot(x - drag.x0, y - drag.y0) > DRAG_MIN });
+    const { x, y, sq } = point(e);
+    setDrag({ ...drag, x, y, over: sq, moved: drag.moved || Math.hypot(x - drag.x0, y - drag.y0) > DRAG_MIN });
   };
   const up = (e: React.PointerEvent) => {
     if (!drag) return;
@@ -196,6 +196,7 @@ export function ChessBoard({
   }
 
   const dragging = drag?.moved ? drag.from : -1;
+  const over = dragging >= 0 && drag!.over !== dragging && targets.includes(drag!.over) ? drag!.over : -1;
   const pieces = [];
   let lifted: ReactNode = null;
   for (let i = 0; i < state.board.length; i++) {
@@ -250,6 +251,7 @@ export function ChessBoard({
         </>
       )}
       {sel >= 0 && <rect x={dx(sel)} y={dy(sel)} width={S} height={S} className="cb-sel" />}
+      {over >= 0 && <rect x={dx(over) + 3} y={dy(over) + 3} width={S - 6} height={S - 6} className="cb-over" />}
       {danger >= 0 && <circle cx={dx(danger) + S / 2} cy={dy(danger) + S / 2} r={S * 0.6} className="cb-danger" />}
       {labels}
       {targets.map((t) =>

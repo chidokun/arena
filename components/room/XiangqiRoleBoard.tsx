@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ADVISOR, CANNON, COLS, ELEPHANT, HORSE, KING, PAWN, ROOK, ROWS } from "@/lib/games/xiangqi";
 import { pieceTitle, type PieceKind, type PieceState, type Side } from "@/lib/games/xiangqi-role";
-import { PieceFace, XiangqiGrid, type Script } from "./XiangqiBoard";
+import { PieceFace, useXqPointer, XiangqiGrid, type Script } from "./XiangqiBoard";
 
 const C = 40;
 const M = 36;
@@ -99,49 +99,82 @@ export function XiangqiRoleBoard({
     chooseSquare(file, rank);
   };
 
+  // Ô ở đây đánh số theo luật nhập vai: rank * 9 + file (rank 0 ở phía quân Đỏ).
+  const pieceAt = (sq: number) => bySq.get(`${sq % 9},${(sq / 9) | 0}`);
+  const selPiece = sel != null ? alive.find((p) => p.id === sel) : undefined;
+  const { svgRef, dragging, over, handlers } = useXqPointer({
+    flip,
+    enabled: canPlay,
+    sel: selPiece ? selPiece.rank * 9 + selPiece.file : -1,
+    targets,
+    movable: (sq) => {
+      const hit = pieceAt(sq);
+      return !!hit && movable.has(hit.id);
+    },
+    select: (sq) => setPicked(sq == null ? null : (pieceAt(sq)?.id ?? null)),
+    move: (from, to) => {
+      const hit = pieceAt(from);
+      setPicked(null);
+      if (hit) onMove(hit.id, to);
+    },
+    index: (c, r) => classicRow(r) * 9 + c,
+  });
+  const heldId = dragging ? pieceAt(dragging.from)?.id : undefined;
+
+  const renderPiece = (p: PieceState) => {
+    const mine = movable.has(p.id);
+    const owned = mySet.has(p.id);
+    const sq = p.rank * 9 + p.file;
+    const target = targets.includes(sq);
+    const selected = sel === p.id;
+    const held = dragging != null && p.id === heldId;
+    return (
+      <g
+        key={p.id}
+        className={`xq-piece ${selected ? "is-sel" : ""} ${mine ? "is-mine" : ""} ${mine || target ? "is-live" : ""} ${held ? "is-drag" : ""} ${sq === over ? "is-over" : ""}`}
+        style={{ transform: held ? `translate(${dragging.x}px, ${dragging.y}px)` : `translate(${px(p.file, p.rank)}px, ${py(p.file, p.rank)}px)` }}
+        onKeyDown={mine || target ? keyed(p.file, p.rank) : undefined}
+        tabIndex={mine || target ? 0 : undefined}
+        role={mine || target ? "button" : undefined}
+        aria-label={`${pieceTitle(p)}${target ? " — ăn quân này" : mine ? " — chọn quân này" : ""}`}
+      >
+        {owned && !selected && <circle r={R + 3.5} className="xq-mine" />}
+        <g className="xq-lift">
+          <PieceFace v={pieceValue(p)} script={script} />
+        </g>
+      </g>
+    );
+  };
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={`xq ${canPlay ? "can-play" : ""}`} role="group" aria-label={`Bàn cờ tướng nhập vai${canPlay ? " — đến lượt bạn" : ""}`}>
-      <rect width={W} height={H} rx={12} className="xq-bg" onClick={() => setPicked(null)} />
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      className={`xq ${canPlay ? "can-play" : ""} ${dragging ? "is-dragging" : ""}`}
+      role="group"
+      aria-label={`Bàn cờ tướng nhập vai${canPlay ? " — đến lượt bạn" : ""}`}
+      {...handlers}
+    >
+      <rect width={W} height={H} rx={12} className="xq-bg" />
       <XiangqiGrid script={script} />
       {lastFrom && <circle cx={px(lastFrom.file, lastFrom.rank)} cy={py(lastFrom.file, lastFrom.rank)} r={7} className="xq-from" />}
       {lastTo && <circle cx={px(lastTo.file, lastTo.rank)} cy={py(lastTo.file, lastTo.rank)} r={R + 3.5} className="xq-last" />}
       {danger && <circle cx={px(danger.file, danger.rank)} cy={py(danger.file, danger.rank)} r={R + 4} className="xq-danger" />}
-      {alive.map((p) => {
-        const mine = movable.has(p.id);
-        const owned = mySet.has(p.id);
-        const target = targets.includes(p.rank * 9 + p.file);
-        const selected = sel === p.id;
-        return (
-          <g
-            key={p.id}
-            className={`xq-piece ${selected ? "is-sel" : ""} ${mine || target ? "is-live" : ""}`}
-            style={{ transform: `translate(${px(p.file, p.rank)}px, ${py(p.file, p.rank)}px)` }}
-            onClick={mine || target ? () => chooseSquare(p.file, p.rank) : undefined}
-            onKeyDown={mine || target ? keyed(p.file, p.rank) : undefined}
-            tabIndex={mine || target ? 0 : undefined}
-            role={mine || target ? "button" : undefined}
-            aria-label={`${pieceTitle(p)}${target ? " — ăn quân này" : mine ? " — chọn quân này" : ""}`}
-          >
-            {owned && !selected && <circle r={R + 3.5} className="xq-mine" />}
-            <g className="xq-lift">
-              <PieceFace v={pieceValue(p)} script={script} />
-            </g>
-          </g>
-        );
-      })}
+      {alive.filter((p) => p.id !== heldId).map(renderPiece)}
       {targets.map((to) => {
         const file = to % 9;
         const rank = (to / 9) | 0;
         if (bySq.has(`${file},${rank}`)) {
-          return <circle key={to} cx={px(file, rank)} cy={py(file, rank)} r={R + 3} className="xq-hit is-take" pointerEvents="none" />;
+          return <circle key={to} cx={px(file, rank)} cy={py(file, rank)} r={R + 3} className={`xq-hit is-take ${to === over ? "is-over" : ""}`} pointerEvents="none" />;
         }
         return (
-          <g key={to} onClick={() => chooseSquare(file, rank)} onKeyDown={keyed(file, rank)} tabIndex={0} role="button" aria-label="Đi tới đây" className="xq-target">
+          <g key={to} onKeyDown={keyed(file, rank)} tabIndex={0} role="button" aria-label="Đi tới đây" className={`xq-target ${to === over ? "is-over" : ""}`}>
             <circle cx={px(file, rank)} cy={py(file, rank)} r={C / 2} fill="transparent" />
             <circle cx={px(file, rank)} cy={py(file, rank)} r={6} className="xq-dot" />
           </g>
         );
       })}
+      {alive.filter((p) => p.id === heldId).map(renderPiece)}
     </svg>
   );
 }
